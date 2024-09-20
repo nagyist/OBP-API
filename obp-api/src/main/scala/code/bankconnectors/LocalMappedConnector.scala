@@ -3782,6 +3782,10 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     CustomerX.customerProvider.vend.getCustomersByCustomerPhoneNumber(bankId, phoneNumber) map {
       (_, callContext)
     }
+  override def getCustomersByCustomerLegalName(bankId: BankId, legalName: String, callContext: Option[CallContext]): OBPReturnType[Box[List[Customer]]] =
+    CustomerX.customerProvider.vend.getCustomersByCustomerLegalName(bankId, legalName) map {
+      (_, callContext)
+    }
 
   override def getCustomerAddress(customerId: String, callContext: Option[CallContext]): OBPReturnType[Box[List[CustomerAddress]]] =
     CustomerAddressX.address.vend.getAddress(customerId) map {

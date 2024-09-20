@@ -19,6 +19,15 @@ import net.liftweb.util.Helpers.tryo
 import org.scalatest.Tag
 import org.scalatestplus.selenium.HtmlUnit
 
+// This tests cover User Invitation Flow regarding APIs and GUI pages
+// Tests for GUI flow cover:
+// 1) fulfilling user invitation form and submitting
+//    the link for a form is something like this: (http://localhost:8016/user-invitation?id=7847276804754111643)
+//    and it is received via email
+//    use the props "user_invitation_link_base_URL" as a reference to a related code
+// 2) set a new password at password form and submit
+//    the link for a form is something like this: (http://localhost:8016/user_mgt/reset_password/IXIU0TVDUCKOH3RWEJF0XSSHNKSEFTQT?action=set)
+// 3) redirect to a home page and check the user is logged in
 class UserInvitationApiAndGuiTest extends V400ServerSetup {
   /**
     * Test tags
@@ -107,7 +116,7 @@ class UserInvitationApiAndGuiTest extends V400ServerSetup {
           button.isEnabled
       }
     }
-    def submitForm(loginPage: String, invitation: UserInvitation): Box[Boolean]= {
+    def checkUserInvitationGuiFlow(loginPage: String, invitation: UserInvitation): Box[Boolean]= {
       tryo {
         go.to(loginPage)
         checkbox("consent_for_collecting_checkbox").select
@@ -142,7 +151,7 @@ class UserInvitationApiAndGuiTest extends V400ServerSetup {
 
 
   }
-  
+
 
   feature(s"test $ApiEndpoint1 version $VersionOfApi - Unauthorized access") {
     scenario("We will call the endpoint without user credentials", ApiEndpoint1, VersionOfApi) {
@@ -204,7 +213,7 @@ class UserInvitationApiAndGuiTest extends V400ServerSetup {
       b.checkSubmitButtonEnabled(pageUrl) should equal(true)
 
       // Submit form
-      b.submitForm(pageUrl, invitation) should equal(true)
+      b.checkUserInvitationGuiFlow(pageUrl, invitation) should equal(true)
 
       // Clean the resources
       b.closeAndQuit()

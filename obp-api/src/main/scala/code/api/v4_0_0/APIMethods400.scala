@@ -3573,7 +3573,9 @@ trait APIMethods400 extends MdcLoggable {
         UserCustomerLinksNotFoundForUser,
         UnknownError
       ),
-      List(apiTagCustomer, apiTagKyc))
+      List(apiTagCustomer, apiTagKyc),
+      Some(List(canGetCustomer))
+    )
 
     lazy val getCustomersByCustomerPhoneNumber : OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "search"  :: "customers" :: "mobile-phone-number" ::  Nil JsonPost  json -> _ => {
@@ -3585,7 +3587,7 @@ trait APIMethods400 extends MdcLoggable {
             }
             (customers, callContext) <- NewStyle.function.getCustomersByCustomerPhoneNumber(bankId, postedData.mobile_phone_number , cc.callContext)
           } yield {
-            (JSONFactory300.createCustomersJson(customers), HttpCode.`201`(callContext))
+            (JSONFactory300.createCustomersJson(customers), HttpCode.`200`(callContext))
           }
       }
     }

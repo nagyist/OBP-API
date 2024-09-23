@@ -1607,8 +1607,8 @@ trait APIMethods510 {
       nameOf(getCustomersByLegalName),
       "POST",
       "/banks/BANK_ID/customers/legal-name",
-      "Get Customer by Legal Name",
-      s"""Gets the Customer specified by Legal Name.
+      "Get Customers by Legal Name",
+      s"""Gets the Customers specified by Legal Name.
          |
          |
          |${authenticationRequiredMessage(true)}

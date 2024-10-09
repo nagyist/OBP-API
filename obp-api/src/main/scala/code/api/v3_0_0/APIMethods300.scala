@@ -528,11 +528,11 @@ trait APIMethods300 {
          |
          |optional request parameters for filter with attributes
          |URL params example:
-         |  /banks/some-bank-id/firehose/accounts/views/owner?manager=John&count=8
+         |  /banks/some-bank-id/firehose/accounts/views/owner?&limit=50&offset=1
          |
          |to invalid Browser cache, add timestamp query parameter as follow, the parameter name must be `_timestamp_`
          |URL params example:
-         |  `/banks/some-bank-id/firehose/accounts/views/owner?manager=John&count=8&_timestamp_=1596762180358`
+         |  `/banks/some-bank-id/firehose/accounts/views/owner?&limit=50&offset=1&_timestamp_=1596762180358`
          |
          |${authenticationRequiredMessage(true)}
          |

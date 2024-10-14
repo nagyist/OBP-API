@@ -73,6 +73,8 @@ class WebUI extends MdcLoggable{
       "#es a [style]"  #> s"display: ${displayLanguage("es_ES")}" &
       "#locale_separator [style]"  #> {if(supportedLocales.size == 1) "display: none" else ""} &
       "#en a [style]"  #> s"display: ${displayLanguage("en_GB")}" &
+      "#locale_separator_ro_RO [style]" #> {if (supportedLocales.size < 3) "display: none" else ""} &
+      "#ro a [style]" #> s"display: ${displayLanguage("ro_RO")}" &
       s"#${language.toLowerCase()} *" #> scala.xml.Unparsed(s"<b>${language.toUpperCase()}</b>")
     
   }

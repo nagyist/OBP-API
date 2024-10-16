@@ -930,50 +930,7 @@ object AkkaConnector_vDec2018 extends Connector with AkkaConnectorActorInit {
         val response: Future[Box[InBound]] = (southSideActor ? req).mapTo[InBound].recoverWith(recoverFunction).map(Box !! _) 
         response.map(convertToTuple[InboundExternalUser](callContext))        
   }
-          
-  messageDocs += getBankAccountOldDoc
-  def getBankAccountOldDoc = MessageDoc(
-    process = "obp.getBankAccountOld",
-    messageFormat = messageFormat,
-    description = "Get Bank Account Old",
-    outboundTopic = None,
-    inboundTopic = None,
-    exampleOutboundMessage = (
-     OutBoundGetBankAccountOld(bankId=BankId(bankIdExample.value),
-      accountId=AccountId(accountIdExample.value))
-    ),
-    exampleInboundMessage = (
-     InBoundGetBankAccountOld(status=MessageDocsSwaggerDefinitions.inboundStatus,
-      data= BankAccountCommons(accountId=AccountId(accountIdExample.value),
-      accountType=accountTypeExample.value,
-      balance=BigDecimal(balanceExample.value),
-      currency=currencyExample.value,
-      name=bankAccountNameExample.value,
-      label=labelExample.value,
-      number=bankAccountNumberExample.value,
-      bankId=BankId(bankIdExample.value),
-      lastUpdate=toDate(bankAccountLastUpdateExample),
-      branchId=branchIdExample.value,
-      accountRoutings=List( AccountRouting(scheme=accountRoutingSchemeExample.value,
-      address=accountRoutingAddressExample.value)),
-      accountRules=List( AccountRule(scheme=accountRuleSchemeExample.value,
-      value=accountRuleValueExample.value)),
-      accountHolder=bankAccountAccountHolderExample.value,
-      attributes=Some(List( Attribute(name=attributeNameExample.value,
-      `type`=attributeTypeExample.value,
-      value=attributeValueExample.value)))))
-    ),
-    adapterImplementation = Some(AdapterImplementation("- Core", 1))
-  )
-
-  override def getBankAccountOld(bankId: BankId, accountId: AccountId): Box[BankAccount] = {
-        import com.openbankproject.commons.dto.{InBoundGetBankAccountOld => InBound, OutBoundGetBankAccountOld => OutBound}  
-        val callContext: Option[CallContext] = None
-        val req = OutBound(bankId, accountId)
-        val response: Future[Box[InBound]] = (southSideActor ? req).mapTo[InBound].recoverWith(recoverFunction).map(Box !! _) 
-        response.map(convertToTuple[BankAccountCommons](callContext))        
-  }
-          
+  
   messageDocs += getBankAccountByIbanDoc
   def getBankAccountByIbanDoc = MessageDoc(
     process = "obp.getBankAccountByIban",

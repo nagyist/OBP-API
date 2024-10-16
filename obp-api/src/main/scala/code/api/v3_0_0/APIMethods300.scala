@@ -577,7 +577,7 @@ trait APIMethods300 {
               //2 each bankAccount object find the proper view.
               //3 use view and user to moderate the bankaccount object.
               bankIdAccountId <- availableBankIdAccountIdList2
-              bankAccount <- Connector.connector.vend.getBankAccountOld(bankIdAccountId.bankId, bankIdAccountId.accountId) ?~! s"$BankAccountNotFound Current Bank_Id(${bankIdAccountId.bankId}), Account_Id(${bankIdAccountId.accountId}) "
+              (bankAccount, callContext) <- Connector.connector.vend.getBankAccountLegacy(bankIdAccountId.bankId, bankIdAccountId.accountId, callContext) ?~! s"$BankAccountNotFound Current Bank_Id(${bankIdAccountId.bankId}), Account_Id(${bankIdAccountId.accountId}) "
               moderatedAccount <- bankAccount.moderatedBankAccount(view, bankIdAccountId, Full(u), callContext) //Error handling is in lower method
             } yield {
               moderatedAccount

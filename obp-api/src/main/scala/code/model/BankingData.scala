@@ -422,7 +422,7 @@ case class BankAccountExtended(val bankAccount: BankAccount) extends MdcLoggable
 object BankAccountX {
 
   def apply(bankId: BankId, accountId: AccountId) : Box[BankAccount] = {
-    Connector.connector.vend.getBankAccountOld(bankId, accountId)
+    Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).map(_._1)
   }
 
   def apply(bankId: BankId, accountId: AccountId, callContext: Option[CallContext]) : Box[(BankAccount,Option[CallContext])] = {

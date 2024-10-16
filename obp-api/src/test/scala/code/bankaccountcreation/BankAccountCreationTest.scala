@@ -75,7 +75,7 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       newBank.nationalIdentifier should equal(bankNationalIdentifier)
 
       And("An account should now exist, with the correct parameters")
-      val foundAccountBox = Connector.connector.vend.getBankAccountOld(newBank.bankId, returnedAccount.accountId)
+      val foundAccountBox = Connector.connector.vend.getBankAccountLegacy(newBank.bankId, returnedAccount.accountId, None).map(_._1)
       foundAccountBox.isDefined should equal(true)
       val foundAccount = foundAccountBox.openOrThrowException(attemptedToOpenAnEmptyBox)
 
@@ -109,7 +109,7 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       allBanksAfter(0).nationalIdentifier should equal(existingBank.nationalIdentifier)
 
       And("An account should now exist, with the correct parameters")
-      val foundAccountBox = Connector.connector.vend.getBankAccountOld(existingBank.bankId, returnedAccount.accountId)
+      val foundAccountBox = Connector.connector.vend.getBankAccountLegacy(existingBank.bankId, returnedAccount.accountId, None).map(_._1)
       foundAccountBox.isDefined should equal(true)
       val foundAccount = foundAccountBox.openOrThrowException(attemptedToOpenAnEmptyBox)
 
@@ -144,7 +144,7 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       ) 
 
       Then("No account is created")
-      Connector.connector.vend.getBankAccountOld(bankId, accountId).isDefined should equal(false)
+      Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).isDefined should equal(false)
 
     }
 
@@ -158,7 +158,7 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
                                                         "", List.empty )
 
       Then("An account with the proper parameters should be created")
-      val createdAccBox = Connector.connector.vend.getBankAccountOld(bankId, accountId)
+      val createdAccBox = Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).map(_._1)
       createdAccBox.isDefined should be(true)
       val createdAcc = createdAccBox.openOrThrowException(attemptedToOpenAnEmptyBox)
 
@@ -180,7 +180,7 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
                                                         "", List.empty)
 
       Then("An account with the proper parameters should be created")
-      val createdAccBox = Connector.connector.vend.getBankAccountOld(bankId, accountId)
+      val createdAccBox = Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).map(_._1)
       createdAccBox.isDefined should be(true)
       val createdAcc = createdAccBox.openOrThrowException(attemptedToOpenAnEmptyBox)
 

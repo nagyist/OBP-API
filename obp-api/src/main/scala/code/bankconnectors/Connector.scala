@@ -557,11 +557,7 @@ trait Connector extends MdcLoggable {
   @deprecated("Now move it to AuthUser.updateUserAccountViews","17-07-2017")
   def updateUserAccountViewsOld(user: ResourceUser) = {}
 
-  //This is old one, no callContext there. only for old style endpoints.
-  def getBankAccountOld(bankId : BankId, accountId : AccountId) : Box[BankAccount]= {
-    getBankAccountLegacy(bankId, accountId, None).map(_._1)
-  }
-
+  
   //This one just added the callContext in parameters.
   def getBankAccountLegacy(bankId : BankId, accountId : AccountId, callContext: Option[CallContext]) : Box[(BankAccount, Option[CallContext])]= Failure(setUnimplementedError(nameOf(getBankAccountLegacy _)))
   
@@ -795,9 +791,9 @@ trait Connector extends MdcLoggable {
   def makePayment(initiator : User, fromAccountUID : BankIdAccountId, toAccountUID : BankIdAccountId,
                   amt : BigDecimal, description : String, transactionRequestType: TransactionRequestType, callContext: Option[CallContext]) : Box[TransactionId] = {
     for{
-      fromAccount <- getBankAccountOld(fromAccountUID.bankId, fromAccountUID.accountId) ?~
+      (fromAccount, callContext) <- getBankAccountLegacy(fromAccountUID.bankId, fromAccountUID.accountId,callContext)?~
         s"$BankAccountNotFound  Account ${fromAccountUID.accountId} not found at bank ${fromAccountUID.bankId}"
-      toAccount <- getBankAccountOld(toAccountUID.bankId, toAccountUID.accountId) ?~
+      (toAccount, callContext)<- getBankAccountLegacy(toAccountUID.bankId, toAccountUID.accountId, callContext) ?~
         s"$BankAccountNotFound Account ${toAccountUID.accountId} not found at bank ${toAccountUID.bankId}"
       sameCurrency <- booleanToBox(fromAccount.currency == toAccount.currency, {
         s"$InvalidTransactionRequestCurrency, Cannot send payment to account with different currency (From ${fromAccount.currency} to ${toAccount.currency}"
@@ -881,9 +877,9 @@ trait Connector extends MdcLoggable {
 
     //create a new transaction request
     val request = for {
-      fromAccountType <- getBankAccountOld(fromAccount.bankId, fromAccount.accountId) ?~
+      (fromAccountType,callContext) <- getBankAccountLegacy(fromAccount.bankId, fromAccount.accountId, callContext) ?~
         s"account ${fromAccount.accountId} not found at bank ${fromAccount.bankId}"
-      toAccountType <- getBankAccountOld(toAccount.bankId, toAccount.accountId) ?~
+      (toAccountType,callContext) <- getBankAccountLegacy(toAccount.bankId, toAccount.accountId, callContext) ?~
         s"account ${toAccount.accountId} not found at bank ${toAccount.bankId}"
       rawAmt <- tryo { BigDecimal(body.value.amount) } ?~! s"amount ${body.value.amount} not convertible to number"
       sameCurrency <- booleanToBox(fromAccount.currency == toAccount.currency, {
@@ -942,8 +938,8 @@ trait Connector extends MdcLoggable {
 
     // Always create a new Transaction Request
     val request = for {
-      fromAccountType <- getBankAccountOld(fromAccount.bankId, fromAccount.accountId) ?~ s"account ${fromAccount.accountId} not found at bank ${fromAccount.bankId}"
-      toAccountType <- getBankAccountOld(toAccount.bankId, toAccount.accountId) ?~ s"account ${toAccount.accountId} not found at bank ${toAccount.bankId}"
+      (fromAccountType,callContext) <- getBankAccountLegacy(fromAccount.bankId, fromAccount.accountId, callContext) ?~ s"account ${fromAccount.accountId} not found at bank ${fromAccount.bankId}"
+      (toAccountType, callContext) <- getBankAccountLegacy(toAccount.bankId, toAccount.accountId, callContext) ?~ s"account ${toAccount.accountId} not found at bank ${toAccount.bankId}"
       rawAmt <- tryo { BigDecimal(body.value.amount) } ?~! s"amount ${body.value.amount} not convertible to number"
       // isValidTransactionRequestType is checked at API layer. Maybe here too.
       isPositiveAmtToSend <- booleanToBox(rawAmt > BigDecimal("0"), s"Can't send a payment with a value of 0 or less. (${rawAmt})")

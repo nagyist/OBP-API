@@ -748,7 +748,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
           updateAccountTransactions(bankId, accountId)
 
-          for (account <- getBankAccountOld(bankId, accountId))
+          for ((account, callContext) <- getBankAccountLegacy(bankId, accountId, None))
             yield mappedTransactions.flatMap(_.toTransaction(account)) //each transaction will be modified by account, here we return the `class Transaction` not a trait.
         }
       }
@@ -792,7 +792,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
           val mappedTransactions = MappedTransaction.findAll(mapperParams: _*)
 
-          for (account <- getBankAccountOld(bankId, accountId))
+          for ((account, callContext) <- getBankAccountLegacy(bankId, accountId, None))
             yield mappedTransactions.flatMap(_.toTransactionCore(account)) //each transaction will be modified by account, here we return the `class Transaction` not a trait.
         }
       }
@@ -818,7 +818,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
     for {
       bank <- getMappedBank(bankId)
-      account <- getBankAccountOld(bankId, accountId).map(_.asInstanceOf[MappedBankAccount])
+      account <- getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount])
     } {
       Future {
         val useMessageQueue = APIUtil.getPropsAsBoolValue("messageQueue.updateBankAccountsTransaction", false)
@@ -902,10 +902,11 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       (Full(
         bankIdAccountIds.map(
           bankIdAccountId =>
-            getBankAccountOld(
+            getBankAccountLegacy(
               bankIdAccountId.bankId,
-              bankIdAccountId.accountId
-            ).openOrThrowException(s"${ErrorMessages.BankAccountNotFound} current BANK_ID(${bankIdAccountId.bankId}) and ACCOUNT_ID(${bankIdAccountId.accountId})"))
+              bankIdAccountId.accountId,
+              callContext
+            ).map(_._1).openOrThrowException(s"${ErrorMessages.BankAccountNotFound} current BANK_ID(${bankIdAccountId.bankId}) and ACCOUNT_ID(${bankIdAccountId.accountId})"))
       ), callContext)
     }
   }
@@ -914,7 +915,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     Future {
       val accountsBalances = for {
         bankIdAccountId <- bankIdAccountIds
-        bankAccount <- getBankAccountOld(bankIdAccountId.bankId, bankIdAccountId.accountId) ?~! s"${ErrorMessages.BankAccountNotFound} current BANK_ID(${bankIdAccountId.bankId}) and ACCOUNT_ID(${bankIdAccountId.accountId})"
+        (bankAccount, callContext)<- getBankAccountLegacy(bankIdAccountId.bankId, bankIdAccountId.accountId, callContext) ?~! s"${ErrorMessages.BankAccountNotFound} current BANK_ID(${bankIdAccountId.bankId}) and ACCOUNT_ID(${bankIdAccountId.accountId})"
         accountBalance = AccountBalance(
           id = bankAccount.accountId.value,
           label = bankAccount.label,
@@ -955,7 +956,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   override def getBankAccountBalances(bankIdAccountId: BankIdAccountId, callContext: Option[CallContext]): OBPReturnType[Box[AccountBalances]] =
     Future {
        for {
-        bankAccount <- getBankAccountOld(bankIdAccountId.bankId, bankIdAccountId.accountId) ?~! s"${ErrorMessages.BankAccountNotFound} current BANK_ID(${bankIdAccountId.bankId}) and ACCOUNT_ID(${bankIdAccountId.accountId})"
+        (bankAccount, callContext)<- getBankAccountLegacy(bankIdAccountId.bankId, bankIdAccountId.accountId, callContext) ?~! s"${ErrorMessages.BankAccountNotFound} current BANK_ID(${bankIdAccountId.bankId}) and ACCOUNT_ID(${bankIdAccountId.accountId})"
         accountBalances = AccountBalances(
           id = bankAccount.accountId.value,
           label = bankAccount.label,
@@ -983,9 +984,11 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     Full(
       bankIdAccountIds
         .map(bankIdAccountId =>
-          getBankAccountOld(
+          getBankAccountLegacy(
             bankIdAccountId.bankId,
-            bankIdAccountId.accountId)
+            bankIdAccountId.accountId,
+            callContext
+          ).map(_._1)
             .openOrThrowException(s"${ErrorMessages.BankAccountNotFound} current BANK_ID(${bankIdAccountId.bankId}) and ACCOUNT_ID(${bankIdAccountId.accountId})"))
         .map(account =>
           CoreAccount(
@@ -1196,9 +1199,11 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     Full(
       bankIdAccountIds
         .map(bankIdAccountId =>
-          getBankAccountOld(
+          getBankAccountLegacy(
             bankIdAccountId.bankId,
-            bankIdAccountId.accountId)
+            bankIdAccountId.accountId,
+            callContext
+          ).map(_._1)
             .openOrThrowException(s"${ErrorMessages.BankAccountNotFound} current BANK_ID(${bankIdAccountId.bankId}) and ACCOUNT_ID(${bankIdAccountId.accountId})"))
         .map(account =>
           AccountHeld(
@@ -1233,7 +1238,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     */
   def createOrUpdateMappedBankAccount(bankId: BankId, accountId: AccountId, currency: String): Box[BankAccount] = {
 
-    val mappedBankAccount = getBankAccountOld(bankId, accountId).map(_.asInstanceOf[MappedBankAccount]) match {
+    val mappedBankAccount = getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount]) match {
       case Full(f) =>
         f.bank(bankId.value).theAccountId(accountId.value).accountCurrency(currency.toUpperCase).saveMe()
       case _ =>
@@ -1866,7 +1871,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     val chargePolicy = transactionRequest.charge_policy
     val fromBankId = BankId(transactionRequest.from.bank_id)
     val fromAccountId = AccountId(transactionRequest.from.account_id)
-    val fromAccount = Connector.connector.vend.getBankAccountOld(fromBankId, fromAccountId).openOrThrowException(s"$BankAccountNotFound Current Bank_Id(${fromBankId}), Account_Id(${fromAccountId}) ")
+    val (fromAccount, _) = Connector.connector.vend.getBankAccountLegacy(fromBankId, fromAccountId, callContext).openOrThrowException(s"$BankAccountNotFound Current Bank_Id(${fromBankId}), Account_Id(${fromAccountId}) ")
     val transactionRequestCommonBody = TransactionRequestCommonBodyJSONCommons(
       AmountOfMoneyJsonV121(
         transactionRequest.body.value.currency,
@@ -2510,7 +2515,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                                           branchId: String,
                                           accountRoutings: List[AccountRouting],
                                         ): Box[BankAccount] = {
-    getBankAccountOld(bankId, accountId) match {
+    getBankAccountLegacy(bankId, accountId, None).map(_._1) match {
       case Full(a) =>
         logger.debug(s"account with id $accountId at bank with id $bankId already exists. No need to create a new one.")
         Full(a)
@@ -2552,7 +2557,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     //this will be Full(true) if everything went well
     val result = for {
       bank <- getMappedBank(bankId)
-      account <- getBankAccountOld(bankId, accountId).map(_.asInstanceOf[MappedBankAccount])
+      account <- getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount])
     } yield {
       account.accountBalance(Helper.convertToSmallestCurrencyUnits(newBalance, account.currency)).save
       setBankAccountLastUpdated(bank.nationalIdentifier, account.number, now).openOrThrowException(attemptedToOpenAnEmptyBox)
@@ -2668,7 +2673,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   override def updateAccountLabel(bankId: BankId, accountId: AccountId, label: String): Box[Boolean] = {
     //this will be Full(true) if everything went well
     val result = for {
-      acc <- getBankAccountOld(bankId, accountId).map(_.asInstanceOf[MappedBankAccount])
+      acc <- getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount])
       bank <- getMappedBank(bankId)
     } yield {
       acc.accountLabel(label).save
@@ -3426,7 +3431,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       )
       //If it is empty, return the default value : "0.0000000" and set the BankAccount currency
       case _ =>
-        val fromAccountCurrency: String = getBankAccountOld(bankId, accountId).openOrThrowException(attemptedToOpenAnEmptyBox).currency
+        val fromAccountCurrency: String = getBankAccountLegacy(bankId, accountId, None).map(_._1).openOrThrowException(attemptedToOpenAnEmptyBox).currency
         TransactionRequestTypeChargeMock(transactionRequestType.value, bankId.value, fromAccountCurrency, "0.00", "Warning! Default value!")
     }
 
@@ -4707,13 +4712,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     val counterparties = getTransactionsLegacy(bankId, accountId, None).map(_._1).toList.flatten.map(_.otherAccount)
     Full(counterparties.toSet.toList) //there are many transactions share the same Counterparty, so we need filter the same ones.
   }
-
-  //This is old one, no callContext there. only for old style endpoints.
-  override def getBankAccountOld(bankId: BankId, accountId: AccountId): Box[BankAccount] = {
-    getBankAccountLegacy(bankId, accountId, None).map(_._1)
-  }
-
-
+  
   override def getTransactions(bankId: BankId, accountId: AccountId, callContext: Option[CallContext], queryParams: List[OBPQueryParam] = Nil): OBPReturnType[Box[List[Transaction]]] = {
     val result: Box[(List[Transaction], Option[CallContext])] = getTransactionsLegacy(bankId, accountId, callContext, queryParams)
     Future(result.map(_._1), result.map(_._2).getOrElse(callContext))
@@ -4739,9 +4738,9 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                            amt: BigDecimal, description: String, transactionRequestType: TransactionRequestType, 
                            callContext: Option[CallContext]): Box[TransactionId] = {
     for {
-      fromAccount <- getBankAccountOld(fromAccountUID.bankId, fromAccountUID.accountId) ?~
+      (fromAccount, callContext) <- getBankAccountLegacy(fromAccountUID.bankId, fromAccountUID.accountId,callContext)?~
         s"$BankAccountNotFound  Account ${fromAccountUID.accountId} not found at bank ${fromAccountUID.bankId}"
-      toAccount <- getBankAccountOld(toAccountUID.bankId, toAccountUID.accountId) ?~
+      (toAccount, callContext)<- getBankAccountLegacy(toAccountUID.bankId, toAccountUID.accountId, callContext) ?~
         s"$BankAccountNotFound Account ${toAccountUID.accountId} not found at bank ${toAccountUID.bankId}"
       sameCurrency <- booleanToBox(fromAccount.currency == toAccount.currency, {
         s"$InvalidTransactionRequestCurrency, Cannot send payment to account with different currency (From ${fromAccount.currency} to ${toAccount.currency}"
@@ -4796,9 +4795,9 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
     //create a new transaction request
     val request = for {
-      fromAccountType <- getBankAccountOld(fromAccount.bankId, fromAccount.accountId) ?~
+      (fromAccountType,callContext) <- getBankAccountLegacy(fromAccount.bankId, fromAccount.accountId, callContext) ?~
         s"account ${fromAccount.accountId} not found at bank ${fromAccount.bankId}"
-      toAccountType <- getBankAccountOld(toAccount.bankId, toAccount.accountId) ?~
+      (toAccountType, callContext) <- getBankAccountLegacy(toAccount.bankId, toAccount.accountId, callContext) ?~
         s"account ${toAccount.accountId} not found at bank ${toAccount.bankId}"
       rawAmt <- tryo {
         BigDecimal(body.value.amount)
@@ -4858,8 +4857,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
     // Always create a new Transaction Request
     val request = for {
-      fromAccountType <- getBankAccountOld(fromAccount.bankId, fromAccount.accountId) ?~ s"account ${fromAccount.accountId} not found at bank ${fromAccount.bankId}"
-      toAccountType <- getBankAccountOld(toAccount.bankId, toAccount.accountId) ?~ s"account ${toAccount.accountId} not found at bank ${toAccount.bankId}"
+      (fromAccountType,callContext) <- getBankAccountLegacy(fromAccount.bankId, fromAccount.accountId, callContext) ?~ s"account ${fromAccount.accountId} not found at bank ${fromAccount.bankId}"
+      (toAccountType, callContext) <- getBankAccountLegacy(toAccount.bankId, toAccount.accountId, callContext) ?~ s"account ${toAccount.accountId} not found at bank ${toAccount.bankId}"
       rawAmt <- tryo {
         BigDecimal(body.value.amount)
       } ?~! s"amount ${body.value.amount} not convertible to number"
@@ -5338,7 +5337,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   override def getTransactionRequests(initiator: User, fromAccount: BankAccount, callContext: Option[CallContext]): Box[List[TransactionRequest]] = {
     val transactionRequests =
       for {
-        fromAccount <- getBankAccountOld(fromAccount.bankId, fromAccount.accountId) ?~
+        (fromAccount, callContext) <- getBankAccountLegacy(fromAccount.bankId, fromAccount.accountId, callContext) ?~
           s"account ${fromAccount.accountId} not found at bank ${fromAccount.bankId}"
         transactionRequests <- getTransactionRequestsImpl(fromAccount)
       } yield transactionRequests

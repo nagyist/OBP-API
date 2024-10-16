@@ -42,7 +42,7 @@ object AdapterStubBuilder {
 
     val codeList = messageDocs
       //these are only for debugging.
-//      .filterNot(_.process.equals("obp.getBankAccountOld"))//getBanks is the template code, already in the code.
+//      .filterNot(_.process.equals("obp.getCustomers"))//getBanks is the template code, already in the code.
 //      .filter(_.process.equals("obp.getCustomers"))//getBanks is the template code, already in the code.
 //      .take(80)
 //      .slice(91,1000)

@@ -829,34 +829,7 @@ object AkkaConnector_vDec2018 extends Connector with AkkaConnectorActorInit {
         val response: Future[Box[InBound]] = (southSideActor ? req).mapTo[InBound].recoverWith(recoverFunction).map(Box !! _) 
         response.map(convertToTuple[ChallengeCommons](callContext))        
   }
-          
-  messageDocs += getUserDoc
-  def getUserDoc = MessageDoc(
-    process = "obp.getUser",
-    messageFormat = messageFormat,
-    description = "Get User",
-    outboundTopic = None,
-    inboundTopic = None,
-    exampleOutboundMessage = (
-     OutBoundGetUser(name=userNameExample.value,
-      password=passwordExample.value)
-    ),
-    exampleInboundMessage = (
-     InBoundGetUser(status=MessageDocsSwaggerDefinitions.inboundStatus,
-      data= InboundUser(email=emailExample.value,
-      password=passwordExample.value,
-      displayName=displayNameExample.value))
-    ),
-    adapterImplementation = Some(AdapterImplementation("- Core", 1))
-  )
-
-  override def getUser(name: String, password: String): Box[InboundUser] = {
-        import com.openbankproject.commons.dto.{InBoundGetUser => InBound, OutBoundGetUser => OutBound}  
-        val callContext: Option[CallContext] = None
-        val req = OutBound(name, password)
-        val response: Future[Box[InBound]] = (southSideActor ? req).mapTo[InBound].recoverWith(recoverFunction).map(Box !! _) 
-        response.map(convertToTuple[InboundUser](callContext))        
-  }
+  
           
   messageDocs += checkExternalUserCredentialsDoc
   def checkExternalUserCredentialsDoc = MessageDoc(

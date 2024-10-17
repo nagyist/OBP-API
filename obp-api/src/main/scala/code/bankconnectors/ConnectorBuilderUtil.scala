@@ -464,8 +464,7 @@ object ConnectorBuilderUtil {
     //      "getDynamicEndpoint",
     //      "getDynamicEndpoints",
     
-    //    "checkExternalUserCredentials",// this is not a standard connector method. 
-    //    "getUser", // this is not a standard connector method.
+    //    "checkExternalUserCredentials",// this is not a standard connector method.
     //    "checkExternalUserExists", // this is not a standard connector method. 
   ).distinct
 }

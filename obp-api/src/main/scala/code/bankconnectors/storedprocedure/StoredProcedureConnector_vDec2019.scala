@@ -889,35 +889,8 @@ trait StoredProcedureConnector_vDec2019 extends Connector with MdcLoggable {
         val response: Future[Box[InBound]] = sendRequest[InBound]("obp_get_bank_accounts_for_user", req, callContext)
         response.map(convertToTuple[List[InboundAccountCommons]](callContext))        
   }
-          
-  messageDocs += getUserDoc
-  def getUserDoc = MessageDoc(
-    process = "obp.getUser",
-    messageFormat = messageFormat,
-    description = "Get User",
-    outboundTopic = None,
-    inboundTopic = None,
-    exampleOutboundMessage = (
-     OutBoundGetUser(name=userNameExample.value,
-      password=passwordExample.value)
-    ),
-    exampleInboundMessage = (
-     InBoundGetUser(status=MessageDocsSwaggerDefinitions.inboundStatus,
-      data= InboundUser(email=emailExample.value,
-      password=passwordExample.value,
-      displayName=displayNameExample.value))
-    ),
-    adapterImplementation = Some(AdapterImplementation("- Core", 1))
-  )
-
-  override def getUser(name: String, password: String): Box[InboundUser] = {
-        import com.openbankproject.commons.dto.{InBoundGetUser => InBound, OutBoundGetUser => OutBound}  
-        val callContext: Option[CallContext] = None
-        val req = OutBound(name, password)
-        val response: Future[Box[InBound]] = sendRequest[InBound]("obp_get_user", req, callContext)
-        response.map(convertToTuple[InboundUser](callContext))        
-  }
-          
+  
+  
   messageDocs += checkExternalUserCredentialsDoc
   def checkExternalUserCredentialsDoc = MessageDoc(
     process = "obp.checkExternalUserCredentials",

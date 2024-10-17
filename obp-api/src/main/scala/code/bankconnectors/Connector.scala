@@ -524,15 +524,6 @@ trait Connector extends MdcLoggable {
   }
 
   /**
-    * This method is for get User from external, eg kafka/obpjvm...
-    *  getUserId  --> externalUserHelper--> getUserFromConnector --> getUser
-    * @param name
-    * @param password
-    * @return
-    */
-  def getUser(name: String, password: String): Box[InboundUser]= Failure(setUnimplementedError(nameOf(getUser _)))
-  
-  /**
     * This method is for checking external User via connector
     * @param username
     * @param password
@@ -546,16 +537,6 @@ trait Connector extends MdcLoggable {
     * @return
     */
   def checkExternalUserExists(username: String, callContext: Option[CallContext]): Box[InboundExternalUser] = Failure(setUnimplementedError(nameOf(checkExternalUserExists _)))
-
-  /**
-    * This is a helper method
-    * for remote user(means the user will get from kafka) to update the views, accountHolders for OBP side
-    * It depends different use cases, normally (also see it in KafkaMappedConnector_vJune2017.scala)
-    *
-    * @param user the user is from remote side
-    */
-  @deprecated("Now move it to AuthUser.updateUserAccountViews","17-07-2017")
-  def updateUserAccountViewsOld(user: ResourceUser) = {}
 
   
   //This one just added the callContext in parameters.

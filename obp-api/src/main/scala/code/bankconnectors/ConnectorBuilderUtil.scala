@@ -382,7 +382,6 @@ object ConnectorBuilderUtil {
    * these connector methods have special parameter or return type
    */
   val specialMethods = List(
-    "getCounterparty",
     "getPhysicalCards",
     "makePayment",
     "makePaymentv200",
@@ -400,7 +399,6 @@ object ConnectorBuilderUtil {
     "createBankAndAccount",
     "createSandboxBankAccount",
     "accountExists",
-    "removeAccount",
     "getMatchingTransactionCount",
     "updateAccountBalance",
     "setBankAccountLastUpdated",

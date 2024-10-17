@@ -2442,18 +2442,16 @@ trait APIMethods310 {
             product <- NewStyle.function.tryons(failMsg, 400, callContext) {
               json.extract[PostPutProductJsonV310]
             }
-            parentProductCode <- product.parent_product_code.trim.nonEmpty match {
+            (parentProduct,callContext) <- product.parent_product_code.trim.nonEmpty match {
               case false => 
-                Future(Empty)
+                Future((Empty,callContext))
               case true =>
-                Future(Connector.connector.vend.getProduct(bankId, ProductCode(product.parent_product_code))) map {
-                  getFullBoxOrFail(_, callContext, ParentProductNotFoundByProductCode + " {" + product.parent_product_code + "}", 400)
-                }
+                NewStyle.function.getProduct(bankId, ProductCode(product.parent_product_code), callContext).map(product=> (Full(product._1), callContext))
             }
             success <- Future(Connector.connector.vend.createOrUpdateProduct(
               bankId = bankId.value,
               code = productCode.value,
-              parentProductCode = parentProductCode.map(_.code.value).toOption,
+              parentProductCode = parentProduct.map(_.code.value).toOption,
               name = product.name,
               category = product.category,
               family = product.family,
@@ -2516,9 +2514,7 @@ trait APIMethods310 {
                 case true => anonymousAccess(cc)
               }
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
-            product <- Future(Connector.connector.vend.getProduct(bankId, productCode)) map {
-              unboxFullOrFail(_, callContext, ProductNotFoundByProductCode)
-            }
+            (product, callContext)<- NewStyle.function.getProduct(bankId, productCode, callContext)
             (productAttributes, callContext) <- NewStyle.function.getProductAttributesByBankAndCode(bankId, productCode, callContext)
           } yield {
             (JSONFactory310.createProductJson(product, productAttributes), HttpCode.`200`(callContext))
@@ -2565,13 +2561,6 @@ trait APIMethods310 {
 
     lazy val getProductTree: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "product-tree" :: ProductCode(productCode) :: Nil JsonGet _ => {
-        def getProductTre(bankId : BankId, productCode : ProductCode): List[Product] = {
-          Connector.connector.vend.getProduct(bankId, productCode) match {
-            case Full(p) if p.parentProductCode.value.nonEmpty => p :: getProductTre(p.bankId, p.parentProductCode)
-            case Full(p) => List(p)
-            case _ => List()
-          }
-        }
         cc => {
           implicit val ec = EndpointContext(Some(cc))
           for {
@@ -2580,12 +2569,10 @@ trait APIMethods310 {
                 case true => anonymousAccess(cc)
               }
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
-            _ <- Future(Connector.connector.vend.getProduct(bankId, productCode)) map {
-              unboxFullOrFail(_, callContext, ProductNotFoundByProductCode)
-            }
-            product <- Future(getProductTre(bankId, productCode))
+            (_, callContext) <- NewStyle.function.getProduct(bankId, productCode, callContext)
+            (products,callContext) <- NewStyle.function.getProductTree(bankId, productCode, callContext)
           } yield {
-            (JSONFactory310.createProductTreeJson(product, productCode.value), HttpCode.`200`(callContext))
+            (JSONFactory310.createProductTreeJson(products, productCode.value), HttpCode.`200`(callContext))
           }
         }
       }
@@ -2637,9 +2624,7 @@ trait APIMethods310 {
               }
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             params = req.params.toList.map(kv => GetProductsParam(kv._1, kv._2))
-            products <- Future(Connector.connector.vend.getProducts(bankId, params)) map {
-              unboxFullOrFail(_, callContext, ProductNotFoundByProductCode)
-            }
+            (products, callContext) <- NewStyle.function.getProducts(bankId, params, callContext)
           } yield {
             (JSONFactory310.createProductsJson(products), HttpCode.`200`(callContext))
           }
@@ -2709,9 +2694,7 @@ trait APIMethods310 {
             (_, callContext) <- NewStyle.function.getBank(BankId(bankId), callContext)
             (_, callContext) <- NewStyle.function.getBankAccount(BankId(bankId), AccountId(accountId), callContext)
             _ <- NewStyle.function.hasEntitlement(bankId, u.userId, ApiRole.canCreateAccountAttributeAtOneBank, callContext)
-            _  <- Future(Connector.connector.vend.getProduct(BankId(bankId), ProductCode(productCode))) map {
-              getFullBoxOrFail(_, callContext, ProductNotFoundByProductCode + " {" + productCode + "}", 400)
-            }
+            (products, callContext) <-NewStyle.function.getProduct(BankId(bankId), ProductCode(productCode), callContext)
             failMsg = s"$InvalidJsonFormat The Json body should be the $AccountAttributeJson "
             postedData <- NewStyle.function.tryons(failMsg, 400, callContext) {
               json.extract[AccountAttributeJson]
@@ -2872,9 +2855,7 @@ trait APIMethods310 {
             product <- NewStyle.function.tryons(failMsg, 400, callContext) {
               json.extract[PutProductCollectionsV310]
             }
-            products <- Future(Connector.connector.vend.getProducts(bankId)) map {
-              connectorEmptyResponse(_, callContext)
-            }
+            (products, callContext) <- NewStyle.function.getProducts(bankId, Nil, callContext)
             _ <- Helper.booleanToFuture(ProductNotFoundByProductCode + " {" + (product.parent_product_code :: product.children_product_codes).mkString(", ") + "}", cc=callContext) {
               val existingCodes = products.map(_.code.value)
               val codes = product.parent_product_code :: product.children_product_codes

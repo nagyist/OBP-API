@@ -3261,7 +3261,7 @@ trait StoredProcedureConnector_vDec2019 extends Connector with MdcLoggable {
     adapterImplementation = Some(AdapterImplementation("- Core", 1))
   )
 
-  override def getProducts(bankId: BankId, params: List[GetProductsParam]): Box[List[Product]] = {
+  override def getProducts(bankId: BankId, params: List[GetProductsParam], callContext: Option[CallContext]): OBPReturnType[Box[List[Product]]] = {
         import com.openbankproject.commons.dto.{InBoundGetProducts => InBound, OutBoundGetProducts => OutBound}  
         val callContext: Option[CallContext] = None
         val req = OutBound(bankId, params)
@@ -3299,7 +3299,7 @@ trait StoredProcedureConnector_vDec2019 extends Connector with MdcLoggable {
     adapterImplementation = Some(AdapterImplementation("- Core", 1))
   )
 
-  override def getProduct(bankId: BankId, productCode: ProductCode): Box[Product] = {
+  override def getProduct(bankId: BankId, productCode: ProductCode, callContext: Option[CallContext]): OBPReturnType[Box[Product]] = {
         import com.openbankproject.commons.dto.{InBoundGetProduct => InBound, OutBoundGetProduct => OutBound}  
         val callContext: Option[CallContext] = None
         val req = OutBound(bankId, productCode)

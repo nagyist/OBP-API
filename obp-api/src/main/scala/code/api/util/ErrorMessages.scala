@@ -330,6 +330,8 @@ object ErrorMessages {
 
   val CreateProductError = "OBP-30030: Could not insert the Product"
   val UpdateProductError = "OBP-30031: Could not update the Product"
+  val GetProductError = "OBP-30320: Could not get the Product"
+  val GetProductTreeError = "OBP-30320: Could not get the Product Tree"
 
   val CreateCardError = "OBP-30032: Could not insert the Card"
   val UpdateCardError = "OBP-30033: Could not update the Card"

@@ -1098,7 +1098,7 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
         }
       } else if (obpMessageId.contains("get_products")) {
         val outBound = json.parse(message).extract[OutBoundGetProducts]
-        val obpMappedResponse = Future{code.bankconnectors.LocalMappedConnector.getProducts(outBound.bankId,outBound.params).head}
+        val obpMappedResponse = code.bankconnectors.LocalMappedConnector.getProducts(outBound.bankId,outBound.params, None).map(_._1.head)
         
         obpMappedResponse.map(response => InBoundGetProducts(
           status = Status("", Nil),
@@ -1111,7 +1111,7 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
         }
       } else if (obpMessageId.contains("get_product")) {
         val outBound = json.parse(message).extract[OutBoundGetProduct]
-        val obpMappedResponse = Future{code.bankconnectors.LocalMappedConnector.getProduct(outBound.bankId,outBound.productCode).head}
+        val obpMappedResponse = code.bankconnectors.LocalMappedConnector.getProduct(outBound.bankId,outBound.productCode, None).map(_._1.head)
         
         obpMappedResponse.map(response => InBoundGetProduct(
           status = Status("", Nil),
@@ -2742,7 +2742,7 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
         }
       } else if (obpMessageId.contains("get_products")) {
         val outBound = json.parse(message).extract[OutBoundGetProducts]
-        val obpMappedResponse = Future{code.bankconnectors.LocalMappedConnector.getProducts(outBound.bankId,outBound.params).head}
+        val obpMappedResponse = code.bankconnectors.LocalMappedConnector.getProducts(outBound.bankId,outBound.params, None).map(_._1.head) 
         
         obpMappedResponse.map(response => InBoundGetProducts(
           status = Status("", Nil),
@@ -2755,7 +2755,7 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
         }
       } else if (obpMessageId.contains("get_product")) {
         val outBound = json.parse(message).extract[OutBoundGetProduct]
-        val obpMappedResponse = Future{code.bankconnectors.LocalMappedConnector.getProduct(outBound.bankId,outBound.productCode).head}
+        val obpMappedResponse = code.bankconnectors.LocalMappedConnector.getProduct(outBound.bankId,outBound.productCode, None).map(_._1.head)
         
         obpMappedResponse.map(response => InBoundGetProduct(
           status = Status("", Nil),

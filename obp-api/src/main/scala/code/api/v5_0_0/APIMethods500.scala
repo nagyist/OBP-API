@@ -1631,18 +1631,16 @@ trait APIMethods500 {
             product <- NewStyle.function.tryons(failMsg, 400, callContext) {
               json.extract[PutProductJsonV500]
             }
-            parentProductCode <- product.parent_product_code.trim.nonEmpty match {
+            (parentProduct, callContext) <- product.parent_product_code.trim.nonEmpty match {
               case false =>
-                Future(Empty)
+                Future((Empty, callContext))
               case true =>
-                Future(Connector.connector.vend.getProduct(bankId, ProductCode(product.parent_product_code))) map {
-                  getFullBoxOrFail(_, callContext, ParentProductNotFoundByProductCode + " {" + product.parent_product_code + "}", 400)
-                }
+                NewStyle.function.getProduct(bankId, ProductCode(product.parent_product_code), callContext).map(product => (Full(product._1),product._2))
             }
             success <- Future(Connector.connector.vend.createOrUpdateProduct(
               bankId = bankId.value,
               code = productCode.value,
-              parentProductCode = parentProductCode.map(_.code.value).toOption,
+              parentProductCode = parentProduct.map(_.code.value).toOption,
               name = product.name,
               category = null,
               family = null,

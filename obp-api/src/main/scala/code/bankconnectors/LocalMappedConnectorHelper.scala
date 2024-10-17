@@ -21,7 +21,7 @@ import scala.language.postfixOps
 
 
 
-//Try to keep LocalMappedConnector smaller, so put comment methods in new file.
+//Try to keep LocalMappedConnector smaller, so put OBP internal code here. these methods will not be exposed to CBS side.
 object LocalMappedConnectorHelper extends MdcLoggable {
   
   def createTransactionRequestBGInternal(

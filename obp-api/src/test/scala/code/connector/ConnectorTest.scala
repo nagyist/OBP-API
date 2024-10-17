@@ -1,6 +1,7 @@
 package code.connector
 
 import code.api.util.{CallContext, OBPQueryParam}
+import code.api.v5_1_0.V510ServerSetup
 import code.bankconnectors.Connector
 import com.github.dwickern.macros.NameOf
 import com.openbankproject.commons.model.OutboundAdapterCallContext
@@ -10,7 +11,7 @@ import org.scalatest.{FlatSpec, Matchers, Tag}
 import scala.collection.immutable.List
 import scala.reflect.runtime.universe
 
-class ConnectorTest extends FlatSpec with Matchers {
+class ConnectorTest extends V510ServerSetup {
   object ConnectorTestTag extends Tag(NameOf.nameOfType[ConnectorTest])
 
   private val connectorType = universe.typeOf[Connector]
@@ -57,12 +58,24 @@ class ConnectorTest extends FlatSpec with Matchers {
     }
   }
 
-  "OutBound case class" should "have the same param name with connector method" taggedAs ConnectorTestTag in {
+  feature("Make sure connector follow the obp general rules ") {
+    scenario("OutBound case class should have the same param name with connector method", ConnectorTestTag) {
+      val wrongOutboundTypes = connectorType.decls.filter(it =>it.isMethod) collect {
+        case WrongOutBoundType(tp) => tp
+      }
 
-    val wrongOutboundTypes = connectorType.decls.filter(it =>it.isMethod) collect {
-      case WrongOutBoundType(tp) => tp
+      wrongOutboundTypes shouldBe empty
     }
+    
+    scenario("all connector methods should have the callContext parameter", ConnectorTestTag){
+      val mappedConnectorObject = Connector.nameToConnector.get("mapped")
 
-    wrongOutboundTypes shouldBe empty
+      val allConnectorMethods = mappedConnectorObject.map(_.callableMethods)
+      val noCallcontextMethods: Option[Map[String, universe.MethodSymbol]] = allConnectorMethods.map(_.filterNot(_._2.paramLists.toString.contains("callContext")))
+      val noCallcontextMethodsNames = noCallcontextMethods.map(_.keys.toList).getOrElse(Nil)
+      println(noCallcontextMethodsNames.mkString("\n"))
+      noCallcontextMethodsNames.size should be(0)
+    }
+    
   }
 }

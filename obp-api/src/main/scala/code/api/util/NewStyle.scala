@@ -41,7 +41,7 @@ import com.openbankproject.commons.util.{ApiVersion, JsonUtils}
 import code.views.Views
 import code.webhook.AccountWebhook
 import com.github.dwickern.macros.NameOf.nameOf
-import com.openbankproject.commons.dto.{CustomerAndAttribute, ProductCollectionItemsTree}
+import com.openbankproject.commons.dto.{CustomerAndAttribute, GetProductsParam, ProductCollectionItemsTree}
 import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
 import com.openbankproject.commons.model.enums.TransactionRequestTypes._
@@ -2305,8 +2305,16 @@ object NewStyle extends MdcLoggable{
       }
     }
     def getProduct(bankId : BankId, productCode : ProductCode, callContext: Option[CallContext]) : OBPReturnType[Product] =
-      Future {Connector.connector.vend.getProduct(bankId : BankId, productCode : ProductCode)} map {
-        i => (unboxFullOrFail(i, callContext, ProductNotFoundByProductCode + " {" + productCode.value + "}", 404), callContext)
+      Connector.connector.vend.getProduct(bankId : BankId, productCode : ProductCode, callContext) map {
+        i => (unboxFullOrFail(i._1, callContext, ProductNotFoundByProductCode + " {" + productCode.value + "}", 404), i._2)
+      }
+    def getProductTree(bankId : BankId, productCode : ProductCode, callContext: Option[CallContext]) : OBPReturnType[List[Product]] =
+      Connector.connector.vend.getProductTree(bankId : BankId, productCode : ProductCode, callContext) map {
+        i => (unboxFullOrFail(i._1, callContext, GetProductTreeError + " {" + productCode.value + "}", 404), i._2)
+      }
+    def getProducts(bankId : BankId, params: List[GetProductsParam], callContext: Option[CallContext]) : OBPReturnType[List[Product]] =
+      Connector.connector.vend.getProducts(bankId : BankId, Nil, callContext) map {
+        i => (unboxFullOrFail(i._1, callContext, GetProductError + " {" + bankId.value + "}", 404), i._2)
       }
     
     def getProductCollection(collectionCode: String, 
@@ -2383,11 +2391,9 @@ object NewStyle extends MdcLoggable{
                              inverseConversionValue: Double,
                              effectiveDate: Date,
                              callContext: Option[CallContext]
-                            ): Future[FXRate] =
-      Future(
-        Connector.connector.vend.createOrUpdateFXRate(bankId, fromCurrencyCode, toCurrencyCode, conversionValue, inverseConversionValue, effectiveDate)
-      ) map {
-        unboxFullOrFail(_, callContext, createFxCurrencyIssue)
+                            ): OBPReturnType[FXRate] = 
+      Connector.connector.vend.createOrUpdateFXRate(bankId, fromCurrencyCode, toCurrencyCode, conversionValue, inverseConversionValue, effectiveDate, callContext).map {
+         i => (unboxFullOrFail(i._1, callContext, s"$createFxCurrencyIssue Can not createMeeting in the backend. ", 400), i._2)
       }
     
     def createMeeting(

@@ -1247,29 +1247,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
     Full(mappedBankAccount)
   }
-
-  override def getCounterparty(thisBankId: BankId, thisAccountId: AccountId, couterpartyId: String): Box[Counterparty] = {
-    for {
-      t <- Counterparties.counterparties.vend.getMetadata(thisBankId, thisAccountId, couterpartyId)
-    } yield {
-      new Counterparty(
-        //counterparty id is defined to be the id of its metadata as we don't actually have an id for the counterparty itself
-        counterpartyId = t.getCounterpartyId,
-        counterpartyName = t.getCounterpartyName,
-        nationalIdentifier = "",
-        otherBankRoutingAddress = None,
-        otherAccountRoutingAddress = None,
-        thisAccountId = thisAccountId,
-        thisBankId = BankId(""),
-        kind = "",
-        otherBankRoutingScheme = "",
-        otherAccountRoutingScheme = "",
-        otherAccountProvider = "",
-        isBeneficiary = true
-      )
-    }
-  }
-
+  
   override def getCounterpartyTrait(bankId: BankId, accountId: AccountId, counterpartyId: String, callContext: Option[CallContext]): OBPReturnType[Box[CounterpartyTrait]] = {
     getCounterpartyByCounterpartyId(CounterpartyId(counterpartyId), callContext)
   }
@@ -2360,50 +2338,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       By(MappedBankAccount.accountNumber, accountNumber)) > 0)
   }
 
-  //remove an account and associated transactions
-  override def removeAccount(bankId: BankId, accountId: AccountId): Box[Boolean] = {
-    //delete comments on transactions of this account
-    val commentsDeleted = Comments.comments.vend.bulkDeleteComments(bankId, accountId)
-
-    //delete narratives on transactions of this account
-    val narrativesDeleted = Narrative.narrative.vend.bulkDeleteNarratives(bankId, accountId)
-
-    //delete narratives on transactions of this account
-    val tagsDeleted = Tags.tags.vend.bulkDeleteTags(bankId, accountId)
-
-    //delete WhereTags on transactions of this account
-    val whereTagsDeleted = WhereTags.whereTags.vend.bulkDeleteWhereTags(bankId, accountId)
-
-    //delete transaction images on transactions of this account
-    val transactionImagesDeleted = TransactionImages.transactionImages.vend.bulkDeleteTransactionImage(bankId, accountId)
-
-    //delete transactions of account
-    val transactionsDeleted = MappedTransaction.bulkDelete_!!(
-      By(MappedTransaction.bank, bankId.value),
-      By(MappedTransaction.account, accountId.value)
-    )
-
-    //remove view privileges
-    val privilegesDeleted = Views.views.vend.removeAllPermissions(bankId, accountId)
-
-    //delete views of account
-    val viewsDeleted = Views.views.vend.removeAllViews(bankId, accountId)
-
-    //delete account
-    val account = MappedBankAccount.find(
-      By(MappedBankAccount.bank, bankId.value),
-      By(MappedBankAccount.theAccountId, accountId.value)
-    )
-
-    val accountDeleted = account match {
-      case Full(acc) => acc.delete_!
-      case _ => false
-    }
-
-    Full(commentsDeleted && narrativesDeleted && tagsDeleted && whereTagsDeleted && transactionImagesDeleted &&
-      transactionsDeleted && privilegesDeleted && viewsDeleted && accountDeleted)
-  }
-
   override def addBankAccount(
                                bankId: BankId,
                                accountType: String,
@@ -2682,8 +2616,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     Full(result.getOrElse(false))
   }
 
-  override def getProducts(bankId: BankId, params: List[GetProductsParam]): Box[List[Product]] = {
-    Box !! {
+  override def getProducts(bankId: BankId, params: List[GetProductsParam], callContext: Option[CallContext]): OBPReturnType[Box[List[Product]]] = {
+    Future{Box !! {
       if (params.isEmpty) {
         MappedProduct.findAll(By(MappedProduct.mBankId, bankId.value))
       } else {
@@ -2704,14 +2638,33 @@ object LocalMappedConnector extends Connector with MdcLoggable {
         MappedProduct.findAll(ByList(MappedProduct.mCode, productIdList))
       }
     }
-  }
+  }}.map(products => (products, callContext))
 
-  override def getProduct(bankId: BankId, productCode: ProductCode): Box[Product] = {
+  override def getProduct(bankId: BankId, productCode: ProductCode, callContext: Option[CallContext]): OBPReturnType[Box[Product]] = Future{
     MappedProduct.find(
       By(MappedProduct.mBankId, bankId.value),
       By(MappedProduct.mCode, productCode.value)
     )
-  }
+  }.map(product => (product, callContext))
+  
+  override def getProductTree(bankId: BankId, productCode: ProductCode, callContext: Option[CallContext]): OBPReturnType[Box[List[Product]]] = Future{
+    def getProduct(bankId: BankId, productCode: ProductCode) =
+      MappedProduct.find(
+        By(MappedProduct.mBankId, bankId.value),
+        By(MappedProduct.mCode, productCode.value)
+      )
+    
+    def getProductTre(bankId : BankId, productCode : ProductCode): List[Product] = {
+      getProduct(bankId, productCode) match {
+        case Full(p) if p.parentProductCode.value.nonEmpty => p :: getProductTre(p.bankId, p.parentProductCode)
+        case Full(p) => List(p)
+        case _ => List()
+      }
+    }
+
+    Full(getProductTre(bankId : BankId, productCode : ProductCode))
+    
+  }.map(product => (product, callContext))
 
 
   override def createOrUpdateBranch(branch: BranchT): Box[BranchT] = {
@@ -3181,7 +3134,10 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                                      metaLicenceName: String): Box[Product] = {
 
     //check the product existence and update or insert data
-    getProduct(BankId(bankId), ProductCode(code)) match {
+    MappedProduct.find(
+      By(MappedProduct.mBankId, bankId),
+      By(MappedProduct.mCode, code)
+    ) match {
       case Full(mappedProduct: MappedProduct) =>
         tryo {
           parentProductCode match {
@@ -3377,8 +3333,9 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                                      toCurrencyCode: String,
                                      conversionValue: Double,
                                      inverseConversionValue: Double,
-                                     effectiveDate: Date
-                                   ): Box[FXRate] = {
+                                     effectiveDate: Date,
+                                     callContext: Option[CallContext]
+                                   ): OBPReturnType[Box[FXRate]] = Future{
     val fxRateFromTo = MappedFXRate.find(
       By(MappedFXRate.mBankId, bankId),
       By(MappedFXRate.mFromCurrencyCode, fromCurrencyCode),
@@ -3410,7 +3367,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       case _ =>
         Failure("UnknownFxRateError")
     }
-  }
+  }.map(fxRate=>(fxRate, callContext))
 
   /**
     * get the TransactionRequestTypeCharge from the TransactionRequestTypeCharge table

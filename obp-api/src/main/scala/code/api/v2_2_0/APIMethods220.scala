@@ -760,7 +760,7 @@ trait APIMethods220 {
             }
             _ <- NewStyle.function.isValidCurrencyISOCode(fx.from_currency_code, callContext)
             _ <- NewStyle.function.isValidCurrencyISOCode(fx.to_currency_code, callContext)
-            fxRate <- NewStyle.function.createOrUpdateFXRate(
+            (fxRate, callContext)<- NewStyle.function.createOrUpdateFXRate(
               bankId = fx.bank_id,
               fromCurrencyCode = fx.from_currency_code,
               toCurrencyCode = fx.to_currency_code,

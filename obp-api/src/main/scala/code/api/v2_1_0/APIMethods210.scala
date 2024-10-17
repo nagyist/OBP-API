@@ -3,6 +3,7 @@ package code.api.v2_1_0
 import java.util.Date
 import code.TransactionTypes.TransactionType
 import code.api.util
+import code.api.util.APIUtil.getProductsIsPublic
 import code.api.util.ApiTag._
 import code.api.util.ErrorMessages.TransactionDisabled
 import code.api.util.FutureUtil.EndpointContext
@@ -14,6 +15,7 @@ import code.api.v1_4_0.JSONFactory1_4_0
 import code.api.v1_4_0.JSONFactory1_4_0._
 import code.api.v2_0_0._
 import code.api.v2_1_0.JSONFactory210._
+import code.api.v3_1_0.JSONFactory310
 import code.atms.Atms
 import code.bankconnectors._
 import code.branches.Branches
@@ -30,6 +32,7 @@ import code.util.Helper.booleanToBox
 import code.views.Views
 import code.views.system.ViewDefinition
 import com.github.dwickern.macros.NameOf.nameOf
+import com.openbankproject.commons.dto.GetProductsParam
 import com.openbankproject.commons.model._
 import com.openbankproject.commons.model.enums.{ChallengeType, SuppliedAnswerType, TransactionRequestTypes}
 import com.openbankproject.commons.model.enums.TransactionRequestTypes._
@@ -1275,19 +1278,16 @@ trait APIMethods210 {
     lazy val getProduct: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "products" :: ProductCode(productCode) :: Nil JsonGet _ => {
         cc => {
+          implicit val ec = EndpointContext(Some(cc))
           for {
-          // Get product from the active provider
-            _ <- if (getProductsIsPublic)
-              Box(Some(1))
-            else
-              cc.user ?~! UserNotLoggedIn
-            (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! {BankNotFound}
-            product <- Connector.connector.vend.getProduct(bankId, productCode)?~! {ProductNotFoundByProductCode}
+            (_, callContext) <- getProductsIsPublic match {
+              case false => authenticatedAccess(cc)
+              case true => anonymousAccess(cc)
+            }
+            (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            (product, callContext) <- NewStyle.function.getProduct(bankId, productCode, callContext)
           } yield {
-            // Format the data as json
-            val json = JSONFactory210.createProductJson(product)
-            // Return
-            successJsonResponse(Extraction.decompose(json))
+            (JSONFactory210.createProductJson(product), HttpCode.`200`(callContext))
           }
         }
       }
@@ -1324,21 +1324,19 @@ trait APIMethods210 {
     )
 
     lazy val getProducts : OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "products" :: Nil JsonGet _ => {
+      case "banks" :: BankId(bankId) :: "products" :: Nil  JsonGet req => {
         cc => {
+          implicit val ec = EndpointContext(Some(cc))
           for {
-          // Get products from the active provider
-            _ <- if(getProductsIsPublic)
-              Box(Some(1))
-            else
-              cc.user ?~! UserNotLoggedIn
-            (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! {BankNotFound}
-            products <- Connector.connector.vend.getProducts(bankId)?~!  {ProductNotFoundByProductCode}
+            (_, callContext) <- getProductsIsPublic match {
+              case false => authenticatedAccess(cc)
+              case true => anonymousAccess(cc)
+            }
+            (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            params = req.params.toList.map(kv => GetProductsParam(kv._1, kv._2))
+            (products,callContext) <- NewStyle.function.getProducts(bankId, params, callContext)
           } yield {
-            // Format the data as json
-            val json = JSONFactory210.createProductsJson(products)
-            // Return
-            successJsonResponse(Extraction.decompose(json))
+            (JSONFactory210.createProductsJson(products), HttpCode.`200`(callContext))
           }
         }
       }

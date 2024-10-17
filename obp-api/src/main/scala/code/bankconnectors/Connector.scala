@@ -604,8 +604,6 @@ trait Connector extends MdcLoggable {
     Full(counterparties.toSet.toList) //there are many transactions share the same Counterparty, so we need filter the same ones.
   }
 
-  def getCounterparty(thisBankId: BankId, thisAccountId: AccountId, couterpartyId: String): Box[Counterparty]= Failure(setUnimplementedError(nameOf(getCounterparty _)))
-
   def getCounterpartyTrait(bankId: BankId, accountId: AccountId, couterpartyId: String, callContext: Option[CallContext]): OBPReturnType[Box[CounterpartyTrait]]= Future{(Failure(setUnimplementedError(nameOf(getCounterpartyTrait _))), callContext)}
 
   def getCounterpartyByCounterpartyIdLegacy(counterpartyId: CounterpartyId, callContext: Option[CallContext]): Box[(CounterpartyTrait, Option[CallContext])]= Failure(setUnimplementedError(nameOf(getCounterpartyByCounterpartyIdLegacy _)))
@@ -1605,11 +1603,6 @@ trait Connector extends MdcLoggable {
   //for sandbox use -> allows us to check if we can generate a new test account with the given number
   def accountExists(bankId : BankId, accountNumber : String) : Box[Boolean] = Failure(setUnimplementedError(nameOf(accountExists _)))
 
-  //remove an account and associated transactions
-  def removeAccount(bankId: BankId, accountId: AccountId) : Box[Boolean]  = Failure(setUnimplementedError(nameOf(removeAccount _)))
-
-  //used by transaction import api call to check for duplicates
-
   //the implementation is responsible for dealing with the amount as a string
   def getMatchingTransactionCount(bankNationalIdentifier : String, accountNumber : String, amount : String, completed : Date, otherAccountHolder : String) : Box[Int] = Failure(setUnimplementedError(nameOf(getMatchingTransactionCount _)))
   def createImportedTransaction(transaction: ImporterTransaction) : Box[Transaction]  = Failure(setUnimplementedError(nameOf(createImportedTransaction _)))
@@ -1620,9 +1613,11 @@ trait Connector extends MdcLoggable {
   
   def updateAccount(bankId: BankId, accountId: AccountId, label: String): Box[Boolean] = Failure(setUnimplementedError(nameOf(updateAccount _)))
 
-  def getProducts(bankId : BankId, params: List[GetProductsParam] = Nil) : Box[List[Product]] = Failure(setUnimplementedError(nameOf(getProducts _)))
+  def getProducts(bankId : BankId, params: List[GetProductsParam], callContext: Option[CallContext]): OBPReturnType[Box[List[Product]]] = Future {Failure(setUnimplementedError(nameOf(getProducts _)))}
 
-  def getProduct(bankId : BankId, productCode : ProductCode) : Box[Product] = Failure(setUnimplementedError(nameOf(getProduct _)))
+  def getProduct(bankId : BankId, productCode : ProductCode, callContext: Option[CallContext]): OBPReturnType[Box[Product]] = Future {Failure(setUnimplementedError(nameOf(getProduct _)))}
+  
+  def getProductTree(bankId : BankId, productCode : ProductCode, callContext: Option[CallContext]): OBPReturnType[Box[List[Product]]] = Future {Failure(setUnimplementedError(nameOf(getProduct _)))}
 
   //Note: this is a temporary way for compatibility
   //It is better to create the case class for all the connector methods
@@ -1720,8 +1715,9 @@ trait Connector extends MdcLoggable {
                             toCurrencyCode: String,
                             conversionValue: Double,
                             inverseConversionValue: Double,
-                            effectiveDate: Date
-                          ): Box[FXRate] = Failure(setUnimplementedError(nameOf(createOrUpdateFXRate _)))
+                            effectiveDate: Date,
+                            callContext: Option[CallContext]
+                          ): OBPReturnType[Box[FXRate]] = Future(Failure(setUnimplementedError(nameOf(createOrUpdateFXRate _))))
 
 
 

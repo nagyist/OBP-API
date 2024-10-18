@@ -919,11 +919,6 @@ trait Connector extends MdcLoggable {
     callContext: Option[CallContext]
   ): OBPReturnType[Box[TransactionRequestBGV1]] = Future{(Failure(setUnimplementedError(nameOf(createTransactionRequestPeriodicSepaCreditTransfersBGV1 _))), callContext)}
   
-  //placeholder for various connector methods that overwrite methods like these, does the actual data access
-  protected def createTransactionRequestImpl(transactionRequestId: TransactionRequestId, transactionRequestType: TransactionRequestType,
-                                             fromAccount : BankAccount, counterparty : BankAccount, body: TransactionRequestBody,
-                                             status: String, charge: TransactionRequestCharge) : Box[TransactionRequest] = Failure(setUnimplementedError(nameOf(createTransactionRequestImpl _)))
-
   def notifyTransactionRequest(fromAccount: BankAccount, toAccount: BankAccount, transactionRequest: TransactionRequest, callContext: Option[CallContext]): OBPReturnType[Box[TransactionRequestStatusValue]] =
     Future{(Failure(setUnimplementedError(nameOf(notifyTransactionRequest _))), callContext)}
 

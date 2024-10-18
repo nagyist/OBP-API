@@ -2199,22 +2199,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   */
   override def getTransactionRequestStatusesImpl(): Box[TransactionRequestStatus] = Empty
 
-  override def createTransactionRequestImpl(transactionRequestId: TransactionRequestId,
-                                            transactionRequestType: TransactionRequestType,
-                                            account: BankAccount,
-                                            counterparty: BankAccount,
-                                            body: TransactionRequestBody,
-                                            status: String,
-                                            charge: TransactionRequestCharge): Box[TransactionRequest] = {
-    TransactionRequests.transactionRequestProvider.vend.createTransactionRequestImpl(transactionRequestId,
-      transactionRequestType,
-      account,
-      counterparty,
-      body,
-      status,
-      charge)
-  }
-
   override def saveTransactionRequestChallengeImpl(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge): Box[Boolean] = {
     TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestChallengeImpl(transactionRequestId, challenge)
   }
@@ -4663,7 +4647,15 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       isPositiveAmtToSend <- booleanToBox(rawAmt > BigDecimal("0"), s"Can't send a payment with a value of 0 or less. (${rawAmt})")
       // Version 200 below has more support for charge
       charge = TransactionRequestCharge("Charge for completed transaction", AmountOfMoney(body.value.currency, "0.00"))
-      transactionRequest <- createTransactionRequestImpl(TransactionRequestId(generateUUID()), transactionRequestType, fromAccount, toAccount, body, status.toString, charge)
+      transactionRequest <- TransactionRequests.transactionRequestProvider.vend.createTransactionRequestImpl(
+        TransactionRequestId(generateUUID()), 
+        transactionRequestType, 
+        fromAccount, 
+        toAccount, 
+        body, 
+        status.toString, 
+        charge
+      )
     } yield transactionRequest
 
     //make sure we get something back
@@ -4726,7 +4718,15 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       } ?~! s"could not create charge for ${body.value.amount}"
       charge = TransactionRequestCharge("Total charges for completed transaction", AmountOfMoney(body.value.currency, chargeValue.toString()))
 
-      transactionRequest <- createTransactionRequestImpl(TransactionRequestId(generateUUID()), transactionRequestType, fromAccount, toAccount, body, status.toString, charge)
+      transactionRequest <- TransactionRequests.transactionRequestProvider.vend.createTransactionRequestImpl(
+        TransactionRequestId(generateUUID()),
+        transactionRequestType,
+        fromAccount,
+        toAccount,
+        body,
+        status.toString,
+        charge
+      )
     } yield transactionRequest
 
     //make sure we get something back

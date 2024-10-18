@@ -1,10 +1,9 @@
 package code.management
 
 import java.util.Date
-
 import code.api.util.ErrorMessages._
 import code.api.util.{APIUtil, CustomJsonFormats}
-import code.bankconnectors.Connector
+import code.bankconnectors.{Connector, LocalMappedConnectorInternal}
 import code.tesobe.ErrorMessage
 import code.util.Helper.{MdcLoggable, ObpS}
 import com.openbankproject.commons.model.Transaction
@@ -125,7 +124,7 @@ object ImporterAPI extends RestHelper with MdcLoggable {
             //we assume here that all the Envelopes concern only one account
             val mostRecentTransaction = insertedTransactions.maxBy(t => t.finishDate)
 
-            Connector.connector.vend.updateAccountBalance(
+            LocalMappedConnectorInternal.updateAccountBalance(
               mostRecentTransaction.bankId,
               mostRecentTransaction.accountId,
               mostRecentTransaction.balance).openOrThrowException(attemptedToOpenAnEmptyBox)
@@ -170,7 +169,7 @@ object ImporterAPI extends RestHelper with MdcLoggable {
               //refresh account lastUpdate in case transactions were posted but they were all duplicates (account was still "refreshed")
               val mostRecentTransaction = importerTransactions.maxBy(t => t.obp_transaction.details.completed)
               val account = mostRecentTransaction.obp_transaction.this_account
-              Connector.connector.vend.setBankAccountLastUpdated(account.bank.national_identifier, account.number, now).openOrThrowException(attemptedToOpenAnEmptyBox)
+              LocalMappedConnectorInternal.setBankAccountLastUpdated(account.bank.national_identifier, account.number, now).openOrThrowException(attemptedToOpenAnEmptyBox)
             }
             val jsonList = insertedTs.map(whenAddedJson)
             successJsonResponse(JArray(jsonList))

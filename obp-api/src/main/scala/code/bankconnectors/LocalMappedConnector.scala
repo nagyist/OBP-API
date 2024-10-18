@@ -597,10 +597,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
   //gets a particular bank handled by this connector
   override def getBankLegacy(bankId: BankId, callContext: Option[CallContext]): Box[(Bank, Option[CallContext])] = writeMetricEndpointTiming {
-    getMappedBank(bankId).map(bank => (bank, callContext))
-  }("getBank")
-
-  private def getMappedBank(bankId: BankId): Box[MappedBank] =
     MappedBank
       .find(By(MappedBank.permalink, bankId.value))
       .map(
@@ -608,7 +604,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
           bank
             .mBankRoutingScheme(APIUtil.ValueOrOBP(bank.bankRoutingScheme))
             .mBankRoutingAddress(APIUtil.ValueOrOBPId(bank.bankRoutingAddress, bank.bankId.value))
-      )
+      ).map(bank => (bank, callContext))
+  }("getBank")
 
   override def getBank(bankId: BankId, callContext: Option[CallContext]): Future[Box[(Bank, Option[CallContext])]] = Future {
     getBankLegacy(bankId, callContext)
@@ -817,7 +814,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   private def updateAccountTransactions(bankId: BankId, accountId: AccountId) = {
 
     for {
-      bank <- getMappedBank(bankId)
+      (bank, _) <- getBankLegacy(bankId, None)
       account <- getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount])
     } {
       Future {
@@ -827,7 +824,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
           case _ => true
         }
         if (outDatedTransactions && useMessageQueue) {
-          UpdatesRequestSender.sendMsg(UpdateBankAccount(account.accountNumber.get, bank.national_identifier.get))
+          UpdatesRequestSender.sendMsg(UpdateBankAccount(account.accountNumber.get, bank.nationalIdentifier))
         }
       }
     }
@@ -2368,129 +2365,12 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
   }
   
-  //used by the transaction import api
-  override def updateAccountBalance(bankId: BankId, accountId: AccountId, newBalance: BigDecimal): Box[Boolean] = {
-    //this will be Full(true) if everything went well
-    val result = for {
-      bank <- getMappedBank(bankId)
-      account <- getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount])
-    } yield {
-      account.accountBalance(Helper.convertToSmallestCurrencyUnits(newBalance, account.currency)).save
-      setBankAccountLastUpdated(bank.nationalIdentifier, account.number, now).openOrThrowException(attemptedToOpenAnEmptyBox)
-    }
-
-    Full(result.getOrElse(false))
-  }
-
-  //transaction import api uses bank national identifiers to uniquely indentify banks,
-  //which is unfortunate as theoretically the national identifier is unique to a bank within
-  //one country
-  private def getBankByNationalIdentifier(nationalIdentifier: String): Box[Bank] = {
-    MappedBank.find(By(MappedBank.national_identifier, nationalIdentifier))
-  }
-
-  private def getAccountByNumber(bankId: BankId, number: String): Box[BankAccount] = {
-    MappedBankAccount.find(
-      By(MappedBankAccount.bank, bankId.value),
-      By(MappedBankAccount.accountNumber, number))
-  }
-
-  private val bigDecimalFailureHandler: PartialFunction[Throwable, Unit] = {
-    case ex: NumberFormatException => {
-      logger.warn(s"could not convert amount to a BigDecimal: $ex")
-    }
-  }
-
-  //used by transaction import api call to check for duplicates
-  override def getMatchingTransactionCount(bankNationalIdentifier: String, accountNumber: String, amount: String, completed: Date, otherAccountHolder: String): Box[Int] = {
-    //we need to convert from the legacy bankNationalIdentifier to BankId, and from the legacy accountNumber to AccountId
-    val count = for {
-      bankId <- getBankByNationalIdentifier(bankNationalIdentifier).map(_.bankId)
-      account <- getAccountByNumber(bankId, accountNumber)
-      amountAsBigDecimal <- tryo(bigDecimalFailureHandler)(BigDecimal(amount))
-    } yield {
-
-      val amountInSmallestCurrencyUnits =
-        Helper.convertToSmallestCurrencyUnits(amountAsBigDecimal, account.currency)
-
-      MappedTransaction.count(
-        By(MappedTransaction.bank, bankId.value),
-        By(MappedTransaction.account, account.accountId.value),
-        By(MappedTransaction.amount, amountInSmallestCurrencyUnits),
-        By(MappedTransaction.tFinishDate, completed),
-        By(MappedTransaction.counterpartyAccountHolder, otherAccountHolder))
-    }
-
-    //icky
-    Full(count.map(_.toInt) getOrElse 0)
-  }
-
-  //used by transaction import api
-  override def createImportedTransaction(transaction: ImporterTransaction): Box[Transaction] = {
-    //we need to convert from the legacy bankNationalIdentifier to BankId, and from the legacy accountNumber to AccountId
-    val obpTransaction = transaction.obp_transaction
-    val thisAccount = obpTransaction.this_account
-    val nationalIdentifier = thisAccount.bank.national_identifier
-    val accountNumber = thisAccount.number
-    for {
-      bank <- getBankByNationalIdentifier(transaction.obp_transaction.this_account.bank.national_identifier) ?~!
-        s"No bank found with national identifier $nationalIdentifier"
-      bankId = bank.bankId
-      account <- getAccountByNumber(bankId, accountNumber)
-      details = obpTransaction.details
-      amountAsBigDecimal <- tryo(bigDecimalFailureHandler)(BigDecimal(details.value.amount))
-      newBalanceAsBigDecimal <- tryo(bigDecimalFailureHandler)(BigDecimal(details.new_balance.amount))
-      amountInSmallestCurrencyUnits = Helper.convertToSmallestCurrencyUnits(amountAsBigDecimal, account.currency)
-      newBalanceInSmallestCurrencyUnits = Helper.convertToSmallestCurrencyUnits(newBalanceAsBigDecimal, account.currency)
-      otherAccount = obpTransaction.other_account
-      mappedTransaction = MappedTransaction.create
-        .bank(bankId.value)
-        .account(account.accountId.value)
-        .transactionType(details.kind)
-        .amount(amountInSmallestCurrencyUnits)
-        .newAccountBalance(newBalanceInSmallestCurrencyUnits)
-        .currency(account.currency)
-        .tStartDate(details.posted.`$dt`)
-        .tFinishDate(details.completed.`$dt`)
-        .description(details.label)
-        .counterpartyAccountNumber(otherAccount.number)
-        .counterpartyAccountHolder(otherAccount.holder)
-        .counterpartyAccountKind(otherAccount.kind)
-        .counterpartyNationalId(otherAccount.bank.national_identifier)
-        .counterpartyBankName(otherAccount.bank.name)
-        .counterpartyIban(otherAccount.bank.IBAN)
-        .saveMe()
-      transaction <- mappedTransaction.toTransaction(account)
-    } yield transaction
-  }
-
-  override def setBankAccountLastUpdated(bankNationalIdentifier: String, accountNumber: String, updateDate: Date): Box[Boolean] = {
-    val result = for {
-      bankId <- getBankByNationalIdentifier(bankNationalIdentifier).map(_.bankId)
-      account <- getAccountByNumber(bankId, accountNumber)
-    } yield {
-      val acc = MappedBankAccount.find(
-        By(MappedBankAccount.bank, bankId.value),
-        By(MappedBankAccount.theAccountId, account.accountId.value)
-      )
-      acc match {
-        case Full(a) => a.accountLastUpdate(updateDate).save
-        case _ => logger.warn("can't set bank account.lastUpdated because the account was not found"); false
-      }
-    }
-    Full(result.getOrElse(false))
-  }
-
-  /*
-    End of transaction importer api
-   */
-
 
   override def updateAccountLabel(bankId: BankId, accountId: AccountId, label: String): Box[Boolean] = {
     //this will be Full(true) if everything went well
     val result = for {
       acc <- getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount])
-      bank <- getMappedBank(bankId)
+      bank <- getBankLegacy(bankId, None)
     } yield {
       acc.accountLabel(label).save
     }
@@ -3297,7 +3177,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                                    bankRoutingAddress: String
                                  ): Box[Bank] = {
   //check the bank existence and update or insert data
-    val bank = getMappedBank(BankId(bankId)) match {
+    val bank = getBankLegacy(BankId(bankId), None).map(_._1.asInstanceOf[MappedBank]) match {
       case Full(mappedBank) =>
         tryo {
           mappedBank

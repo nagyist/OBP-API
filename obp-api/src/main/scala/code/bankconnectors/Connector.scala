@@ -27,7 +27,7 @@ import code.counterpartylimit.{CounterpartyLimit, CounterpartyLimitTrait}
 import code.customeraccountlinks.CustomerAccountLinkTrait
 import code.endpointTag.EndpointTagT
 import code.fx.fx.TTL
-import code.management.ImporterAPI.ImporterTransaction
+
 import code.model.dataAccess.{BankAccountRouting, ResourceUser}
 import code.model.toUserExtended
 import code.productfee.ProductFeeX
@@ -1107,15 +1107,7 @@ trait Connector extends MdcLoggable {
   //for sandbox use -> allows us to check if we can generate a new test account with the given number
   def accountExists(bankId : BankId, accountNumber : String) : Box[Boolean] = Failure(setUnimplementedError(nameOf(accountExists _)))
 
-  //the implementation is responsible for dealing with the amount as a string
-  def getMatchingTransactionCount(bankNationalIdentifier : String, accountNumber : String, amount : String, completed : Date, otherAccountHolder : String) : Box[Int] = Failure(setUnimplementedError(nameOf(getMatchingTransactionCount _)))
-  def createImportedTransaction(transaction: ImporterTransaction) : Box[Transaction]  = Failure(setUnimplementedError(nameOf(createImportedTransaction _)))
-  def updateAccountBalance(bankId : BankId, accountId : AccountId, newBalance : BigDecimal) : Box[Boolean]  = Failure(setUnimplementedError(nameOf(updateAccountBalance _)))
-  def setBankAccountLastUpdated(bankNationalIdentifier: String, accountNumber : String, updateDate: Date) : Box[Boolean] = Failure(setUnimplementedError(nameOf(setBankAccountLastUpdated _)))
-
   def updateAccountLabel(bankId: BankId, accountId: AccountId, label: String): Box[Boolean] = Failure(setUnimplementedError(nameOf(updateAccountLabel _)))
-  
-  def updateAccount(bankId: BankId, accountId: AccountId, label: String): Box[Boolean] = Failure(setUnimplementedError(nameOf(updateAccount _)))
 
   def getProducts(bankId : BankId, params: List[GetProductsParam], callContext: Option[CallContext]): OBPReturnType[Box[List[Product]]] = Future {Failure(setUnimplementedError(nameOf(getProducts _)))}
 

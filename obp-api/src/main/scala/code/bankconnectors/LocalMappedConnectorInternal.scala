@@ -5,6 +5,7 @@ import code.api.util.APIUtil._
 import code.api.util.ErrorMessages._
 import code.api.util._
 import code.bankconnectors.LocalMappedConnector._
+import code.model.dataAccess.{BankAccountRouting, MappedBank, MappedBankAccount}
 import code.transactionrequests._
 import code.util.Helper
 import code.util.Helper._
@@ -16,13 +17,17 @@ import com.openbankproject.commons.model.enums.PaymentServiceTypes
 import net.liftweb.common._
 import net.liftweb.json.Serialization.write
 import net.liftweb.json.{NoTypeHints, Serialization}
+import net.liftweb.mapper.By
+import net.liftweb.util.Helpers.tryo
+
+import scala.collection.immutable.List
 import scala.concurrent._
 import scala.language.postfixOps
 
 
 
 //Try to keep LocalMappedConnector smaller, so put OBP internal code here. these methods will not be exposed to CBS side.
-object LocalMappedConnectorHelper extends MdcLoggable {
+object LocalMappedConnectorInternal extends MdcLoggable {
   
   def createTransactionRequestBGInternal(
     initiator: User,
@@ -30,7 +35,7 @@ object LocalMappedConnectorHelper extends MdcLoggable {
     transactionRequestType: TransactionRequestTypes,
     transactionRequestBody: BerlinGroupTransactionRequestCommonBodyJson,
     callContext: Option[CallContext]
-  ) = {
+  ): Future[(Full[TransactionRequestBGV1], Option[CallContext])] = {
     for {
       transDetailsSerialized <- NewStyle.function.tryons(s"$UnknownError Can not serialize in request Json ", 400, callContext) {
         write(transactionRequestBody)(Serialization.formats(NoTypeHints))
@@ -123,7 +128,8 @@ object LocalMappedConnectorHelper extends MdcLoggable {
         BigDecimal(chargeLevel.amount)
       }
 
-      chargeValue <- getChargeValue(chargeLevelAmount, transactionAmount)
+      (chargeValue, callContext) <- NewStyle.function.getChargeValue(chargeLevelAmount, transactionAmount, callContext)
+      
       charge = TransactionRequestCharge("Total charges for completed transaction", AmountOfMoney(transactionRequestBody.instructedAmount.currency, chargeValue))
 
       // Always create a new Transaction Request
@@ -171,9 +177,7 @@ object LocalMappedConnectorHelper extends MdcLoggable {
             transactionRequest <- Future(transactionRequest.copy(challenge = null))
 
             //save transaction_id into database
-            _ <- Future {
-              saveTransactionRequestTransaction(transactionRequest.id, createdTransactionId)
-            }
+            _ <- saveTransactionRequestTransaction(transactionRequest.id, createdTransactionId,callContext)
             //update transaction_id field for variable 'transactionRequest'
             transactionRequest <- Future(transactionRequest.copy(transaction_ids = createdTransactionId.value))
 
@@ -189,5 +193,97 @@ object LocalMappedConnectorHelper extends MdcLoggable {
     }
   }
 
-  
+
+
+  /*
+    Bank account creation
+   */
+
+  //creates a bank account (if it doesn't exist) and creates a bank (if it doesn't exist)
+  //again assume national identifier is unique
+  def createBankAndAccount(
+    bankName: String,
+    bankNationalIdentifier: String,
+    accountNumber: String,
+    accountType: String,
+    accountLabel: String,
+    currency: String,
+    accountHolderName: String,
+    branchId: String,
+    accountRoutingScheme: String,
+    accountRoutingAddress: String,
+    callContext: Option[CallContext]
+  ): Box[(Bank, BankAccount)] = {
+    //don't require and exact match on the name, just the identifier
+    val bank = MappedBank.find(By(MappedBank.national_identifier, bankNationalIdentifier)) match {
+      case Full(b) =>
+        logger.debug(s"bank with id ${b.bankId} and national identifier ${b.nationalIdentifier} found")
+        b
+      case _ =>
+        logger.debug(s"creating bank with national identifier $bankNationalIdentifier")
+        //TODO: need to handle the case where generatePermalink returns a permalink that is already used for another bank
+        MappedBank.create
+          .permalink(Helper.generatePermalink(bankName))
+          .fullBankName(bankName)
+          .shortBankName(bankName)
+          .national_identifier(bankNationalIdentifier)
+          .saveMe()
+    }
+
+    //TODO: pass in currency as a parameter?
+    val account = createAccountIfNotExisting(
+      bank.bankId,
+      AccountId(APIUtil.generateUUID()),
+      accountNumber, accountType,
+      accountLabel, currency,
+      0L, accountHolderName,
+      "",
+      List.empty
+    )
+
+    account.map(account => (bank, account))
+  }
+
+
+  def createAccountIfNotExisting(
+    bankId: BankId,
+    accountId: AccountId,
+    accountNumber: String,
+    accountType: String,
+    accountLabel: String,
+    currency: String,
+    balanceInSmallestCurrencyUnits: Long,
+    accountHolderName: String,
+    branchId: String,
+    accountRoutings: List[AccountRouting],
+  ): Box[BankAccount] = {
+    getBankAccountLegacy(bankId, accountId, None).map(_._1) match {
+      case Full(a) =>
+        logger.debug(s"account with id $accountId at bank with id $bankId already exists. No need to create a new one.")
+        Full(a)
+      case _ => tryo {
+        accountRoutings.map(accountRouting =>
+          BankAccountRouting.create
+            .BankId(bankId.value)
+            .AccountId(accountId.value)
+            .AccountRoutingScheme(accountRouting.scheme)
+            .AccountRoutingAddress(accountRouting.address)
+            .saveMe()
+        )
+        MappedBankAccount.create
+          .bank(bankId.value)
+          .theAccountId(accountId.value)
+          .accountNumber(accountNumber)
+          .kind(accountType)
+          .accountLabel(accountLabel)
+          .accountCurrency(currency.toUpperCase)
+          .accountBalance(balanceInSmallestCurrencyUnits)
+          .holder(accountHolderName)
+          .mBranchId(branchId)
+          .saveMe()
+      }
+    }
+  }
+
+
 }

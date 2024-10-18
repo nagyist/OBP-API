@@ -1605,6 +1605,20 @@ object NewStyle extends MdcLoggable{
         (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponseForMakePayment ",400), i._2)
       }
 
+    def getChargeValue(chargeLevelAmount: BigDecimal, transactionRequestCommonBodyAmount: BigDecimal, callContext: Option[CallContext]): OBPReturnType[String] =
+      Connector.connector.vend.getChargeValue(
+        chargeLevelAmount: BigDecimal, 
+        transactionRequestCommonBodyAmount: BigDecimal, 
+        callContext: Option[CallContext]
+      ) map { i =>
+        (unboxFullOrFail(i._1, callContext, s"$GetChargeValueError ", 400), i._2)
+      }
+      
+    def getTransactionRequestTypeCharges(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestTypes: List[TransactionRequestType], callContext: Option[CallContext]):OBPReturnType[List[TransactionRequestTypeCharge]] = 
+      Connector.connector.vend.getTransactionRequestTypeCharges(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestTypes: List[TransactionRequestType], callContext: Option[CallContext]) map { i =>
+        (unboxFullOrFail(i._1, callContext, s"$GetTransactionRequestTypeChargesError ", 400), i._2)
+      }
+    
     def saveDoubleEntryBookTransaction(doubleEntryTransaction: DoubleEntryTransaction, callContext: Option[CallContext]): OBPReturnType[DoubleEntryTransaction] =
       Connector.connector.vend.saveDoubleEntryBookTransaction(doubleEntryTransaction: DoubleEntryTransaction, callContext: Option[CallContext]) map { i =>
         (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponseForSaveDoubleEntryBookTransaction ", 400), i._2)

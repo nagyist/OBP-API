@@ -2215,10 +2215,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       charge)
   }
 
-  override def saveTransactionRequestTransactionImpl(transactionRequestId: TransactionRequestId, transactionId: TransactionId): Box[Boolean] = {
-    TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestTransactionImpl(transactionRequestId, transactionId)
-  }
-
   override def saveTransactionRequestChallengeImpl(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge): Box[Boolean] = {
     TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestChallengeImpl(transactionRequestId, challenge)
   }
@@ -2239,55 +2235,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   override def getTransactionRequestsImpl210(fromAccount: BankAccount): Box[List[TransactionRequest]] = {
     TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId)
   }
-
-  /*
-    Bank account creation
-   */
-
-  //creates a bank account (if it doesn't exist) and creates a bank (if it doesn't exist)
-  //again assume national identifier is unique
-  override def createBankAndAccount(
-                                     bankName: String,
-                                     bankNationalIdentifier: String,
-                                     accountNumber: String,
-                                     accountType: String,
-                                     accountLabel: String,
-                                     currency: String,
-                                     accountHolderName: String,
-                                     branchId: String,
-                                     accountRoutingScheme: String,
-                                     accountRoutingAddress: String
-                                   ): Box[(Bank, BankAccount)] = {
-    //don't require and exact match on the name, just the identifier
-    val bank = MappedBank.find(By(MappedBank.national_identifier, bankNationalIdentifier)) match {
-      case Full(b) =>
-        logger.debug(s"bank with id ${b.bankId} and national identifier ${b.nationalIdentifier} found")
-        b
-      case _ =>
-        logger.debug(s"creating bank with national identifier $bankNationalIdentifier")
-        //TODO: need to handle the case where generatePermalink returns a permalink that is already used for another bank
-        MappedBank.create
-          .permalink(Helper.generatePermalink(bankName))
-          .fullBankName(bankName)
-          .shortBankName(bankName)
-          .national_identifier(bankNationalIdentifier)
-          .saveMe()
-    }
-
-    //TODO: pass in currency as a parameter?
-    val account = createAccountIfNotExisting(
-      bank.bankId,
-      AccountId(APIUtil.generateUUID()),
-      accountNumber, accountType,
-      accountLabel, currency,
-      0L, accountHolderName,
-      "",
-      List.empty
-    )
-
-    account.map(account => (bank, account))
-  }
-
+  
   override def updateBankAccount(
                                   bankId: BankId,
                                   accountId: AccountId,
@@ -2418,7 +2366,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     for {
       (_, _) <- getBankLegacy(bankId, None) //bank is not really used, but doing this will ensure account creations fails if the bank doesn't
       balanceInSmallestCurrencyUnits = Helper.convertToSmallestCurrencyUnits(initialBalance, currency)
-      account <- createAccountIfNotExisting (
+      account <- LocalMappedConnectorInternal.createAccountIfNotExisting (
         bankId,
         accountId,
         accountNumber,
@@ -2435,57 +2383,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     }
 
   }
-
-
-  private def createAccountIfNotExisting(
-                                          bankId: BankId,
-                                          accountId: AccountId,
-                                          accountNumber: String,
-                                          accountType: String,
-                                          accountLabel: String,
-                                          currency: String,
-                                          balanceInSmallestCurrencyUnits: Long,
-                                          accountHolderName: String,
-                                          branchId: String,
-                                          accountRoutings: List[AccountRouting],
-                                        ): Box[BankAccount] = {
-    getBankAccountLegacy(bankId, accountId, None).map(_._1) match {
-      case Full(a) =>
-        logger.debug(s"account with id $accountId at bank with id $bankId already exists. No need to create a new one.")
-        Full(a)
-      case _ => tryo {
-        accountRoutings.map(accountRouting =>
-          BankAccountRouting.create
-            .BankId(bankId.value)
-            .AccountId(accountId.value)
-            .AccountRoutingScheme(accountRouting.scheme)
-            .AccountRoutingAddress(accountRouting.address)
-            .saveMe()
-        )
-        MappedBankAccount.create
-          .bank(bankId.value)
-          .theAccountId(accountId.value)
-          .accountNumber(accountNumber)
-          .kind(accountType)
-          .accountLabel(accountLabel)
-          .accountCurrency(currency.toUpperCase)
-          .accountBalance(balanceInSmallestCurrencyUnits)
-          .holder(accountHolderName)
-          .mBranchId(branchId)
-          .saveMe()
-      }
-    }
-  }
-
-  /*
-    End of bank account creation
-   */
-
-
-  /*
-    Transaction importer api
-   */
-
+  
   //used by the transaction import api
   override def updateAccountBalance(bankId: BankId, accountId: AccountId, newBalance: BigDecimal): Box[Boolean] = {
     //this will be Full(true) if everything went well
@@ -4784,7 +4682,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       createdTransactionId match {
         case Full(ti) => {
           if (!createdTransactionId.isEmpty) {
-            saveTransactionRequestTransaction(result.id, ti)
+            saveTransactionRequestTransaction(result.id, ti, callContext)
             result = result.copy(transaction_ids = ti.value)
           }
         }
@@ -4854,7 +4752,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       createdTransactionId match {
         case Full(ti) => {
           if (!createdTransactionId.isEmpty) {
-            saveTransactionRequestTransaction(result.id, ti)
+            saveTransactionRequestTransaction(result.id, ti, callContext)
             result = result.copy(transaction_ids = ti.value)
           }
         }
@@ -4870,7 +4768,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
     Full(result)
   }
-
   // Set initial status
   override def getStatus(challengeThresholdAmount: BigDecimal, transactionRequestCommonBodyAmount: BigDecimal, transactionRequestType: TransactionRequestType): Future[TransactionRequestStatus.Value] = {
     Future(
@@ -4890,16 +4787,17 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   }
 
   // Get the charge level value
-  override def getChargeValue(chargeLevelAmount: BigDecimal, transactionRequestCommonBodyAmount: BigDecimal): Future[String] = {
+  override def getChargeValue(chargeLevelAmount: BigDecimal, transactionRequestCommonBodyAmount: BigDecimal, callContext: Option[CallContext]): OBPReturnType[Box[String]] = {
     Future(
-      transactionRequestCommonBodyAmount * chargeLevelAmount match {
+      (Full(transactionRequestCommonBodyAmount * chargeLevelAmount match {
         //Set the mininal cost (2 euros)for transaction request
         case value if (value < 2) => "2.0"
         //Set the largest cost (50 euros)for transaction request
         case value if (value > 50) => "50"
         //Set the cost according to the charge level
         case value => value.setScale(10, BigDecimal.RoundingMode.HALF_UP).toString()
-      })
+      }), callContext)
+    )
   }
 
   /**
@@ -4961,7 +4859,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       chargeLevelAmount <- NewStyle.function.tryons(s"$InvalidNumber chargeLevel.amount: ${chargeLevel.amount} can not be transferred to decimal !", 400, callContext) {
         BigDecimal(chargeLevel.amount)
       }
-      chargeValue <- getChargeValue(chargeLevelAmount, transactionRequestCommonBodyAmount)
+      (chargeValue, callContext) <- NewStyle.function.getChargeValue(chargeLevelAmount, transactionRequestCommonBodyAmount, callContext)
       charge = TransactionRequestCharge("Total charges for completed transaction", AmountOfMoney(transactionRequestCommonBody.value.currency, chargeValue))
       // Always create a new Transaction Request
       transactionRequest <- Future {
@@ -5000,9 +4898,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
             transactionRequest <- Future(transactionRequest.copy(challenge = null))
 
             //save transaction_id into database
-            _ <- Future {
-              saveTransactionRequestTransaction(transactionRequest.id, createdTransactionId)
-            }
+            _ <- saveTransactionRequestTransaction(transactionRequest.id, createdTransactionId,callContext)
+           
             //update transaction_id field for varibale 'transactionRequest'
             transactionRequest <- Future(transactionRequest.copy(transaction_ids = createdTransactionId.value))
 
@@ -5116,7 +5013,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       challengeTypeValue <- NewStyle.function.tryons(s"$InvalidChallengeType Current Type is $challengeType", 400, callContext) {
         challengeType.map(ChallengeType.withName(_)).head
       }
-      chargeValue <- getChargeValue(chargeLevelAmount, transactionRequestCommonBodyAmount)
+      (chargeValue, callContext) <- NewStyle.function.getChargeValue(chargeLevelAmount, transactionRequestCommonBodyAmount, callContext)
       charge = TransactionRequestCharge("Total charges for completed transaction", AmountOfMoney(transactionRequestCommonBody.value.currency, chargeValue))
       // Always create a new Transaction Request
       transactionRequest <- Future {
@@ -5165,9 +5062,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
             transactionRequest <- Future(transactionRequest.copy(challenge = null))
 
             //save transaction_id into database
-            _ <- Future {
-              saveTransactionRequestTransaction(transactionRequest.id, createdTransactionId)
-            }
+            _ <- saveTransactionRequestTransaction(transactionRequest.id, createdTransactionId, callContext)
+            
             //update transaction_id field for varibale 'transactionRequest'
             transactionRequest <- Future(transactionRequest.copy(transaction_ids = createdTransactionId.value))
 
@@ -5243,7 +5139,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     transactionRequestBody: SepaCreditTransfersBerlinGroupV13,
     callContext: Option[CallContext]
   ): OBPReturnType[Box[TransactionRequestBGV1]] = {
-    LocalMappedConnectorHelper.createTransactionRequestBGInternal( 
+    LocalMappedConnectorInternal.createTransactionRequestBGInternal( 
       initiator: User,
       paymentServiceType: PaymentServiceTypes,
       transactionRequestType: TransactionRequestTypes,
@@ -5259,7 +5155,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     transactionRequestBody: PeriodicSepaCreditTransfersBerlinGroupV13,
     callContext: Option[CallContext]
   ): OBPReturnType[Box[TransactionRequestBGV1]] = {
-    LocalMappedConnectorHelper.createTransactionRequestBGInternal(
+    LocalMappedConnectorInternal.createTransactionRequestBGInternal(
       initiator: User,
       paymentServiceType: PaymentServiceTypes,
       transactionRequestType: TransactionRequestTypes,
@@ -5286,9 +5182,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   override def notifyTransactionRequest(fromAccount: BankAccount, toAccount: BankAccount, transactionRequest: TransactionRequest, callContext: Option[CallContext]): OBPReturnType[Box[TransactionRequestStatusValue]] =
     Future((Full(TransactionRequestStatusValue(transactionRequest.status)), callContext))
 
-  override def saveTransactionRequestTransaction(transactionRequestId: TransactionRequestId, transactionId: TransactionId) = {
-    //put connector agnostic logic here if necessary
-    saveTransactionRequestTransactionImpl(transactionRequestId, transactionId)
+  override def saveTransactionRequestTransaction(transactionRequestId: TransactionRequestId, transactionId: TransactionId, callContext: Option[CallContext]) = {
+    Future{(TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestTransactionImpl(transactionRequestId, transactionId), callContext)}
   }
 
   override def getTransactionRequests(initiator: User, fromAccount: BankAccount, callContext: Option[CallContext]): Box[List[TransactionRequest]] = {
@@ -5397,7 +5292,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       transId <- makePayment(initiator, BankIdAccountId(BankId(tr.from.bank_id), AccountId(tr.from.account_id)),
         BankIdAccountId(BankId(tr.body.to_sandbox_tan.get.bank_id), AccountId(tr.body.to_sandbox_tan.get.account_id)), BigDecimal(tr.body.value.amount), tr.body.description, TransactionRequestType(tr.`type`), 
         callContext) ?~! InvalidConnectorResponseForMakePayment
-      didSaveTransId <- saveTransactionRequestTransaction(transReqId, transId)
+        _ = saveTransactionRequestTransaction(transReqId, transId, callContext)
       didSaveStatus <- saveTransactionRequestStatusImpl(transReqId, TransactionRequestStatus.COMPLETED.toString)
       //get transaction request again now with updated values
       (tr, callContext) <- getTransactionRequestImpl(transReqId, None) ?~! s"${ErrorMessages.InvalidTransactionRequestId} : $transReqId"
@@ -5418,7 +5313,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
         TransactionRequestType(transactionRequest.`type`),
         "" //Note chargePolicy  started to use from V210
       ) ?~! InvalidConnectorResponseForMakePayment
-      didSaveTransId <- saveTransactionRequestTransaction(transRequestId, transactionId)
+      _ = saveTransactionRequestTransaction(transRequestId, transactionId, None)
       didSaveStatus <- saveTransactionRequestStatusImpl(transRequestId, TransactionRequestStatus.COMPLETED.toString)
 
       transactionRequestUpdated <- Full(transactionRequest.copy(transaction_ids = transactionId.value, status = TransactionRequestStatus.COMPLETED.toString))
@@ -5654,9 +5549,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
         case transactionRequestType => Future((throw new Exception(s"${InvalidTransactionRequestType}: '${transactionRequestType}'. Not supported in this version.")), callContext)
       }
 
-      didSaveTransId <- Future {
-        saveTransactionRequestTransaction(transactionRequestId, transactionId).openOrThrowException(attemptedToOpenAnEmptyBox)
-      }
+      _ = saveTransactionRequestTransaction(transactionRequestId, transactionId, callContext)
+      
       didSaveStatus <- Future {
         saveTransactionRequestStatusImpl(transactionRequestId, TransactionRequestStatus.COMPLETED.toString).openOrThrowException(attemptedToOpenAnEmptyBox)
       }
@@ -5708,32 +5602,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       accountRoutings
     )
 
-  }
-
-  /**
-    * A sepecil method:
-    * This used for set account holder for accounts from Adapter. used in side @code.bankconnectors.Connector#updateUserAccountViewsOld
-    * But from vJune2017 we introduce the new method `code.model.dataAccess.AuthUser.updateUserAccountViews` instead.
-    * New method is much powerful and clear then this one.
-    * If you only want to use this method, please double check your design. You need also think about the view, account holders.
-    */
-  @deprecated("we create new code.model.dataAccess.AuthUser.updateUserAccountViews for June2017 connector, try to use new instead of this", "11 September 2018")
-  override def setAccountHolder(owner: String, bankId: BankId, accountId: AccountId, account_owners: List[String]): Unit = {
-    //    if (account_owners.contains(owner)) { // No need for now, fix it later
-    val resourceUserOwner = Users.users.vend.getUserByProviderAndUsername(localIdentityProvider, owner)
-    resourceUserOwner match {
-      case Full(owner) => {
-        if (!accountOwnerExists(owner, bankId, accountId).openOrThrowException(attemptedToOpenAnEmptyBox)) {
-          val holder = AccountHolders.accountHolders.vend.getOrCreateAccountHolder(owner, BankIdAccountId(bankId, accountId))
-          logger.debug(s"Connector.setAccountHolder create account holder: $holder")
-        }
-      }
-      case _ => {
-        //          This shouldn't happen as AuthUser should generate the ResourceUsers when saved
-        logger.error(s"resource user(s) $owner not found.")
-      }
-      //      }
-    }
   }
 
   //This method is only existing in mapper
@@ -5797,14 +5665,13 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   /**
     * get transaction request type charges
     */
-  override def getTransactionRequestTypeCharges(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestTypes: List[TransactionRequestType]): Box[List[TransactionRequestTypeCharge]] = {
-    val res: List[TransactionRequestTypeCharge] = for {
+  override def getTransactionRequestTypeCharges(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestTypes: List[TransactionRequestType], callContext: Option[CallContext]): OBPReturnType[Box[List[TransactionRequestTypeCharge]]] = Future {
+    (Full(for {
       trt: TransactionRequestType <- transactionRequestTypes
       trtc: TransactionRequestTypeCharge <- getTransactionRequestTypeCharge(bankId, accountId, viewId, trt)
     } yield {
       trtc
-    }
-    Full(res)
+    }), callContext)
   }
 
   override def deleteCustomerAttribute(customerAttributeId: String, callContext: Option[CallContext] ): OBPReturnType[Box[Boolean]] = {

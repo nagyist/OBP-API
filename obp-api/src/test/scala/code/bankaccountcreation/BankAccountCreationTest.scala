@@ -1,7 +1,7 @@
 package code.bankaccountcreation
 
 import code.api.util.ErrorMessages._
-import code.bankconnectors.Connector
+import code.bankconnectors.{Connector, LocalMappedConnectorInternal}
 import code.setup.{DefaultConnectorTestSetup, DefaultUsers, ServerSetup}
 import com.openbankproject.commons.model.{AccountId, BankId}
 import org.scalatest.Tag
@@ -61,10 +61,13 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       Connector.connector.vend.getBanksLegacy(None).map(_._1).openOrThrowException(attemptedToOpenAnEmptyBox).size should equal(0)
 
       When("We create an account at that bank")
-      val (_, returnedAccount) = Connector.connector.vend.createBankAndAccount(
+      val (_, returnedAccount) = LocalMappedConnectorInternal.createBankAndAccount(
         bankName, bankNationalIdentifier, accountNumber, accountType,
         accountLabel, currency, accountHolderName,
-        "","", "" //added field in V220
+        "",
+        "", 
+        "",
+        None//added field in V220
       ).openOrThrowException(attemptedToOpenAnEmptyBox)
 
       Then("A bank should now exist, with the correct parameters")
@@ -93,13 +96,14 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
 
 
       When("We create an account at that bank")
-      val (_, returnedAccount) = Connector.connector.vend.createBankAndAccount(
+      val (_, returnedAccount) = LocalMappedConnectorInternal.createBankAndAccount(
         existingBank.fullName, 
         existingBank.nationalIdentifier, 
         accountNumber,
         accountType, accountLabel, currency, 
         accountHolderName,
-        "","", "" //added field in V220
+        "","", "",
+        None//added field in V220
       ).openOrThrowException(attemptedToOpenAnEmptyBox)
 
       Then("No new bank should be created")

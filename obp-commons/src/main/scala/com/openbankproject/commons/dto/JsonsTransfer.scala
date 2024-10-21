@@ -1266,11 +1266,6 @@ case class InBoundCreateOrUpdateBank(status: Status, data: BankCommons) extends 
   override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
 }
 
-case class OutBoundCreateOrUpdateAtmLegacy(atm: AtmT) extends TopicTrait
-case class InBoundCreateOrUpdateAtmLegacy(status: Status, data: AtmTCommons) extends InBoundTrait[AtmTCommons] {
-  override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
-}
-
 case class OutBoundCreateOrUpdateProduct(bankId: String, code: String, parentProductCode: Option[String], name: String, category: String, family: String, superFamily: String, moreInfoUrl: String, termsAndConditionsUrl: String, details: String, description: String, metaLicenceId: String, metaLicenceName: String) extends TopicTrait
 case class InBoundCreateOrUpdateProduct(status: Status, data: ProductCommons) extends InBoundTrait[ProductCommons] {
   override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()

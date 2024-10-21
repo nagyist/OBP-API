@@ -2658,7 +2658,10 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   }
 
   override def createOrUpdateAtm(atm: AtmT,  callContext: Option[CallContext]): OBPReturnType[Box[AtmT]] = Future{
-    (createOrUpdateAtmLegacy(atm), callContext)
+    ( 
+      Atms.atmsProvider.vend.createOrUpdateAtm(atm), 
+      callContext
+    )
   }
   
   override def deleteAtm(atm: AtmT,  callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = Future {
@@ -2766,12 +2769,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       By(EndpointTag.TagName, tagName),
       By(EndpointTag.TagName, tagName),
     ), callContext)
-  }
-
-  
-
-  override def createOrUpdateAtmLegacy(atm: AtmT): Box[AtmT] = {
-    Atms.atmsProvider.vend.createOrUpdateAtm(atm)
   }
 
   override def createOrUpdateProductFee(

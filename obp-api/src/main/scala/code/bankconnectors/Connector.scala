@@ -1033,9 +1033,6 @@ trait Connector extends MdcLoggable {
                           bankRoutingScheme: String,
                           bankRoutingAddress: String
                         ): Box[Bank] = Failure(setUnimplementedError(nameOf(createOrUpdateBank _)))
-
-
-  def createOrUpdateAtmLegacy(atm: AtmT): Box[AtmT] = Failure(setUnimplementedError(nameOf(createOrUpdateAtmLegacy _)))
   
   def createOrUpdateAtm(atm: AtmT,  callContext: Option[CallContext]): OBPReturnType[Box[AtmT]] = Future{Failure(setUnimplementedError(nameOf(createOrUpdateAtm _)))}
   

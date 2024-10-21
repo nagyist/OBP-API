@@ -13,6 +13,7 @@ import code.api.v1_2_1.{CreateViewJsonV121, JSONFactory, UpdateViewJsonV121}
 import code.api.v2_0_0.OBPAPI2_0_0
 import code.api.v2_1_0._
 import code.api.v2_2_0.JSONFactory220.transformV220ToBranch
+import code.api.v4_0_0.{AtmJsonV400, JSONFactory400}
 import code.bankconnectors._
 import code.consumer.Consumers
 import code.entitlement.Entitlement
@@ -589,10 +590,6 @@ trait APIMethods220 {
       }
     }
 
-
-    val createAtmEntitlementsRequiredForSpecificBank = canCreateAtm ::  Nil
-    val createAtmEntitlementsRequiredForAnyBank = canCreateAtmAtAnyBank ::  Nil
-
     resourceDocs += ResourceDoc(
       createAtm,
       implementedInApiVersion,
@@ -621,17 +618,20 @@ trait APIMethods220 {
 
     lazy val createAtm: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "atms" ::  Nil JsonPost json -> _ => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            _ <- NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, createAtmEntitlementsRequiredForSpecificBank, createAtmEntitlementsRequiredForAnyBank, callContext)
-            atmJson <- tryo {json.extract[AtmJsonV220]} ?~! ErrorMessages.InvalidJsonFormat
-            atm <- JSONFactory220.transformToAtmFromV220(atmJson) ?~! {ErrorMessages.CouldNotTransformJsonToInternalModel + " Atm"}
-            success <- Connector.connector.vend.createOrUpdateAtmLegacy(atm)
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            atmJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[AtmJsonV400]}", 400, callContext) {
+              json.extract[AtmJsonV220]
+            }
+            _ <- NewStyle.function.hasAtLeastOneEntitlement(failMsg = createAtmEntitlementsRequiredText)(bankId.value, u.userId, createAtmEntitlements, callContext)
+            _ <- Helper.booleanToFuture(s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body", 400, callContext){atmJsonV400.bank_id == bankId.value}
+            atm <- NewStyle.function.tryons(ErrorMessages.CouldNotTransformJsonToInternalModel + " Atm", 400, callContext) {
+              JSONFactory220.transformToAtmFromV220(atmJson).head
+            }
+            (atm, callContext) <- NewStyle.function.createOrUpdateAtm(atm, callContext)
           } yield {
-            val json = JSONFactory220.createAtmJson(success)
-            createdJsonResponse(Extraction.decompose(json))
+            (JSONFactory220.createAtmJson(atm), HttpCode.`201`(callContext))
           }
       }
     }

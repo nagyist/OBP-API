@@ -1181,44 +1181,6 @@ trait Connector extends MdcLoggable {
   }
 
 
-  //This method is in Connector.scala, not in MappedView.scala.
-  //Reason: this method is only used for different connectors. Used for mapping users/accounts/ between MainFrame and OBP.
-  // Not used for creating views from OBP-API side.
-  def createViews(bankId: BankId, accountId: AccountId, owner_view: Boolean = false,
-                  public_view: Boolean = false,
-                  accountants_view: Boolean = false,
-                  auditors_view: Boolean = false ) : List[View] = {
-
-    val ownerView: Box[View] =
-      if(owner_view)
-        Views.views.vend.getOrCreateSystemView(SYSTEM_OWNER_VIEW_ID)
-      else Empty
-
-    val publicView: Box[View]  =
-      if(public_view)
-        Views.views.vend.getOrCreateCustomPublicView(bankId, accountId, "Public View")
-      else Empty
-
-    val accountantsView: Box[View]  =
-      if(accountants_view)
-        Views.views.vend.getOrCreateSystemView(SYSTEM_ACCOUNTANT_VIEW_ID)
-      else Empty
-
-    val auditorsView: Box[View] =
-      if(auditors_view)
-        Views.views.vend.getOrCreateSystemView(SYSTEM_AUDITOR_VIEW_ID)
-      else Empty
-
-    List(ownerView, publicView, accountantsView, auditorsView).flatten
-  }
-
-  //  def incrementBadLoginAttempts(username:String):Unit
-  //
-  //  def userIsLocked(username:String):Boolean
-  //
-  //  def resetBadLoginAttempts(username:String):Unit
-
-
   def getCurrentCurrencies(bankId: BankId, callContext: Option[CallContext]): OBPReturnType[Box[List[String]]] = Future{Failure(setUnimplementedError(nameOf(getCurrentCurrencies _)))}
   
   def getCurrentFxRate(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String): Box[FXRate] = Failure(setUnimplementedError(nameOf(getCurrentFxRate _)))

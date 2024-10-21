@@ -2204,11 +2204,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestStatusImpl(transactionRequestId, status)
   }
 
-  override def saveTransactionRequestDescriptionImpl(transactionRequestId: TransactionRequestId, description: String): Box[Boolean] = {
-    TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestDescriptionImpl(transactionRequestId, description)
-  }
-
-
   override def getTransactionRequestsImpl(fromAccount: BankAccount): Box[List[TransactionRequest]] = {
     TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId)
   }

@@ -431,7 +431,6 @@ object ConnectorBuilderUtil {
     // "answerTransactionRequestChallenge", //deprecated
     //"setAccountHolder", //deprecated
     // "createImportedTransaction", // should create manually
-    // "createViews", // should not be auto generated
     // "updateUserAccountViewsOld", // deprecated
     //"createBankAccountLegacy", // should not generate for Legacy methods //deprecated
 

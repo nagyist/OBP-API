@@ -920,9 +920,7 @@ trait Connector extends MdcLoggable {
   protected def saveTransactionRequestChallengeImpl(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge): Box[Boolean] = TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestChallengeImpl(transactionRequestId, challenge)
 
   def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String): Box[Boolean] = TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestStatusImpl(transactionRequestId, status)
-
-  def saveTransactionRequestDescriptionImpl(transactionRequestId: TransactionRequestId, description: String): Box[Boolean] = TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestDescriptionImpl(transactionRequestId, description)
-
+  
   def getTransactionRequests(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[List[TransactionRequest]] =
     LocalMappedConnector.getTransactionRequests(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext])
 

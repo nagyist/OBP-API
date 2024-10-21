@@ -558,15 +558,7 @@ trait Connector extends MdcLoggable {
 
   def checkBankAccountExistsLegacy(bankId : BankId, accountId : AccountId, callContext: Option[CallContext] = None) : Box[(BankAccount, Option[CallContext])]= Failure(setUnimplementedError(nameOf(checkBankAccountExistsLegacy _)))
   def checkBankAccountExists(bankId : BankId, accountId : AccountId, callContext: Option[CallContext] = None) : OBPReturnType[Box[(BankAccount)]] = Future {(Failure(setUnimplementedError(nameOf(checkBankAccountExists _))), callContext)}
-
-  /**
-    * This method is just return an empty account to AccountType.
-    * It is used for SEPA, Counterparty empty toAccount
-    *
-    * @return empty bankAccount
-    */
-  def getEmptyBankAccount(): Box[BankAccount]= Failure(setUnimplementedError(nameOf(getEmptyBankAccount _)))
-
+  
   def getCounterpartyFromTransaction(bankId: BankId, accountId: AccountId, counterpartyId: String): Box[Counterparty] = {
     val transactions = getTransactionsLegacy(bankId, accountId ,None).map(_._1).toList.flatten
     val counterparties = for {

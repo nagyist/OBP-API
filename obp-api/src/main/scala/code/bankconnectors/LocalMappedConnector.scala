@@ -1224,10 +1224,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   }
 
 
-  override def getEmptyBankAccount(): Box[BankAccount] = {
-    Full(new MappedBankAccount())
-  }
-
+  
   /**
     * This is used for create or update the special bankAccount for COUNTERPARTY stuff (toAccountProvider != "OBP") and (Connector = Kafka)
     * details in createTransactionRequest - V210 ,case COUNTERPARTY.toString

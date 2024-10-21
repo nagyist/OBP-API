@@ -1024,10 +1024,6 @@ case class InBoundDynamicEntityProcessDoc (inboundAdapterCallContext: InboundAda
 case class OutBoundCreateChallenges(outboundAdapterCallContext: OutboundAdapterCallContext, bankId: BankId, accountId: AccountId, userIds: List[String], transactionRequestType: TransactionRequestType, transactionRequestId: String, scaMethod: Option[StrongCustomerAuthentication.SCA]) extends TopicTrait
 case class InBoundCreateChallenges(inboundAdapterCallContext: InboundAdapterCallContext, status: Status, data: List[String]) extends InBoundTrait[List[String]]
 
-case class OutBoundGetEmptyBankAccount() extends TopicTrait
-case class InBoundGetEmptyBankAccount(status: Status, data: BankAccountCommons) extends InBoundTrait[BankAccountCommons] {
-  override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
-}
 
 case class OutBoundGetCounterpartyFromTransaction(bankId: BankId, accountId: AccountId, counterpartyId: String) extends TopicTrait
 case class InBoundGetCounterpartyFromTransaction(status: Status, data: Counterparty) extends InBoundTrait[Counterparty] {

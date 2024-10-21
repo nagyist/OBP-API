@@ -2259,13 +2259,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
         .saveMe
     }, callContext)
   }
-
-  //for sandbox use -> allows us to check if we can generate a new test account with the given number
-  override def accountExists(bankId: BankId, accountNumber: String): Box[Boolean] = {
-    Full(MappedBankAccount.count(
-      By(MappedBankAccount.bank, bankId.value),
-      By(MappedBankAccount.accountNumber, accountNumber)) > 0)
-  }
+  
 
   override def addBankAccount(
                                bankId: BankId,
@@ -2280,7 +2274,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                              ): OBPReturnType[Box[BankAccount]] = Future {
     val accountId = AccountId(APIUtil.generateUUID())
     val uniqueAccountNumber = {
-      def exists(number: String) = accountExists(bankId, number).openOrThrowException(attemptedToOpenAnEmptyBox)
+      def exists(number: String) = LocalMappedConnectorInternal.accountExists(bankId, number).openOrThrowException(attemptedToOpenAnEmptyBox)
 
       def appendUntilOkay(number: String): String = {
         val newNumber = number + Random.nextInt(10)
@@ -2319,7 +2313,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                                   accountRoutings: List[AccountRouting],
                                   callContext: Option[CallContext]
                                 ): OBPReturnType[Box[BankAccount]] = Future {
-    (Connector.connector.vend.createBankAccountLegacy(bankId: BankId,
+    (LocalMappedConnectorInternal.createBankAccountLegacy(bankId: BankId,
       accountId: AccountId,
       accountType: String,
       accountLabel: String,
@@ -5406,49 +5400,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       (Full(transactionRequest), callContext)
     }
   }
-
-  //generates an unused account number and then creates the sandbox account using that number
-  @deprecated("This return Box, not a future, try to use @createBankAccount instead. ", "10-05-2019")
-  override def createBankAccountLegacy(
-                                        bankId: BankId,
-                                        accountId: AccountId,
-                                        accountType: String,
-                                        accountLabel: String,
-                                        currency: String,
-                                        initialBalance: BigDecimal,
-                                        accountHolderName: String,
-                                        branchId: String,
-                                        accountRoutings: List[AccountRouting]
-                                      ): Box[BankAccount] = {
-    val uniqueAccountNumber = {
-      def exists(number: String) = Connector.connector.vend.accountExists(bankId, number).openOrThrowException(attemptedToOpenAnEmptyBox)
-
-      def appendUntilOkay(number: String): String = {
-        val newNumber = number + Random.nextInt(10)
-        if (!exists(newNumber)) newNumber
-        else appendUntilOkay(newNumber)
-      }
-
-      //generates a random 8 digit account number
-      val firstTry = (Random.nextDouble() * 10E8).toInt.toString
-      appendUntilOkay(firstTry)
-    }
-
-    LocalMappedConnectorInternal.createSandboxBankAccount(
-      bankId,
-      accountId,
-      uniqueAccountNumber,
-      accountType,
-      accountLabel,
-      currency,
-      initialBalance,
-      accountHolderName,
-      branchId: String, //added field in V220
-      accountRoutings
-    )
-
-  }
-
+  
   //This method is only existing in mapper
   override def accountOwnerExists(user: User, bankId: BankId, accountId: AccountId): Box[Boolean] = {
     val res =

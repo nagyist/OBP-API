@@ -180,7 +180,7 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       Connector.connector.vend.getBankLegacy(bankId, None).map(_._1).isDefined should equal(true)
 
       When("We try to create an account at that bank")
-      Connector.connector.vend.createBankAccountLegacy(bankId, accountId, accountType, accountLabel, currency, initialBalance, accountHolderName,
+      LocalMappedConnectorInternal.createBankAccountLegacy(bankId, accountId, accountType, accountLabel, currency, initialBalance, accountHolderName,
                                                         "", List.empty)
 
       Then("An account with the proper parameters should be created")

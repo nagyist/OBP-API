@@ -1083,19 +1083,6 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
             data = null
           ))
         }
-      } else if (obpMessageId.contains("account_exists")) {
-        val outBound = json.parse(message).extract[OutBoundAccountExists]
-        val obpMappedResponse = Future{code.bankconnectors.LocalMappedConnector.accountExists(outBound.bankId,outBound.accountNumber).head}
-        
-        obpMappedResponse.map(response => InBoundAccountExists(
-          status = Status("", Nil),
-          data = response
-        )).recoverWith {
-          case e: Exception => Future(InBoundAccountExists(
-            status = Status(e.getMessage, Nil),
-            data = false
-          ))
-        }
       } else if (obpMessageId.contains("get_products")) {
         val outBound = json.parse(message).extract[OutBoundGetProducts]
         val obpMappedResponse = code.bankconnectors.LocalMappedConnector.getProducts(outBound.bankId,outBound.params, None).map(_._1.head)
@@ -2725,19 +2712,6 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
           ),
             status = Status(e.getMessage, Nil),
             data = null
-          ))
-        }
-      } else if (obpMessageId.contains("account_exists")) {
-        val outBound = json.parse(message).extract[OutBoundAccountExists]
-        val obpMappedResponse = Future{code.bankconnectors.LocalMappedConnector.accountExists(outBound.bankId,outBound.accountNumber).head}
-        
-        obpMappedResponse.map(response => InBoundAccountExists(
-          status = Status("", Nil),
-          data = response
-        )).recoverWith {
-          case e: Exception => Future(InBoundAccountExists(
-            status = Status(e.getMessage, Nil),
-            data = false
           ))
         }
       } else if (obpMessageId.contains("get_products")) {

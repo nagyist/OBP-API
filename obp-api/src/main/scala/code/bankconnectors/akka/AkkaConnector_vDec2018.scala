@@ -2731,32 +2731,6 @@ object AkkaConnector_vDec2018 extends Connector with AkkaConnectorActorInit {
         response.map(convertToTuple[BankAccountCommons](callContext))        
   }
           
-  messageDocs += accountExistsDoc
-  def accountExistsDoc = MessageDoc(
-    process = "obp.accountExists",
-    messageFormat = messageFormat,
-    description = "Account Exists",
-    outboundTopic = None,
-    inboundTopic = None,
-    exampleOutboundMessage = (
-     OutBoundAccountExists(bankId=BankId(bankIdExample.value),
-      accountNumber=accountNumberExample.value)
-    ),
-    exampleInboundMessage = (
-     InBoundAccountExists(status=MessageDocsSwaggerDefinitions.inboundStatus,
-      data=true)
-    ),
-    adapterImplementation = Some(AdapterImplementation("- Core", 1))
-  )
-
-  override def accountExists(bankId: BankId, accountNumber: String): Box[Boolean] = {
-        import com.openbankproject.commons.dto.{InBoundAccountExists => InBound, OutBoundAccountExists => OutBound}  
-        val callContext: Option[CallContext] = None
-        val req = OutBound(bankId, accountNumber)
-        val response: Future[Box[InBound]] = (southSideActor ? req).mapTo[InBound].recoverWith(recoverFunction).map(Box !! _) 
-        response.map(convertToTuple[Boolean](callContext))        
-  }
-          
   messageDocs += getProductsDoc
   def getProductsDoc = MessageDoc(
     process = "obp.getProducts",

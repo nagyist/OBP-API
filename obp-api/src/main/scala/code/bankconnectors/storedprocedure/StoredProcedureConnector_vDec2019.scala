@@ -3203,32 +3203,7 @@ trait StoredProcedureConnector_vDec2019 extends Connector with MdcLoggable {
         val response: Future[Box[InBound]] = sendRequest[InBound]("obp_create_bank_account", req, callContext)
         response.map(convertToTuple[BankAccountCommons](callContext))        
   }
-          
-  messageDocs += accountExistsDoc
-  def accountExistsDoc = MessageDoc(
-    process = "obp.accountExists",
-    messageFormat = messageFormat,
-    description = "Account Exists",
-    outboundTopic = None,
-    inboundTopic = None,
-    exampleOutboundMessage = (
-     OutBoundAccountExists(bankId=BankId(bankIdExample.value),
-      accountNumber=accountNumberExample.value)
-    ),
-    exampleInboundMessage = (
-     InBoundAccountExists(status=MessageDocsSwaggerDefinitions.inboundStatus,
-      data=true)
-    ),
-    adapterImplementation = Some(AdapterImplementation("- Core", 1))
-  )
 
-  override def accountExists(bankId: BankId, accountNumber: String): Box[Boolean] = {
-        import com.openbankproject.commons.dto.{InBoundAccountExists => InBound, OutBoundAccountExists => OutBound}  
-        val callContext: Option[CallContext] = None
-        val req = OutBound(bankId, accountNumber)
-        val response: Future[Box[InBound]] = sendRequest[InBound]("obp_account_exists", req, callContext)
-        response.map(convertToTuple[Boolean](callContext))        
-  }
           
   messageDocs += getProductsDoc
   def getProductsDoc = MessageDoc(

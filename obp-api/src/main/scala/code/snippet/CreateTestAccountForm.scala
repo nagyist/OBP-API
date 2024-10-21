@@ -1,6 +1,6 @@
 package code.snippet
 
-import code.bankconnectors.Connector
+import code.bankconnectors.{Connector, LocalMappedConnectorInternal}
 import net.liftweb.util.Helpers._
 import net.liftweb.http.SHtml
 import code.model.{BankX, BankAccountX}
@@ -89,7 +89,7 @@ object CreateTestAccountForm{
         (bank, callContext) <- BankX(bankId, None) ?~ s"Bank $bankId not found"
         accountDoesNotExist <- booleanToBox(BankAccountX(bankId, accountId).isEmpty,
           s"Account with id $accountId already exists at bank $bankId")
-        bankAccount <- Connector.connector.vend.createBankAccountLegacy(bankId, accountId, accountType, accountLabel, currency, initialBalanceAsNumber, user.name,
+        bankAccount <- LocalMappedConnectorInternal.createBankAccountLegacy(bankId, accountId, accountType, accountLabel, currency, initialBalanceAsNumber, user.name,
                                                                          "", List.empty)//added field in V220
 
         //1 Create or Update the `Owner` for the new account

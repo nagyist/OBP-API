@@ -1048,50 +1048,6 @@ trait Connector extends MdcLoggable {
                          callContext: Option[CallContext]
                        ): OBPReturnType[Box[BankAccount]] = Future{(Failure(setUnimplementedError(nameOf(createBankAccount _))), callContext)}
 
-  //generates an unused account number and then creates the sandbox account using that number
-  @deprecated("This return Box, not a future, try to use @createBankAccount instead. ","10-05-2019")
-  def createBankAccountLegacy(
-                               bankId: BankId,
-                               accountId: AccountId,
-                               accountType: String,
-                               accountLabel: String,
-                               currency: String,
-                               initialBalance: BigDecimal,
-                               accountHolderName: String,
-                               branchId: String,
-                               accountRoutings: List[AccountRouting]
-                             ): Box[BankAccount] = {
-    val uniqueAccountNumber = {
-      def exists(number : String) = Connector.connector.vend.accountExists(bankId, number).openOrThrowException(attemptedToOpenAnEmptyBox)
-
-      def appendUntilOkay(number : String) : String = {
-        val newNumber = number + Random.nextInt(10)
-        if(!exists(newNumber)) newNumber
-        else appendUntilOkay(newNumber)
-      }
-
-      //generates a random 8 digit account number
-      val firstTry = (Random.nextDouble() * 10E8).toInt.toString
-      appendUntilOkay(firstTry)
-    }
-
-    LocalMappedConnectorInternal.createSandboxBankAccount(
-      bankId,
-      accountId,
-      uniqueAccountNumber,
-      accountType,
-      accountLabel,
-      currency,
-      initialBalance,
-      accountHolderName,
-      branchId: String,//added field in V220
-      accountRoutings
-    )
-
-  }
-
-  //for sandbox use -> allows us to check if we can generate a new test account with the given number
-  def accountExists(bankId : BankId, accountNumber : String) : Box[Boolean] = Failure(setUnimplementedError(nameOf(accountExists _)))
 
   def updateAccountLabel(bankId: BankId, accountId: AccountId, label: String): Box[Boolean] = Failure(setUnimplementedError(nameOf(updateAccountLabel _)))
 

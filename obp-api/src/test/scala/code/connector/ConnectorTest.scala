@@ -73,6 +73,9 @@ class ConnectorTest extends V510ServerSetup {
       val allConnectorMethods = mappedConnectorObject.map(_.callableMethods)
       val noCallcontextMethods: Option[Map[String, universe.MethodSymbol]] = allConnectorMethods.map(_.filterNot(_._2.paramLists.toString.contains("callContext")))
       val noCallcontextMethodsNames = noCallcontextMethods.map(_.keys.toList).getOrElse(Nil)
+        .filterNot(_=="equals")
+        .filterNot(_=="==")
+        .filterNot(_=="!=")
       println(noCallcontextMethodsNames.mkString("\n"))
       noCallcontextMethodsNames.size should be(0)
     }

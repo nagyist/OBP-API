@@ -1103,8 +1103,7 @@ trait Connector extends MdcLoggable {
   def getBranches(bankId: BankId, callContext: Option[CallContext], queryParams: List[OBPQueryParam] = Nil): Future[Box[(List[BranchT], Option[CallContext])]] = Future {
     Failure(setUnimplementedError(nameOf(getBranches _)))
   }
-
-  def getAtmLegacy(bankId : BankId, atmId: AtmId) : Box[AtmT] = Failure(setUnimplementedError(nameOf(getAtmLegacy _)))
+  
   def getAtm(bankId : BankId, atmId: AtmId, callContext: Option[CallContext]) : Future[Box[(AtmT, Option[CallContext])]] = Future {
     Failure(setUnimplementedError(nameOf(getAtm _)))
   }

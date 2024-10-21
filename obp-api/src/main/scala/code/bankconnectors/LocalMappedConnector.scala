@@ -2918,16 +2918,13 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     }
   }
 
-  override def getAtmLegacy(bankId: BankId, atmId: AtmId): Box[AtmT] = {
-    MappedAtm
-      .find(
-        By(MappedAtm.mBankId, bankId.value),
-        By(MappedAtm.mAtmId, atmId.value))
-  }
-
   override def getAtm(bankId: BankId, atmId: AtmId, callContext: Option[CallContext]): Future[Box[(AtmT, Option[CallContext])]] =
     Future {
-      getAtmLegacy(bankId, atmId).map(atm => (atm, callContext))
+      MappedAtm
+        .find(
+          By(MappedAtm.mBankId, bankId.value),
+          By(MappedAtm.mAtmId, atmId.value))
+        .map(atm => (atm, callContext))
     }
 
   override def updateAtmSupportedLanguages(bankId: BankId, atmId: AtmId, supportedLanguages: List[String], callContext: Option[CallContext]): Future[Box[(AtmT, Option[CallContext])]] =

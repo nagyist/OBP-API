@@ -2292,7 +2292,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       val firstTry = (Random.nextDouble() * 10E8).toInt.toString
       appendUntilOkay(firstTry)
     }
-    (createSandboxBankAccount(
+    (LocalMappedConnectorInternal.createSandboxBankAccount(
       bankId,
       accountId,
       uniqueAccountNumber,
@@ -2328,41 +2328,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       accountHolderName: String,
       branchId: String,
       accountRoutings: List[AccountRouting]), callContext)
-  }
-
-  //creates a bank account for an existing bank, with the appropriate values set. Can fail if the bank doesn't exist
-  override def createSandboxBankAccount(
-                                         bankId: BankId,
-                                         accountId: AccountId,
-                                         accountNumber: String,
-                                         accountType: String,
-                                         accountLabel: String,
-                                         currency: String,
-                                         initialBalance: BigDecimal,
-                                         accountHolderName: String,
-                                         branchId: String,
-                                         accountRoutings: List[AccountRouting]
-                                       ): Box[BankAccount] = {
-
-    for {
-      (_, _) <- getBankLegacy(bankId, None) //bank is not really used, but doing this will ensure account creations fails if the bank doesn't
-      balanceInSmallestCurrencyUnits = Helper.convertToSmallestCurrencyUnits(initialBalance, currency)
-      account <- LocalMappedConnectorInternal.createAccountIfNotExisting (
-        bankId,
-        accountId,
-        accountNumber,
-        accountType,
-        accountLabel,
-        currency,
-        balanceInSmallestCurrencyUnits,
-        accountHolderName,
-        branchId,
-        accountRoutings
-        ) ?~! AccountRoutingAlreadyExist
-    } yield {
-      account
-    }
-
   }
   
 
@@ -5469,7 +5434,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       appendUntilOkay(firstTry)
     }
 
-    createSandboxBankAccount(
+    LocalMappedConnectorInternal.createSandboxBankAccount(
       bankId,
       accountId,
       uniqueAccountNumber,

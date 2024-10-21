@@ -1075,7 +1075,7 @@ trait Connector extends MdcLoggable {
       appendUntilOkay(firstTry)
     }
 
-    createSandboxBankAccount(
+    LocalMappedConnectorInternal.createSandboxBankAccount(
       bankId,
       accountId,
       uniqueAccountNumber,
@@ -1089,20 +1089,6 @@ trait Connector extends MdcLoggable {
     )
 
   }
-
-  //creates a bank account for an existing bank, with the appropriate values set. Can fail if the bank doesn't exist
-  def createSandboxBankAccount(
-                                bankId: BankId,
-                                accountId: AccountId,
-                                accountNumber: String,
-                                accountType: String,
-                                accountLabel: String,
-                                currency: String,
-                                initialBalance: BigDecimal,
-                                accountHolderName: String,
-                                branchId: String,
-                                accountRoutings: List[AccountRouting]
-                              ): Box[BankAccount] = Failure(setUnimplementedError(nameOf(createSandboxBankAccount _)))
 
   //for sandbox use -> allows us to check if we can generate a new test account with the given number
   def accountExists(bankId : BankId, accountNumber : String) : Box[Boolean] = Failure(setUnimplementedError(nameOf(accountExists _)))

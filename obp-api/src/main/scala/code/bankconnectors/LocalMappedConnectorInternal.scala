@@ -404,4 +404,40 @@ object LocalMappedConnectorInternal extends MdcLoggable {
   }
 
 
+  //creates a bank account for an existing bank, with the appropriate values set. Can fail if the bank doesn't exist
+  def createSandboxBankAccount(
+    bankId: BankId,
+    accountId: AccountId,
+    accountNumber: String,
+    accountType: String,
+    accountLabel: String,
+    currency: String,
+    initialBalance: BigDecimal,
+    accountHolderName: String,
+    branchId: String,
+    accountRoutings: List[AccountRouting]
+  ): Box[BankAccount] = {
+
+    for {
+      (_, _) <- getBankLegacy(bankId, None) //bank is not really used, but doing this will ensure account creations fails if the bank doesn't
+      balanceInSmallestCurrencyUnits = Helper.convertToSmallestCurrencyUnits(initialBalance, currency)
+      account <- LocalMappedConnectorInternal.createAccountIfNotExisting (
+        bankId,
+        accountId,
+        accountNumber,
+        accountType,
+        accountLabel,
+        currency,
+        balanceInSmallestCurrencyUnits,
+        accountHolderName,
+        branchId,
+        accountRoutings
+      ) ?~! AccountRoutingAlreadyExist
+    } yield {
+      account
+    }
+
+  }
+
+
 }

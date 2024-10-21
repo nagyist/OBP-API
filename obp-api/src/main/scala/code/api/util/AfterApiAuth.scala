@@ -8,7 +8,7 @@ import code.api.util.APIUtil.getPropsAsBoolValue
 import code.api.util.ApiRole.{CanCreateAccount, CanCreateHistoricalTransactionAtBank}
 import code.api.util.ErrorMessages.{UserIsDeleted, UsernameHasBeenLocked}
 import code.api.util.RateLimitingJson.CallLimit
-import code.bankconnectors.Connector
+import code.bankconnectors.{Connector, LocalMappedConnectorInternal}
 import code.entitlement.Entitlement
 import code.loginattempts.LoginAttempt
 import code.model.dataAccess.{AuthUser, MappedBankAccount}
@@ -140,7 +140,7 @@ object AfterApiAuth extends MdcLoggable{
       ) match {
         case Full(bankAccount) => Full(bankAccount)
         case _ => 
-          val account = Connector.connector.vend.createSandboxBankAccount(
+          val account = LocalMappedConnectorInternal.createSandboxBankAccount(
             bankId = bank.bankId, accountId = AccountId(accountId), accountNumber = label + "-1",
             accountType = accountType, accountLabel =  s"$label",
             currency = "EUR", initialBalance = 0, accountHolderName = user.username.get,

@@ -397,7 +397,6 @@ object ConnectorBuilderUtil {
     "createTransactionAfterChallenge",
     "createTransactionAfterChallengev200",
     "createBankAndAccount",
-    "createSandboxBankAccount",
     "accountExists",
     "updateAccountLabel",
     "getProducts",

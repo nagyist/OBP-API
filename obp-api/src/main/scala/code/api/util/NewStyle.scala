@@ -1613,6 +1613,16 @@ object NewStyle extends MdcLoggable{
       ) map { i =>
         (unboxFullOrFail(i._1, callContext, s"$GetChargeValueError ", 400), i._2)
       }
+
+    def getStatus(challengeThresholdAmount: BigDecimal, transactionRequestCommonBodyAmount: BigDecimal, transactionRequestType: TransactionRequestType, callContext: Option[CallContext]): OBPReturnType[TransactionRequestStatus.Value]=
+      Connector.connector.vend.getStatus(
+        challengeThresholdAmount: BigDecimal, 
+        transactionRequestCommonBodyAmount: BigDecimal, 
+        transactionRequestType: TransactionRequestType, 
+        callContext: Option[CallContext]
+      ) map { i =>
+        (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponseForGetStatus ", 400), i._2)
+      }
       
     def getTransactionRequestTypeCharges(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestTypes: List[TransactionRequestType], callContext: Option[CallContext]):OBPReturnType[List[TransactionRequestTypeCharge]] = 
       Connector.connector.vend.getTransactionRequestTypeCharges(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestTypes: List[TransactionRequestType], callContext: Option[CallContext]) map { i =>

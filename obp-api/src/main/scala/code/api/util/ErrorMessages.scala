@@ -708,6 +708,7 @@ object ErrorMessages {
   val InvalidConnectorResponseForGetBankAccountsWithAttributes = "OBP-50219: Connector did not return the bank accounts we requested."
   val InvalidConnectorResponseForGetPaymentLimit = "OBP-50220: Connector did not return the payment limit we requested."
   val InvalidConnectorResponseForCreateTransactionRequestBGV1 = "OBP-50221: CreateTransactionRequestBGV1 Connector did not return the data we requested."
+  val InvalidConnectorResponseForGetStatus = "OBP-50222: Connector method getStatus did not return the data we requested."
   
   // Adapter Exceptions (OBP-6XXXX)
   // Reserved for adapter (south of Kafka) messages

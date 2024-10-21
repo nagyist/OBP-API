@@ -4596,8 +4596,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     Full(result)
   }
   // Set initial status
-  override def getStatus(challengeThresholdAmount: BigDecimal, transactionRequestCommonBodyAmount: BigDecimal, transactionRequestType: TransactionRequestType): Future[TransactionRequestStatus.Value] = {
-    Future(
+  override def getStatus(challengeThresholdAmount: BigDecimal, transactionRequestCommonBodyAmount: BigDecimal, transactionRequestType: TransactionRequestType, callContext: Option[CallContext]): OBPReturnType[Box[TransactionRequestStatus.Value]]  = {
+    Future(Full(
       if (transactionRequestCommonBodyAmount < challengeThresholdAmount && transactionRequestType.value != REFUND.toString) {
         // For any connector != mapped we should probably assume that transaction_request_status_scheduler_delay will be > 0
         // so that getTransactionRequestStatusesImpl needs to be implemented for all connectors except mapped.
@@ -4610,7 +4610,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
           TransactionRequestStatus.PENDING
       } else {
         TransactionRequestStatus.INITIATED
-      })
+      }), callContext)
   }
 
   // Get the charge level value
@@ -4678,7 +4678,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       challengeThresholdAmount <- NewStyle.function.tryons(s"$InvalidConnectorResponseForGetChallengeThreshold. challengeThreshold amount ${challengeThreshold.amount} not convertible to number", 400, callContext) {
         BigDecimal(challengeThreshold.amount)
       }
-      status <- getStatus(challengeThresholdAmount, transactionRequestCommonBodyAmount, transactionRequestType: TransactionRequestType)
+      (status, callContext) <- NewStyle.function.getStatus(challengeThresholdAmount, transactionRequestCommonBodyAmount, transactionRequestType: TransactionRequestType, callContext)
       (chargeLevel, callContext) <- Connector.connector.vend.getChargeLevel(BankId(fromAccount.bankId.value), AccountId(fromAccount.accountId.value), viewId, initiator.userId, initiator.name, transactionRequestType.value, fromAccount.currency, callContext) map { i =>
         (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponseForGetChargeLevel ", 400), i._2)
       }
@@ -4815,9 +4815,9 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       challengeThresholdAmount <- NewStyle.function.tryons(s"$InvalidConnectorResponseForGetChallengeThreshold. challengeThreshold amount ${challengeThreshold.amount} not convertible to number", 400, callContext) {
         BigDecimal(challengeThreshold.amount)
       }
-     
-      
-      status <- getStatus(challengeThresholdAmount, transactionRequestCommonBodyAmount, transactionRequestType: TransactionRequestType)
+
+
+      (status, callContext) <- NewStyle.function.getStatus(challengeThresholdAmount, transactionRequestCommonBodyAmount, transactionRequestType: TransactionRequestType, callContext)
       (chargeLevel, callContext) <- Connector.connector.vend.getChargeLevelC2(
         BankId(fromAccount.bankId.value), 
         AccountId(fromAccount.accountId.value), 

@@ -108,10 +108,11 @@ object LocalMappedConnectorInternal extends MdcLoggable {
       challengeThresholdAmount <- NewStyle.function.tryons(s"$InvalidConnectorResponseForGetChallengeThreshold. challengeThreshold amount ${challengeThreshold.amount} not convertible to number", 400, callContext) {
         BigDecimal(challengeThreshold.amount)
       }
-      status <- getStatus(
+      (status, callContext) <- NewStyle.function.getStatus(
         challengeThresholdAmount,
         transactionAmount,
-        TransactionRequestType(transactionRequestType.toString)
+        TransactionRequestType(transactionRequestType.toString),
+        callContext
       )
       (chargeLevel, callContext) <- Connector.connector.vend.getChargeLevelC2(
         BankId(fromAccount.bankId.value),

@@ -24,10 +24,10 @@ Berlin 13359, Germany
 */
 
 import code.api.Constant
+
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.UUID.randomUUID
-
 import code.api.APIFailure
 import code.api.Constant._
 import code.api.JSONFactoryGateway.PayloadOfJwtJSON
@@ -45,6 +45,7 @@ import code.customer._
 import code.kafka.{KafkaHelper, Topics}
 import code.model._
 import code.model.dataAccess._
+import code.transactionrequests.TransactionRequests
 import code.users.Users
 import code.util.Helper.MdcLoggable
 import code.views.Views
@@ -1152,7 +1153,8 @@ trait KafkaMappedConnector_vSept2018 extends Connector with KafkaHelper with Mdc
             val transactionRequest = for{
               adapterTransactionRequests <- Full(data)
               //TODO, this will cause performance issue, we need limit the number of transaction requests.
-              obpTransactionRequests <- LocalMappedConnector.getTransactionRequestsImpl210(fromAccount) ?~! s"$InvalidConnectorResponse, error on LocalMappedConnector.getTransactionRequestsImpl210"
+              obpTransactionRequests <- TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId) ?~! s"$InvalidConnectorResponse, error on TransactionRequests.transactionRequestProvider.vend.getTransactionRequests"
+              obpTransactionRequests <- TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId) ?~! s"$InvalidConnectorResponse, error on TransactionRequests.transactionRequestProvider.vend.getTransactionRequests"
             } yield {
               adapterTransactionRequests ::: obpTransactionRequests
             }

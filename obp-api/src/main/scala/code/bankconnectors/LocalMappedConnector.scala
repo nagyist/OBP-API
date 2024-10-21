@@ -2212,10 +2212,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   override def getTransactionRequestsImpl(fromAccount: BankAccount): Box[List[TransactionRequest]] = {
     TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId)
   }
-
-  override def getTransactionRequestsImpl210(fromAccount: BankAccount): Box[List[TransactionRequest]] = {
-    TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId)
-  }
   
   override def updateBankAccount(
                                   bankId: BankId,
@@ -5052,7 +5048,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   override def getTransactionRequests210(initiator: User, fromAccount: BankAccount, callContext: Option[CallContext] = None): Box[(List[TransactionRequest], Option[CallContext])] = {
     val transactionRequests =
       for {
-        transactionRequests <- getTransactionRequestsImpl210(fromAccount)
+        transactionRequests <- TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId)
       } yield transactionRequests
 
     //make sure we return null if no challenge was saved (instead of empty fields)

@@ -1,19 +1,13 @@
 package code.bankconnectors
 
-import java.util.Date
-import java.util.UUID.randomUUID
 import _root_.akka.http.scaladsl.model.HttpMethod
-import code.accountholders.{AccountHolders, MapperAccountHolders}
-import code.api.Constant.{SYSTEM_ACCOUNTANT_VIEW_ID, SYSTEM_AUDITOR_VIEW_ID, SYSTEM_OWNER_VIEW_ID, localIdentityProvider}
+import code.accountholders.MapperAccountHolders
+import code.api.Constant.{SYSTEM_ACCOUNTANT_VIEW_ID, SYSTEM_AUDITOR_VIEW_ID, SYSTEM_OWNER_VIEW_ID}
 import code.api.attributedefinition.AttributeDefinition
 import code.api.cache.Caching
 import code.api.util.APIUtil.{OBPReturnType, _}
-import code.api.util.ApiRole._
 import code.api.util.ErrorMessages._
 import code.api.util._
-import code.api.v1_4_0.JSONFactory1_4_0.TransactionRequestAccountJsonV140
-import code.api.v2_1_0._
-import code.api.v4_0_0.ModeratedFirehoseAccountsJsonV400
 import code.api.{APIFailure, APIFailureNewStyle}
 import code.atmattribute.AtmAttribute
 import code.bankattribute.BankAttribute
@@ -23,20 +17,14 @@ import code.bankconnectors.rest.RestConnector_vMar2019
 import code.bankconnectors.storedprocedure.StoredProcedureConnector_vDec2019
 import code.bankconnectors.vMay2019.KafkaMappedConnector_vMay2019
 import code.bankconnectors.vSept2018.KafkaMappedConnector_vSept2018
-import code.counterpartylimit.{CounterpartyLimit, CounterpartyLimitTrait}
+import code.counterpartylimit.CounterpartyLimitTrait
 import code.customeraccountlinks.CustomerAccountLinkTrait
 import code.endpointTag.EndpointTagT
 import code.fx.fx.TTL
-
 import code.model.dataAccess.{BankAccountRouting, ResourceUser}
-import code.model.toUserExtended
-import code.productfee.ProductFeeX
 import code.standingorders.StandingOrderTrait
 import code.transactionrequests.TransactionRequests
-import com.openbankproject.commons.model.enums.TransactionRequestTypes._
-import com.openbankproject.commons.model.enums.PaymentServiceTypes._
-import code.transactionrequests.TransactionRequests._
-import code.users.{UserAttribute, Users}
+import code.users.UserAttribute
 import code.util.Helper._
 import code.views.Views
 import com.github.dwickern.macros.NameOf.nameOf
@@ -44,27 +32,26 @@ import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.dto.{CustomerAndAttribute, GetProductsParam, InBoundTrait, ProductCollectionItemsTree}
 import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
-import com.openbankproject.commons.model.enums.SuppliedAnswerType
+import com.openbankproject.commons.model.enums.TransactionRequestTypes._
 import com.openbankproject.commons.model.enums._
-import com.openbankproject.commons.model.{AccountApplication, Bank, CounterpartyTrait, CustomerAddress, DirectDebitTrait, FXRate, Product, ProductCollection, ProductCollectionItem, TaxResidence, TransactionRequestStatus, TransactionRequestTypeCharge, UserAuthContext, UserAuthContextUpdate, _}
-import com.openbankproject.commons.util.Functions.lazyValue
+import com.openbankproject.commons.model.{TransactionRequestStatus, _}
 import com.openbankproject.commons.util.{JsonUtils, ReflectUtils}
 import com.tesobe.CacheKeyFromArguments
 import net.liftweb.common._
-import net.liftweb.http.provider.HTTPParam
 import net.liftweb.json
 import net.liftweb.json.{Formats, JObject, JValue}
 import net.liftweb.mapper.By
 import net.liftweb.util.Helpers.tryo
 import net.liftweb.util.SimpleInjector
 
+import java.util.Date
+import java.util.UUID.randomUUID
 import scala.collection.immutable.{List, Nil}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.math.{BigDecimal, BigInt}
+import scala.math.BigDecimal
 import scala.reflect.runtime.universe.{MethodSymbol, typeOf}
-import scala.util.Random
 
 /*
 So we can switch between different sources of resources e.g.
@@ -939,29 +926,7 @@ trait Connector extends MdcLoggable {
   def getTransactionRequests(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[List[TransactionRequest]] =
     LocalMappedConnector.getTransactionRequests(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext])
 
-  def getTransactionRequests210(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[(List[TransactionRequest], Option[CallContext])] = {
-    val transactionRequests =
-      for {
-        transactionRequests <- getTransactionRequestsImpl210(fromAccount)
-      } yield transactionRequests
-
-    //make sure we return null if no challenge was saved (instead of empty fields)
-    val transactionRequestsNew = if (!transactionRequests.isEmpty) {
-      for {
-        treq <- transactionRequests
-      } yield {
-        treq.map(tr => if (tr.challenge.id == "") {
-          tr.copy(challenge = null)
-        } else {
-          tr
-        })
-      }
-    } else {
-      transactionRequests
-    }
-
-    transactionRequestsNew.map(transactionRequests =>(transactionRequests, callContext))
-  }
+  def getTransactionRequests210(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[(List[TransactionRequest], Option[CallContext])] = Failure(setUnimplementedError(nameOf(getTransactionRequestStatusesImpl _)))
 
   def getTransactionRequestStatuses() : Box[TransactionRequestStatus] = {
     for {
@@ -973,8 +938,6 @@ trait Connector extends MdcLoggable {
   protected def getTransactionRequestStatusesImpl() : Box[TransactionRequestStatus] = Failure(setUnimplementedError(nameOf(getTransactionRequestStatusesImpl _)))
 
   protected def getTransactionRequestsImpl(fromAccount : BankAccount) : Box[List[TransactionRequest]] = TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId)
-
-  protected def getTransactionRequestsImpl210(fromAccount : BankAccount) : Box[List[TransactionRequest]] = TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId)
 
   def getTransactionRequestImpl(transactionRequestId: TransactionRequestId, callContext: Option[CallContext]): Box[(TransactionRequest, Option[CallContext])] = TransactionRequests.transactionRequestProvider.vend.getTransactionRequest(transactionRequestId).map(transactionRequest =>(transactionRequest, callContext))
 

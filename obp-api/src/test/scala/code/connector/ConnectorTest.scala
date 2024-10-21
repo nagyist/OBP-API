@@ -80,5 +80,16 @@ class ConnectorTest extends V510ServerSetup {
       noCallcontextMethodsNames.size should be(0)
     }
     
+    scenario("all connector methods should return Future ", ConnectorTestTag){
+      val mappedConnectorObject = Connector.nameToConnector.get("mapped")
+
+      val allConnectorMethods = mappedConnectorObject.map(_.callableMethods)
+      val wrongReturnTypeMethods= allConnectorMethods.map(_.map(_._2.returnType.toString)).toList.flatten
+        .filterNot(_.contains("OBPReturnType"))
+        .filterNot(_.contains("Future"))
+      println(wrongReturnTypeMethods.mkString("\n"))
+      wrongReturnTypeMethods.size should be(0)
+    }
+    
   }
 }

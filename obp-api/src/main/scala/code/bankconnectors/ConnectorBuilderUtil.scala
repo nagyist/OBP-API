@@ -424,7 +424,6 @@ object ConnectorBuilderUtil {
     "saveTransactionRequestStatusImpl",
     "getTransactionRequestStatusesImpl",
     "getTransactionRequestsImpl",
-    "getTransactionRequestsImpl210",
     "getTransactionRequestTypesImpl"
   ).distinct
 

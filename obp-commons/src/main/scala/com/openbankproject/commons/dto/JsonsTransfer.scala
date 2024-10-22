@@ -1277,11 +1277,6 @@ case class InBoundGetAtmLegacy(status: Status, data: AtmTCommons) extends InBoun
   override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
 }
 
-case class OutBoundAccountOwnerExists(user: User, bankId: BankId, accountId: AccountId) extends TopicTrait
-case class InBoundAccountOwnerExists(status: Status, data: Boolean) extends InBoundTrait[Boolean] {
-  override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
-}
-
 case class OutBoundGetCurrentFxRate(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String) extends TopicTrait
 case class InBoundGetCurrentFxRate(status: Status, data: FXRateCommons) extends InBoundTrait[FXRateCommons] {
   override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()

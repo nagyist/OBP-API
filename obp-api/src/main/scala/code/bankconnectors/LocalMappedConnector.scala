@@ -5270,18 +5270,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     }
   }
   
-  //This method is only existing in mapper
-  override def accountOwnerExists(user: User, bankId: BankId, accountId: AccountId): Box[Boolean] = {
-    val res =
-      MapperAccountHolders.findAll(
-        By(MapperAccountHolders.user, user.asInstanceOf[ResourceUser]),
-        By(MapperAccountHolders.accountBankPermalink, bankId.value),
-        By(MapperAccountHolders.accountPermalink, accountId.value)
-      )
-
-    Full(res.nonEmpty)
-  }
-  
   /**
     * get transaction request type charges
     */

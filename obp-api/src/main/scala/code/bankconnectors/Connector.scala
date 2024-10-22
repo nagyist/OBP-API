@@ -1104,19 +1104,6 @@ trait Connector extends MdcLoggable {
     Failure(setUnimplementedError(nameOf(getAllAtms _)))
   }
   
-  //This method is only existing in mapper
-  def accountOwnerExists(user: User, bankId: BankId, accountId: AccountId): Box[Boolean]= {
-    val res =
-      MapperAccountHolders.findAll(
-        By(MapperAccountHolders.user, user.asInstanceOf[ResourceUser]),
-        By(MapperAccountHolders.accountBankPermalink, bankId.value),
-        By(MapperAccountHolders.accountPermalink, accountId.value)
-      )
-
-    Full(res.nonEmpty)
-  }
-
-
   def getCurrentCurrencies(bankId: BankId, callContext: Option[CallContext]): OBPReturnType[Box[List[String]]] = Future{Failure(setUnimplementedError(nameOf(getCurrentCurrencies _)))}
   
   def getCurrentFxRate(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String): Box[FXRate] = Failure(setUnimplementedError(nameOf(getCurrentFxRate _)))

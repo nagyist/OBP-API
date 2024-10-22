@@ -402,7 +402,6 @@ object ConnectorBuilderUtil {
     "createOrUpdateAtm",
     "createOrUpdateProduct",
     "createOrUpdateFXRate",
-    "accountOwnerExists",
     "getCurrentFxRate",
     "getTransactionRequestTypeCharges",
     //"getPhysicalCardsForBankLegacy", // should not generate for Legacy methods

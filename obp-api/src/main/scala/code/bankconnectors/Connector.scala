@@ -964,7 +964,7 @@ trait Connector extends MdcLoggable {
                        ): OBPReturnType[Box[BankAccount]] = Future{(Failure(setUnimplementedError(nameOf(createBankAccount _))), callContext)}
 
 
-  def updateAccountLabel(bankId: BankId, accountId: AccountId, label: String): Box[Boolean] = Failure(setUnimplementedError(nameOf(updateAccountLabel _)))
+  def updateAccountLabel(bankId: BankId, accountId: AccountId, label: String, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = Future{Failure(setUnimplementedError(nameOf(updateAccountLabel _)))}
 
   def getProducts(bankId : BankId, params: List[GetProductsParam], callContext: Option[CallContext]): OBPReturnType[Box[List[Product]]] = Future {Failure(setUnimplementedError(nameOf(getProducts _)))}
 
@@ -1069,9 +1069,6 @@ trait Connector extends MdcLoggable {
                             callContext: Option[CallContext]
                           ): OBPReturnType[Box[FXRate]] = Future(Failure(setUnimplementedError(nameOf(createOrUpdateFXRate _))))
 
-
-
-  def getBranchLegacy(bankId : BankId, branchId: BranchId) : Box[BranchT] = Failure(setUnimplementedError(nameOf(getBranchLegacy _)))
   def getBranch(bankId : BankId, branchId: BranchId, callContext: Option[CallContext]) :  Future[Box[(BranchT, Option[CallContext])]] = Future {
     Failure(setUnimplementedError(nameOf(getBranch _)))
   }

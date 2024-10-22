@@ -2303,18 +2303,21 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       branchId: String,
       accountRoutings: List[AccountRouting]), callContext)
   }
-  
 
-  override def updateAccountLabel(bankId: BankId, accountId: AccountId, label: String): Box[Boolean] = {
+
+  override def updateAccountLabel(bankId: BankId, accountId: AccountId, label: String, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = {
     //this will be Full(true) if everything went well
-    val result = for {
-      acc <- getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount])
-      bank <- getBankLegacy(bankId, None)
-    } yield {
-      acc.accountLabel(label).save
+    Future {
+      (
+        for {
+          _ <- getBankLegacy(bankId, None)
+          acc<- getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount])
+        } yield {
+          acc.accountLabel(label).save
+        }, 
+        callContext
+      )
     }
-
-    Full(result.getOrElse(false))
   }
 
   override def getProducts(bankId: BankId, params: List[GetProductsParam], callContext: Option[CallContext]): OBPReturnType[Box[List[Product]]] = {
@@ -2480,7 +2483,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
     logger.info("before create or update branch")
 
-    val foundBranch: Box[BranchT] = getBranchLegacy(branch.bankId, branch.branchId)
+    val foundBranch: Box[BranchT] = LocalMappedConnectorInternal.getBranchLocal(branch.bankId, branch.branchId)
 
     logger.info("after getting")
 
@@ -2883,21 +2886,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
   }
 
-
-  override def getBranchLegacy(bankId: BankId, branchId: BranchId): Box[BranchT] = {
-    MappedBranch
-      .find(
-        By(MappedBranch.mBankId, bankId.value),
-        By(MappedBranch.mBranchId, branchId.value))
-      .map(
-        branch =>
-          branch.branchRouting.map(_.scheme) == null && branch.branchRouting.map(_.address) == null match {
-            case true => branch.mBranchRoutingScheme("OBP").mBranchRoutingAddress(branch.branchId.value)
-            case _ => branch
-          }
-      )
-  }
-
   override def getBranches(bankId: BankId, callContext: Option[CallContext], queryParams: List[OBPQueryParam]): Future[Box[(List[BranchT], Option[CallContext])]] = {
     Future {
       Full(MappedBranch.findAll(By(MappedBranch.mBankId, bankId.value)), callContext)
@@ -2906,7 +2894,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
   override def getBranch(bankId: BankId, branchId: BranchId, callContext: Option[CallContext]): Future[Box[(BranchT, Option[CallContext])]] = {
     Future {
-      getBranchLegacy(bankId, branchId).map(branch => (branch, callContext))
+      LocalMappedConnectorInternal.getBranchLocal(bankId, branchId).map(branch => (branch, callContext))
     }
   }
 

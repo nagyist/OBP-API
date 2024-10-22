@@ -2769,10 +2769,8 @@ trait APIMethods400 extends MdcLoggable {
             ) {
               anyViewContainsCanUpdateBankAccountLabelPermission
             }
-            (success, callContext) <- Future {
-              Connector.connector.vend.updateAccountLabel(bankId, accountId, json.label)
-            } map { i =>
-              (unboxFullOrFail(i, callContext, s"$UpdateBankAccountLabelError Current BankId is $bankId and Current AccountId is $accountId", 404), callContext)
+            (success, callContext) <- Connector.connector.vend.updateAccountLabel(bankId, accountId, json.label, callContext)  map { i =>
+              (unboxFullOrFail(i._1, i._2, s"$UpdateBankAccountLabelError Current BankId is $bankId and Current AccountId is $accountId", 404), i._2)
             }
           } yield {
             (Extraction.decompose(successMessage), HttpCode.`200`(callContext))

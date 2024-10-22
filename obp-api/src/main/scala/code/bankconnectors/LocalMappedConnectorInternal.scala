@@ -5,6 +5,7 @@ import code.api.util.APIUtil._
 import code.api.util.ErrorMessages._
 import code.api.util._
 import code.bankconnectors.LocalMappedConnector.{logger, _}
+import code.branches.MappedBranch
 import code.management.ImporterAPI.ImporterTransaction
 import code.model.dataAccess.{BankAccountRouting, MappedBank, MappedBankAccount}
 import code.transaction.MappedTransaction
@@ -489,5 +490,18 @@ object LocalMappedConnectorInternal extends MdcLoggable {
       By(MappedBankAccount.bank, bankId.value),
       By(MappedBankAccount.accountNumber, accountNumber)) > 0)
   }
-  
+
+  def getBranchLocal(bankId: BankId, branchId: BranchId): Box[BranchT] = {
+    MappedBranch
+      .find(
+        By(MappedBranch.mBankId, bankId.value),
+        By(MappedBranch.mBranchId, branchId.value))
+      .map(
+        branch =>
+          branch.branchRouting.map(_.scheme) == null && branch.branchRouting.map(_.address) == null match {
+            case true => branch.mBranchRoutingScheme("OBP").mBranchRoutingAddress(branch.branchId.value)
+            case _ => branch
+          }
+      )
+  }
 }

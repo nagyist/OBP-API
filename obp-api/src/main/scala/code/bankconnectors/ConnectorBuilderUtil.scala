@@ -415,9 +415,7 @@ object ConnectorBuilderUtil {
    * modifier is protected methods, not recommend generate these methods, they should always for special purpose
    */
   val protectedMethods = List(
-    "makePaymentImpl",
     "saveTransactionRequestStatusImpl",
-    "getTransactionRequestStatusesImpl",
   ).distinct
 
   val omitMethods = List(

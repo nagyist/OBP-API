@@ -716,7 +716,6 @@ trait Connector extends MdcLoggable {
     callContext: Option[CallContext]
   ): OBPReturnType[Box[PhysicalCardTrait]] = Future{(Failure{setUnimplementedError(nameOf(updatePhysicalCard _))}, callContext)}
 
-  //Payments api: just return Failure("not supported") from makePaymentImpl if you don't want to implement it
   /**
     * \
     *
@@ -767,10 +766,7 @@ trait Connector extends MdcLoggable {
   def getBalancingTransaction(transactionId: TransactionId,
                               callContext: Option[CallContext]): OBPReturnType[Box[DoubleEntryTransaction]]= Future{(Failure(setUnimplementedError(nameOf(getBalancingTransaction _))), callContext)}
 
-  protected def makePaymentImpl(fromAccount: BankAccount, toAccount: BankAccount, transactionRequestCommonBody: TransactionRequestCommonBodyJSON, amt: BigDecimal, description: String, transactionRequestType: TransactionRequestType, chargePolicy: String): Box[TransactionId]= Failure(setUnimplementedError(nameOf(makePaymentImpl _)))
   
-
-
   /*
     Transaction Requests
   */

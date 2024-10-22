@@ -7,8 +7,10 @@ import code.api.util.APIUtil._
 import code.api.util.ErrorMessages._
 import code.api.util._
 import code.branches.MappedBranch
+import code.fx.fx
 import code.management.ImporterAPI.ImporterTransaction
 import code.model.dataAccess.{BankAccountRouting, MappedBank, MappedBankAccount}
+import code.model.toBankAccountExtended
 import code.transaction.MappedTransaction
 import code.transactionrequests._
 import com.tesobe.CacheKeyFromArguments
@@ -16,15 +18,12 @@ import code.util.Helper
 import code.util.Helper._
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.model._
-import com.openbankproject.commons.model.enums.TransactionRequestStatus
-import com.openbankproject.commons.model.enums.TransactionRequestTypes
-import com.openbankproject.commons.model.enums.PaymentServiceTypes
+import com.openbankproject.commons.model.enums.{AccountRoutingScheme, PaymentServiceTypes, TransactionRequestStatus, TransactionRequestTypes}
 import net.liftweb.common._
 import net.liftweb.json.Serialization.write
 import net.liftweb.json.{NoTypeHints, Serialization}
 import net.liftweb.mapper.By
-import net.liftweb.util.Helpers
-import net.liftweb.util.Helpers.tryo
+import net.liftweb.util.Helpers.{now, tryo}
 
 import java.util.Date
 import java.util.UUID.randomUUID
@@ -386,7 +385,7 @@ object LocalMappedConnectorInternal extends MdcLoggable {
       account <- Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount])
     } yield {
       account.accountBalance(Helper.convertToSmallestCurrencyUnits(newBalance, account.currency)).save
-      setBankAccountLastUpdated(bank.nationalIdentifier, account.number, Helpers.now).openOrThrowException(attemptedToOpenAnEmptyBox)
+      setBankAccountLastUpdated(bank.nationalIdentifier, account.number, now).openOrThrowException(attemptedToOpenAnEmptyBox)
     }
 
     Full(result.getOrElse(false))
@@ -579,4 +578,78 @@ object LocalMappedConnectorInternal extends MdcLoggable {
       }
     }
   }
+
+  def makePaymentImpl(fromAccount: BankAccount,
+    toAccount: BankAccount,
+    transactionRequestCommonBody: TransactionRequestCommonBodyJSON,
+    amount: BigDecimal,
+    description: String,
+    transactionRequestType: TransactionRequestType,
+    chargePolicy: String): Box[TransactionId] = {
+    for {
+      //def exchangeRate --> do not return any exception, but it may return NONO there.   
+      rate <- Full (fx.exchangeRate(fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value)))
+      _ <- booleanToBox(rate.isDefined) ?~! s"$InvalidCurrency The requested currency conversion (${fromAccount.currency} to ${fromAccount.currency}) is not supported."
+
+      fromTransAmt = -amount //from fromAccount balance should decrease
+      toTransAmt = fx.convert(amount, rate)
+      sentTransactionId <- saveTransaction(fromAccount, toAccount, transactionRequestCommonBody, fromTransAmt, description, transactionRequestType, chargePolicy)
+      _sentTransactionId <- saveTransaction(toAccount, fromAccount, transactionRequestCommonBody, toTransAmt, description, transactionRequestType, chargePolicy)
+    } yield {
+      sentTransactionId
+    }
+  }
+  
+  /**
+   * Saves a transaction with @amount, @toAccount and @transactionRequestType for @fromAccount and @toCounterparty. <br>
+   * Returns the id of the saved transactionId.<br>
+   */
+  def saveTransaction(
+    fromAccount: BankAccount,
+    toAccount: BankAccount,
+    transactionRequestCommonBody: TransactionRequestCommonBodyJSON,
+    amount: BigDecimal,
+    description: String,
+    transactionRequestType: TransactionRequestType,
+    chargePolicy: String): Box[TransactionId] = {
+    for {
+
+      currency <- Full(fromAccount.currency)
+      //update the balance of the fromAccount for which a transaction is being created
+      newAccountBalance <- Full(Helper.convertToSmallestCurrencyUnits(fromAccount.balance, currency) + Helper.convertToSmallestCurrencyUnits(amount, currency))
+
+      //Here is the `LocalMappedConnector`, once get this point, fromAccount must be a mappedBankAccount. So can use asInstanceOf.... 
+      _ <- tryo(fromAccount.asInstanceOf[MappedBankAccount].accountBalance(newAccountBalance).save) ?~! UpdateBankAccountException
+
+      mappedTransaction <- tryo(MappedTransaction.create
+        //No matter which type (SANDBOX_TAN,SEPA,FREE_FORM,COUNTERPARTYE), always filled the following nine fields.
+        .bank(fromAccount.bankId.value)
+        .account(fromAccount.accountId.value)
+        .transactionType(transactionRequestType.value)
+        .amount(Helper.convertToSmallestCurrencyUnits(amount, currency))
+        .newAccountBalance(newAccountBalance)
+        .currency(currency)
+        .tStartDate(now)
+        .tFinishDate(now)
+        .description(description)
+        //Old data: other BankAccount(toAccount: BankAccount)simulate counterparty 
+        .counterpartyAccountHolder(toAccount.accountHolder)
+        .counterpartyAccountNumber(toAccount.number)
+        .counterpartyAccountKind(toAccount.accountType)
+        .counterpartyBankName(toAccount.bankName)
+        .counterpartyIban(toAccount.accountRoutings.find(_.scheme == AccountRoutingScheme.IBAN.toString).map(_.address).getOrElse(""))
+        .counterpartyNationalId(toAccount.nationalIdentifier)
+        //New data: real counterparty (toCounterparty: CounterpartyTrait)
+        //      .CPCounterPartyId(toAccount.accountId.value)
+        .CPOtherAccountRoutingScheme(toAccount.accountRoutings.headOption.map(_.scheme).getOrElse(""))
+        .CPOtherAccountRoutingAddress(toAccount.accountRoutings.headOption.map(_.address).getOrElse(""))
+        .CPOtherBankRoutingScheme(toAccount.bankRoutingScheme)
+        .CPOtherBankRoutingAddress(toAccount.bankRoutingAddress)
+        .chargePolicy(chargePolicy)
+        .saveMe) ?~! s"$CreateTransactionsException, exception happened when create new mappedTransaction"
+    } yield {
+      mappedTransaction.theTransactionId
+    }
+  }
+  
 }

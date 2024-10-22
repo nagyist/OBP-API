@@ -1689,31 +1689,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       transactionRequestAttributeId: String
     ).map((_, callContext))
   }
-
-  /**
-    * Perform a payment (in the sandbox) Store one or more transactions
-    */
-  override def makePaymentImpl(fromAccount: BankAccount,
-                               toAccount: BankAccount,
-                               transactionRequestCommonBody: TransactionRequestCommonBodyJSON,
-                               amount: BigDecimal,
-                               description: String,
-                               transactionRequestType: TransactionRequestType,
-                               chargePolicy: String): Box[TransactionId] = {
-    for {
-      //def exchangeRate --> do not return any exception, but it may return NONO there.   
-      rate <- Full (fx.exchangeRate(fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value)))
-      _ <- booleanToBox(rate.isDefined) ?~! s"$InvalidCurrency The requested currency conversion (${fromAccount.currency} to ${fromAccount.currency}) is not supported."
-      
-      fromTransAmt = -amount //from fromAccount balance should decrease
-      toTransAmt = fx.convert(amount, rate)
-      sentTransactionId <- saveTransaction(fromAccount, toAccount, transactionRequestCommonBody, fromTransAmt, description, transactionRequestType, chargePolicy)
-      _sentTransactionId <- saveTransaction(toAccount, fromAccount, transactionRequestCommonBody, toTransAmt, description, transactionRequestType, chargePolicy)
-    } yield {
-      sentTransactionId
-    }
-  }
-
   override def makePaymentv210(fromAccount: BankAccount,
                                toAccount: BankAccount,
                                transactionRequestId: TransactionRequestId,
@@ -1990,7 +1965,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       toTransAmt = fx.convert(amount, creditRate)
 
       debitTransactionBox <- Future {
-        saveTransaction(fromAccount, toAccount, transactionRequestCommonBody, fromTransAmt, description, transactionRequestType, chargePolicy)
+        LocalMappedConnectorInternal.saveTransaction(fromAccount, toAccount, transactionRequestCommonBody, fromTransAmt, description, transactionRequestType, chargePolicy)
           .map(debitTransactionId => (fromAccount.bankId, fromAccount.accountId, debitTransactionId, false))
           .or {
             // If we don't find any corresponding obp account, we debit a bank settlement account
@@ -2009,13 +1984,13 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                   Try(-fx.convert(amount, rate)).getOrElse(throw new Exception(s"$InvalidCurrency The requested currency conversion ($transactionCurrency to ${settlementAccount._1.currency}) is not supported."))
                 } else fromTransAmt
               }
-              saveTransaction(settlementAccount._1, toAccount, transactionRequestCommonBody, fromTransAmtSettlementAccount, description, transactionRequestType, chargePolicy)
+              LocalMappedConnectorInternal.saveTransaction(settlementAccount._1, toAccount, transactionRequestCommonBody, fromTransAmtSettlementAccount, description, transactionRequestType, chargePolicy)
                 .map(debitTransactionId => (settlementAccount._1.bankId, settlementAccount._1.accountId, debitTransactionId, true))
             })
           }
       }
       creditTransactionBox <- Future {
-        saveTransaction(toAccount, fromAccount, transactionRequestCommonBody, toTransAmt, description, transactionRequestType, chargePolicy)
+        LocalMappedConnectorInternal.saveTransaction(toAccount, fromAccount, transactionRequestCommonBody, toTransAmt, description, transactionRequestType, chargePolicy)
           .map(creditTransactionId => (toAccount.bankId, toAccount.accountId, creditTransactionId, false))
           .or {
             // If we don't find any corresponding obp account, we credit a bank settlement account
@@ -2034,7 +2009,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                   Try(fx.convert(amount, rate)).getOrElse(throw new Exception(s"$InvalidCurrency The requested currency conversion ($transactionCurrency to ${settlementAccount._1.currency}) is not supported."))
                 } else toTransAmt
               }
-              saveTransaction(settlementAccount._1, fromAccount, transactionRequestCommonBody, toTransAmtSettlementAccount, description, transactionRequestType, chargePolicy)
+              LocalMappedConnectorInternal.saveTransaction(settlementAccount._1, fromAccount, transactionRequestCommonBody, toTransAmtSettlementAccount, description, transactionRequestType, chargePolicy)
                 .map(creditTransactionId => (settlementAccount._1.bankId, settlementAccount._1.accountId, creditTransactionId, true))
             })
           }
@@ -2066,56 +2041,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       // In the future, we should return the both transactions as the API response
     }
 
-  /**
-    * Saves a transaction with @amount, @toAccount and @transactionRequestType for @fromAccount and @toCounterparty. <br>
-    * Returns the id of the saved transactionId.<br>
-    */
-  private def saveTransaction(fromAccount: BankAccount,
-                              toAccount: BankAccount,
-                              transactionRequestCommonBody: TransactionRequestCommonBodyJSON,
-                              amount: BigDecimal,
-                              description: String,
-                              transactionRequestType: TransactionRequestType,
-                              chargePolicy: String): Box[TransactionId] = {
-    for {
-
-      currency <- Full(fromAccount.currency)
-      //update the balance of the fromAccount for which a transaction is being created
-      newAccountBalance <- Full(Helper.convertToSmallestCurrencyUnits(fromAccount.balance, currency) + Helper.convertToSmallestCurrencyUnits(amount, currency))
-
-      //Here is the `LocalMappedConnector`, once get this point, fromAccount must be a mappedBankAccount. So can use asInstanceOf.... 
-      _ <- tryo(fromAccount.asInstanceOf[MappedBankAccount].accountBalance(newAccountBalance).save) ?~! UpdateBankAccountException
-
-      mappedTransaction <- tryo(MappedTransaction.create
-        //No matter which type (SANDBOX_TAN,SEPA,FREE_FORM,COUNTERPARTYE), always filled the following nine fields.
-        .bank(fromAccount.bankId.value)
-        .account(fromAccount.accountId.value)
-        .transactionType(transactionRequestType.value)
-        .amount(Helper.convertToSmallestCurrencyUnits(amount, currency))
-        .newAccountBalance(newAccountBalance)
-        .currency(currency)
-        .tStartDate(now)
-        .tFinishDate(now)
-        .description(description)
-        //Old data: other BankAccount(toAccount: BankAccount)simulate counterparty 
-        .counterpartyAccountHolder(toAccount.accountHolder)
-        .counterpartyAccountNumber(toAccount.number)
-        .counterpartyAccountKind(toAccount.accountType)
-        .counterpartyBankName(toAccount.bankName)
-        .counterpartyIban(toAccount.accountRoutings.find(_.scheme == AccountRoutingScheme.IBAN.toString).map(_.address).getOrElse(""))
-        .counterpartyNationalId(toAccount.nationalIdentifier)
-        //New data: real counterparty (toCounterparty: CounterpartyTrait)
-        //      .CPCounterPartyId(toAccount.accountId.value)
-        .CPOtherAccountRoutingScheme(toAccount.accountRoutings.headOption.map(_.scheme).getOrElse(""))
-        .CPOtherAccountRoutingAddress(toAccount.accountRoutings.headOption.map(_.address).getOrElse(""))
-        .CPOtherBankRoutingScheme(toAccount.bankRoutingScheme)
-        .CPOtherBankRoutingAddress(toAccount.bankRoutingAddress)
-        .chargePolicy(chargePolicy)
-        .saveMe) ?~! s"$CreateTransactionsException, exception happened when create new mappedTransaction"
-    } yield {
-      mappedTransaction.theTransactionId
-    }
-  }
+  
   
   override def cancelPaymentV400(transactionId: TransactionId,
                                  callContext: Option[CallContext]): OBPReturnType[Box[CancelPayment]] = Future {
@@ -4296,7 +4222,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       // Note for 'new MappedCounterparty()' in the following :
       // We update the makePaymentImpl in V210, added the new parameter 'toCounterparty: CounterpartyTrait' for V210
       // But in V200 or before, we do not used the new parameter toCounterparty. So just keep it empty.
-      transactionId <- makePaymentImpl(fromAccount,
+      transactionId <- LocalMappedConnectorInternal.makePaymentImpl(fromAccount,
         toAccount,
         transactionRequestCommonBody = null, //Note transactionRequestCommonBody started to use  in V210
         amt,
@@ -4323,7 +4249,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                                transactionRequestType: TransactionRequestType,
                                chargePolicy: String): Box[TransactionId] = {
     for {
-      transactionId <- makePaymentImpl(fromAccount, toAccount, transactionRequestCommonBody, amount, description, transactionRequestType, chargePolicy) ?~! InvalidConnectorResponseForMakePayment
+      transactionId <- LocalMappedConnectorInternal.makePaymentImpl(fromAccount, toAccount, transactionRequestCommonBody, amount, description, transactionRequestType, chargePolicy) ?~! InvalidConnectorResponseForMakePayment
     } yield transactionId
   }
 
@@ -4484,10 +4410,10 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     Future(Full(
       if (transactionRequestCommonBodyAmount < challengeThresholdAmount && transactionRequestType.value != REFUND.toString) {
         // For any connector != mapped we should probably assume that transaction_request_status_scheduler_delay will be > 0
-        // so that getTransactionRequestStatusesImpl needs to be implemented for all connectors except mapped.
+        // so that getTransactionRequestStatuses needs to be implemented for all connectors except mapped.
         // i.e. if we are certain that saveTransaction will be honored immediately by the backend, then transaction_request_status_scheduler_delay
         // can be empty in the props file. Otherwise, the status will be set to STATUS_PENDING
-        // and getTransactionRequestStatusesImpl needs to be run periodically to update the transaction request status.
+        // and getTransactionRequestStatuses needs to be run periodically to update the transaction request status.
         if (APIUtil.getPropsAsLongValue("transaction_request_status_scheduler_delay").isEmpty)
           TransactionRequestStatus.COMPLETED
         else

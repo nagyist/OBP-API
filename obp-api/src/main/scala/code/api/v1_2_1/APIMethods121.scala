@@ -1046,7 +1046,7 @@ trait APIMethods121 {
       EmptyBody,
       otherAccountJSON,
       List(BankAccountNotFound, UnknownError),
-      List(apiTagCounterparty, apiTagAccount, apiTagOldStyle))
+      List(apiTagCounterparty, apiTagAccount))
 
     lazy val getOtherAccountByIdForBankAccount : OBPEndpoint = {
       //get one other account by id

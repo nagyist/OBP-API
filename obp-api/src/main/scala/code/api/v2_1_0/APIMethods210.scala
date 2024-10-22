@@ -1272,7 +1272,7 @@ trait APIMethods210 {
         ProductNotFoundByProductCode,
         UnknownError
       ),
-      List(apiTagProduct, apiTagOldStyle)
+      List(apiTagProduct)
     )
 
     lazy val getProduct: OBPEndpoint = {
@@ -1320,7 +1320,7 @@ trait APIMethods210 {
         ProductNotFoundByProductCode,
         UnknownError
       ),
-      List(apiTagProduct, apiTagOldStyle)
+      List(apiTagProduct)
     )
 
     lazy val getProducts : OBPEndpoint = {

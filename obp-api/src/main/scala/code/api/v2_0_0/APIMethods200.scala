@@ -1452,7 +1452,7 @@ trait APIMethods200 {
                   s"current ConsumerId(${callContext.map(_.consumer.map(_.consumerId.get).getOrElse("")).getOrElse("")})"
               }
               answerJson <- tryo{json.extract[ChallengeAnswerJSON]} ?~! InvalidJsonFormat
-              _ <- Connector.connector.vend.answerTransactionRequestChallenge(transReqId, answerJson.answer)
+              _ <- Connector.connector.vend.answerTransactionRequestChallenge(transReqId, answerJson.answer, callContext)
               //check the transReqId validation.
               (existingTransactionRequest, callContext) <- Connector.connector.vend.getTransactionRequestImpl(transReqId, callContext) ?~! s"${ErrorMessages.InvalidTransactionRequestId} : $transReqId"
 

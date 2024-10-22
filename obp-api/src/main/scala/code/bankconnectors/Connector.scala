@@ -871,7 +871,7 @@ trait Connector extends MdcLoggable {
   def saveTransactionRequestTransaction(transactionRequestId: TransactionRequestId, transactionId: TransactionId, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]]=
     Future{(Failure(setUnimplementedError(nameOf(saveTransactionRequestTransaction _))), callContext)}
 
-  def saveTransactionRequestChallenge(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge): Box[Boolean] = Failure(setUnimplementedError(nameOf(saveTransactionRequestChallenge _)))
+  def saveTransactionRequestChallenge(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = Future{Failure(setUnimplementedError(nameOf(saveTransactionRequestChallenge _)))}
 
   def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String): Box[Boolean] = TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestStatusImpl(transactionRequestId, status)
   
@@ -907,7 +907,7 @@ trait Connector extends MdcLoggable {
   //Note: Now we use validateChallengeAnswer instead, new methods validate over kafka, and move the allowed_attempts guard into API level.
   //It is only used for V140 and V200, has been deprecated from V210.
   @deprecated
-  def answerTransactionRequestChallenge(transReqId: TransactionRequestId, answer: String) : Box[Boolean] =
+  def answerTransactionRequestChallenge(transReqId: TransactionRequestId, answer: String, callContext: Option[CallContext]) :Box[Boolean] =
     Failure(setUnimplementedError(nameOf(answerTransactionRequestChallenge _)))
 
   def createTransactionAfterChallenge(initiator: User, transReqId: TransactionRequestId, callContext: Option[CallContext]) : Box[TransactionRequest] =

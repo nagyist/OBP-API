@@ -652,7 +652,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
               }
               answerJson <- tryo{json.extract[ChallengeAnswerJSON]} ?~ InvalidJsonFormat
               //TODO check more things here
-              _ <- Connector.connector.vend.answerTransactionRequestChallenge(transReqId, answerJson.answer)
+              _ <- Connector.connector.vend.answerTransactionRequestChallenge(transReqId, answerJson.answer, callContext)
               //create transaction and insert its id into the transaction request
               transactionRequest <- Connector.connector.vend.createTransactionAfterChallenge(u, transReqId, callContext)
               oldTransactionRequest <- transforOldTransactionRequest(transactionRequest)

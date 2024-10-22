@@ -4433,8 +4433,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     } yield transactionId
   }
 
-  override def saveTransactionRequestChallenge(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge): Box[Boolean] ={
-    TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestChallengeImpl(transactionRequestId, challenge)
+  override def saveTransactionRequestChallenge(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] ={
+    Future{(TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestChallengeImpl(transactionRequestId, challenge), callContext)}
   }
     
   // This is used for 1.4.0 See createTransactionRequestv200 for 2.0.0
@@ -4500,7 +4500,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     } else {
       //if challenge necessary, create a new one
       val challenge = TransactionRequestChallenge(id = generateUUID(), allowed_attempts = 3, challenge_type = ChallengeType.OBP_TRANSACTION_REQUEST_CHALLENGE.toString)
-      saveTransactionRequestChallenge(result.id, challenge)
+      saveTransactionRequestChallenge(result.id, challenge, callContext)
       result = result.copy(challenge = challenge)
     }
 
@@ -4579,7 +4579,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     } else {
       //if challenge necessary, create a new one
       val challenge = TransactionRequestChallenge(id = generateUUID(), allowed_attempts = 3, challenge_type = ChallengeType.OBP_TRANSACTION_REQUEST_CHALLENGE.toString)
-      saveTransactionRequestChallenge(result.id, challenge)
+      saveTransactionRequestChallenge(result.id, challenge, callContext)
       result = result.copy(challenge = challenge)
     }
 
@@ -4740,7 +4740,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
             }
 
             newChallenge = TransactionRequestChallenge(challengeId, allowed_attempts = 3, challenge_type = challengeType.getOrElse(ChallengeType.OBP_TRANSACTION_REQUEST_CHALLENGE.toString))
-            _ <- Future(saveTransactionRequestChallenge(transactionRequest.id, newChallenge))
+            _ <- saveTransactionRequestChallenge(transactionRequest.id, newChallenge, callContext)
             transactionRequest <- Future(transactionRequest.copy(challenge = newChallenge))
           } yield {
             (transactionRequest, callContext)
@@ -4935,7 +4935,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
               //NOTE:this is only for Backward compatibility, now we use the MappedExpectedChallengeAnswer tables instead of the single field in TransactionRequest.
               //Here only put the dummy date.
               newChallenge = TransactionRequestChallenge(s"challenges number:${challenges.length}", allowed_attempts = 3, challenge_type = ChallengeType.OBP_TRANSACTION_REQUEST_CHALLENGE.toString)
-              _ <- Future(saveTransactionRequestChallenge(transactionRequest.id, newChallenge))
+              _ <- saveTransactionRequestChallenge(transactionRequest.id, newChallenge, callContext)
               transactionRequest <- Future(transactionRequest.copy(challenge = newChallenge))
             } yield {
               (transactionRequest, callContext)
@@ -5075,7 +5075,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   //Note: Now we use validateChallengeAnswer instead, new methods validate over kafka, and move the allowed_attempts guard into API level.
   //It is only used for V140 and V200, has been deprecated from V210.
   @deprecated
-  override def answerTransactionRequestChallenge(transReqId: TransactionRequestId, answer: String): Box[Boolean] = {
+  override def answerTransactionRequestChallenge(transReqId: TransactionRequestId, answer: String, callContext: Option[CallContext]) : Box[Boolean]= {
     val tr = getTransactionRequestImpl(transReqId, None) ?~! s"${ErrorMessages.InvalidTransactionRequestId} : $transReqId"
 
     tr.map(_._1) match {

@@ -1,57 +1,42 @@
 package code.bankconnectors
 
-import java.util.Date
-import java.util.UUID.randomUUID
 import _root_.akka.http.scaladsl.model.HttpMethod
 import code.DynamicData.DynamicDataProvider
-import code.DynamicEndpoint.{DynamicEndpointProvider, DynamicEndpointT}
 import code.accountapplication.AccountApplicationX
 import code.accountattribute.AccountAttributeX
 import code.accountholders.{AccountHolders, MapperAccountHolders}
-import code.api.BerlinGroup.{AuthenticationType, ScaStatus}
 import code.api.Constant
 import code.api.Constant._
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
 import code.api.attributedefinition.{AttributeDefinition, AttributeDefinitionDI}
 import code.api.cache.Caching
 import code.api.util.APIUtil.{OBPReturnType, _}
-import code.api.util.ApiRole.canCreateAnyTransactionRequest
 import code.api.util.ErrorMessages._
 import code.api.util._
 import code.api.v1_4_0.JSONFactory1_4_0.TransactionRequestAccountJsonV140
 import code.api.v2_1_0._
 import code.api.v4_0_0.{PostSimpleCounterpartyJson400, TransactionRequestBodySimpleJsonV400}
 import code.atmattribute.{AtmAttribute, AtmAttributeX}
-import code.atms.Atms.Atm
 import code.atms.{Atms, MappedAtm}
 import code.bankattribute.{BankAttribute, BankAttributeX}
-import code.branches.Branches.Branch
 import code.branches.MappedBranch
 import code.cardattribute.CardAttributeX
 import code.cards.MappedPhysicalCard
 import code.context.{UserAuthContextProvider, UserAuthContextUpdateProvider}
-import code.counterpartylimit.{CounterpartyLimit, CounterpartyLimitProvider, CounterpartyLimitTrait}
+import code.counterpartylimit.CounterpartyLimitProvider
 import code.customer._
 import code.customeraccountlinks.CustomerAccountLinkTrait
 import code.customeraddress.CustomerAddressX
 import code.customerattribute.CustomerAttributeX
 import code.directdebit.DirectDebits
 import code.endpointTag.{EndpointTag, EndpointTagT}
-import code.fx.fx.TTL
 import code.fx.{MappedFXRate, fx}
 import code.kycchecks.KycChecks
 import code.kycdocuments.KycDocuments
 import code.kycmedias.KycMedias
 import code.kycstatuses.KycStatuses
-import code.management.ImporterAPI.ImporterTransaction
 import code.meetings.Meetings
-import code.metadata.comments.Comments
 import code.metadata.counterparties.Counterparties
-import code.metadata.narrative.Narrative
-import code.metadata.tags.Tags
-import code.metadata.transactionimages.TransactionImages
-import code.metadata.wheretags.WhereTags
-import code.metrics.MappedMetric
 import code.model._
 import code.model.dataAccess.AuthUser.findAuthUserByUsernameLocallyLegacy
 import code.model.dataAccess._
@@ -64,51 +49,41 @@ import code.products.MappedProduct
 import code.standingorders.{StandingOrderTrait, StandingOrders}
 import code.taxresidence.TaxResidenceX
 import code.transaction.MappedTransaction
-import code.transactionChallenge.{Challenges, MappedExpectedChallengeAnswer}
+import code.transactionChallenge.Challenges
 import code.transactionRequestAttribute.TransactionRequestAttributeX
 import code.transactionattribute.TransactionAttributeX
-import com.openbankproject.commons.model.enums.TransactionRequestTypes._
-import com.openbankproject.commons.model.enums.TransactionRequestTypes
-import com.openbankproject.commons.model.enums.PaymentServiceTypes._
-import com.openbankproject.commons.model.enums.PaymentServiceTypes
 import code.transactionrequests._
 import code.users.{UserAttribute, UserAttributeProvider, Users}
 import code.util.Helper
 import code.util.Helper._
 import code.views.Views
-import com.google.common.cache.CacheBuilder
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.dto.{CustomerAndAttribute, GetProductsParam, ProductCollectionItemsTree}
 import com.openbankproject.commons.model.enums.ChallengeType.OBP_TRANSACTION_REQUEST_CHALLENGE
 import com.openbankproject.commons.model.enums.DynamicEntityOperation._
 import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
-import com.openbankproject.commons.model.enums.SuppliedAnswerType
-import com.openbankproject.commons.model.enums.{TransactionRequestStatus, _}
 import com.openbankproject.commons.model.enums.TransactionRequestTypes._
-import com.openbankproject.commons.model.enums.PaymentServiceTypes._
-import com.openbankproject.commons.model.{AccountApplication, AccountAttribute, ConsentImplicitSCAT, DirectDebitTrait, FXRate, Product, ProductAttribute, ProductCollectionItem, TaxResidence, TransactionRequestCommonBodyJSON, _}
+import com.openbankproject.commons.model.enums.{TransactionRequestStatus, _}
+import com.openbankproject.commons.model._
 import com.tesobe.CacheKeyFromArguments
 import com.tesobe.model.UpdateBankAccount
 import com.twilio.Twilio
-import com.twilio.rest.api.v2010.account.Message
 import com.twilio.`type`.PhoneNumber
+import com.twilio.rest.api.v2010.account.Message
 import net.liftweb.common._
 import net.liftweb.json
-import net.liftweb.json.JsonAST.JField
-import net.liftweb.json.{JArray, JBool, JInt, JObject, JString, JValue}
-import net.liftweb.mapper.{By, _}
+import net.liftweb.json.{JArray, JBool, JObject, JValue}
+import net.liftweb.mapper._
 import net.liftweb.util.Helpers.{hours, now, time, tryo}
-import net.liftweb.util.{Helpers, Mailer}
 import net.liftweb.util.Mailer.{From, PlainMailBodyType, Subject, To}
-import org.iban4j
-import org.iban4j.{CountryCode, IbanFormat}
+import net.liftweb.util.{Helpers, Mailer}
 import org.mindrot.jbcrypt.BCrypt
-import scalacache.ScalaCache
-import scalikejdbc.{ConnectionPool, ConnectionPoolSettings, MultipleConnectionPoolContext}
 import scalikejdbc.DB.CPContext
-import scalikejdbc.{DB => scalikeDB, _}
+import scalikejdbc.{ConnectionPool, ConnectionPoolSettings, MultipleConnectionPoolContext, DB => scalikeDB, _}
 
+import java.util.Date
+import java.util.UUID.randomUUID
 import scala.collection.immutable.{List, Nil}
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -147,13 +122,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   }
   
   override def validateAndCheckIbanNumber(iban: String, callContext: Option[CallContext]): OBPReturnType[Box[IbanChecker]] = Future {
-    import org.iban4j.CountryCode
-    import org.iban4j.Iban
-    import org.iban4j.IbanFormat
-    import org.iban4j.IbanFormatException
-    import org.iban4j.IbanUtil
-    import org.iban4j.InvalidCheckDigitException
-    import org.iban4j.UnsupportedCountryException
+    import org.iban4j.{IbanFormat, IbanFormatException, IbanUtil, InvalidCheckDigitException, UnsupportedCountryException}
 
     if(getPropsAsBoolValue("validate_iban", false)) {
       // Validate Iban
@@ -5320,22 +5289,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
     Full(res.nonEmpty)
   }
-
-  override def getCurrentFxRateCached(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String): Box[FXRate] = {
-    /**
-      * Please note that "var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)"
-      * is just a temporary value field with UUID values in order to prevent any ambiguity.
-      * The real value will be assigned by Macro during compile time at this line of a code:
-      * https://github.com/OpenBankProject/scala-macros/blob/master/macros/src/main/scala/com/tesobe/CacheKeyFromArgumentsMacro.scala#L49
-      */
-    var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)
-    CacheKeyFromArguments.buildCacheKey {
-      Caching.memoizeSyncWithProvider(Some(cacheKey.toString()))(TTL seconds) {
-        getCurrentFxRate(bankId, fromCurrencyCode, toCurrencyCode)
-      }
-    }
-  }
-
+  
   /**
     * get transaction request type charges
     */

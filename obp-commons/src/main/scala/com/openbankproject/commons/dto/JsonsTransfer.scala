@@ -1292,11 +1292,6 @@ case class InBoundGetCurrentFxRate(status: Status, data: FXRateCommons) extends 
   override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
 }
 
-case class OutBoundGetCurrentFxRateCached(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String) extends TopicTrait
-case class InBoundGetCurrentFxRateCached(status: Status, data: FXRateCommons) extends InBoundTrait[FXRateCommons] {
-  override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
-}
-
 case class OutBoundGetTransactionRequestTypeCharges(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestTypes: List[TransactionRequestType]) extends TopicTrait
 case class InBoundGetTransactionRequestTypeCharges(status: Status, data: List[TransactionRequestTypeChargeCommons]) extends InBoundTrait[List[TransactionRequestTypeChargeCommons]] {
   override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()

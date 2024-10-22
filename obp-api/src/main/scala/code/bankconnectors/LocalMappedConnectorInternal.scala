@@ -1,15 +1,17 @@
 package code.bankconnectors
 
+import code.fx.fx.TTL
 import code.api.Constant._
+import code.api.cache.Caching
 import code.api.util.APIUtil._
 import code.api.util.ErrorMessages._
 import code.api.util._
-import code.bankconnectors.LocalMappedConnector.{logger, _}
 import code.branches.MappedBranch
 import code.management.ImporterAPI.ImporterTransaction
 import code.model.dataAccess.{BankAccountRouting, MappedBank, MappedBankAccount}
 import code.transaction.MappedTransaction
 import code.transactionrequests._
+import com.tesobe.CacheKeyFromArguments
 import code.util.Helper
 import code.util.Helper._
 import com.openbankproject.commons.ExecutionContext.Implicits.global
@@ -25,8 +27,9 @@ import net.liftweb.util.Helpers
 import net.liftweb.util.Helpers.tryo
 
 import java.util.Date
-import scala.collection.immutable.List
+import java.util.UUID.randomUUID
 import scala.concurrent._
+import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Random
 
@@ -184,7 +187,7 @@ object LocalMappedConnectorInternal extends MdcLoggable {
             transactionRequest <- Future(transactionRequest.copy(challenge = null))
 
             //save transaction_id into database
-            _ <- saveTransactionRequestTransaction(transactionRequest.id, createdTransactionId,callContext)
+            _ <- Connector.connector.vend.saveTransactionRequestTransaction(transactionRequest.id, createdTransactionId,callContext)
             //update transaction_id field for variable 'transactionRequest'
             transactionRequest <- Future(transactionRequest.copy(transaction_ids = createdTransactionId.value))
 
@@ -264,7 +267,7 @@ object LocalMappedConnectorInternal extends MdcLoggable {
     branchId: String,
     accountRoutings: List[AccountRouting],
   ): Box[BankAccount] = {
-    getBankAccountLegacy(bankId, accountId, None).map(_._1) match {
+    Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).map(_._1) match {
       case Full(a) =>
         logger.debug(s"account with id $accountId at bank with id $bankId already exists. No need to create a new one.")
         Full(a)
@@ -379,8 +382,8 @@ object LocalMappedConnectorInternal extends MdcLoggable {
   def updateAccountBalance(bankId: BankId, accountId: AccountId, newBalance: BigDecimal): Box[Boolean] = {
     //this will be Full(true) if everything went well
     val result = for {
-      (bank, _) <- getBankLegacy(bankId, None)
-      account <- getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount])
+      (bank, _) <- Connector.connector.vend.getBankLegacy(bankId, None)
+      account <- Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).map(_._1).map(_.asInstanceOf[MappedBankAccount])
     } yield {
       account.accountBalance(Helper.convertToSmallestCurrencyUnits(newBalance, account.currency)).save
       setBankAccountLastUpdated(bank.nationalIdentifier, account.number, Helpers.now).openOrThrowException(attemptedToOpenAnEmptyBox)
@@ -422,7 +425,7 @@ object LocalMappedConnectorInternal extends MdcLoggable {
   ): Box[BankAccount] = {
 
     for {
-      (_, _) <- getBankLegacy(bankId, None) //bank is not really used, but doing this will ensure account creations fails if the bank doesn't
+      (_, _) <- Connector.connector.vend.getBankLegacy(bankId, None) //bank is not really used, but doing this will ensure account creations fails if the bank doesn't
       balanceInSmallestCurrencyUnits = Helper.convertToSmallestCurrencyUnits(initialBalance, currency)
       account <- LocalMappedConnectorInternal.createAccountIfNotExisting (
         bankId,
@@ -524,7 +527,7 @@ object LocalMappedConnectorInternal extends MdcLoggable {
       )
       //If it is empty, return the default value : "0.0000000" and set the BankAccount currency
       case _ =>
-        val fromAccountCurrency: String = getBankAccountLegacy(bankId, accountId, None).map(_._1).openOrThrowException(attemptedToOpenAnEmptyBox).currency
+        val fromAccountCurrency: String = Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).map(_._1).openOrThrowException(attemptedToOpenAnEmptyBox).currency
         TransactionRequestTypeChargeMock(transactionRequestType.value, bankId.value, fromAccountCurrency, "0.00", "Warning! Default value!")
     }
 
@@ -560,5 +563,20 @@ object LocalMappedConnectorInternal extends MdcLoggable {
         brand = l.brand
       )
     Full(cardList)
+  }
+
+  def getCurrentFxRateCached(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String): Box[FXRate] = {
+    /**
+     * Please note that "var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)"
+     * is just a temporary value field with UUID values in order to prevent any ambiguity.
+     * The real value will be assigned by Macro during compile time at this line of a code:
+     * https://github.com/OpenBankProject/scala-macros/blob/master/macros/src/main/scala/com/tesobe/CacheKeyFromArgumentsMacro.scala#L49
+     */
+    var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)
+    CacheKeyFromArguments.buildCacheKey {
+      Caching.memoizeSyncWithProvider(Some(cacheKey.toString()))(TTL seconds) {
+        Connector.connector.vend.getCurrentFxRate(bankId, fromCurrencyCode, toCurrencyCode)
+      }
+    }
   }
 }

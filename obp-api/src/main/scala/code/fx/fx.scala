@@ -1,10 +1,9 @@
 package code.fx
 
 import java.util.UUID.randomUUID
-
 import code.api.cache.Caching
 import code.api.util.{APIUtil, CustomJsonFormats}
-import code.bankconnectors.Connector
+import code.bankconnectors.LocalMappedConnectorInternal
 import code.util.Helper.MdcLoggable
 import com.openbankproject.commons.model.BankId
 import com.tesobe.CacheKeyFromArguments
@@ -154,7 +153,7 @@ object fx extends MdcLoggable {
       case None =>
         getFallbackExchangeRateCached(fromCurrency, toCurrency).orElse(getFallbackExchangeRate2nd(fromCurrency, toCurrency))
       case Some(id) =>
-        Connector.connector.vend.getCurrentFxRateCached(BankId(id), fromCurrency, toCurrency).map(_.conversionValue).toOption match {
+        LocalMappedConnectorInternal.getCurrentFxRateCached(BankId(id), fromCurrency, toCurrency).map(_.conversionValue).toOption match {
           case None =>
             getFallbackExchangeRateCached(fromCurrency, toCurrency).orElse(getFallbackExchangeRate2nd(fromCurrency, toCurrency))
           case exchangeRate => exchangeRate

@@ -1128,20 +1128,6 @@ trait Connector extends MdcLoggable {
   def getCurrentCurrencies(bankId: BankId, callContext: Option[CallContext]): OBPReturnType[Box[List[String]]] = Future{Failure(setUnimplementedError(nameOf(getCurrentCurrencies _)))}
   
   def getCurrentFxRate(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String): Box[FXRate] = Failure(setUnimplementedError(nameOf(getCurrentFxRate _)))
-  def getCurrentFxRateCached(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String): Box[FXRate] = {
-    /**
-      * Please note that "var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)"
-      * is just a temporary value field with UUID values in order to prevent any ambiguity.
-      * The real value will be assigned by Macro during compile time at this line of a code:
-      * https://github.com/OpenBankProject/scala-macros/blob/master/macros/src/main/scala/com/tesobe/CacheKeyFromArgumentsMacro.scala#L49
-      */
-    var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)
-    CacheKeyFromArguments.buildCacheKey {
-      Caching.memoizeSyncWithProvider(Some(cacheKey.toString()))(TTL seconds) {
-        getCurrentFxRate(bankId, fromCurrencyCode, toCurrencyCode)
-      }
-    }
-  }
   
   def createTransactionAfterChallengev300(
                                            initiator: User,

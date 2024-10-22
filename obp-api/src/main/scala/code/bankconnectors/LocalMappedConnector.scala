@@ -1408,7 +1408,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
   override def getPhysicalCardsForBank(bank: Bank, user: User, queryParams: List[OBPQueryParam], callContext: Option[CallContext]): OBPReturnType[Box[List[PhysicalCard]]] = Future {
     (
-      getPhysicalCardsForBankLegacy(bank: Bank, user: User, queryParams),
+      LocalMappedConnectorInternal.getPhysicalCardsForBankLocal(bank: Bank, user: User, queryParams),
       callContext
     )
   }
@@ -1418,37 +1418,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       code.cards.PhysicalCard.physicalCardProvider.vend.getPhysicalCardByCardNumber(bankCardNumber: String, callContext: Option[CallContext]),
       callContext
     )
-  }
-
-  override def getPhysicalCardsForBankLegacy(bank: Bank, user: User, queryParams: List[OBPQueryParam]): Box[List[PhysicalCard]] = {
-    val list = code.cards.PhysicalCard.physicalCardProvider.vend.getPhysicalCardsForBank(bank, user, queryParams)
-    val cardList = for (l <- list) yield
-      new PhysicalCard(
-        cardId = l.cardId,
-        bankId = l.bankId,
-        bankCardNumber = l.bankCardNumber,
-        cardType = l.cardType,
-        nameOnCard = l.nameOnCard,
-        issueNumber = l.issueNumber,
-        serialNumber = l.serialNumber,
-        validFrom = l.validFrom,
-        expires = l.expires,
-        enabled = l.enabled,
-        cancelled = l.cancelled,
-        onHotList = l.onHotList,
-        technology = l.technology,
-        networks = l.networks,
-        allows = l.allows,
-        account = l.account,
-        replacement = l.replacement,
-        pinResets = l.pinResets,
-        collected = l.collected,
-        posted = l.posted,
-        customerId = l.customerId,
-        cvv = l.cvv,
-        brand = l.brand
-      )
-    Full(cardList)
   }
 
   override def getPhysicalCardForBank(bankId: BankId, cardId: String, callContext: Option[CallContext]): OBPReturnType[Box[PhysicalCardTrait]] = Future {

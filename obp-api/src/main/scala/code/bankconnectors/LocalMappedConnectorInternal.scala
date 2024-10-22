@@ -530,4 +530,35 @@ object LocalMappedConnectorInternal extends MdcLoggable {
 
     Full(transactionRequestTypeCharge)
   }
+
+  def getPhysicalCardsForBankLocal(bank: Bank, user: User, queryParams: List[OBPQueryParam]): Box[List[PhysicalCard]] = {
+    val list = code.cards.PhysicalCard.physicalCardProvider.vend.getPhysicalCardsForBank(bank, user, queryParams)
+    val cardList = for (l <- list) yield
+      new PhysicalCard(
+        cardId = l.cardId,
+        bankId = l.bankId,
+        bankCardNumber = l.bankCardNumber,
+        cardType = l.cardType,
+        nameOnCard = l.nameOnCard,
+        issueNumber = l.issueNumber,
+        serialNumber = l.serialNumber,
+        validFrom = l.validFrom,
+        expires = l.expires,
+        enabled = l.enabled,
+        cancelled = l.cancelled,
+        onHotList = l.onHotList,
+        technology = l.technology,
+        networks = l.networks,
+        allows = l.allows,
+        account = l.account,
+        replacement = l.replacement,
+        pinResets = l.pinResets,
+        collected = l.collected,
+        posted = l.posted,
+        customerId = l.customerId,
+        cvv = l.cvv,
+        brand = l.brand
+      )
+    Full(cardList)
+  }
 }

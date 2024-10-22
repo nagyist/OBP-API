@@ -6,10 +6,8 @@ import code.api.util.ApiTag._
 import code.api.util.ErrorMessages._
 import code.api.util.FutureUtil.EndpointContext
 import code.api.util.NewStyle.HttpCode
-import code.api.util.{ErrorMessages, NewStyle}
+import code.api.util.{ApiRole, NewStyle}
 import code.api.v1_2_1.JSONFactory
-import code.bankconnectors.Connector
-import code.model.BankX
 import com.openbankproject.commons.model.BankId
 import com.openbankproject.commons.util.ApiVersion
 import com.openbankproject.commons.ExecutionContext.Implicits.global
@@ -99,24 +97,24 @@ trait APIMethods130 {
       EmptyBody,
       physicalCardsJSON,
       List(UserNotLoggedIn,BankNotFound, UnknownError),
-      List(apiTagCard, apiTagOldStyle))
-
+      List(apiTagCard))
 
     lazy val getCardsForBank : OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "cards" :: Nil JsonGet _ => {
         cc => {
+          implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~! ErrorMessages.UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! {ErrorMessages.BankNotFound}
-            cards <- Connector.connector.vend.getPhysicalCardsForBankLegacy(bank, u , Nil)//This `queryParams` will be used from V310
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            httpParams <- NewStyle.function.extractHttpParamsFromUrl(cc.url)
+            (obpQueryParams, callContext) <- createQueriesByHttpParamsFuture(httpParams, callContext)
+            _ <- NewStyle.function.hasEntitlement(bankId.value, u.userId, ApiRole.canGetCardsForBank, callContext)
+            (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            (cards, callContext) <- NewStyle.function.getPhysicalCardsForBank(bank, u, obpQueryParams, callContext)
           } yield {
-             val cardsJson = JSONFactory1_3_0.createPhysicalCardsJSON(cards, u)
-            successJsonResponse(Extraction.decompose(cardsJson))
+            (JSONFactory1_3_0.createPhysicalCardsJSON(cards, u), HttpCode.`200`(callContext))
           }
         }
       }
     }
-
   }
-
 }

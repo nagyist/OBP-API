@@ -349,7 +349,8 @@ object NewStyle extends MdcLoggable{
           swiftBIC,
           national_identifier,
           bankRoutingScheme,
-          bankRoutingAddress
+          bankRoutingAddress,
+          callContext
         ) map {
           i =>  (i, callContext)
         }

@@ -165,7 +165,8 @@ object AfterApiAuth extends MdcLoggable{
           swiftBIC = "",
           national_identifier = "",
           bankRoutingScheme = "USER_ID",
-          bankRoutingAddress = resourceUser.userId
+          bankRoutingAddress = resourceUser.userId,
+          None
         ) match {
           case Full(bank) =>
             UserInitActionProvider.createOrUpdateInitAction(resourceUser.userId, "create-or-update-bank", bankId, true)

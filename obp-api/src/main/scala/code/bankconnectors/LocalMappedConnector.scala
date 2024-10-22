@@ -3095,7 +3095,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                                    swiftBIC: String,
                                    national_identifier: String,
                                    bankRoutingScheme: String,
-                                   bankRoutingAddress: String
+                                   bankRoutingAddress: String,
+                                   callContext: Option[CallContext]
                                  ): Box[Bank] = {
   //check the bank existence and update or insert data
     val bank = getBankLegacy(BankId(bankId), None).map(_._1.asInstanceOf[MappedBank]) match {

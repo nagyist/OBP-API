@@ -514,7 +514,8 @@ trait APIMethods220 {
               bank.swift_bic,
               bank.national_identifier,
               bank.bank_routing.scheme,
-              bank.bank_routing.address
+              bank.bank_routing.address,
+              Some(cc)
             )
             entitlements <- Entitlement.entitlement.vend.getEntitlementsByUserId(u.userId)
             

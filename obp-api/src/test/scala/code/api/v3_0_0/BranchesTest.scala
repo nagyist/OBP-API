@@ -315,7 +315,7 @@ class BranchesTest extends V300ServerSetup with DefaultUsers {
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    Connector.connector.vend.createOrUpdateBank(bankId, "exists bank", "bank", "string", "string", "string", "string", "string", "string")
+    Connector.connector.vend.createOrUpdateBank(bankId, "exists bank", "bank", "string", "string", "string", "string", "string", "string", None)
     Connector.connector.vend.createOrUpdateBranch(deletedBranch)
     Connector.connector.vend.createOrUpdateBranch(existsBranch1)
     Connector.connector.vend.createOrUpdateBranch(existsBranch2)
@@ -341,7 +341,7 @@ class BranchesTest extends V300ServerSetup with DefaultUsers {
 
 
     scenario("We try to get bank branches those all not deleted", VersionOfApi, ApiEndpoint) {
-      Connector.connector.vend.createOrUpdateBank(bankId, "exists bank", "bank", "string", "string", "string", "string", "string", "string")
+      Connector.connector.vend.createOrUpdateBank(bankId, "exists bank", "bank", "string", "string", "string", "string", "string", "string", None)
       When("We make a request v3.0.0")
       val request300 = (v3_0Request / "banks" / bankId / "branches").GET <@(user1)
       val response300 = makeGetRequest(request300)

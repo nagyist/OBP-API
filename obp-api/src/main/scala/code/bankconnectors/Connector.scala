@@ -877,16 +877,9 @@ trait Connector extends MdcLoggable {
   def getTransactionRequests(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[List[TransactionRequest]] =
     LocalMappedConnector.getTransactionRequests(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext])
 
-  def getTransactionRequests210(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[(List[TransactionRequest], Option[CallContext])] = Failure(setUnimplementedError(nameOf(getTransactionRequestStatusesImpl _)))
+  def getTransactionRequests210(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[(List[TransactionRequest], Option[CallContext])] = Failure(setUnimplementedError(nameOf(getTransactionRequests210 _)))
 
-  def getTransactionRequestStatuses() : Box[TransactionRequestStatus] = {
-    for {
-      transactionRequestStatuses <- getTransactionRequestStatusesImpl()
-    } yield transactionRequestStatuses
-
-  }
-
-  protected def getTransactionRequestStatusesImpl() : Box[TransactionRequestStatus] = Failure(setUnimplementedError(nameOf(getTransactionRequestStatusesImpl _)))
+  def getTransactionRequestStatuses() : Box[TransactionRequestStatus] = Failure(setUnimplementedError(nameOf(getTransactionRequestStatuses _)))
 
   def getTransactionRequestImpl(transactionRequestId: TransactionRequestId, callContext: Option[CallContext]): Box[(TransactionRequest, Option[CallContext])] = TransactionRequests.transactionRequestProvider.vend.getTransactionRequest(transactionRequestId).map(transactionRequest =>(transactionRequest, callContext))
 

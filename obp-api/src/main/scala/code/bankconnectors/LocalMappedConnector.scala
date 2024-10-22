@@ -2121,11 +2121,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                                  callContext: Option[CallContext]): OBPReturnType[Box[CancelPayment]] = Future {
     (Full(CancelPayment(true, Some(true))), callContext)
   }
-
-  /*
-    Transaction Requests
-  */
-  override def getTransactionRequestStatusesImpl(): Box[TransactionRequestStatus] = Empty
   
   override def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String): Box[Boolean] = {
     TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestStatusImpl(transactionRequestId, status)
@@ -4948,12 +4943,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     }
 
     transactionRequestsNew.map(transactionRequests => (transactionRequests, callContext))
-  }
-
-  override def getTransactionRequestStatuses(): Box[TransactionRequestStatus] = {
-    for {
-      transactionRequestStatuses <- getTransactionRequestStatusesImpl()
-    } yield transactionRequestStatuses
   }
 
   override def getTransactionRequestImpl(transactionRequestId: TransactionRequestId, callContext: Option[CallContext]): Box[(TransactionRequest, Option[CallContext])] =

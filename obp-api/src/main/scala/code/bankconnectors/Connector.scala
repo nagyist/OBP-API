@@ -1144,12 +1144,7 @@ trait Connector extends MdcLoggable {
       }
     }
   }
-
-  /**
-    * get transaction request type charge specified by: bankId, accountId, viewId, transactionRequestType.
-    */
-  def getTransactionRequestTypeCharge(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestType: TransactionRequestType): Box[TransactionRequestTypeCharge] = Failure(setUnimplementedError(nameOf(getTransactionRequestTypeCharge _)))
-
+  
   def createTransactionAfterChallengev300(
                                            initiator: User,
                                            fromAccount: BankAccount,

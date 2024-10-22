@@ -405,7 +405,6 @@ object ConnectorBuilderUtil {
     "accountOwnerExists",
     "getCurrentFxRate",
     "getCurrentFxRateCached",
-    "getTransactionRequestTypeCharge",
     "getTransactionRequestTypeCharges",
     //"getPhysicalCardsForBankLegacy", // should not generate for Legacy methods
     //"getBranchLegacy", // should not generate for Legacy methods

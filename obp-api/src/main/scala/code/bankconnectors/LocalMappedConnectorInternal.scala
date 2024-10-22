@@ -504,4 +504,30 @@ object LocalMappedConnectorInternal extends MdcLoggable {
           }
       )
   }
+
+  /**
+   * get the TransactionRequestTypeCharge from the TransactionRequestTypeCharge table
+   * In Mapped, we will ignore accountId, viewId for now.
+   */
+  def getTransactionRequestTypeCharge(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestType: TransactionRequestType): Box[TransactionRequestTypeCharge] = {
+    val transactionRequestTypeChargeMapper = MappedTransactionRequestTypeCharge.find(
+      By(MappedTransactionRequestTypeCharge.mBankId, bankId.value),
+      By(MappedTransactionRequestTypeCharge.mTransactionRequestTypeId, transactionRequestType.value))
+
+    val transactionRequestTypeCharge = transactionRequestTypeChargeMapper match {
+      case Full(transactionRequestType) => TransactionRequestTypeChargeMock(
+        transactionRequestType.transactionRequestTypeId,
+        transactionRequestType.bankId,
+        transactionRequestType.chargeCurrency,
+        transactionRequestType.chargeAmount,
+        transactionRequestType.chargeSummary
+      )
+      //If it is empty, return the default value : "0.0000000" and set the BankAccount currency
+      case _ =>
+        val fromAccountCurrency: String = getBankAccountLegacy(bankId, accountId, None).map(_._1).openOrThrowException(attemptedToOpenAnEmptyBox).currency
+        TransactionRequestTypeChargeMock(transactionRequestType.value, bankId.value, fromAccountCurrency, "0.00", "Warning! Default value!")
+    }
+
+    Full(transactionRequestTypeCharge)
+  }
 }

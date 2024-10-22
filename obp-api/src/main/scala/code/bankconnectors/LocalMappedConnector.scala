@@ -14,7 +14,7 @@ import code.api.Constant._
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
 import code.api.attributedefinition.{AttributeDefinition, AttributeDefinitionDI}
 import code.api.cache.Caching
-import code.api.util.APIUtil._
+import code.api.util.APIUtil.{OBPReturnType, _}
 import code.api.util.ApiRole.canCreateAnyTransactionRequest
 import code.api.util.ErrorMessages._
 import code.api.util._
@@ -1244,10 +1244,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   
   override def getCounterpartyTrait(bankId: BankId, accountId: AccountId, counterpartyId: String, callContext: Option[CallContext]): OBPReturnType[Box[CounterpartyTrait]] = {
     getCounterpartyByCounterpartyId(CounterpartyId(counterpartyId), callContext)
-  }
-
-  override def getCounterpartyByCounterpartyIdLegacy(counterpartyId: CounterpartyId, callContext: Option[CallContext]): Box[(CounterpartyTrait, Option[CallContext])] = {
-    Counterparties.counterparties.vend.getCounterparty(counterpartyId.value).map(counterparty => (counterparty, callContext))
   }
 
   override def getCounterpartyByCounterpartyId(counterpartyId: CounterpartyId, callContext: Option[CallContext]): OBPReturnType[Box[CounterpartyTrait]] = Future {
@@ -4349,14 +4345,14 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     (result, callContext)
   }
 
-  override def getCounterpartyFromTransaction(bankId: BankId, accountId: AccountId, counterpartyId: String): Box[Counterparty] = {
-    val transactions = getTransactionsLegacy(bankId, accountId, None).map(_._1).toList.flatten
+  override def getCounterpartyFromTransaction(bankId: BankId, accountId: AccountId, counterpartyId: String, callContext: Option[CallContext]): OBPReturnType[Box[Counterparty]] = Future{
+    val transactions = getTransactionsLegacy(bankId, accountId ,None).map(_._1).toList.flatten
     val counterparties = for {
       transaction <- transactions
       counterpartyName <- List(transaction.otherAccount.counterpartyName)
       otherAccountRoutingScheme <- List(transaction.otherAccount.otherAccountRoutingScheme)
       otherAccountRoutingAddress <- List(transaction.otherAccount.otherAccountRoutingAddress.get)
-      counterpartyIdFromTransaction <- List(APIUtil.createImplicitCounterpartyId(bankId.value, accountId.value, counterpartyName, otherAccountRoutingScheme, otherAccountRoutingAddress))
+      counterpartyIdFromTransaction <- List(APIUtil.createImplicitCounterpartyId(bankId.value,accountId.value,counterpartyName,otherAccountRoutingScheme, otherAccountRoutingAddress))
       if counterpartyIdFromTransaction == counterpartyId
     } yield {
       transaction.otherAccount
@@ -4366,7 +4362,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       case List() => Empty
       case x :: xs => Full(x) //Because they have the same counterpartId, so they are actually just one counterparty.
     }
-  }
+  }.map(counterparty=>(counterparty,callContext))
 
   override def getCounterpartiesFromTransaction(bankId: BankId, accountId: AccountId): Box[List[Counterparty]] = {
     val counterparties = getTransactionsLegacy(bankId, accountId, None).map(_._1).toList.flatten.map(_.otherAccount)

@@ -529,8 +529,8 @@ object NewStyle extends MdcLoggable{
                                   counterpartyId: String, 
                                   view: View, 
                                   user: Box[User], 
-                                  callContext: Option[CallContext]): Future[ModeratedOtherBankAccount] = 
-      Future(account.moderatedOtherBankAccount(counterpartyId, view, BankIdAccountId(account.bankId, account.accountId), user, callContext)) map { connectorEmptyResponse(_, callContext) }
+                                  callContext: Option[CallContext]): OBPReturnType[ModeratedOtherBankAccount] = 
+      account.moderatedOtherBankAccount(counterpartyId, view, BankIdAccountId(account.bankId, account.accountId), user, callContext) map { i =>(connectorEmptyResponse(i._1, i._2), i._2) }
 
     def getTransactionsCore(bankId: BankId, accountId: AccountId, queryParams:  List[OBPQueryParam], callContext: Option[CallContext]): OBPReturnType[List[TransactionCore]] =
       Connector.connector.vend.getTransactionsCore(bankId: BankId, accountId: AccountId, queryParams:  List[OBPQueryParam], callContext: Option[CallContext]) map { i =>

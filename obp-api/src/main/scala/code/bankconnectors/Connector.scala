@@ -559,24 +559,7 @@ trait Connector extends MdcLoggable {
   def checkBankAccountExistsLegacy(bankId : BankId, accountId : AccountId, callContext: Option[CallContext] = None) : Box[(BankAccount, Option[CallContext])]= Failure(setUnimplementedError(nameOf(checkBankAccountExistsLegacy _)))
   def checkBankAccountExists(bankId : BankId, accountId : AccountId, callContext: Option[CallContext] = None) : OBPReturnType[Box[(BankAccount)]] = Future {(Failure(setUnimplementedError(nameOf(checkBankAccountExists _))), callContext)}
   
-  def getCounterpartyFromTransaction(bankId: BankId, accountId: AccountId, counterpartyId: String): Box[Counterparty] = {
-    val transactions = getTransactionsLegacy(bankId, accountId ,None).map(_._1).toList.flatten
-    val counterparties = for {
-      transaction <- transactions
-      counterpartyName <- List(transaction.otherAccount.counterpartyName)
-      otherAccountRoutingScheme <- List(transaction.otherAccount.otherAccountRoutingScheme)
-      otherAccountRoutingAddress <- List(transaction.otherAccount.otherAccountRoutingAddress.get)
-      counterpartyIdFromTransaction <- List(APIUtil.createImplicitCounterpartyId(bankId.value,accountId.value,counterpartyName,otherAccountRoutingScheme, otherAccountRoutingAddress))
-      if counterpartyIdFromTransaction == counterpartyId
-    } yield {
-      transaction.otherAccount
-    }
-
-    counterparties match {
-      case List() => Empty
-      case x :: xs => Full(x) //Because they have the same counterpartId, so they are actually just one counterparty.
-    }
-  }
+  def getCounterpartyFromTransaction(bankId: BankId, accountId: AccountId, counterpartyId: String, callContext: Option[CallContext]): OBPReturnType[Box[Counterparty]] = Future {(Failure(setUnimplementedError(nameOf(checkBankAccountExists _))), callContext)}
 
   def getCounterpartiesFromTransaction(bankId: BankId, accountId: AccountId): Box[List[Counterparty]] = {
     val counterparties = getTransactionsLegacy(bankId, accountId, None).map(_._1).toList.flatten.map(_.otherAccount)
@@ -584,8 +567,6 @@ trait Connector extends MdcLoggable {
   }
 
   def getCounterpartyTrait(bankId: BankId, accountId: AccountId, couterpartyId: String, callContext: Option[CallContext]): OBPReturnType[Box[CounterpartyTrait]]= Future{(Failure(setUnimplementedError(nameOf(getCounterpartyTrait _))), callContext)}
-
-  def getCounterpartyByCounterpartyIdLegacy(counterpartyId: CounterpartyId, callContext: Option[CallContext]): Box[(CounterpartyTrait, Option[CallContext])]= Failure(setUnimplementedError(nameOf(getCounterpartyByCounterpartyIdLegacy _)))
 
   def getCounterpartyByCounterpartyId(counterpartyId: CounterpartyId, callContext: Option[CallContext]): OBPReturnType[Box[CounterpartyTrait]] = Future{(Failure(setUnimplementedError(nameOf(getCounterpartyByCounterpartyId _))), callContext)}
   

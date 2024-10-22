@@ -406,17 +406,23 @@ case class BankAccountExtended(val bankAccount: BankAccount) extends MdcLoggable
     * @return a Box of a ModeratedOtherBankAccounts, it a bank
     *  account that have at least one transaction in common with this bank account
     */
-  final def moderatedOtherBankAccount(counterpartyID : String, view : View, bankIdAccountId: BankIdAccountId, user : Box[User], callContext: Option[CallContext]) : Box[ModeratedOtherBankAccount] =
-    if(APIUtil.hasAccountAccess(view, bankIdAccountId, user, callContext))
-      Connector.connector.vend.getCounterpartyByCounterpartyIdLegacy(CounterpartyId(counterpartyID), None).map(_._1).flatMap(BankAccountX.toInternalCounterparty).flatMap(view.moderateOtherAccount) match {
-        //First check the explicit counterparty
-        case Full(moderatedOtherBankAccount) => Full(moderatedOtherBankAccount)
-        //Than we checked the implict counterparty.
-        case _ => Connector.connector.vend.getCounterpartyFromTransaction(bankId, accountId, counterpartyID).flatMap(oAcc => view.moderateOtherAccount(oAcc))
+  final def moderatedOtherBankAccount(counterpartyID : String, view : View, bankIdAccountId: BankIdAccountId, user : Box[User], callContext: Option[CallContext]) : OBPReturnType[Box[ModeratedOtherBankAccount]] =
+    if(APIUtil.hasAccountAccess(view, bankIdAccountId, user, callContext)) {
+      for{
+        (counterparty, callContext) <- Connector.connector.vend.getCounterpartyByCounterpartyId(CounterpartyId(counterpartyID), callContext)
+        moderateOtherAccount <- if(counterparty.isDefined) {
+         Future{
+          counterparty.map(BankAccountX.toInternalCounterparty).flatten.map(view.moderateOtherAccount).flatten
+         }
+        } else {
+          Connector.connector.vend.getCounterpartyFromTransaction(bankId, accountId, counterpartyID, callContext).map(oAccTuple => view.moderateOtherAccount(oAccTuple._1.head))
+        }
+      } yield{
+        (moderateOtherAccount, callContext)
       }
-    else
-      viewNotAllowed(view)
-
+    } else {
+      Future{(viewNotAllowed(view),callContext)}
+    }
 }
 
 object BankAccountX {

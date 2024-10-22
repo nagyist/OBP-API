@@ -420,7 +420,6 @@ object ConnectorBuilderUtil {
     "makePaymentImpl",
     "saveTransactionRequestStatusImpl",
     "getTransactionRequestStatusesImpl",
-    "getTransactionRequestsImpl",
     "getTransactionRequestTypesImpl"
   ).distinct
 

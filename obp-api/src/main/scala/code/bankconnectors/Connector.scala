@@ -889,8 +889,6 @@ trait Connector extends MdcLoggable {
 
   protected def getTransactionRequestStatusesImpl() : Box[TransactionRequestStatus] = Failure(setUnimplementedError(nameOf(getTransactionRequestStatusesImpl _)))
 
-  protected def getTransactionRequestsImpl(fromAccount : BankAccount) : Box[List[TransactionRequest]] = TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId)
-
   def getTransactionRequestImpl(transactionRequestId: TransactionRequestId, callContext: Option[CallContext]): Box[(TransactionRequest, Option[CallContext])] = TransactionRequests.transactionRequestProvider.vend.getTransactionRequest(transactionRequestId).map(transactionRequest =>(transactionRequest, callContext))
 
   def getTransactionRequestTypes(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[List[TransactionRequestType]] =

@@ -419,7 +419,6 @@ object ConnectorBuilderUtil {
     "makePaymentImpl",
     "saveTransactionRequestStatusImpl",
     "getTransactionRequestStatusesImpl",
-    "getTransactionRequestTypesImpl"
   ).distinct
 
   val omitMethods = List(

@@ -4960,17 +4960,9 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     TransactionRequests.transactionRequestProvider.vend.getTransactionRequest(transactionRequestId).map(transactionRequest => (transactionRequest, callContext))
 
   override def getTransactionRequestTypes(initiator: User, fromAccount: BankAccount, callContext: Option[CallContext]): Box[List[TransactionRequestType]] = {
-    for {
-      transactionRequestTypes <- getTransactionRequestTypesImpl(fromAccount)
-    } yield transactionRequestTypes
+    Full(APIUtil.getPropsValue("transactionRequests_supported_types", "").split(",").map(x => TransactionRequestType(x)).toList)
   }
-
-  override def getTransactionRequestTypesImpl(fromAccount: BankAccount): Box[List[TransactionRequestType]] = {
-    // Get Transaction Request Types from Props "transactionRequests_supported_types". Default is empty string
-    val validTransactionRequestTypes = APIUtil.getPropsValue("transactionRequests_supported_types", "").split(",").map(x => TransactionRequestType(x)).toList
-    Full(validTransactionRequestTypes)
-  }
-
+  
   //Note: Now we use validateChallengeAnswer instead, new methods validate over kafka, and move the allowed_attempts guard into API level.
   //It is only used for V140 and V200, has been deprecated from V210.
   @deprecated

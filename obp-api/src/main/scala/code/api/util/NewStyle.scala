@@ -2333,6 +2333,41 @@ object NewStyle extends MdcLoggable{
       Connector.connector.vend.getProduct(bankId : BankId, productCode : ProductCode, callContext) map {
         i => (unboxFullOrFail(i._1, callContext, ProductNotFoundByProductCode + " {" + productCode.value + "}", 404), i._2)
       }
+    def createOrUpdateProduct(
+      bankId : String,
+      code : String,
+      parentProductCode : Option[String],
+      name : String,
+      category : String,
+      family : String,
+      superFamily : String,
+      moreInfoUrl : String,
+      termsAndConditionsUrl : String,
+      details : String,
+      description : String,
+      metaLicenceId : String,
+      metaLicenceName : String,
+      callContext: Option[CallContext]
+    ) : OBPReturnType[Product] =
+      Connector.connector.vend.createOrUpdateProduct(
+        bankId : String,
+        code : String,
+        parentProductCode : Option[String],
+        name : String,
+        category : String,
+        family : String,
+        superFamily : String,
+        moreInfoUrl : String,
+        termsAndConditionsUrl : String,
+        details : String,
+        description : String,
+        metaLicenceId : String,
+        metaLicenceName : String,
+        callContext: Option[CallContext]
+      ) map {
+        i => (unboxFullOrFail(i._1, callContext, CreateProductError + "or"+ UpdateProductError , 404), i._2)
+      }
+      
     def getProductTree(bankId : BankId, productCode : ProductCode, callContext: Option[CallContext]) : OBPReturnType[List[Product]] =
       Connector.connector.vend.getProductTree(bankId : BankId, productCode : ProductCode, callContext) map {
         i => (unboxFullOrFail(i._1, callContext, GetProductTreeError + " {" + productCode.value + "}", 404), i._2)

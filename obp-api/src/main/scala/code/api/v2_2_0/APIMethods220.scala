@@ -13,6 +13,7 @@ import code.api.v1_2_1.{CreateViewJsonV121, JSONFactory, UpdateViewJsonV121}
 import code.api.v2_0_0.OBPAPI2_0_0
 import code.api.v2_1_0._
 import code.api.v2_2_0.JSONFactory220.transformV220ToBranch
+import code.api.v3_1_0.{JSONFactory310, PostPutProductJsonV310}
 import code.api.v4_0_0.{AtmJsonV400, JSONFactory400}
 import code.bankconnectors._
 import code.consumer.Consumers
@@ -662,7 +663,7 @@ trait APIMethods220 {
         UserHasMissingRoles,
         UnknownError
       ),
-      List(apiTagProduct, apiTagOldStyle),
+      List(apiTagProduct),
       Some(List(canCreateProduct, canCreateProductAtAnyBank))
     )
 
@@ -671,29 +672,33 @@ trait APIMethods220 {
     lazy val createProduct: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "products" ::  Nil JsonPut json -> _ => {
         cc =>
+          implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            _ <- NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, createProductEntitlementsRequiredForSpecificBank, createProductEntitlementsRequiredForAnyBank, callContext)
-              product <- tryo {json.extract[ProductJsonV220]} ?~! ErrorMessages.InvalidJsonFormat
-            success <- Connector.connector.vend.createOrUpdateProduct(
-                bankId = product.bank_id,
-                code = product.code,
-                parentProductCode = None, 
-                name = product.name,
-                category = product.category,
-                family = product.family,
-                superFamily = product.super_family,
-                moreInfoUrl = product.more_info_url,
-                termsAndConditionsUrl = null,
-                details = product.details,
-                description = product.description,
-                metaLicenceId = product.meta.license.id,
-                metaLicenceName = product.meta.license.name
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            _ <- NewStyle.function.hasAtLeastOneEntitlement(failMsg = createProductEntitlementsRequiredText)(bankId.value, u.userId, createProductEntitlements, callContext)
+            (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            failMsg = s"$InvalidJsonFormat The Json body should be the $PostPutProductJsonV310 "
+            product <- NewStyle.function.tryons(failMsg, 400, callContext) {
+              json.extract[ProductJsonV220]
+            }
+            (success, callContext) <- NewStyle.function.createOrUpdateProduct(
+              bankId = bankId.value,
+              code = product.code,
+              parentProductCode = None,
+              name = product.name,
+              category = product.category,
+              family = product.family,
+              superFamily = product.super_family,
+              moreInfoUrl = product.more_info_url,
+              termsAndConditionsUrl = null,
+              details = product.details,
+              description = product.description,
+              metaLicenceId = product.meta.license.id,
+              metaLicenceName = product.meta.license.name,
+              callContext
             )
           } yield {
-            val json = JSONFactory220.createProductJson(success)
-            createdJsonResponse(Extraction.decompose(json))
+            (JSONFactory220.createProductJson(success), HttpCode.`201`(callContext))
           }
       }
     }

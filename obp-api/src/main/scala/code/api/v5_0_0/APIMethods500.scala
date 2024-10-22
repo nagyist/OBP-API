@@ -1637,7 +1637,7 @@ trait APIMethods500 {
               case true =>
                 NewStyle.function.getProduct(bankId, ProductCode(product.parent_product_code), callContext).map(product => (Full(product._1),product._2))
             }
-            success <- Future(Connector.connector.vend.createOrUpdateProduct(
+            (success, callContext) <- NewStyle.function.createOrUpdateProduct(
               bankId = bankId.value,
               code = productCode.value,
               parentProductCode = parentProduct.map(_.code.value).toOption,
@@ -1650,10 +1650,9 @@ trait APIMethods500 {
               details = null,
               description = product.description.getOrElse(""),
               metaLicenceId = product.meta.map(_.license.id).getOrElse(""),
-              metaLicenceName = product.meta.map(_.license.name).getOrElse("")
-            )) map {
-              connectorEmptyResponse(_, callContext)
-            }
+              metaLicenceName = product.meta.map(_.license.name).getOrElse(""),
+              callContext
+            )
           } yield {
             (JSONFactory400.createProductJson(success), HttpCode.`201`(callContext))
           }

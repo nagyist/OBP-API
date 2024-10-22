@@ -1026,8 +1026,9 @@ trait Connector extends MdcLoggable {
                              details : String,
                              description : String,
                              metaLicenceId : String,
-                             metaLicenceName : String
-                           ): Box[Product] = Failure(setUnimplementedError(nameOf(createOrUpdateProduct _)))
+                             metaLicenceName : String,
+                             callContext: Option[CallContext]
+                           ): OBPReturnType[Box[Product]] = Future{Failure(setUnimplementedError(nameOf(createOrUpdateProduct _)))}
   
   def createOrUpdateProductFee(
     bankId: BankId,

@@ -2832,7 +2832,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                                      details: String,
                                      description: String,
                                      metaLicenceId: String,
-                                     metaLicenceName: String): Box[Product] = {
+                                     metaLicenceName: String, 
+                                     callContext: Option[CallContext]): OBPReturnType[Box[Product]] = Future{
 
     //check the product existence and update or insert data
     MappedProduct.find(
@@ -2883,8 +2884,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
           product.saveMe()
         } ?~! ErrorMessages.CreateProductError
     }
-
-  }
+  }.map((_, callContext))
 
   override def getBranches(bankId: BankId, callContext: Option[CallContext], queryParams: List[OBPQueryParam]): Future[Box[(List[BranchT], Option[CallContext])]] = {
     Future {

@@ -2188,11 +2188,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     Transaction Requests
   */
   override def getTransactionRequestStatusesImpl(): Box[TransactionRequestStatus] = Empty
-
-  override def saveTransactionRequestChallengeImpl(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge): Box[Boolean] = {
-    TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestChallengeImpl(transactionRequestId, challenge)
-  }
-
+  
   override def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String): Box[Boolean] = {
     TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestStatusImpl(transactionRequestId, status)
   }
@@ -4437,6 +4433,10 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     } yield transactionId
   }
 
+  override def saveTransactionRequestChallenge(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge): Box[Boolean] ={
+    TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestChallengeImpl(transactionRequestId, challenge)
+  }
+    
   // This is used for 1.4.0 See createTransactionRequestv200 for 2.0.0
   override def createTransactionRequest(initiator: User, fromAccount: BankAccount, toAccount: BankAccount, transactionRequestType: TransactionRequestType, body: TransactionRequestBody,
     callContext: Option[CallContext]): Box[TransactionRequest] = {

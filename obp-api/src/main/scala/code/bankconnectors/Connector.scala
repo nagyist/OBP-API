@@ -1,10 +1,7 @@
 package code.bankconnectors
 
 import _root_.akka.http.scaladsl.model.HttpMethod
-import code.accountholders.MapperAccountHolders
-import code.api.Constant.{SYSTEM_ACCOUNTANT_VIEW_ID, SYSTEM_AUDITOR_VIEW_ID, SYSTEM_OWNER_VIEW_ID}
 import code.api.attributedefinition.AttributeDefinition
-import code.api.cache.Caching
 import code.api.util.APIUtil.{OBPReturnType, _}
 import code.api.util.ErrorMessages._
 import code.api.util._
@@ -20,37 +17,29 @@ import code.bankconnectors.vSept2018.KafkaMappedConnector_vSept2018
 import code.counterpartylimit.CounterpartyLimitTrait
 import code.customeraccountlinks.CustomerAccountLinkTrait
 import code.endpointTag.EndpointTagT
-import code.fx.fx.TTL
-import code.model.dataAccess.{BankAccountRouting, ResourceUser}
+import code.model.dataAccess.BankAccountRouting
 import code.standingorders.StandingOrderTrait
-import code.transactionrequests.TransactionRequests
 import code.users.UserAttribute
 import code.util.Helper._
-import code.views.Views
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.dto.{CustomerAndAttribute, GetProductsParam, InBoundTrait, ProductCollectionItemsTree}
 import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
-import com.openbankproject.commons.model.enums.TransactionRequestTypes._
 import com.openbankproject.commons.model.enums._
 import com.openbankproject.commons.model.{TransactionRequestStatus, _}
 import com.openbankproject.commons.util.{JsonUtils, ReflectUtils}
-import com.tesobe.CacheKeyFromArguments
 import net.liftweb.common._
 import net.liftweb.json
 import net.liftweb.json.{Formats, JObject, JValue}
-import net.liftweb.mapper.By
 import net.liftweb.util.Helpers.tryo
 import net.liftweb.util.SimpleInjector
 
 import java.util.Date
-import java.util.UUID.randomUUID
 import scala.collection.immutable.{List, Nil}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.math.BigDecimal
 import scala.reflect.runtime.universe.{MethodSymbol, typeOf}
 
 /*
@@ -311,17 +300,7 @@ trait Connector extends MdcLoggable {
                              userId: String,
                              username: String,
                              callContext: Option[CallContext]
-                           ): OBPReturnType[Box[AmountOfMoney]] =
-    LocalMappedConnector.getChallengeThreshold(
-      bankId: String,
-      accountId: String,
-      viewId: String,
-      transactionRequestType: String,
-      currency: String,
-      userId: String,
-      username: String,
-      callContext: Option[CallContext]
-    )
+                           ): OBPReturnType[Box[AmountOfMoney]] =Future{(Failure(setUnimplementedError(nameOf(getChallengeThreshold _))), callContext)}
 
   def getPaymentLimit(
     bankId: String,
@@ -332,18 +311,7 @@ trait Connector extends MdcLoggable {
     userId: String,
     username: String,
     callContext: Option[CallContext]
-  ): OBPReturnType[Box[AmountOfMoney]] = {
-    LocalMappedConnector.getPaymentLimit(
-      bankId: String,
-      accountId: String,
-      viewId: String,
-      transactionRequestType: String,
-      currency: String,
-      userId: String,
-      username: String,
-      callContext: Option[CallContext]
-    )
-  }
+  ): OBPReturnType[Box[AmountOfMoney]] = Future{(Failure(setUnimplementedError(nameOf(getPaymentLimit _))), callContext)}
 
 
   //Gets current charge level for transaction request
@@ -354,17 +322,7 @@ trait Connector extends MdcLoggable {
                      username: String,
                      transactionRequestType: String,
                      currency: String,
-                     callContext:Option[CallContext]): OBPReturnType[Box[AmountOfMoney]] =
-    LocalMappedConnector.getChargeLevel(
-      bankId: BankId,
-      accountId: AccountId,
-      viewId: ViewId,
-      userId: String,
-      username: String,
-      transactionRequestType: String,
-      currency: String,
-      callContext:Option[CallContext]
-    )
+                     callContext:Option[CallContext]): OBPReturnType[Box[AmountOfMoney]] =Future{(Failure(setUnimplementedError(nameOf(getChargeLevel _))), callContext)}
 
   //Gets current charge level for transaction request
   def getChargeLevelC2(bankId: BankId,
@@ -420,17 +378,18 @@ trait Connector extends MdcLoggable {
     callContext: Option[CallContext]) : OBPReturnType[Box[List[ChallengeTrait]]]= Future{(Failure(setUnimplementedError(nameOf(createChallengesC3 _))), callContext)}
 
   @deprecated("Please use @validateChallengeAnswerV2 instead ","01.07.2024")
-  def validateChallengeAnswer(challengeId: String, hashOfSuppliedAnswer: String, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = Future{(Full(true), callContext)}
+  def validateChallengeAnswer(challengeId: String, hashOfSuppliedAnswer: String, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = Future{(Failure(setUnimplementedError(nameOf(validateChallengeAnswer _))), callContext)}
   
   // Validates an answer for a challenge and returns if the answer is correct or not
-  def validateChallengeAnswerV2(challengeId: String, suppliedAnswer: String, suppliedAnswerType:SuppliedAnswerType.Value, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = Future{(Full(true), callContext)}
+  def validateChallengeAnswerV2(challengeId: String, suppliedAnswer: String, suppliedAnswerType:SuppliedAnswerType.Value, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = 
+    Future{(Failure(setUnimplementedError(nameOf(validateChallengeAnswerV2 _))), callContext)}
   
   def allChallengesSuccessfullyAnswered(
     bankId: BankId,
     accountId: AccountId,
     transReqId: TransactionRequestId,
     callContext: Option[CallContext]
-  ): OBPReturnType[Box[Boolean]]= Future{(Full(true), callContext)}
+  ): OBPReturnType[Box[Boolean]]= Future{(Failure(setUnimplementedError(nameOf(allChallengesSuccessfullyAnswered _))), callContext)}
 
   @deprecated("Please use @validateChallengeAnswerC4 instead ","04.07.2024")
   def validateChallengeAnswerC2(
@@ -561,10 +520,7 @@ trait Connector extends MdcLoggable {
   
   def getCounterpartyFromTransaction(bankId: BankId, accountId: AccountId, counterpartyId: String, callContext: Option[CallContext]): OBPReturnType[Box[Counterparty]] = Future {(Failure(setUnimplementedError(nameOf(checkBankAccountExists _))), callContext)}
 
-  def getCounterpartiesFromTransaction(bankId: BankId, accountId: AccountId): Box[List[Counterparty]] = {
-    val counterparties = getTransactionsLegacy(bankId, accountId, None).map(_._1).toList.flatten.map(_.otherAccount)
-    Full(counterparties.toSet.toList) //there are many transactions share the same Counterparty, so we need filter the same ones.
-  }
+  def getCounterpartiesFromTransaction(bankId: BankId, accountId: AccountId): Box[List[Counterparty]] = Failure(setUnimplementedError(nameOf(createChallengesC3 _)))
 
   def getCounterpartyTrait(bankId: BankId, accountId: AccountId, couterpartyId: String, callContext: Option[CallContext]): OBPReturnType[Box[CounterpartyTrait]]= Future{(Failure(setUnimplementedError(nameOf(getCounterpartyTrait _))), callContext)}
 
@@ -619,10 +575,9 @@ trait Connector extends MdcLoggable {
   //TODO, here is a problem for return value `List[Transaction]`, this is a normal class, not a trait. It is a big class,
   // it contains thisAccount(BankAccount object) and otherAccount(Counterparty object)
   def getTransactionsLegacy(bankId: BankId, accountId: AccountId, callContext: Option[CallContext], queryParams: List[OBPQueryParam] = Nil): Box[(List[Transaction], Option[CallContext])]= Failure(setUnimplementedError(nameOf(getTransactionsLegacy _)))
-  def getTransactions(bankId: BankId, accountId: AccountId, callContext: Option[CallContext], queryParams: List[OBPQueryParam] = Nil): OBPReturnType[Box[List[Transaction]]] = {
-    val result: Box[(List[Transaction], Option[CallContext])] = getTransactionsLegacy(bankId, accountId, callContext, queryParams)
-    Future(result.map(_._1), result.map(_._2).getOrElse(callContext))
-  }
+
+  def getTransactions(bankId: BankId, accountId: AccountId, callContext: Option[CallContext], queryParams: List[OBPQueryParam] = Nil): OBPReturnType[Box[List[Transaction]]] = Future{(Failure(setUnimplementedError(nameOf(getTransactions _))), callContext)}
+  
   def getTransactionsCore(bankId: BankId, accountId: AccountId, queryParams:  List[OBPQueryParam] = Nil, callContext: Option[CallContext]): OBPReturnType[Box[List[TransactionCore]]] = Future{(Failure(setUnimplementedError(nameOf(getTransactionsCore _))), callContext)}
 
   def getTransactionLegacy(bankId: BankId, accountId : AccountId, transactionId : TransactionId, callContext: Option[CallContext] = None): Box[(Transaction, Option[CallContext])] = Failure(setUnimplementedError(nameOf(getTransactionLegacy _)))
@@ -868,19 +823,19 @@ trait Connector extends MdcLoggable {
 
   def saveTransactionRequestChallenge(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = Future{Failure(setUnimplementedError(nameOf(saveTransactionRequestChallenge _)))}
 
-  def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String): Box[Boolean] = TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestStatusImpl(transactionRequestId, status)
+  def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String): Box[Boolean] = Failure(setUnimplementedError(nameOf(saveTransactionRequestStatusImpl _)))
   
-  def getTransactionRequests(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[List[TransactionRequest]] =
-    LocalMappedConnector.getTransactionRequests(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext])
+  def getTransactionRequests(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[List[TransactionRequest]] =Failure(setUnimplementedError(nameOf(getTransactionRequests _)))
 
   def getTransactionRequests210(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[(List[TransactionRequest], Option[CallContext])] = Failure(setUnimplementedError(nameOf(getTransactionRequests210 _)))
 
   def getTransactionRequestStatuses() : Box[TransactionRequestStatus] = Failure(setUnimplementedError(nameOf(getTransactionRequestStatuses _)))
 
-  def getTransactionRequestImpl(transactionRequestId: TransactionRequestId, callContext: Option[CallContext]): Box[(TransactionRequest, Option[CallContext])] = TransactionRequests.transactionRequestProvider.vend.getTransactionRequest(transactionRequestId).map(transactionRequest =>(transactionRequest, callContext))
+  def getTransactionRequestImpl(transactionRequestId: TransactionRequestId, callContext: Option[CallContext]): Box[(TransactionRequest, Option[CallContext])] =
+    Failure(setUnimplementedError(nameOf(getTransactionRequestImpl _)))
 
-  def getTransactionRequestTypes(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[List[TransactionRequestType]] =
-    LocalMappedConnector.getTransactionRequestTypes(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext])
+
+  def getTransactionRequestTypes(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[List[TransactionRequestType]] =Failure(setUnimplementedError(nameOf(createChallengesC3 _)))
   
   //Note: Now we use validateChallengeAnswer instead, new methods validate over kafka, and move the allowed_attempts guard into API level.
   //It is only used for V140 and V200, has been deprecated from V210.
@@ -1136,13 +1091,7 @@ trait Connector extends MdcLoggable {
                         callContext: Option[CallContext]): OBPReturnType[Box[CancelPayment]] = Future {
     (Failure(setUnimplementedError(nameOf(cancelPaymentV400 _))), callContext)
   }
-
-
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
+  
   /**
     * get transaction request type charges
     */
@@ -1328,37 +1277,24 @@ trait Connector extends MdcLoggable {
   def createUserAuthContext(userId: String,
                             key: String,
                             value: String,
-                            callContext: Option[CallContext]): OBPReturnType[Box[UserAuthContext]] =
-    LocalMappedConnector.createUserAuthContext(userId: String,
-      key: String,
-      value: String,
-      callContext: Option[CallContext])
+                            callContext: Option[CallContext]): OBPReturnType[Box[UserAuthContext]] =Future{(Failure(setUnimplementedError(nameOf(createUserAuthContext _))), callContext)}
+  
   //This method is normally used in obp side, so it has the default mapped implementation  
   def createUserAuthContextUpdate(userId: String,
                                   key: String,
                                   value: String,
-                                  callContext: Option[CallContext]): OBPReturnType[Box[UserAuthContextUpdate]] =
-    LocalMappedConnector.createUserAuthContextUpdate(userId: String,
-      key: String,
-      value: String,
-      callContext: Option[CallContext])
+                                  callContext: Option[CallContext]): OBPReturnType[Box[UserAuthContextUpdate]] =Future{(Failure(setUnimplementedError(nameOf(createUserAuthContextUpdate _))), callContext)}
 
   //This method is normally used in obp side, so it has the default mapped implementation   
   def deleteUserAuthContexts(userId: String,
-                             callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] =
-    LocalMappedConnector.deleteUserAuthContexts(userId: String,
-      callContext: Option[CallContext])
+                             callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] =Future{(Failure(setUnimplementedError(nameOf(deleteUserAuthContexts _))), callContext)}
 
   //This method is normally used in obp side, so it has the default mapped implementation  
   def deleteUserAuthContextById(userAuthContextId: String,
-                                callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] =
-    LocalMappedConnector.deleteUserAuthContextById(userAuthContextId: String,
-      callContext: Option[CallContext])
+                                callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] =Future{(Failure(setUnimplementedError(nameOf(deleteUserAuthContextById _))), callContext)}
   //This method is normally used in obp side, so it has the default mapped implementation  
   def getUserAuthContexts(userId : String,
-                          callContext: Option[CallContext]): OBPReturnType[Box[List[UserAuthContext]]] =
-    LocalMappedConnector.getUserAuthContexts(userId : String,
-      callContext: Option[CallContext])
+                          callContext: Option[CallContext]): OBPReturnType[Box[List[UserAuthContext]]] =Future{(Failure(setUnimplementedError(nameOf(getUserAuthContexts _))), callContext)}
 
   def createOrUpdateProductAttribute(
                                       bankId: BankId,

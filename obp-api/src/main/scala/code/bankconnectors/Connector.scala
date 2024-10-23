@@ -907,7 +907,7 @@ trait Connector extends MdcLoggable {
 
   //Note: this is a temporary way for compatibility
   //It is better to create the case class for all the connector methods
-  def createOrUpdateBranch(branch: BranchT): Box[BranchT] = Failure(setUnimplementedError(nameOf(createOrUpdateBranch _)))
+  def createOrUpdateBranch(branch: BranchT, callContext: Option[CallContext]): OBPReturnType[Box[BranchT]] = Future{Failure(setUnimplementedError(nameOf(createOrUpdateBranch _)))}
 
   def createOrUpdateBank(
                           bankId: String,

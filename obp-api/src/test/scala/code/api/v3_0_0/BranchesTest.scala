@@ -1,10 +1,9 @@
 package code.api.v3_0_0
 
-import com.openbankproject.commons.model.ErrorMessage
 import code.api.util.APIUtil.OAuth._
 import code.api.util.ApiRole.CanDeleteBranchAtAnyBank
 import com.openbankproject.commons.util.ApiVersion
-import code.api.util.{ ErrorMessages, OBPQueryParam}
+import code.api.util.OBPQueryParam
 import code.api.v3_1_0.OBPAPI3_1_0
 import code.bankconnectors.Connector
 import code.branches.Branches.Branch
@@ -14,6 +13,10 @@ import code.setup.DefaultUsers
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.model._
 import org.scalatest.Tag
+
+import scala.concurrent.duration._
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
 
 /*
 Note This does not test retrieval from a backend.
@@ -316,9 +319,9 @@ class BranchesTest extends V300ServerSetup with DefaultUsers {
   override def beforeEach(): Unit = {
     super.beforeEach()
     Connector.connector.vend.createOrUpdateBank(bankId, "exists bank", "bank", "string", "string", "string", "string", "string", "string", None)
-    Connector.connector.vend.createOrUpdateBranch(deletedBranch)
-    Connector.connector.vend.createOrUpdateBranch(existsBranch1)
-    Connector.connector.vend.createOrUpdateBranch(existsBranch2)
+    Await.result(Connector.connector.vend.createOrUpdateBranch(deletedBranch, None),10 seconds)
+    Await.result(Connector.connector.vend.createOrUpdateBranch(existsBranch1, None),10 seconds)
+    Await.result(Connector.connector.vend.createOrUpdateBranch(existsBranch2, None),10 seconds)
   }
 
   override def afterEach(): Unit = super.afterEach()

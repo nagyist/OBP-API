@@ -570,24 +570,31 @@ trait APIMethods220 {
         InsufficientAuthorisationToCreateBranch,
         UnknownError
       ),
-      List(apiTagBranch, apiTagOpenData, apiTagOldStyle),
+      List(apiTagBranch, apiTagOpenData),
       Some(List(canCreateBranch,canCreateBranchAtAnyBank))
     )
 
     lazy val createBranch: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "branches" ::  Nil JsonPost json -> _ => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            canCreateBranch <- NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, canCreateBranch::Nil, canCreateBranchAtAnyBank::Nil, callContext)
-
-            branchJsonV220 <- tryo {json.extract[BranchJsonV220]} ?~! ErrorMessages.InvalidJsonFormat
-            branch <- transformV220ToBranch(branchJsonV220)
-            success <- Connector.connector.vend.createOrUpdateBranch(branch)
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            _ <- Future(
+              NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, canCreateBranch::Nil, canCreateBranchAtAnyBank::Nil, cc.callContext)
+            )
+            branchJsonV220 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonV300", 400, callContext) {
+              json.extract[BranchJsonV220]
+            }
+            _ <- Helper.booleanToFuture(failMsg = "BANK_ID has to be the same in the URL and Body", 400, callContext) {
+              branchJsonV220.bank_id == bank.bankId.value
+            }
+            branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
+              transformV220ToBranch(branchJsonV220).head
+            }
+            (success, callContext)  <- NewStyle.function.createOrUpdateBranch(branch, callContext)
           } yield {
-            val json = JSONFactory220.createBranchJson(success)
-            createdJsonResponse(Extraction.decompose(json))
+            (JSONFactory220.createBranchJson(success), HttpCode.`201`(callContext))
           }
       }
     }

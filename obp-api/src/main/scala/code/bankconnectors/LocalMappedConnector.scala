@@ -2226,7 +2226,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   }.map(product => (product, callContext))
 
 
-  override def createOrUpdateBranch(branch: BranchT): Box[BranchT] = {
+  override def createOrUpdateBranch(branch: BranchT, callContext: Option[CallContext]): OBPReturnType[Box[BranchT]] = Future{
 
     // TODO
     // Either this should accept a Branch case class i.e. extract the construction of a Branch out of here and move it to the API
@@ -2502,7 +2502,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     }
     // Return the recently created / updated Branch from the database
     branchToReturn
-  }
+  }.map((_, callContext))
 
   override def createOrUpdateAtm(atm: AtmT,  callContext: Option[CallContext]): OBPReturnType[Box[AtmT]] = Future{
     ( 

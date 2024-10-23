@@ -1138,7 +1138,7 @@ trait APIMethods300 {
             branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
               transformToBranch(branchJsonV300)
             }
-            success: BranchT <- NewStyle.function.createOrUpdateBranch(branch, callContext)
+            (success, callContext) <- NewStyle.function.createOrUpdateBranch(branch, callContext)
           } yield {
             val json = JSONFactory300.createBranchJsonV300(success)
             (json, HttpCode.`201`(callContext))
@@ -1166,20 +1166,25 @@ trait APIMethods300 {
         InsufficientAuthorisationToCreateBranch,
         UnknownError
       ),
-      List(apiTagBranch, apiTagOldStyle),
+      List(apiTagBranch),
       Some(List(canUpdateBranch))
     )
 
     lazy val updateBranch: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "branches" :: BranchId(branchId)::  Nil JsonPut json -> _  => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, _) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            _ <- NewStyle.function.ownEntitlement(bank.bankId.value, u.userId, canUpdateBranch, cc.callContext)
-            postBranchJsonV300 <- tryo {json.extract[PostBranchJsonV300]} ?~! {ErrorMessages.InvalidJsonFormat + PostBranchJsonV300.toString()}
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            _ <- NewStyle.function.hasEntitlement(bank.bankId.value, u.userId, canUpdateBranch, cc.callContext)
+            postBranchJsonV300 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonV300", 400, callContext) {
+              json.extract[PostBranchJsonV300]
+            }
+            _ <- Helper.booleanToFuture(failMsg = "BANK_ID has to be the same in the URL and Body", 400, callContext) {
+              postBranchJsonV300.bank_id == bank.bankId.value
+            }
             branchJsonV300 = BranchJsonV300(
-              id = branchId.value, 
+              id = branchId.value,
               postBranchJsonV300.bank_id,
               postBranchJsonV300.name,
               postBranchJsonV300.address,
@@ -1193,12 +1198,13 @@ trait APIMethods300 {
               postBranchJsonV300.branch_type,
               postBranchJsonV300.more_info,
               postBranchJsonV300.phone_number)
-            _ <- booleanToBox(branchJsonV300.bank_id == bank.bankId.value, "BANK_ID has to be the same in the URL and Body")
-            branch <- transformToBranchFromV300(branchJsonV300) ?~! {ErrorMessages.CouldNotTransformJsonToInternalModel + " Branch"}
-            success: BranchT <- Connector.connector.vend.createOrUpdateBranch(branch) ?~! {ErrorMessages.CountNotSaveOrUpdateResource + " Branch"}
+            branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
+              transformToBranchFromV300(branchJsonV300).head
+            }
+            (success, callContext)  <- NewStyle.function.createOrUpdateBranch(branch, callContext)
           } yield {
             val json = JSONFactory300.createBranchJsonV300(success)
-            createdJsonResponse(Extraction.decompose(json), 201)
+            (json, HttpCode.`201`(callContext))
           }
       }
     }

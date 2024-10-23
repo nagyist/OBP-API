@@ -150,13 +150,11 @@ object NewStyle extends MdcLoggable{
       } map { unboxFull(_) }
     }
     
-    def createOrUpdateBranch(branch: BranchT, callContext: Option[CallContext]): Future[BranchT] = {
-      Future {
-        Connector.connector.vend.createOrUpdateBranch(branch)
-      } map {
-        unboxFullOrFail(_, callContext, ErrorMessages.CountNotSaveOrUpdateResource + " Branch", 400)
+    def createOrUpdateBranch(branch: BranchT, callContext: Option[CallContext]): OBPReturnType[BranchT] = 
+      Connector.connector.vend.createOrUpdateBranch(branch, callContext) map {
+        i => (unboxFullOrFail(i._1, callContext, CountNotSaveOrUpdateResource + " Branch", 400), i._2)
       }
-    }
+    
 
     /**
       * delete a branch, just set isDeleted field to true, marks it is deleted
@@ -185,11 +183,9 @@ object NewStyle extends MdcLoggable{
         branch.phoneNumber,
         Some(true)
       )
-      Future {
-        Connector.connector.vend.createOrUpdateBranch(deletedBranch) map {
-          i =>  (i.isDeleted.get, callContext)
+      createOrUpdateBranch(deletedBranch, callContext) map {
+          i =>  (i._1.isDeleted.get, callContext)
         }
-      } map { unboxFull(_) }
     }
 
     def getAtm(bankId : BankId, atmId : AtmId, callContext: Option[CallContext]): OBPReturnType[AtmT] = {

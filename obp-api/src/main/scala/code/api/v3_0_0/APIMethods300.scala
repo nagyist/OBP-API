@@ -1795,7 +1795,7 @@ trait APIMethods300 {
             (u, callContext) <- authenticatedAccess(cc)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(account.bankId, account.accountId), u, callContext)
-            otherBankAccounts <- NewStyle.function.moderatedOtherBankAccounts(account, view, u, callContext)
+            (otherBankAccounts, callContext) <- NewStyle.function.moderatedOtherBankAccounts(account, view, u, callContext)
           } yield {
             val otherBankAccountsJson = createOtherBankAccountsJson(otherBankAccounts)
             (otherBankAccountsJson, HttpCode.`200`(callContext))

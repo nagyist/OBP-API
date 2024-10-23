@@ -516,12 +516,20 @@ object NewStyle extends MdcLoggable{
       account.moderatedBankAccountCore(view, BankIdAccountId(account.bankId, account.accountId), user, callContext)
     } map { fullBoxOrException(_)
     } map { unboxFull(_) }
-    
+
+    def getCounterpartiesFromTransaction(bankId: BankId, accountId: AccountId, callContext: Option[CallContext]): OBPReturnType[List[Counterparty]]=
+      Connector.connector.vend.getCounterpartiesFromTransaction(bankId: BankId, accountId: AccountId, callContext: Option[CallContext]) map { i =>
+        (unboxFullOrFail(i._1, callContext,s"$InvalidConnectorResponse: ${nameOf(getCounterpartiesFromTransaction _)}", 400 ), i._2)
+      }
+
     def moderatedOtherBankAccounts(account: BankAccount, 
                                    view: View, 
                                    user: Box[User], 
-                                   callContext: Option[CallContext]): Future[List[ModeratedOtherBankAccount]] = 
-      Future(account.moderatedOtherBankAccounts(view, BankIdAccountId(account.bankId, account.accountId), user, callContext)) map { connectorEmptyResponse(_, callContext) }    
+                                   callContext: Option[CallContext]): OBPReturnType[List[ModeratedOtherBankAccount]] = 
+      account.moderatedOtherBankAccounts(view, BankIdAccountId(account.bankId, account.accountId), user, callContext) map { i =>
+        (unboxFullOrFail(i._1, callContext,s"$InvalidConnectorResponse: ${nameOf(moderatedOtherBankAccounts _)}", 400 ), i._2)
+      }
+      
     def moderatedOtherBankAccount(account: BankAccount,
                                   counterpartyId: String, 
                                   view: View, 

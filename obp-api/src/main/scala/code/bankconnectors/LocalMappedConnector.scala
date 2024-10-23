@@ -4180,9 +4180,11 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     }
   }.map(counterparty=>(counterparty,callContext))
 
-  override def getCounterpartiesFromTransaction(bankId: BankId, accountId: AccountId): Box[List[Counterparty]] = {
-    val counterparties = getTransactionsLegacy(bankId, accountId, None).map(_._1).toList.flatten.map(_.otherAccount)
-    Full(counterparties.toSet.toList) //there are many transactions share the same Counterparty, so we need filter the same ones.
+  override def getCounterpartiesFromTransaction(bankId: BankId, accountId: AccountId, callContext: Option[CallContext]): OBPReturnType[Box[List[Counterparty]] ]= {
+    Future{
+      (Full(getTransactionsLegacy(bankId, accountId, None).map(_._1).toList.flatten.map(_.otherAccount).toSet.toList), 
+      callContext)
+    } //there are many transactions share the same Counterparty, so we need filter the same ones.
   }
   
   override def getTransactions(bankId: BankId, accountId: AccountId, callContext: Option[CallContext], queryParams: List[OBPQueryParam] = Nil): OBPReturnType[Box[List[Transaction]]] = {

@@ -1020,14 +1020,13 @@ trait APIMethods121 {
     lazy val getOtherAccountsForBankAccount : OBPEndpoint = {
       //get other accounts for one account
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "other_accounts" :: Nil JsonGet req => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            account <- BankAccountX(bankId, accountId) ?~! BankAccountNotFound
-            view <- APIUtil.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), cc.user, None)
-            otherBankAccounts <- account.moderatedOtherBankAccounts(view, BankIdAccountId(bankId, accountId), cc.user, Some(cc))
+            (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, Some(cc))
+            view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(account.bankId, account.accountId), cc.user, callContext)
+            (otherBankAccounts, callContext) <- NewStyle.function.moderatedOtherBankAccounts(account, view, cc.user, callContext)
           } yield {
-            val otherBankAccountsJson = JSONFactory.createOtherBankAccountsJSON(otherBankAccounts)
-            successJsonResponse(Extraction.decompose(otherBankAccountsJson))
+            (JSONFactory.createOtherBankAccountsJSON(otherBankAccounts), HttpCode.`200`(callContext))
           }
       }
     }

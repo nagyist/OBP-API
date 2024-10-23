@@ -1208,6 +1208,14 @@ object NewStyle extends MdcLoggable{
           i._2)
       }
     }
+    
+    def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String, callContext: Option[CallContext]): OBPReturnType[Boolean] = 
+    {
+      Connector.connector.vend.saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String, callContext: Option[CallContext]) map { i =>
+        (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse ${nameOf(saveTransactionRequestStatusImpl _)}", 400),
+          i._2)
+      }
+    }
     def getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean, callContext: Option[CallContext]) : Future[BankAccount] =
     {
       Future{BankAccountX.getBankAccountFromCounterparty(counterparty, isOutgoingAccount)} map {

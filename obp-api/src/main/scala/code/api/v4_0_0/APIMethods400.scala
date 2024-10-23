@@ -1120,7 +1120,7 @@ trait APIMethods400 extends MdcLoggable {
                 } else Future.successful()
 
                 (newTransactionRequestStatus, callContext) <- NewStyle.function.notifyTransactionRequest(refundFromAccount, refundToAccount, createdTransactionRequest, callContext)
-                _ <- Future(Connector.connector.vend.saveTransactionRequestStatusImpl(createdTransactionRequest.id, newTransactionRequestStatus.toString))
+                _ <- NewStyle.function.saveTransactionRequestStatusImpl(createdTransactionRequest.id, newTransactionRequestStatus.toString, callContext)
                 createdTransactionRequest <- Future(createdTransactionRequest.copy(status = newTransactionRequestStatus.toString))
 
               } yield (createdTransactionRequest, callContext)
@@ -1624,7 +1624,7 @@ trait APIMethods400 extends MdcLoggable {
                       callContext = callContext)
                   } else Future.successful()
                   _ <- NewStyle.function.notifyTransactionRequest(fromAccount, toAccount, transactionRequest, callContext)
-                  _ <- Future(Connector.connector.vend.saveTransactionRequestStatusImpl(transactionRequest.id, transactionRequest.status))
+                  _ <- NewStyle.function.saveTransactionRequestStatusImpl(transactionRequest.id, transactionRequest.status, callContext)
                 } yield (transactionRequest, callContext)
               case _ =>
                 for {

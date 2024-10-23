@@ -823,7 +823,7 @@ trait Connector extends MdcLoggable {
 
   def saveTransactionRequestChallenge(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = Future{Failure(setUnimplementedError(nameOf(saveTransactionRequestChallenge _)))}
 
-  def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String): Box[Boolean] = Failure(setUnimplementedError(nameOf(saveTransactionRequestStatusImpl _)))
+  def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = Future {Failure(setUnimplementedError(nameOf(saveTransactionRequestStatusImpl _)))}
   
   def getTransactionRequests(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[List[TransactionRequest]] =Failure(setUnimplementedError(nameOf(getTransactionRequests _)))
 

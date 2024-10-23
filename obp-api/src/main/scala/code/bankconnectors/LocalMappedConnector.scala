@@ -2048,9 +2048,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     (Full(CancelPayment(true, Some(true))), callContext)
   }
   
-  override def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String): Box[Boolean] = {
-    TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestStatusImpl(transactionRequestId, status)
-  }
+  override def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = 
+    Future{(TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestStatusImpl(transactionRequestId, status), callContext)}
   
   override def updateBankAccount(
                                   bankId: BankId,
@@ -4918,7 +4917,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
         BankIdAccountId(BankId(tr.body.to_sandbox_tan.get.bank_id), AccountId(tr.body.to_sandbox_tan.get.account_id)), BigDecimal(tr.body.value.amount), tr.body.description, TransactionRequestType(tr.`type`), 
         callContext) ?~! InvalidConnectorResponseForMakePayment
         _ = saveTransactionRequestTransaction(transReqId, transId, callContext)
-      didSaveStatus <- saveTransactionRequestStatusImpl(transReqId, TransactionRequestStatus.COMPLETED.toString)
+        _ = NewStyle.function.saveTransactionRequestStatusImpl(transReqId, TransactionRequestStatus.COMPLETED.toString, callContext)
       //get transaction request again now with updated values
       (tr, callContext) <- getTransactionRequestImpl(transReqId, None) ?~! s"${ErrorMessages.InvalidTransactionRequestId} : $transReqId"
     } yield {
@@ -4939,7 +4938,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
         "" //Note chargePolicy  started to use from V210
       ) ?~! InvalidConnectorResponseForMakePayment
       _ = saveTransactionRequestTransaction(transRequestId, transactionId, None)
-      didSaveStatus <- saveTransactionRequestStatusImpl(transRequestId, TransactionRequestStatus.COMPLETED.toString)
+      _ = NewStyle.function.saveTransactionRequestStatusImpl(transRequestId, TransactionRequestStatus.COMPLETED.toString, None)
 
       transactionRequestUpdated <- Full(transactionRequest.copy(transaction_ids = transactionId.value, status = TransactionRequestStatus.COMPLETED.toString))
     } yield {
@@ -5176,9 +5175,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
       _ = saveTransactionRequestTransaction(transactionRequestId, transactionId, callContext)
       
-      didSaveStatus <- Future {
-        saveTransactionRequestStatusImpl(transactionRequestId, TransactionRequestStatus.COMPLETED.toString).openOrThrowException(attemptedToOpenAnEmptyBox)
-      }
+      _ <- NewStyle.function.saveTransactionRequestStatusImpl(transactionRequestId, TransactionRequestStatus.COMPLETED.toString, callContext)
+      
       //After `makePaymentv200` and update data for request, we get the new requqest from database again.
       (transactionRequest, callContext) <- NewStyle.function.getTransactionRequestImpl(transactionRequestId, callContext)
 

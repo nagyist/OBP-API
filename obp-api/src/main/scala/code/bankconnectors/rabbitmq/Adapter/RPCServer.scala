@@ -1195,7 +1195,7 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
         }
       } else if (obpMessageId.contains("get_current_fx_rate")) {
         val outBound = json.parse(message).extract[OutBoundGetCurrentFxRate]
-        val obpMappedResponse = Future{code.bankconnectors.LocalMappedConnector.getCurrentFxRate(outBound.bankId,outBound.fromCurrencyCode,outBound.toCurrencyCode).head}
+        val obpMappedResponse = Future{code.bankconnectors.LocalMappedConnector.getCurrentFxRate(outBound.bankId,outBound.fromCurrencyCode,outBound.toCurrencyCode, None).head}
         
         obpMappedResponse.map(response => InBoundGetCurrentFxRate(
           status = Status("", Nil),
@@ -2826,7 +2826,7 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
         }
       } else if (obpMessageId.contains("get_current_fx_rate")) {
         val outBound = json.parse(message).extract[OutBoundGetCurrentFxRate]
-        val obpMappedResponse = Future{code.bankconnectors.LocalMappedConnector.getCurrentFxRate(outBound.bankId,outBound.fromCurrencyCode,outBound.toCurrencyCode).head}
+        val obpMappedResponse = Future{code.bankconnectors.LocalMappedConnector.getCurrentFxRate(outBound.bankId,outBound.fromCurrencyCode,outBound.toCurrencyCode, None).head}
         
         obpMappedResponse.map(response => InBoundGetCurrentFxRate(
           status = Status("", Nil),

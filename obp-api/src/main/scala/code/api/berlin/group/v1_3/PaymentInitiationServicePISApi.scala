@@ -441,7 +441,7 @@ Check the transaction status of a payment initiation.""",
 
 
              //From change from requestAccount Currency to currentBankAccount Currency
-             rate = fx.exchangeRate(transactionRequestCurrency, fromAccountCurrency)
+             rate = fx.exchangeRate(transactionRequestCurrency, fromAccountCurrency, None, callContext)
              _ <- Helper.booleanToFuture(s"$InvalidCurrency The requested currency conversion (${transactionRequestCurrency} to ${fromAccountCurrency}) is not supported.", cc=callContext) {
                rate.isDefined
              }

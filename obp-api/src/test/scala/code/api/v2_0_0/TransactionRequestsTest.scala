@@ -165,7 +165,7 @@ class TransactionRequestsTest extends V200ServerSetup with DefaultUsers {
 
         //check that the balances have been properly decreased/increased (since we handle that logic for sandbox accounts at least)
         //(do it here even though the payments test does test makePayment already)
-        val rate = fx.exchangeRate (fromAccount.currency, toAccount.currency, Some(bankId.value))
+        val rate = fx.exchangeRate (fromAccount.currency, toAccount.currency, Some(bankId.value), None)
         val convertedAmount = fx.convert(amt, rate)
         val fromAccountBalance = getFromAccount.balance
         And("the from account should have a balance smaller by the amount specified to pay")
@@ -305,7 +305,7 @@ class TransactionRequestsTest extends V200ServerSetup with DefaultUsers {
 
         //check that the balances have been properly decreased/increased (since we handle that logic for sandbox accounts at least)
         //(do it here even though the payments test does test makePayment already)
-        val rate = fx.exchangeRate (fromAccount.currency, toAccount.currency, Some(bankId.value))
+        val rate = fx.exchangeRate (fromAccount.currency, toAccount.currency, Some(bankId.value), None)
         val convertedAmount = fx.convert(amt, rate)
         val fromAccountBalance = getFromAccount.balance
         And("the from account should have a balance smaller by the amount specified to pay")
@@ -448,7 +448,7 @@ class TransactionRequestsTest extends V200ServerSetup with DefaultUsers {
         val amt = BigDecimal("10.00") // This is money going out. We want to transfer this away from the From account.
 
 
-        val expectedAmtTo = amt * fx.exchangeRate(fromCurrency, toCurrency, Some(bankId.value)).get
+        val expectedAmtTo = amt * fx.exchangeRate(fromCurrency, toCurrency, Some(bankId.value), None).get
 
         createAccountRelevantResource(Some(resourceUser1), bankId, accountId1, fromCurrency)
         createAccountRelevantResource(Some(resourceUser1), bankId, accountId2, toCurrency)
@@ -618,7 +618,7 @@ class TransactionRequestsTest extends V200ServerSetup with DefaultUsers {
         expectedToNewBalance.setScale(2, BigDecimal.RoundingMode.HALF_UP)  should equal (BigDecimal(actualToBalance))
 
 
-        val rate = fx.exchangeRate (fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value))
+        val rate = fx.exchangeRate (fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value), None)
         val convertedAmount = fx.convert(amt, rate)
         val fromAccountBalance = getFromAccount.balance
         And("the from account should have a balance smaller by the original amount specified to pay")
@@ -832,7 +832,7 @@ class TransactionRequestsTest extends V200ServerSetup with DefaultUsers {
         val amt = BigDecimal("1250.00") // This is money going out. We want to transfer this away from the From account.
 
 
-        val expectedAmtTo = amt * fx.exchangeRate(fromCurrency, toCurrency, Some(bankId.value)).get
+        val expectedAmtTo = amt * fx.exchangeRate(fromCurrency, toCurrency, Some(bankId.value), None).get
 
         createAccountRelevantResource(Some(resourceUser1), bankId, accountId1, fromCurrency)
         createAccountRelevantResource(Some(resourceUser1), bankId, accountId2, toCurrency)
@@ -1056,7 +1056,7 @@ class TransactionRequestsTest extends V200ServerSetup with DefaultUsers {
         expectedToNewBalance.setScale(2, BigDecimal.RoundingMode.HALF_UP)  should equal (BigDecimal(actualToBalance))
 
 
-        val rate = fx.exchangeRate (fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value))
+        val rate = fx.exchangeRate (fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value), None)
         val convertedAmount = fx.convert(amt, rate)
         val fromAccountBalance = getFromAccount.balance
         And("the from account should have a balance smaller by the original amount specified to pay")

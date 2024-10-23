@@ -699,7 +699,8 @@ trait Connector extends MdcLoggable {
                       amount: BigDecimal,
                       description: String,
                       transactionRequestType: TransactionRequestType,
-                      chargePolicy: String): Box[TransactionId] =
+                      chargePolicy: String, 
+                      callContext: Option[CallContext]): Box[TransactionId] =
     Failure(setUnimplementedError(nameOf(makePayment _)))
 
   //Note: introduce v210 here, is for kafka connectors, use callContext and return Future.
@@ -846,7 +847,7 @@ trait Connector extends MdcLoggable {
   def createTransactionAfterChallenge(initiator: User, transReqId: TransactionRequestId, callContext: Option[CallContext]) : Box[TransactionRequest] =
    Failure(setUnimplementedError(nameOf(getBalancingTransaction _)))
 
-  def createTransactionAfterChallengev200(fromAccount: BankAccount, toAccount: BankAccount, transactionRequest: TransactionRequest): Box[TransactionRequest] = 
+  def createTransactionAfterChallengev200(fromAccount: BankAccount, toAccount: BankAccount, transactionRequest: TransactionRequest, callContext: Option[CallContext]): Box[TransactionRequest] = 
     Failure(setUnimplementedError(nameOf(createTransactionAfterChallengev200 _)))
 
   def createTransactionAfterChallengeV210(fromAccount: BankAccount, transactionRequest: TransactionRequest, callContext: Option[CallContext]) : OBPReturnType[Box[TransactionRequest]] = 
@@ -1050,7 +1051,7 @@ trait Connector extends MdcLoggable {
   
   def getCurrentCurrencies(bankId: BankId, callContext: Option[CallContext]): OBPReturnType[Box[List[String]]] = Future{Failure(setUnimplementedError(nameOf(getCurrentCurrencies _)))}
   
-  def getCurrentFxRate(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String): Box[FXRate] = Failure(setUnimplementedError(nameOf(getCurrentFxRate _)))
+  def getCurrentFxRate(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String, callContext: Option[CallContext]): Box[FXRate] = Failure(setUnimplementedError(nameOf(getCurrentFxRate _)))
   
   def createTransactionAfterChallengev300(
                                            initiator: User,

@@ -2431,12 +2431,12 @@ object NewStyle extends MdcLoggable{
     }
     
     def getExchangeRate(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String, callContext: Option[CallContext]): Future[FXRate] =
-      Future(Connector.connector.vend.getCurrentFxRate(bankId, fromCurrencyCode, toCurrencyCode)) map {
+      Future(Connector.connector.vend.getCurrentFxRate(bankId, fromCurrencyCode, toCurrencyCode, callContext)) map {
         fallbackFxRate =>
           fallbackFxRate match {
             case Empty =>
-              val rate = fx.exchangeRate(fromCurrencyCode, toCurrencyCode)
-              val inverseRate = fx.exchangeRate(toCurrencyCode, fromCurrencyCode)
+              val rate = fx.exchangeRate(fromCurrencyCode, toCurrencyCode, None, callContext)
+              val inverseRate = fx.exchangeRate(toCurrencyCode, fromCurrencyCode, None, callContext)
               (rate, inverseRate) match {
                 case (Some(r), Some(ir)) =>
                   Full(

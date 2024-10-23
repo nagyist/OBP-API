@@ -564,7 +564,7 @@ object LocalMappedConnectorInternal extends MdcLoggable {
     Full(cardList)
   }
 
-  def getCurrentFxRateCached(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String): Box[FXRate] = {
+  def getCurrentFxRateCached(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String, callContext: Option[CallContext]): Box[FXRate] = {
     /**
      * Please note that "var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)"
      * is just a temporary value field with UUID values in order to prevent any ambiguity.
@@ -574,7 +574,7 @@ object LocalMappedConnectorInternal extends MdcLoggable {
     var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)
     CacheKeyFromArguments.buildCacheKey {
       Caching.memoizeSyncWithProvider(Some(cacheKey.toString()))(TTL seconds) {
-        Connector.connector.vend.getCurrentFxRate(bankId, fromCurrencyCode, toCurrencyCode)
+        Connector.connector.vend.getCurrentFxRate(bankId, fromCurrencyCode, toCurrencyCode, callContext)
       }
     }
   }
@@ -585,10 +585,11 @@ object LocalMappedConnectorInternal extends MdcLoggable {
     amount: BigDecimal,
     description: String,
     transactionRequestType: TransactionRequestType,
-    chargePolicy: String): Box[TransactionId] = {
+    chargePolicy: String, 
+    callContext: Option[CallContext]): Box[TransactionId] = {
     for {
       //def exchangeRate --> do not return any exception, but it may return NONO there.   
-      rate <- Full (fx.exchangeRate(fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value)))
+      rate <- Full (fx.exchangeRate(fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value), callContext))
       _ <- booleanToBox(rate.isDefined) ?~! s"$InvalidCurrency The requested currency conversion (${fromAccount.currency} to ${fromAccount.currency}) is not supported."
 
       fromTransAmt = -amount //from fromAccount balance should decrease

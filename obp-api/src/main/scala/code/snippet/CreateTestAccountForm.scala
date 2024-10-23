@@ -80,7 +80,7 @@ object CreateTestAccountForm{
     else if(bankId.value == "") Failure("Bank id cannot be empty")
     else if(currency == "") Failure("Currency cannot be empty")
     else if(initialBalance == "") Failure("Initial balance cannot be empty")
-    else if(fx.exchangeRate(currency, "EUR", Some(bankId.value)).isEmpty) Failure(s"Currency($currency) is not allowed, please call `Create Fx` for BANK_ID($BankId) and `EUR` first! ")
+    else if(fx.exchangeRate(currency, "EUR", Some(bankId.value), None).isEmpty) Failure(s"Currency($currency) is not allowed, please call `Create Fx` for BANK_ID($BankId) and `EUR` first! ")
     else {
       for {
         initialBalanceAsNumber <- tryo {BigDecimal(initialBalance)} ?~! "Initial balance must be a number, e.g 1000.00"

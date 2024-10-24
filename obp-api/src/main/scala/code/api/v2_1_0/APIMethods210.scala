@@ -1526,13 +1526,13 @@ trait APIMethods210 {
           for {
             (Full(u), callContext) <- authenticatedAccess(cc)
             (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
-            _ <- NewStyle.function.hasEntitlement(bankId.value, u.userId, ApiRole.canCreateBranch, callContext)
-            branchJsonPutV210 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonV300", 400, callContext) {
+            branchJsonPutV210 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonPutV210", 400, callContext) {
               json.extract[BranchJsonPutV210]
             }
             _ <- Helper.booleanToFuture(failMsg = "BANK_ID has to be the same in the URL and Body", 400, callContext) {
-              branchJsonV300.bank_id == bank.bankId.value
+              branchJsonPutV210.bank_id == bank.bankId.value
             }
+            _ <- NewStyle.function.hasEntitlement(bankId.value, u.userId, ApiRole.canUpdateBranch, callContext)
             branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, callContext) {
               transformToBranch(branchId, branchJsonPutV210).head
             }
@@ -1573,15 +1573,15 @@ trait APIMethods210 {
             for {
               (Full(u), callContext) <- authenticatedAccess(cc)
               (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
-              _ <- Future(
-                NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, canCreateBranch::Nil, canCreateBranchAtAnyBank::Nil, cc.callContext)
-              )
               branchJsonPostV210 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonPostV210", 400, callContext) {
                 json.extract[BranchJsonPostV210]
               }
               _ <- Helper.booleanToFuture(failMsg = "BANK_ID has to be the same in the URL and Body", 400, callContext) {
-                branchJsonV300.bank_id == bank.bankId.value
+                branchJsonPostV210.bank_id == bank.bankId.value
               }
+              _ <- Future(
+                NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, canCreateBranch::Nil, canCreateBranchAtAnyBank::Nil, cc.callContext)
+              )
               branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
                 transformToBranch(branchJsonPostV210).head
               }

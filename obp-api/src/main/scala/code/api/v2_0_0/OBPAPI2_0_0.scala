@@ -132,8 +132,6 @@ object OBPAPI2_0_0 extends OBPRestHelper with APIMethods130 with APIMethods140 w
     Implementations1_4_0.getAtms,
     Implementations1_4_0.getProducts,
     Implementations1_4_0.getCrmEvents,
-    // Now in 2.0.0 Implementations1_4_0.createTransactionRequest,
-    // Now in 2.0.0 Implementations1_4_0.getTransactionRequests,
     Implementations1_4_0.getTransactionRequestTypes)
 
     // Updated in 2.0.0 (less info about the views)

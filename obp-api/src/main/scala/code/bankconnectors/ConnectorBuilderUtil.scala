@@ -388,7 +388,6 @@ object ConnectorBuilderUtil {
     "saveTransactionRequestTransaction",
     "saveTransactionRequestChallenge",
     "getTransactionRequests",
-    "getTransactionRequestStatuses",
     "getTransactionRequestTypes",
     "createTransactionAfterChallenge",
     "updateAccountLabel",

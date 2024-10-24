@@ -7,7 +7,6 @@ import code.api.util.APIUtil._
 import code.api.util.ErrorMessages._
 import code.api.util._
 import code.branches.MappedBranch
-import code.fx.fx
 import code.management.ImporterAPI.ImporterTransaction
 import code.model.dataAccess.{BankAccountRouting, MappedBank, MappedBankAccount}
 import code.model.toBankAccountExtended
@@ -16,6 +15,7 @@ import code.transactionrequests._
 import com.tesobe.CacheKeyFromArguments
 import code.util.Helper
 import code.util.Helper._
+import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.model._
 import com.openbankproject.commons.model.enums.{AccountRoutingScheme, PaymentServiceTypes, TransactionRequestStatus, TransactionRequestTypes}
@@ -630,5 +630,7 @@ object LocalMappedConnectorInternal extends MdcLoggable {
       mappedTransaction.theTransactionId
     }
   }
+
+  def getTransactionRequestStatuses() : Box[TransactionRequestStatus] = Failure(NotImplemented + nameOf(getTransactionRequestStatuses _) )
   
 }

@@ -784,9 +784,7 @@ trait Connector extends MdcLoggable {
   def getTransactionRequests(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[List[TransactionRequest]] =Failure(setUnimplementedError(nameOf(getTransactionRequests _)))
 
   def getTransactionRequests210(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[(List[TransactionRequest], Option[CallContext])] = Failure(setUnimplementedError(nameOf(getTransactionRequests210 _)))
-
-  def getTransactionRequestStatuses() : Box[TransactionRequestStatus] = Failure(setUnimplementedError(nameOf(getTransactionRequestStatuses _)))
-
+  
   def getTransactionRequestImpl(transactionRequestId: TransactionRequestId, callContext: Option[CallContext]): Box[(TransactionRequest, Option[CallContext])] =
     Failure(setUnimplementedError(nameOf(getTransactionRequestImpl _)))
 

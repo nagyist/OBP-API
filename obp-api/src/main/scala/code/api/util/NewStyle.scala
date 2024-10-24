@@ -2385,7 +2385,7 @@ object NewStyle extends MdcLoggable{
         i => (unboxFullOrFail(i._1, callContext, GetProductTreeError + " {" + productCode.value + "}", 404), i._2)
       }
     def getProducts(bankId : BankId, params: List[GetProductsParam], callContext: Option[CallContext]) : OBPReturnType[List[Product]] =
-      Connector.connector.vend.getProducts(bankId : BankId, Nil, callContext) map {
+      Connector.connector.vend.getProducts(bankId : BankId, params, callContext) map {
         i => (unboxFullOrFail(i._1, callContext, GetProductError + " {" + bankId.value + "}", 404), i._2)
       }
     

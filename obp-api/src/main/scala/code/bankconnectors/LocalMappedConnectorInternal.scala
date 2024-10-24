@@ -578,28 +578,6 @@ object LocalMappedConnectorInternal extends MdcLoggable {
       }
     }
   }
-
-  def makePaymentImpl(fromAccount: BankAccount,
-    toAccount: BankAccount,
-    transactionRequestCommonBody: TransactionRequestCommonBodyJSON,
-    amount: BigDecimal,
-    description: String,
-    transactionRequestType: TransactionRequestType,
-    chargePolicy: String, 
-    callContext: Option[CallContext]): Box[TransactionId] = {
-    for {
-      //def exchangeRate --> do not return any exception, but it may return NONO there.   
-      rate <- Full (fx.exchangeRate(fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value), callContext))
-      _ <- booleanToBox(rate.isDefined) ?~! s"$InvalidCurrency The requested currency conversion (${fromAccount.currency} to ${fromAccount.currency}) is not supported."
-
-      fromTransAmt = -amount //from fromAccount balance should decrease
-      toTransAmt = fx.convert(amount, rate)
-      sentTransactionId <- saveTransaction(fromAccount, toAccount, transactionRequestCommonBody, fromTransAmt, description, transactionRequestType, chargePolicy)
-      _sentTransactionId <- saveTransaction(toAccount, fromAccount, transactionRequestCommonBody, toTransAmt, description, transactionRequestType, chargePolicy)
-    } yield {
-      sentTransactionId
-    }
-  }
   
   /**
    * Saves a transaction with @amount, @toAccount and @transactionRequestType for @fromAccount and @toCounterparty. <br>

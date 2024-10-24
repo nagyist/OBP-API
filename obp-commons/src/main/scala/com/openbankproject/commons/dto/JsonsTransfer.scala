@@ -1054,23 +1054,10 @@ case class InBoundGetPhysicalCardsForBankLegacy(status: Status, data: List[Physi
   override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
 }
 
-case class OutBoundMakePayment(outboundAdapterCallContext: OutboundAdapterCallContext,initiator: User, fromAccountUID: BankIdAccountId, toAccountUID: BankIdAccountId, amt: BigDecimal, description: String, transactionRequestType: TransactionRequestType) extends TopicTrait
-case class InBoundMakePayment(status: Status, data: TransactionId) extends InBoundTrait[TransactionId] {
-  override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
-}
 
-case class OutBoundMakePaymentv200(fromAccount: BankAccount, toAccount: BankAccount, transactionRequestCommonBody: TransactionRequestCommonBodyJSON, amount: BigDecimal, description: String, transactionRequestType: TransactionRequestType, chargePolicy: String) extends TopicTrait
-case class InBoundMakePaymentv200(status: Status, data: TransactionId) extends InBoundTrait[TransactionId] {
-  override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
-}
 
 case class OutBoundCreateTransactionRequest(outboundAdapterCallContext: OutboundAdapterCallContext,initiator: User, fromAccount: BankAccount, toAccount: BankAccount, transactionRequestType: TransactionRequestType, body: TransactionRequestBody) extends TopicTrait
 case class InBoundCreateTransactionRequest(status: Status, data: TransactionRequest) extends InBoundTrait[TransactionRequest] {
-  override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
-}
-
-case class OutBoundCreateTransactionRequestv200(outboundAdapterCallContext: OutboundAdapterCallContext,initiator: User, fromAccount: BankAccount, toAccount: BankAccount, transactionRequestType: TransactionRequestType, body: TransactionRequestBody) extends TopicTrait
-case class InBoundCreateTransactionRequestv200(status: Status, data: TransactionRequest) extends InBoundTrait[TransactionRequest] {
   override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
 }
 
@@ -1161,11 +1148,6 @@ case class InBoundGetTransactionRequestTypes(status: Status, data: List[Transact
 
 case class OutBoundCreateTransactionAfterChallenge(outboundAdapterCallContext: OutboundAdapterCallContext, initiator: User, transReqId: TransactionRequestId) extends TopicTrait
 case class InBoundCreateTransactionAfterChallenge(status: Status, data: TransactionRequest) extends InBoundTrait[TransactionRequest] {
-  override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
-}
-
-case class OutBoundCreateTransactionAfterChallengev200(fromAccount: BankAccount, toAccount: BankAccount, transactionRequest: TransactionRequest) extends TopicTrait
-case class InBoundCreateTransactionAfterChallengev200(status: Status, data: TransactionRequest) extends InBoundTrait[TransactionRequest] {
   override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
 }
 

@@ -146,9 +146,6 @@ object OBPAPI2_0_0 extends OBPRestHelper with APIMethods130 with APIMethods140 w
       Implementations2_0_0.corePrivateAccountsAtOneBank, // this is /my accounts
       Implementations2_0_0.privateAccountsAtOneBank, // This was missing for a while from v2.0.0
       Implementations2_0_0.publicAccountsAtOneBank,
-      Implementations2_0_0.createTransactionRequest,
-      Implementations2_0_0.answerTransactionRequestChallenge,
-      Implementations2_0_0.getTransactionRequests, // Now has charges information
       // Updated in 2.0.0 (added sorting and better guards / error messages)
       Implementations2_0_0.accountById,
       Implementations2_0_0.getPermissionsForBankAccount,

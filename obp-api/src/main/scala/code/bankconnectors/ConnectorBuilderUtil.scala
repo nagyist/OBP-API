@@ -382,10 +382,7 @@ object ConnectorBuilderUtil {
    */
   val specialMethods = List(
     "getPhysicalCards",
-    "makePayment",
-    "makePaymentv200",
     "createTransactionRequest",
-    "createTransactionRequestv200",
     "getStatus",
     "getChargeValue",
     "saveTransactionRequestTransaction",
@@ -394,7 +391,6 @@ object ConnectorBuilderUtil {
     "getTransactionRequestStatuses",
     "getTransactionRequestTypes",
     "createTransactionAfterChallenge",
-    "createTransactionAfterChallengev200",
     "updateAccountLabel",
     "getProduct",
     "createOrUpdateBranch",

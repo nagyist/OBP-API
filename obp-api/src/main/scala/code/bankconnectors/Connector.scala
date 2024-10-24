@@ -671,37 +671,6 @@ trait Connector extends MdcLoggable {
     callContext: Option[CallContext]
   ): OBPReturnType[Box[PhysicalCardTrait]] = Future{(Failure{setUnimplementedError(nameOf(updatePhysicalCard _))}, callContext)}
 
-  /**
-    * \
-    *
-    * @param initiator The user attempting to make the payment
-    * @param fromAccountUID The unique identifier of the account sending money
-    * @param toAccountUID The unique identifier of the account receiving money
-    * @param amt The amount of money to send ( > 0 )
-    * @return The id of the sender's new transaction,
-    */
-  def makePayment(initiator : User, fromAccountUID : BankIdAccountId, toAccountUID : BankIdAccountId,
-                  amt : BigDecimal, description : String, transactionRequestType: TransactionRequestType, callContext: Option[CallContext]) : Box[TransactionId] =
-    Failure(setUnimplementedError(nameOf(makePayment _)))
-
-  /**
-    * \
-    *
-    * @param fromAccount The unique identifier of the account sending money
-    * @param toAccount The unique identifier of the account receiving money
-    * @param amount The amount of money to send ( > 0 )
-    * @param transactionRequestType user input: SEPA, SANDBOX_TAN, FREE_FORM, COUNTERPARTY
-    * @return The id of the sender's new transaction,
-    */
-  def makePaymentv200(fromAccount: BankAccount,
-                      toAccount: BankAccount,
-                      transactionRequestCommonBody: TransactionRequestCommonBodyJSON,
-                      amount: BigDecimal,
-                      description: String,
-                      transactionRequestType: TransactionRequestType,
-                      chargePolicy: String, 
-                      callContext: Option[CallContext]): Box[TransactionId] =
-    Failure(setUnimplementedError(nameOf(makePayment _)))
 
   //Note: introduce v210 here, is for kafka connectors, use callContext and return Future.
   def makePaymentv210(fromAccount: BankAccount,
@@ -721,20 +690,6 @@ trait Connector extends MdcLoggable {
                                      callContext: Option[CallContext]): OBPReturnType[Box[DoubleEntryTransaction]]= Future{(Failure(setUnimplementedError(nameOf(saveDoubleEntryBookTransaction _))), callContext)}
   def getBalancingTransaction(transactionId: TransactionId,
                               callContext: Option[CallContext]): OBPReturnType[Box[DoubleEntryTransaction]]= Future{(Failure(setUnimplementedError(nameOf(getBalancingTransaction _))), callContext)}
-
-  
-  /*
-    Transaction Requests
-  */
-
-
-  // This is used for 1.4.0 See createTransactionRequestv200 for 2.0.0
-  def createTransactionRequest(initiator : User, fromAccount : BankAccount, toAccount: BankAccount, transactionRequestType: TransactionRequestType, body: TransactionRequestBody, callContext: Option[CallContext]) : Box[TransactionRequest] = 
-    (Failure(setUnimplementedError(nameOf(createTransactionRequest _))), callContext)
-
-
-  def createTransactionRequestv200(initiator : User, fromAccount : BankAccount, toAccount: BankAccount, transactionRequestType: TransactionRequestType, body: TransactionRequestBody, 
-    callContext: Option[CallContext]) : Box[TransactionRequest] =  (Failure(setUnimplementedError(nameOf(createTransactionRequestv200 _))), callContext)
   
   // Set initial status
   def getStatus(challengeThresholdAmount: BigDecimal, transactionRequestCommonBodyAmount: BigDecimal, transactionRequestType: TransactionRequestType, callContext: Option[CallContext]): OBPReturnType[Box[TransactionRequestStatus.Value]] =
@@ -838,18 +793,6 @@ trait Connector extends MdcLoggable {
 
   def getTransactionRequestTypes(initiator : User, fromAccount : BankAccount, callContext: Option[CallContext]) : Box[List[TransactionRequestType]] =Failure(setUnimplementedError(nameOf(createChallengesC3 _)))
   
-  //Note: Now we use validateChallengeAnswer instead, new methods validate over kafka, and move the allowed_attempts guard into API level.
-  //It is only used for V140 and V200, has been deprecated from V210.
-  @deprecated
-  def answerTransactionRequestChallenge(transReqId: TransactionRequestId, answer: String, callContext: Option[CallContext]) :Box[Boolean] =
-    Failure(setUnimplementedError(nameOf(answerTransactionRequestChallenge _)))
-
-  def createTransactionAfterChallenge(initiator: User, transReqId: TransactionRequestId, callContext: Option[CallContext]) : Box[TransactionRequest] =
-   Failure(setUnimplementedError(nameOf(getBalancingTransaction _)))
-
-  def createTransactionAfterChallengev200(fromAccount: BankAccount, toAccount: BankAccount, transactionRequest: TransactionRequest, callContext: Option[CallContext]): Box[TransactionRequest] = 
-    Failure(setUnimplementedError(nameOf(createTransactionAfterChallengev200 _)))
-
   def createTransactionAfterChallengeV210(fromAccount: BankAccount, transactionRequest: TransactionRequest, callContext: Option[CallContext]) : OBPReturnType[Box[TransactionRequest]] = 
     Future{(Failure(setUnimplementedError(nameOf(createTransactionAfterChallengeV210 _))), callContext)}
 

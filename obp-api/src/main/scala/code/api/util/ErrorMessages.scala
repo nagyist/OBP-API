@@ -696,7 +696,6 @@ object ErrorMessages {
   val InvalidConnectorResponseForGetChargeLevel = "OBP-50207: Connector did not return the set of challenge level we requested."
   val InvalidConnectorResponseForCreateTransactionRequestImpl210 = "OBP-50208: Connector did not return the set of transactions requests we requested."
   val InvalidConnectorResponseForMakePayment = "OBP-50209: Connector did not return the set of transactions we requested."
-  val InvalidConnectorResponseForMakePaymentv200 = "OBP-50210: Connector did not return the set of transaction id we requested."
   val InvalidConnectorResponseForGetCheckbookOrdersFuture = "OBP-50211: Connector did not return the set of check book."
   val InvalidConnectorResponseForGetStatusOfCreditCardOrderFuture = "OBP-50212: Connector did not return the set of status of credit card."
   val InvalidConnectorResponseForCreateTransactionAfterChallengev300 = "OBP-50213: The Connector did not return a valid response for payments."

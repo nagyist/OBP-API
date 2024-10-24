@@ -400,33 +400,16 @@ object ConnectorBuilderUtil {
     "createOrUpdateFXRate",
     "getCurrentFxRate",
     "getTransactionRequestTypeCharges",
-    //"getPhysicalCardsForBankLegacy", // should not generate for Legacy methods
-    //"getBranchLegacy", // should not generate for Legacy methods
-    //"getAtmLegacy", // should not generate for Legacy methods
     "getCounterpartyFromTransaction",
     "getCounterpartiesFromTransaction",
-  ).distinct
-
-  /**
-   * modifier is protected methods, not recommend generate these methods, they should always for special purpose
-   */
-  val protectedMethods = List(
     "saveTransactionRequestStatusImpl",
   ).distinct
 
   val omitMethods = List(
-    // "answerTransactionRequestChallenge", //deprecated
-    //"setAccountHolder", //deprecated
-    // "createImportedTransaction", // should create manually
-    // "updateUserAccountViewsOld", // deprecated
-    //"createBankAccountLegacy", // should not generate for Legacy methods //deprecated
-
     // "createOrUpdateAttributeDefinition", // should not be auto generated
     // "deleteAttributeDefinition", // should not be auto generated
     // "getAttributeDefinition", // should not be auto generated
-
     // "createStandingOrder", // should not be auto generated
-
     // "addBankAccount", // non-standard calls, should be used for test
 
     //** the follow 5 methods should not be generated, should create manually

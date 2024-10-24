@@ -1529,7 +1529,7 @@ trait APIMethods210 {
             branchJsonPutV210 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonPutV210", 400, callContext) {
               json.extract[BranchJsonPutV210]
             }
-            _ <- Helper.booleanToFuture(failMsg = "BANK_ID has to be the same in the URL and Body", 400, callContext) {
+            _ <- Helper.booleanToFuture(failMsg = s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body", 400, callContext) {
               branchJsonPutV210.bank_id == bank.bankId.value
             }
             _ <- NewStyle.function.hasEntitlement(bankId.value, u.userId, ApiRole.canUpdateBranch, callContext)
@@ -1576,7 +1576,7 @@ trait APIMethods210 {
               branchJsonPostV210 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonPostV210", 400, callContext) {
                 json.extract[BranchJsonPostV210]
               }
-              _ <- Helper.booleanToFuture(failMsg = "BANK_ID has to be the same in the URL and Body", 400, callContext) {
+              _ <- Helper.booleanToFuture(failMsg = s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body", 400, callContext) {
                 branchJsonPostV210.bank_id == bank.bankId.value
               }
               _ <- Future(

@@ -4619,30 +4619,6 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     Future{(TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestTransactionImpl(transactionRequestId, transactionId), callContext)}
   }
 
-  override def getTransactionRequests(initiator: User, fromAccount: BankAccount, callContext: Option[CallContext]): Box[List[TransactionRequest]] = {
-    val transactionRequests =
-      for {
-        (fromAccount, callContext) <- getBankAccountLegacy(fromAccount.bankId, fromAccount.accountId, callContext) ?~
-          s"account ${fromAccount.accountId} not found at bank ${fromAccount.bankId}"
-        transactionRequests <- TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId)
-      } yield transactionRequests
-
-    //make sure we return null if no challenge was saved (instead of empty fields)
-    if (!transactionRequests.isEmpty) {
-      for {
-        treq <- transactionRequests
-      } yield {
-        treq.map(tr => if (tr.challenge.id == "") {
-          tr.copy(challenge = null)
-        } else {
-          tr
-        })
-      }
-    } else {
-      transactionRequests
-    }
-  }
-
   override def getTransactionRequests210(initiator: User, fromAccount: BankAccount, callContext: Option[CallContext] = None): Box[(List[TransactionRequest], Option[CallContext])] = {
     val transactionRequests =
       for {

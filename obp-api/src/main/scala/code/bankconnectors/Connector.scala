@@ -795,18 +795,6 @@ trait Connector extends MdcLoggable {
   /*
     non-standard calls --do not make sense in the regular context but are used for e.g. tests
   */
-
-  def addBankAccount(
-    bankId: BankId,
-    accountType: String,
-    accountLabel: String,
-    currency: String,
-    initialBalance: BigDecimal,
-    accountHolderName: String,
-    branchId: String,
-    accountRoutings: List[AccountRouting],
-    callContext: Option[CallContext]
-  ): OBPReturnType[Box[BankAccount]] = Future{(Failure(setUnimplementedError(nameOf(addBankAccount _))), callContext)}
   
   
   def updateBankAccount(
@@ -821,8 +809,6 @@ trait Connector extends MdcLoggable {
   
 
   
-  //generates an unused account number and then creates the sandbox account using that number
-  //TODO, this is new style method, it return future, but do not use it yet. only for messageDoc now.
   def createBankAccount(
                          bankId: BankId,
                          accountId: AccountId,

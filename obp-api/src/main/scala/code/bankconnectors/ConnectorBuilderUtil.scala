@@ -375,33 +375,29 @@ object ConnectorBuilderUtil {
     "validateChallengeAnswerC5",
     "validateChallengeAnswerV2",
     "getCounterpartyByIbanAndBankAccountId",
+    "getStatus",
+    "getChargeValue",
+    "saveTransactionRequestTransaction",
+    "saveTransactionRequestChallenge",
+    "getTransactionRequestTypes",
+    "updateAccountLabel",
+    "getProduct",
+    "createOrUpdateBranch",
+    "createOrUpdateAtm",
+    "createOrUpdateProduct",
+    "createOrUpdateFXRate",
+    "getTransactionRequestTypeCharges",
+    "getCounterpartyFromTransaction",
+    "getCounterpartiesFromTransaction",
+    "saveTransactionRequestStatusImpl"
   ).distinct
 
   /**
    * these connector methods have special parameter or return type
    */
   val specialMethods = List(
-    "getPhysicalCards",
-    "createTransactionRequest",
-    "getStatus",
-    "getChargeValue",
-    "saveTransactionRequestTransaction",
-    "saveTransactionRequestChallenge",
-    "getTransactionRequests",
-    "getTransactionRequestTypes",
-    "createTransactionAfterChallenge",
-    "updateAccountLabel",
-    "getProduct",
-    "createOrUpdateBranch",
     "createOrUpdateBank",
-    "createOrUpdateAtm",
-    "createOrUpdateProduct",
-    "createOrUpdateFXRate",
-    "getCurrentFxRate",
-    "getTransactionRequestTypeCharges",
-    "getCounterpartyFromTransaction",
-    "getCounterpartiesFromTransaction",
-    "saveTransactionRequestStatusImpl",
+    "getCurrentFxRate"
   ).distinct
 
   val omitMethods = List(
@@ -409,7 +405,6 @@ object ConnectorBuilderUtil {
     // "deleteAttributeDefinition", // should not be auto generated
     // "getAttributeDefinition", // should not be auto generated
     // "createStandingOrder", // should not be auto generated
-    // "addBankAccount", // non-standard calls, should be used for test
 
     //** the follow 5 methods should not be generated, should create manually
     //      "dynamicEntityProcess",

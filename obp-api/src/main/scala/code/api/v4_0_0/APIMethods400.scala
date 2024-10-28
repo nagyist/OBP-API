@@ -2608,8 +2608,9 @@ trait APIMethods400 extends MdcLoggable {
             _ <- Helper.booleanToFuture(s"$AccountRoutingAlreadyExist (${alreadyExistingAccountRouting.mkString("; ")})", cc=callContext) {
               alreadyExistingAccountRouting.isEmpty
             }
-            (bankAccount,callContext) <- NewStyle.function.addBankAccount(
+            (bankAccount,callContext) <- NewStyle.function.createBankAccount(
               bankId,
+              AccountId(APIUtil.generateUUID()),
               accountType,
               accountLabel,
               currency,

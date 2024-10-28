@@ -1146,9 +1146,6 @@ case class InBoundCreateTransactionAfterChallenge(status: Status, data: Transact
   override val inboundAdapterCallContext: InboundAdapterCallContext = InboundAdapterCallContext()
 }
 
-case class OutBoundAddBankAccount(outboundAdapterCallContext: OutboundAdapterCallContext, bankId: BankId, accountType: String, accountLabel: String, currency: String, initialBalance: BigDecimal, accountHolderName: String, branchId: String, accountRoutings: List[AccountRouting]) extends TopicTrait
-case class InBoundAddBankAccount(inboundAdapterCallContext: InboundAdapterCallContext, status: Status, data: BankAccountCommons) extends InBoundTrait[BankAccountCommons]
-
 case class BankAndBankAccount(bank: BankCommons, account: BankAccountCommons)
 case class OutBoundCreateBankAndAccount(bankName: String, bankNationalIdentifier: String, accountNumber: String, accountType: String, accountLabel: String, currency: String, accountHolderName: String, branchId: String, accountRoutingScheme: String, accountRoutingAddress: String) extends TopicTrait
 case class InBoundCreateBankAndAccount(status: Status, value: BankAndBankAccount) extends InBoundTrait[(Bank, BankAccount)] {

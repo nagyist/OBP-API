@@ -2275,31 +2275,6 @@ object NewStyle extends MdcLoggable{
       ) map {
         i => (unboxFullOrFail(i._1, callContext, UnknownError, 400), i._2)
       }
-
-    def addBankAccount(
-      bankId: BankId,
-      accountType: String,
-      accountLabel: String,
-      currency: String,
-      initialBalance: BigDecimal,
-      accountHolderName: String,
-      branchId: String,
-      accountRoutings: List[AccountRouting],
-      callContext: Option[CallContext]
-    ): OBPReturnType[BankAccount] =
-      Connector.connector.vend.addBankAccount(
-        bankId: BankId,
-        accountType: String,
-        accountLabel: String,
-        currency: String,
-        initialBalance: BigDecimal,
-        accountHolderName: String,
-        branchId: String,
-        accountRoutings: List[AccountRouting],
-        callContext: Option[CallContext]
-      ) map {
-        i => (unboxFullOrFail(i._1, callContext, UnknownError, 400), i._2)
-      }
     
     def updateBankAccount(
                            bankId: BankId,

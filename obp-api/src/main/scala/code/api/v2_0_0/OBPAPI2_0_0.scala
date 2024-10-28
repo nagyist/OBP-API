@@ -38,7 +38,7 @@ object OBPAPI2_0_0 extends OBPRestHelper with APIMethods130 with APIMethods140 w
 
 
   val version : ApiVersion = ApiVersion.v2_0_0 // "2.0.0"
-  val versionStatus = ApiVersionStatus.STABLE.toString
+  val versionStatus = ApiVersionStatus.DEPRECATED.toString
 
 
   // Note: Since we pattern match on these routes, if two implementations match a given url the first will match

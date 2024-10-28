@@ -15,7 +15,7 @@ import code.util.Helper.MdcLoggable
 object OBPAPI1_3_0 extends OBPRestHelper with APIMethods130 with APIMethods121 with MdcLoggable with VersionedOBPApis{
 
   val version : ApiVersion = ApiVersion.v1_3_0 //  "1.3.0"
-  val versionStatus = ApiVersionStatus.STABLE.toString
+  val versionStatus = ApiVersionStatus.DEPRECATED.toString
 
   //TODO: check all these calls to see if they should really have the same behaviour as 1.2.1
 

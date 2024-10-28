@@ -360,9 +360,6 @@ object ConnectorBuilderUtil {
     "deleteCustomerAttribute",
     "getPhysicalCardsForUser",
     "getChallengesByBasketId",
-
-    // The follow methods's parameter or return type are special
-    "getCurrentFxRate",
     "createChallengesC2",
     "createChallengesC3",
     "getChallenge",
@@ -375,29 +372,29 @@ object ConnectorBuilderUtil {
     "validateChallengeAnswerC5",
     "validateChallengeAnswerV2",
     "getCounterpartyByIbanAndBankAccountId",
-    "getStatus",
     "getChargeValue",
     "saveTransactionRequestTransaction",
     "saveTransactionRequestChallenge",
     "getTransactionRequestTypes",
     "updateAccountLabel",
     "getProduct",
-    "createOrUpdateBranch",
-    "createOrUpdateAtm",
-    "createOrUpdateProduct",
-    "createOrUpdateFXRate",
-    "getTransactionRequestTypeCharges",
-    "getCounterpartyFromTransaction",
-    "getCounterpartiesFromTransaction",
-    "saveTransactionRequestStatusImpl"
+    "saveTransactionRequestStatusImpl",
+    "getTransactionRequestTypeCharges"
   ).distinct
 
   /**
    * these connector methods have special parameter or return type
    */
   val specialMethods = List(
+    "getStatus",
+    "createOrUpdateBranch",
     "createOrUpdateBank",
-    "getCurrentFxRate"
+    "createOrUpdateAtm",
+    "createOrUpdateProduct",
+    "createOrUpdateFXRate",
+    "getCurrentFxRate",
+    "getCounterpartyFromTransaction",
+    "getCounterpartiesFromTransaction",
   ).distinct
 
   val omitMethods = List(

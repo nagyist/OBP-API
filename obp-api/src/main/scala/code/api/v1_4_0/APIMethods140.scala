@@ -463,7 +463,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
             }
             // TODO: Consider storing allowed_transaction_request_types (List of String) in View Definition. 
             // TODO:  This would allow us to restrict transaction request types available to the User for an Account
-            transactionRequestTypes <- Future(Connector.connector.vend.getTransactionRequestTypes(u, fromAccount, callContext)) map {
+            (transactionRequestTypes, callContext) <- Future(Connector.connector.vend.getTransactionRequestTypes(u, fromAccount, callContext)) map {
               connectorEmptyResponse(_, callContext)
             }
             (transactionRequestTypeCharges, callContext) <- NewStyle.function.getTransactionRequestTypeCharges(bankId, accountId, viewId, transactionRequestTypes, callContext)

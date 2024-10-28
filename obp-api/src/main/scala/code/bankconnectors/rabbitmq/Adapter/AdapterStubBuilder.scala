@@ -43,7 +43,7 @@ object AdapterStubBuilder {
     val codeList = messageDocs
       //these are only for debugging.
 //      .filterNot(_.process.equals("obp.getCustomers"))//getBanks is the template code, already in the code.
-//      .filter(_.process.equals("obp.getCustomers"))//getBanks is the template code, already in the code.
+//      .filter(_.process.equals("obp.validateAndCheckIbanNumber"))//getBanks is the template code, already in the code.
 //      .take(80)
 //      .slice(91,1000)
       .map(
@@ -137,9 +137,7 @@ object AdapterStubBuilder {
     else 
       null
     
-    val inboundAdapterCallContext = if(ConnectorBuilderUtil.specialMethods.contains(connectorMethodName) ||
-      connectorMethodName == "getPhysicalCardsForUser" // this need to be check, InBoundGetPhysicalCardsForUser is missing inboundAdapterCallContext field.
-    )
+    val inboundAdapterCallContext = if(ConnectorBuilderUtil.specialMethods.contains(connectorMethodName))
       ""
     else
       """          

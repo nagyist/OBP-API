@@ -1,5 +1,10 @@
 package code.bankconnectors
 
+import code.api.util.{APIUtil, NewStyle}
+import org.apache.commons.io.FileUtils
+
+import java.io.File
+import java.util.Date
 import scala.concurrent.Future
 import scala.reflect.runtime.{universe => ru}
 
@@ -12,44 +17,19 @@ object InOutCaseClassGenerator extends App {
       extractReturnModel(tp.typeArgs(0))
     }
   }
-val list = List(
-   "validateChallengeAnswer",
-   "getBankLegacy",
-   "getBanksLegacy",
-   "getBankAccountsForUserLegacy",
-   "updateUserAccountViewsOld",
-   "getBankAccountLegacy",
-   "getBankAccountByIban",
-   "getBankAccountByRouting",
-   "getBankAccounts",
-   "getCoreBankAccountsLegacy",
-   "getBankAccountsHeldLegacy",
-   "checkBankAccountExistsLegacy",
-   "getCounterpartyByCounterpartyIdLegacy",
-   "getCounterpartiesLegacy",
-   "getTransactionsLegacy",
-   "getTransactionLegacy",
-   "getPhysicalCardsForBankLegacy",
-   "createPhysicalCardLegacy",
-   "createBankAccountLegacy",
-   "getBranchLegacy",
-   "getAtmLegacy",
-   "getCustomerByCustomerIdLegacy"
-)
-
+  
   private val mirror: ru.Mirror = ru.runtimeMirror(this.getClass.getClassLoader)
   private val clazz: ru.ClassSymbol = mirror.typeOf[Connector].typeSymbol.asClass
-  private val retureFutureMethods: Iterable[ru.MethodSymbol] = mirror.typeOf[Connector].decls.filter(symbol => {
-    val isMethod = symbol.isMethod && !symbol.asMethod.isVal && !symbol.asMethod.isVar && !symbol.asMethod.isConstructor && list.contains(symbol.name.toString.trim)
-    isMethod
-  }).map(it => it.asMethod)
-    .filterNot(it => it.returnType <:< ru.typeOf[Future[_]])
+  private val returnObpClassMethods1= mirror.typeOf[Connector].decls
+  private val returnObpClassMethods2= returnObpClassMethods1.filter(symbol => {
+      val isMethod = symbol.isMethod && !symbol.asMethod.isVal && !symbol.asMethod.isVar && !symbol.asMethod.isConstructor && !symbol.isProtected
+      isMethod})
+  private val returnObpClassMethods3 = returnObpClassMethods2.map(it => it.asMethod)
     .filter(it => {
-      extractReturnModel(it.returnType).typeSymbol.fullName.matches("(code\\.|com.openbankproject\\.).+")
+      extractReturnModel(it.returnType).typeSymbol.fullName.matches("((code\\.|com.openbankproject\\.).+)|(scala\\.Boolean)") //to make sure, it returned the OBP class.
     })
 
-
-  val code = retureFutureMethods.map(it => {
+  val code = returnObpClassMethods3.map(it => {
     val returnType = it.returnType
     val tp = extractReturnModel(returnType)
     val isCaseClass = tp.typeSymbol.asClass.isCaseClass

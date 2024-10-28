@@ -14,11 +14,11 @@ import code.bankconnectors.rest.RestConnector_vMar2019
 import code.bankconnectors.storedprocedure.StoredProcedureConnector_vDec2019
 import code.bankconnectors.vMay2019.KafkaMappedConnector_vMay2019
 import code.bankconnectors.vSept2018.KafkaMappedConnector_vSept2018
-import code.counterpartylimit.CounterpartyLimitTrait
-import code.customeraccountlinks.CustomerAccountLinkTrait
-import code.endpointTag.EndpointTagT
+import com.openbankproject.commons.model.CounterpartyLimitTrait
+import com.openbankproject.commons.model.CustomerAccountLinkTrait
+import com.openbankproject.commons.model.EndpointTagT
 import code.model.dataAccess.BankAccountRouting
-import code.standingorders.StandingOrderTrait
+import com.openbankproject.commons.model.StandingOrderTrait
 import code.users.UserAttribute
 import code.util.Helper._
 import com.github.dwickern.macros.NameOf.nameOf

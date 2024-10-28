@@ -25,11 +25,13 @@ import code.cards.MappedPhysicalCard
 import code.context.{UserAuthContextProvider, UserAuthContextUpdateProvider}
 import code.counterpartylimit.CounterpartyLimitProvider
 import code.customer._
-import code.customeraccountlinks.CustomerAccountLinkTrait
+import code.customeraccountlinks.CustomerAccountLinkX
+import com.openbankproject.commons.model.CustomerAccountLinkTrait
 import code.customeraddress.CustomerAddressX
 import code.customerattribute.CustomerAttributeX
 import code.directdebit.DirectDebits
-import code.endpointTag.{EndpointTag, EndpointTagT}
+import code.endpointTag.EndpointTag
+import com.openbankproject.commons.model.EndpointTagT
 import code.fx.{MappedFXRate, fx}
 import code.kycchecks.KycChecks
 import code.kycdocuments.KycDocuments
@@ -46,7 +48,8 @@ import code.productcollection.ProductCollectionX
 import code.productcollectionitem.ProductCollectionItems
 import code.productfee.ProductFeeX
 import code.products.MappedProduct
-import code.standingorders.{StandingOrderTrait, StandingOrders}
+import code.standingorders.StandingOrders
+import com.openbankproject.commons.model.StandingOrderTrait
 import code.taxresidence.TaxResidenceX
 import code.transaction.MappedTransaction
 import code.transactionChallenge.Challenges
@@ -65,6 +68,7 @@ import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
 import com.openbankproject.commons.model.enums.TransactionRequestTypes._
 import com.openbankproject.commons.model.enums.{TransactionRequestStatus, _}
+import com.openbankproject.commons.model.CustomerAccountLinkTrait
 import com.openbankproject.commons.model._
 import com.tesobe.CacheKeyFromArguments
 import com.tesobe.model.UpdateBankAccount
@@ -5002,26 +5006,26 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   }
 
   override def getCustomerAccountLinksByCustomerId(customerId: String, callContext: Option[CallContext]) = Future{
-    (CustomerAccountLinkTrait.customerAccountLink.vend.getCustomerAccountLinksByCustomerId(customerId),callContext)
+    (CustomerAccountLinkX.customerAccountLink.vend.getCustomerAccountLinksByCustomerId(customerId),callContext)
   }
 
   override def getCustomerAccountLinkById(customerAccountLinkId: String, callContext: Option[CallContext]) = Future{
-    (CustomerAccountLinkTrait.customerAccountLink.vend.getCustomerAccountLinkById(customerAccountLinkId),callContext)
+    (CustomerAccountLinkX.customerAccountLink.vend.getCustomerAccountLinkById(customerAccountLinkId),callContext)
   }
 
   override def getCustomerAccountLinksByBankIdAccountId(bankId: String, accountId: String, callContext: Option[CallContext])= Future{
-    (CustomerAccountLinkTrait.customerAccountLink.vend.getCustomerAccountLinksByBankIdAccountId(bankId, accountId),callContext)
+    (CustomerAccountLinkX.customerAccountLink.vend.getCustomerAccountLinksByBankIdAccountId(bankId, accountId),callContext)
   }
 
   override def deleteCustomerAccountLinkById(customerAccountLinkId: String, callContext: Option[CallContext]) = 
-    CustomerAccountLinkTrait.customerAccountLink.vend.deleteCustomerAccountLinkById(customerAccountLinkId).map {(_, callContext)}
+    CustomerAccountLinkX.customerAccountLink.vend.deleteCustomerAccountLinkById(customerAccountLinkId).map {(_, callContext)}
 
   override def updateCustomerAccountLinkById(customerAccountLinkId: String,  relationshipType: String, callContext: Option[CallContext]) = Future{
-    (CustomerAccountLinkTrait.customerAccountLink.vend.updateCustomerAccountLinkById(customerAccountLinkId, relationshipType),callContext)
+    (CustomerAccountLinkX.customerAccountLink.vend.updateCustomerAccountLinkById(customerAccountLinkId, relationshipType),callContext)
   }
 
   override def createCustomerAccountLink(customerId: String, bankId: String, accountId: String, relationshipType: String, callContext: Option[CallContext]): OBPReturnType[Box[CustomerAccountLinkTrait]] = Future{
-    CustomerAccountLinkTrait.customerAccountLink.vend.createCustomerAccountLink(customerId: String, bankId, accountId: String, relationshipType: String) map { ( _, callContext) }
+    CustomerAccountLinkX.customerAccountLink.vend.createCustomerAccountLink(customerId: String, bankId, accountId: String, relationshipType: String) map { ( _, callContext) }
   }
 
   override def getConsentImplicitSCA(user: User, callContext: Option[CallContext]): OBPReturnType[Box[ConsentImplicitSCAT]] = Future {

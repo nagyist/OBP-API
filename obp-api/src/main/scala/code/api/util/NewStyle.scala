@@ -33,7 +33,7 @@ import code.model._
 import code.apicollectionendpoint.{ApiCollectionEndpointTrait, MappedApiCollectionEndpointsProvider}
 import code.apicollection.{ApiCollectionTrait, MappedApiCollectionsProvider}
 import code.model.dataAccess.{AuthUser, BankAccountRouting}
-import code.standingorders.StandingOrderTrait
+import com.openbankproject.commons.model.StandingOrderTrait
 import code.usercustomerlinks.UserCustomerLink
 import code.users.{UserAgreement, UserAgreementProvider, UserAttribute, UserInvitation, UserInvitationProvider, Users}
 import code.util.Helper
@@ -73,14 +73,15 @@ import code.api.dynamic.entity.helper.{DynamicEntityHelper, DynamicEntityInfo}
 import code.atmattribute.AtmAttribute
 import code.bankattribute.BankAttribute
 import code.connectormethod.{ConnectorMethodProvider, JsonConnectorMethod}
-import code.counterpartylimit.{CounterpartyLimit, CounterpartyLimitTrait}
+import code.counterpartylimit.{CounterpartyLimit}
+import com.openbankproject.commons.model.CounterpartyLimitTrait
 import code.crm.CrmEvent
 import code.crm.CrmEvent.CrmEvent
-import code.customeraccountlinks.CustomerAccountLinkTrait
+import com.openbankproject.commons.model.CustomerAccountLinkTrait
 import code.dynamicMessageDoc.{DynamicMessageDocProvider, JsonDynamicMessageDoc}
 import code.dynamicResourceDoc.{DynamicResourceDocProvider, JsonDynamicResourceDoc}
 import code.endpointMapping.{EndpointMappingProvider, EndpointMappingT}
-import code.endpointTag.EndpointTagT
+import com.openbankproject.commons.model.EndpointTagT
 import code.util.Helper.MdcLoggable
 import code.views.system.AccountAccess
 import com.openbankproject.commons.model.enums.SuppliedAnswerType

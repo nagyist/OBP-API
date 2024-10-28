@@ -8,6 +8,7 @@ import net.liftweb.mapper._
 import scala.concurrent.Future
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import net.liftweb.util.Helpers.tryo
+import com.openbankproject.commons.model.CustomerAccountLinkTrait
 
 object MappedCustomerAccountLinkProvider extends CustomerAccountLinkProvider {
   override def createCustomerAccountLink(customerId: String, bankId: String, accountId: String, relationshipType: String): Box[CustomerAccountLinkTrait] = {

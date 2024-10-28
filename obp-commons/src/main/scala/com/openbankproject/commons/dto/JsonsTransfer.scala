@@ -1391,3 +1391,7 @@ case class InBoundGetCounterpartyByIbanAndBankAccountId(inboundAdapterCallContex
 
 
 // --------------------- some special connector methods corresponding InBound and OutBound -- end --
+
+//---------------- dynamic start -------------------please don't modify this line
+
+//---------------- dynamic end ---------------------please don't modify this line

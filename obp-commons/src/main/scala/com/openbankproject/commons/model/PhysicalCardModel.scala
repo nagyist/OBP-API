@@ -61,8 +61,8 @@ trait PhysicalCardTrait {
   def collected: Option[CardCollectionInfo]
   def posted: Option[CardPostedInfo]
   def customerId: String
-  def cvv: Option[String] = None //added from V500
-  def brand: Option[String] = None //added from V500
+  def cvv: Option[String] //added from V500
+  def brand: Option[String]  //added from V500
 }
 
 case class PhysicalCard  (

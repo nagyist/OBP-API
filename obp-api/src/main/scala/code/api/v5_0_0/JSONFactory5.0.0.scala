@@ -42,7 +42,7 @@ import code.api.v3_1_0.{AccountAttributeResponseJson, AccountBasicV310, Customer
 import code.api.v4_0_0.{APIInfoJson400, BankAttributeBankResponseJsonV400, EnergySource400, HostedAt400, HostedBy400}
 import code.bankattribute.BankAttribute
 import code.consent.ConsentRequest
-import code.customeraccountlinks.CustomerAccountLinkTrait
+import com.openbankproject.commons.model.CustomerAccountLinkTrait
 import com.openbankproject.commons.model.{AccountAttribute, AccountRouting, AccountRoutingJsonV121, AmountOfMoneyJsonV121, Bank, BankAccount, CardAttribute, CreateViewJson, Customer, CustomerAttribute, InboundAdapterInfoInternal, InboundStatusMessage, PhysicalCardTrait, UpdateViewJSON, User, UserAuthContext, UserAuthContextUpdate, View, ViewBasic}
 import com.openbankproject.commons.util.ApiVersion
 import net.liftweb.json.JsonAST.JValue

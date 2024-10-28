@@ -2,7 +2,7 @@ package code.endpointTag
 
 /* For Connector endpoint routing, star connector use this provider to find proxy connector name */
 
-import com.openbankproject.commons.model.{Converter, JsonFieldReName}
+import com.openbankproject.commons.model.{Converter, JsonFieldReName, EndpointTagT}
 import net.liftweb.common.Box
 import net.liftweb.json.Formats
 import net.liftweb.json.JsonAST.{JField, JNull, JObject, JString}
@@ -13,13 +13,6 @@ object EndpointTagProvider extends SimpleInjector {
   val endpointTagProvider = new Inject(buildOne _) {}
 
   def buildOne: MappedEndpointTagProvider.type = MappedEndpointTagProvider
-}
-
-trait EndpointTagT {
-  def endpointTagId: Option[String]
-  def operationId: String
-  def tagName: String
-  def bankId: Option[String]
 }
 
 case class EndpointTagCommons(

@@ -71,6 +71,7 @@ object Connector extends SimpleInjector {
     "rabbitmq_vOct2024" -> RabbitMQConnector_vOct2024,
     // this proxy connector only for unit test, can set connector=proxy in test.default.props, but never set it in default.props
     "proxy" -> ConnectorUtils.proxyConnector,
+    // internal is the dynamic connector, the developers can upload the source code and override connector method themselves.
     "internal" -> InternalConnector.instance
   )
 

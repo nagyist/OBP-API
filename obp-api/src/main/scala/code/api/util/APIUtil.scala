@@ -36,6 +36,7 @@ import code.api.UKOpenBanking.v3_1_0.OBP_UKOpenBanking_310
 import code.api._
 import code.api.berlin.group.v1.OBP_BERLIN_GROUP_1
 import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{ErrorMessageBG, ErrorMessagesBG}
+import code.api.cache.Caching
 import code.api.dynamic.endpoint.OBPAPIDynamicEndpoint
 import code.api.dynamic.endpoint.helper.{DynamicEndpointHelper, DynamicEndpoints}
 import code.api.dynamic.entity.OBPAPIDynamicEntity
@@ -4227,10 +4228,6 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
     case x => NewStyle.function.getCounterpartyByCounterpartyId(x, _)
   }
 
-  // cache for method -> called obp methods:
-  // (className, methodName, signature) -> List[(className, methodName, signature)]
-  private val memo = new Memo[(String, String, String), List[(String, String, String)]]
-
   private val classPool = {
     val pool = ClassPool.getDefault
     // avoid error when call with JDK 1.8:
@@ -4238,13 +4235,14 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
     pool.appendClassPath(new LoaderClassPath(Thread.currentThread.getContextClassLoader))
     pool
   }
-  //NOTE: this will be also a issue, to set the big object classLoader as the cache key.
-  private val memoClassPool = new Memo[ClassLoader, ClassPool]
 
-  private def getClassPool(classLoader: ClassLoader) = memoClassPool.memoize(classLoader){
-    val classPool = ClassPool.getDefault
-    classPool.appendClassPath(new LoaderClassPath(classLoader))
-    classPool
+  private def getClassPool(classLoader: ClassLoader) = {
+    import scala.concurrent.duration._
+    Caching.memoizeSyncWithImMemory(Some(classLoader.toString()))(DurationInt(30) days) {
+      val classPool: ClassPool = ClassPool.getDefault
+      classPool.appendClassPath(new LoaderClassPath(classLoader))
+      classPool
+    }
   }
 
   /**
@@ -4339,8 +4337,9 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
      * The comment will take "className = code.api.UKOpenBanking.v3_1_0.APIMethods_AccountAccessApi$$anonfun$createAccountAccessConsents$lzycompute$1" 
      * as an example to explain the whole code.  
      */
-    def getObpTrace(clazzName: String, methodName: String, signature: String, exclude: List[(String, String, String)] = Nil): List[(String, String, String)] =
-      memo.memoize((clazzName, methodName, signature)) {
+    def getObpTrace(clazzName: String, methodName: String, signature: String, exclude: List[(String, String, String)] = Nil): List[(String, String, String)] = {
+      import scala.concurrent.duration._
+      Caching.memoizeSyncWithImMemory(Some(clazzName + methodName + signature))(DurationInt(30) days) {
         // List:: className->methodName->signature, find all the dependent methods for one 
         val methods = getDependentMethods(clazzName, methodName, signature)
 
@@ -4353,7 +4352,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
             getObpTrace(clazzName, mName, mSignature, list ::: exclude)
         }.flatten.distinct
       }
-
+    }
     //NOTE: MEMORY_USER this ctClass will be cached in ClassPool, it may load too many classes into heap. 
     //in scala the partialFunction is also treat as a class, we can get it from classPool
     val endpointCtClass = classPool.get(endpointClassName)

@@ -284,6 +284,12 @@
       <artifactId>scalacache-redis_${scala.version}</artifactId>
       <version>0.9.3</version>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/com.github.cb372/scalacache-guava -->
+    <dependency>
+      <groupId>com.github.cb372</groupId>
+      <artifactId>scalacache-guava_${scala.version}</artifactId>
+      <version>0.9.3</version>
+    </dependency>
     <dependency>
       <groupId>com.typesafe.akka</groupId>
       <artifactId>akka-slf4j_${scala.version}</artifactId>

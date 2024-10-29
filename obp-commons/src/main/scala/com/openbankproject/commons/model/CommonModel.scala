@@ -1204,28 +1204,6 @@ case class InternalCustomer(
   lastOkDate: Date
 )
 
-case class InboundAccountJune2017(
-  errorCode: String,
-  cbsToken: String, //TODO, this maybe move to AuthInfo, but it is used in GatewayLogin
-  bankId: String,
-  branchId: String,
-  accountId: String,
-  accountNumber: String,
-  accountType: String,
-  balanceAmount: String,
-  balanceCurrency: String,
-  owners: List[String],
-  viewsToGenerate: List[String],
-  bankRoutingScheme: String,
-  bankRoutingAddress: String,
-  branchRoutingScheme: String,
-  branchRoutingAddress: String,
-  accountRoutingScheme: String,
-  accountRoutingAddress: String,
-  accountRouting: List[AccountRouting],
-  accountRules: List[AccountRule]
-) extends InboundMessageBase with InboundAccount
-
 case class Bank2(r: InboundBank) extends Bank {
   def fullName = r.name
   def shortName = r.name

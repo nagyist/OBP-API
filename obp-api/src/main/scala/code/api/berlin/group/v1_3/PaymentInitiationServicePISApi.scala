@@ -139,18 +139,18 @@ or * access method is generally applicable, but further authorisation processes 
                    case "COMPLETED" =>
                      NewStyle.function.cancelPaymentV400(TransactionId(transactionRequest.transaction_ids), callContext) map {
                        x => x._1 match {
-                         case CancelPayment(true, Some(startSca)) if startSca == true => 
-                           Connector.connector.vend.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLATION_PENDING.toString)
+                         case CancelPayment(true, Some(startSca)) if startSca == true =>
+                           NewStyle.function.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLATION_PENDING.toString, callContext)
                            (true, x._2, Some(startSca))
                          case CancelPayment(true, Some(startSca)) if startSca == false =>
-                           Connector.connector.vend.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLED.toString)
+                           NewStyle.function.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLED.toString, callContext)
                            (true, x._2, Some(startSca))
                          case CancelPayment(false, _) =>
                            (false, x._2, Some(false))
                        }
                      }
-                   case "INITIATED" => 
-                     Connector.connector.vend.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLED.toString)
+                   case "INITIATED" =>
+                     NewStyle.function.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLED.toString, callContext)
                      Future(true, callContext, Some(false))
                    case "CANCELLED" => 
                      Future(true, callContext, Some(false))
@@ -441,7 +441,7 @@ Check the transaction status of a payment initiation.""",
 
 
              //From change from requestAccount Currency to currentBankAccount Currency
-             rate = fx.exchangeRate(transactionRequestCurrency, fromAccountCurrency)
+             rate = fx.exchangeRate(transactionRequestCurrency, fromAccountCurrency, None, callContext)
              _ <- Helper.booleanToFuture(s"$InvalidCurrency The requested currency conversion (${transactionRequestCurrency} to ${fromAccountCurrency}) is not supported.", cc=callContext) {
                rate.isDefined
              }
@@ -1224,9 +1224,9 @@ There are the following request types on this access path:
              )
              _ <- challenge.scaStatus match {
                case Some(status) if status == StrongCustomerAuthenticationStatus.finalised => // finalised
-                 Future(Connector.connector.vend.saveTransactionRequestStatusImpl(existingTransactionRequest.id, CANCELLED.toString))
+                 NewStyle.function.saveTransactionRequestStatusImpl(existingTransactionRequest.id, CANCELLED.toString, callContext)
                case Some(status) if status == StrongCustomerAuthenticationStatus.failed => // failed
-                 Future(Connector.connector.vend.saveTransactionRequestStatusImpl(existingTransactionRequest.id, REJECTED.toString))
+                 NewStyle.function.saveTransactionRequestStatusImpl(existingTransactionRequest.id, REJECTED.toString, callContext)
                case _ => // all other cases
                  Future(Full(true))
              }
@@ -1470,11 +1470,11 @@ There are the following request types on this access path:
              _ <- challenge.scaStatus match {
                case Some(status) if status == StrongCustomerAuthenticationStatus.finalised => // finalised
                  NewStyle.function.createTransactionAfterChallengeV210(fromAccount, existingTransactionRequest, callContext) map {
-                   response => 
-                     Connector.connector.vend.saveTransactionRequestStatusImpl(existingTransactionRequest.id, COMPLETED.toString)
+                   response =>
+                     NewStyle.function.saveTransactionRequestStatusImpl(existingTransactionRequest.id, COMPLETED.toString, callContext)
                  }
                case Some(status) if status == StrongCustomerAuthenticationStatus.failed => // failed
-                 Future(Connector.connector.vend.saveTransactionRequestStatusImpl(existingTransactionRequest.id, REJECTED.toString))
+                 NewStyle.function.saveTransactionRequestStatusImpl(existingTransactionRequest.id, REJECTED.toString, callContext)
                case _ => // started and all other cases
                  Future(Full(true))
              }

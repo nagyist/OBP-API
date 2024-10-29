@@ -33,7 +33,7 @@ import code.model._
 import code.apicollectionendpoint.{ApiCollectionEndpointTrait, MappedApiCollectionEndpointsProvider}
 import code.apicollection.{ApiCollectionTrait, MappedApiCollectionsProvider}
 import code.model.dataAccess.{AuthUser, BankAccountRouting}
-import code.standingorders.StandingOrderTrait
+import com.openbankproject.commons.model.StandingOrderTrait
 import code.usercustomerlinks.UserCustomerLink
 import code.users.{UserAgreement, UserAgreementProvider, UserAttribute, UserInvitation, UserInvitationProvider, Users}
 import code.util.Helper
@@ -41,7 +41,7 @@ import com.openbankproject.commons.util.{ApiVersion, JsonUtils}
 import code.views.Views
 import code.webhook.AccountWebhook
 import com.github.dwickern.macros.NameOf.nameOf
-import com.openbankproject.commons.dto.{CustomerAndAttribute, ProductCollectionItemsTree}
+import com.openbankproject.commons.dto.{CustomerAndAttribute, GetProductsParam, ProductCollectionItemsTree}
 import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
 import com.openbankproject.commons.model.enums.TransactionRequestTypes._
@@ -73,14 +73,15 @@ import code.api.dynamic.entity.helper.{DynamicEntityHelper, DynamicEntityInfo}
 import code.atmattribute.AtmAttribute
 import code.bankattribute.BankAttribute
 import code.connectormethod.{ConnectorMethodProvider, JsonConnectorMethod}
-import code.counterpartylimit.{CounterpartyLimit, CounterpartyLimitTrait}
+import code.counterpartylimit.{CounterpartyLimit}
+import com.openbankproject.commons.model.CounterpartyLimitTrait
 import code.crm.CrmEvent
 import code.crm.CrmEvent.CrmEvent
-import code.customeraccountlinks.CustomerAccountLinkTrait
+import com.openbankproject.commons.model.CustomerAccountLinkTrait
 import code.dynamicMessageDoc.{DynamicMessageDocProvider, JsonDynamicMessageDoc}
 import code.dynamicResourceDoc.{DynamicResourceDocProvider, JsonDynamicResourceDoc}
 import code.endpointMapping.{EndpointMappingProvider, EndpointMappingT}
-import code.endpointTag.EndpointTagT
+import com.openbankproject.commons.model.EndpointTagT
 import code.util.Helper.MdcLoggable
 import code.views.system.AccountAccess
 import com.openbankproject.commons.model.enums.SuppliedAnswerType
@@ -150,13 +151,11 @@ object NewStyle extends MdcLoggable{
       } map { unboxFull(_) }
     }
     
-    def createOrUpdateBranch(branch: BranchT, callContext: Option[CallContext]): Future[BranchT] = {
-      Future {
-        Connector.connector.vend.createOrUpdateBranch(branch)
-      } map {
-        unboxFullOrFail(_, callContext, ErrorMessages.CountNotSaveOrUpdateResource + " Branch", 400)
+    def createOrUpdateBranch(branch: BranchT, callContext: Option[CallContext]): OBPReturnType[BranchT] = 
+      Connector.connector.vend.createOrUpdateBranch(branch, callContext) map {
+        i => (unboxFullOrFail(i._1, callContext, CountNotSaveOrUpdateResource + " Branch", 400), i._2)
       }
-    }
+    
 
     /**
       * delete a branch, just set isDeleted field to true, marks it is deleted
@@ -185,11 +184,9 @@ object NewStyle extends MdcLoggable{
         branch.phoneNumber,
         Some(true)
       )
-      Future {
-        Connector.connector.vend.createOrUpdateBranch(deletedBranch) map {
-          i =>  (i.isDeleted.get, callContext)
+      createOrUpdateBranch(deletedBranch, callContext) map {
+          i =>  (i._1.isDeleted.get, callContext)
         }
-      } map { unboxFull(_) }
     }
 
     def getAtm(bankId : BankId, atmId : AtmId, callContext: Option[CallContext]): OBPReturnType[AtmT] = {
@@ -349,7 +346,8 @@ object NewStyle extends MdcLoggable{
           swiftBIC,
           national_identifier,
           bankRoutingScheme,
-          bankRoutingAddress
+          bankRoutingAddress,
+          callContext
         ) map {
           i =>  (i, callContext)
         }
@@ -519,18 +517,26 @@ object NewStyle extends MdcLoggable{
       account.moderatedBankAccountCore(view, BankIdAccountId(account.bankId, account.accountId), user, callContext)
     } map { fullBoxOrException(_)
     } map { unboxFull(_) }
-    
+
+    def getCounterpartiesFromTransaction(bankId: BankId, accountId: AccountId, callContext: Option[CallContext]): OBPReturnType[List[Counterparty]]=
+      Connector.connector.vend.getCounterpartiesFromTransaction(bankId: BankId, accountId: AccountId, callContext: Option[CallContext]) map { i =>
+        (unboxFullOrFail(i._1, callContext,s"$InvalidConnectorResponse: ${nameOf(getCounterpartiesFromTransaction _)}", 400 ), i._2)
+      }
+
     def moderatedOtherBankAccounts(account: BankAccount, 
                                    view: View, 
                                    user: Box[User], 
-                                   callContext: Option[CallContext]): Future[List[ModeratedOtherBankAccount]] = 
-      Future(account.moderatedOtherBankAccounts(view, BankIdAccountId(account.bankId, account.accountId), user, callContext)) map { connectorEmptyResponse(_, callContext) }    
+                                   callContext: Option[CallContext]): OBPReturnType[List[ModeratedOtherBankAccount]] = 
+      account.moderatedOtherBankAccounts(view, BankIdAccountId(account.bankId, account.accountId), user, callContext) map { i =>
+        (unboxFullOrFail(i._1, callContext,s"$InvalidConnectorResponse: ${nameOf(moderatedOtherBankAccounts _)}", 400 ), i._2)
+      }
+      
     def moderatedOtherBankAccount(account: BankAccount,
                                   counterpartyId: String, 
                                   view: View, 
                                   user: Box[User], 
-                                  callContext: Option[CallContext]): Future[ModeratedOtherBankAccount] = 
-      Future(account.moderatedOtherBankAccount(counterpartyId, view, BankIdAccountId(account.bankId, account.accountId), user, callContext)) map { connectorEmptyResponse(_, callContext) }
+                                  callContext: Option[CallContext]): OBPReturnType[ModeratedOtherBankAccount] = 
+      account.moderatedOtherBankAccount(counterpartyId, view, BankIdAccountId(account.bankId, account.accountId), user, callContext) map { i =>(connectorEmptyResponse(i._1, i._2), i._2) }
 
     def getTransactionsCore(bankId: BankId, accountId: AccountId, queryParams:  List[OBPQueryParam], callContext: Option[CallContext]): OBPReturnType[List[TransactionCore]] =
       Connector.connector.vend.getTransactionsCore(bankId: BankId, accountId: AccountId, queryParams:  List[OBPQueryParam], callContext: Option[CallContext]) map { i =>
@@ -1203,6 +1209,14 @@ object NewStyle extends MdcLoggable{
           i._2)
       }
     }
+    
+    def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String, callContext: Option[CallContext]): OBPReturnType[Boolean] = 
+    {
+      Connector.connector.vend.saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String, callContext: Option[CallContext]) map { i =>
+        (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse ${nameOf(saveTransactionRequestStatusImpl _)}", 400),
+          i._2)
+      }
+    }
     def getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean, callContext: Option[CallContext]) : Future[BankAccount] =
     {
       Future{BankAccountX.getBankAccountFromCounterparty(counterparty, isOutgoingAccount)} map {
@@ -1605,6 +1619,30 @@ object NewStyle extends MdcLoggable{
         (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponseForMakePayment ",400), i._2)
       }
 
+    def getChargeValue(chargeLevelAmount: BigDecimal, transactionRequestCommonBodyAmount: BigDecimal, callContext: Option[CallContext]): OBPReturnType[String] =
+      Connector.connector.vend.getChargeValue(
+        chargeLevelAmount: BigDecimal, 
+        transactionRequestCommonBodyAmount: BigDecimal, 
+        callContext: Option[CallContext]
+      ) map { i =>
+        (unboxFullOrFail(i._1, callContext, s"$GetChargeValueError ", 400), i._2)
+      }
+
+    def getStatus(challengeThresholdAmount: BigDecimal, transactionRequestCommonBodyAmount: BigDecimal, transactionRequestType: TransactionRequestType, callContext: Option[CallContext]): OBPReturnType[TransactionRequestStatus.Value]=
+      Connector.connector.vend.getStatus(
+        challengeThresholdAmount: BigDecimal, 
+        transactionRequestCommonBodyAmount: BigDecimal, 
+        transactionRequestType: TransactionRequestType, 
+        callContext: Option[CallContext]
+      ) map { i =>
+        (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponseForGetStatus ", 400), i._2)
+      }
+      
+    def getTransactionRequestTypeCharges(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestTypes: List[TransactionRequestType], callContext: Option[CallContext]):OBPReturnType[List[TransactionRequestTypeCharge]] = 
+      Connector.connector.vend.getTransactionRequestTypeCharges(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestTypes: List[TransactionRequestType], callContext: Option[CallContext]) map { i =>
+        (unboxFullOrFail(i._1, callContext, s"$GetTransactionRequestTypeChargesError ", 400), i._2)
+      }
+    
     def saveDoubleEntryBookTransaction(doubleEntryTransaction: DoubleEntryTransaction, callContext: Option[CallContext]): OBPReturnType[DoubleEntryTransaction] =
       Connector.connector.vend.saveDoubleEntryBookTransaction(doubleEntryTransaction: DoubleEntryTransaction, callContext: Option[CallContext]) map { i =>
         (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponseForSaveDoubleEntryBookTransaction ", 400), i._2)
@@ -2237,31 +2275,6 @@ object NewStyle extends MdcLoggable{
       ) map {
         i => (unboxFullOrFail(i._1, callContext, UnknownError, 400), i._2)
       }
-
-    def addBankAccount(
-      bankId: BankId,
-      accountType: String,
-      accountLabel: String,
-      currency: String,
-      initialBalance: BigDecimal,
-      accountHolderName: String,
-      branchId: String,
-      accountRoutings: List[AccountRouting],
-      callContext: Option[CallContext]
-    ): OBPReturnType[BankAccount] =
-      Connector.connector.vend.addBankAccount(
-        bankId: BankId,
-        accountType: String,
-        accountLabel: String,
-        currency: String,
-        initialBalance: BigDecimal,
-        accountHolderName: String,
-        branchId: String,
-        accountRoutings: List[AccountRouting],
-        callContext: Option[CallContext]
-      ) map {
-        i => (unboxFullOrFail(i._1, callContext, UnknownError, 400), i._2)
-      }
     
     def updateBankAccount(
                            bankId: BankId,
@@ -2305,8 +2318,51 @@ object NewStyle extends MdcLoggable{
       }
     }
     def getProduct(bankId : BankId, productCode : ProductCode, callContext: Option[CallContext]) : OBPReturnType[Product] =
-      Future {Connector.connector.vend.getProduct(bankId : BankId, productCode : ProductCode)} map {
-        i => (unboxFullOrFail(i, callContext, ProductNotFoundByProductCode + " {" + productCode.value + "}", 404), callContext)
+      Connector.connector.vend.getProduct(bankId : BankId, productCode : ProductCode, callContext) map {
+        i => (unboxFullOrFail(i._1, callContext, ProductNotFoundByProductCode + " {" + productCode.value + "}", 404), i._2)
+      }
+    def createOrUpdateProduct(
+      bankId : String,
+      code : String,
+      parentProductCode : Option[String],
+      name : String,
+      category : String,
+      family : String,
+      superFamily : String,
+      moreInfoUrl : String,
+      termsAndConditionsUrl : String,
+      details : String,
+      description : String,
+      metaLicenceId : String,
+      metaLicenceName : String,
+      callContext: Option[CallContext]
+    ) : OBPReturnType[Product] =
+      Connector.connector.vend.createOrUpdateProduct(
+        bankId : String,
+        code : String,
+        parentProductCode : Option[String],
+        name : String,
+        category : String,
+        family : String,
+        superFamily : String,
+        moreInfoUrl : String,
+        termsAndConditionsUrl : String,
+        details : String,
+        description : String,
+        metaLicenceId : String,
+        metaLicenceName : String,
+        callContext: Option[CallContext]
+      ) map {
+        i => (unboxFullOrFail(i._1, callContext, CreateProductError + "or"+ UpdateProductError , 404), i._2)
+      }
+      
+    def getProductTree(bankId : BankId, productCode : ProductCode, callContext: Option[CallContext]) : OBPReturnType[List[Product]] =
+      Connector.connector.vend.getProductTree(bankId : BankId, productCode : ProductCode, callContext) map {
+        i => (unboxFullOrFail(i._1, callContext, GetProductTreeError + " {" + productCode.value + "}", 404), i._2)
+      }
+    def getProducts(bankId : BankId, params: List[GetProductsParam], callContext: Option[CallContext]) : OBPReturnType[List[Product]] =
+      Connector.connector.vend.getProducts(bankId : BankId, params, callContext) map {
+        i => (unboxFullOrFail(i._1, callContext, GetProductError + " {" + bankId.value + "}", 404), i._2)
       }
     
     def getProductCollection(collectionCode: String, 
@@ -2351,12 +2407,12 @@ object NewStyle extends MdcLoggable{
     }
     
     def getExchangeRate(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String, callContext: Option[CallContext]): Future[FXRate] =
-      Future(Connector.connector.vend.getCurrentFxRate(bankId, fromCurrencyCode, toCurrencyCode)) map {
+      Future(Connector.connector.vend.getCurrentFxRate(bankId, fromCurrencyCode, toCurrencyCode, callContext)) map {
         fallbackFxRate =>
           fallbackFxRate match {
             case Empty =>
-              val rate = fx.exchangeRate(fromCurrencyCode, toCurrencyCode)
-              val inverseRate = fx.exchangeRate(toCurrencyCode, fromCurrencyCode)
+              val rate = fx.exchangeRate(fromCurrencyCode, toCurrencyCode, None, callContext)
+              val inverseRate = fx.exchangeRate(toCurrencyCode, fromCurrencyCode, None, callContext)
               (rate, inverseRate) match {
                 case (Some(r), Some(ir)) =>
                   Full(
@@ -2383,11 +2439,9 @@ object NewStyle extends MdcLoggable{
                              inverseConversionValue: Double,
                              effectiveDate: Date,
                              callContext: Option[CallContext]
-                            ): Future[FXRate] =
-      Future(
-        Connector.connector.vend.createOrUpdateFXRate(bankId, fromCurrencyCode, toCurrencyCode, conversionValue, inverseConversionValue, effectiveDate)
-      ) map {
-        unboxFullOrFail(_, callContext, createFxCurrencyIssue)
+                            ): OBPReturnType[FXRate] = 
+      Connector.connector.vend.createOrUpdateFXRate(bankId, fromCurrencyCode, toCurrencyCode, conversionValue, inverseConversionValue, effectiveDate, callContext).map {
+         i => (unboxFullOrFail(i._1, callContext, s"$createFxCurrencyIssue Can not createMeeting in the backend. ", 400), i._2)
       }
     
     def createMeeting(

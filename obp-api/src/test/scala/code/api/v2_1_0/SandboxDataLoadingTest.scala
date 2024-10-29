@@ -279,7 +279,7 @@ class SandboxDataLoadingTest extends FlatSpec with SendServerRequests with Match
   def verifyAccountCreated(account : SandboxAccountImport) = {
     val accId = AccountId(account.id)
     val bankId = BankId(account.bank)
-    val foundAccountBox = Connector.connector.vend.getBankAccountOld(bankId, accId)
+    val foundAccountBox = Connector.connector.vend.getBankAccountLegacy(bankId, accId, None).map(_._1)
     foundAccountBox.isDefined should equal(true)
 
     val foundAccount = foundAccountBox.openOrThrowException(attemptedToOpenAnEmptyBox)
@@ -884,7 +884,7 @@ class SandboxDataLoadingTest extends FlatSpec with SendServerRequests with Match
     getResponse(List(accountWithEmptyId)).code should equal(FAILED)
 
     //no account should exist with an empty id
-    Connector.connector.vend.getBankAccountOld(BankId(account1AtBank1.bank), AccountId("")).isDefined should equal(false)
+    Connector.connector.vend.getBankAccountLegacy(BankId(account1AtBank1.bank), AccountId(""), None).isDefined should equal(false)
 
     getResponse(List(acc1AtBank1Json)).code should equal(SUCCESS)
 
@@ -907,7 +907,7 @@ class SandboxDataLoadingTest extends FlatSpec with SendServerRequests with Match
     getResponse(List(account1AtBank1Json, accountWithSameId)).code should equal(FAILED)
 
     //no accounts should have been created
-    Connector.connector.vend.getBankAccountOld(BankId(account1AtBank1.bank), AccountId(account1AtBank1.id)).isDefined should equal(false)
+    Connector.connector.vend.getBankAccountLegacy(BankId(account1AtBank1.bank), AccountId(account1AtBank1.id), None).isDefined should equal(false)
 
     val accountIdTwo = "2"
     accountIdTwo should not equal(account1AtBank1.id)
@@ -917,8 +917,8 @@ class SandboxDataLoadingTest extends FlatSpec with SendServerRequests with Match
     getResponse(List(account1AtBank1Json, accountWithDifferentId)).code should equal(SUCCESS)
 
     //two accounts should have been created
-    Connector.connector.vend.getBankAccountOld(BankId(account1AtBank1.bank), AccountId(account1AtBank1.id)).isDefined should equal(true)
-    Connector.connector.vend.getBankAccountOld(BankId(account1AtBank1.bank), AccountId(accountIdTwo)).isDefined should equal(true)
+    Connector.connector.vend.getBankAccountLegacy(BankId(account1AtBank1.bank), AccountId(account1AtBank1.id), None).isDefined should equal(true)
+    Connector.connector.vend.getBankAccountLegacy(BankId(account1AtBank1.bank), AccountId(accountIdTwo), None).isDefined should equal(true)
 
   }
 
@@ -939,7 +939,7 @@ class SandboxDataLoadingTest extends FlatSpec with SendServerRequests with Match
     getResponse(List(account1AtBank1Json, Extraction.decompose(otherAccount))).code should equal(FAILED)
 
     //and the other account should not have been created
-    Connector.connector.vend.getBankAccountOld(BankId(otherAccount.bank), AccountId(otherAccount.id)).isDefined should equal(false)
+    Connector.connector.vend.getBankAccountLegacy(BankId(otherAccount.bank), AccountId(otherAccount.id), None).isDefined should equal(false)
   }
 
   it should "not allow an account to have a bankId not specified in the imported banks" in {
@@ -960,7 +960,7 @@ class SandboxDataLoadingTest extends FlatSpec with SendServerRequests with Match
     getResponse(List(badBankAccount)).code should equal(FAILED)
 
     //no account should have been created
-    Connector.connector.vend.getBankAccountOld(BankId(badBankId), AccountId(account1AtBank1.id)).isDefined should equal(false)
+    Connector.connector.vend.getBankAccountLegacy(BankId(badBankId), AccountId(account1AtBank1.id), None).isDefined should equal(false)
   }
 
   it should "not allow an account to be created without an owner" in {
@@ -1001,14 +1001,14 @@ class SandboxDataLoadingTest extends FlatSpec with SendServerRequests with Match
     getResponse(List(Extraction.decompose(accountWithInvalidOwner))).code should equal(FAILED)
 
     //it should not have been created
-    Connector.connector.vend.getBankAccountOld(BankId(accountWithInvalidOwner.bank), AccountId(accountWithInvalidOwner.id)).isDefined should equal(false)
+    Connector.connector.vend.getBankAccountLegacy(BankId(accountWithInvalidOwner.bank), AccountId(accountWithInvalidOwner.id), None).isDefined should equal(false)
 
     //a mix of valid an invalid owners should also not work
     val accountWithSomeValidSomeInvalidOwners = accountWithInvalidOwner.copy(owners = List(accountWithInvalidOwner.owners + user1Import.user_name))
     getResponse(List(Extraction.decompose(accountWithSomeValidSomeInvalidOwners))).code should equal(FAILED)
 
     //it should not have been created
-    Connector.connector.vend.getBankAccountOld(BankId(accountWithSomeValidSomeInvalidOwners.bank), AccountId(accountWithSomeValidSomeInvalidOwners.id)).isDefined should equal(false)
+    Connector.connector.vend.getBankAccountLegacy(BankId(accountWithSomeValidSomeInvalidOwners.bank), AccountId(accountWithSomeValidSomeInvalidOwners.id), None).isDefined should equal(false)
 
   }
 
@@ -1031,15 +1031,15 @@ class SandboxDataLoadingTest extends FlatSpec with SendServerRequests with Match
     getResponse(List(acc1Json, sameNumberJson)).code should equal(FAILED)
 
     //no accounts should have been created
-    Connector.connector.vend.getBankAccountOld(BankId(acc1.bank), AccountId(acc1.id)).isDefined should equal(false)
-    Connector.connector.vend.getBankAccountOld(BankId(acc1.bank), AccountId(acc2.id)).isDefined should equal(false)
+    Connector.connector.vend.getBankAccountLegacy(BankId(acc1.bank), AccountId(acc1.id), None).isDefined should equal(false)
+    Connector.connector.vend.getBankAccountLegacy(BankId(acc1.bank), AccountId(acc2.id), None).isDefined should equal(false)
 
     //check it works with the normal different number
     getResponse(List(acc1Json, acc2Json)).code should equal(SUCCESS)
 
     //and the accounts should be created
-    Connector.connector.vend.getBankAccountOld(BankId(acc1.bank), AccountId(acc1.id)).isDefined should equal(true)
-    Connector.connector.vend.getBankAccountOld(BankId(acc1.bank), AccountId(acc2.id)).isDefined should equal(true)
+    Connector.connector.vend.getBankAccountLegacy(BankId(acc1.bank), AccountId(acc1.id), None).isDefined should equal(true)
+    Connector.connector.vend.getBankAccountLegacy(BankId(acc1.bank), AccountId(acc2.id), None).isDefined should equal(true)
   }
 
   it should "not allow multiple accounts with the same IBAN" in {
@@ -1062,15 +1062,15 @@ class SandboxDataLoadingTest extends FlatSpec with SendServerRequests with Match
     getResponse(List(acc1Json, sameIbanJson)).code should equal(FAILED)
 
     //no accounts should have been created
-    Connector.connector.vend.getBankAccountOld(BankId(acc1.bank), AccountId(acc1.id)).isDefined should equal(false)
-    Connector.connector.vend.getBankAccountOld(BankId(acc1.bank), AccountId(acc2.id)).isDefined should equal(false)
+    Connector.connector.vend.getBankAccountLegacy(BankId(acc1.bank), AccountId(acc1.id), None).isDefined should equal(false)
+    Connector.connector.vend.getBankAccountLegacy(BankId(acc1.bank), AccountId(acc2.id), None).isDefined should equal(false)
 
     //check it works with the normal different IBAN
     getResponse(List(acc1Json, acc2Json)).code should equal(SUCCESS)
 
     //and the accounts should be created
-    Connector.connector.vend.getBankAccountOld(BankId(acc1.bank), AccountId(acc1.id)).isDefined should equal(true)
-    Connector.connector.vend.getBankAccountOld(BankId(acc1.bank), AccountId(acc2.id)).isDefined should equal(true)
+    Connector.connector.vend.getBankAccountLegacy(BankId(acc1.bank), AccountId(acc1.id), None).isDefined should equal(true)
+    Connector.connector.vend.getBankAccountLegacy(BankId(acc1.bank), AccountId(acc2.id), None).isDefined should equal(true)
   }
 
   it should "not allow an account to be created with an existing IBAN" in {
@@ -1097,7 +1097,7 @@ class SandboxDataLoadingTest extends FlatSpec with SendServerRequests with Match
     getResponse(List(sameIbanAccountJson)).code should equal(FAILED)
 
     //and the account2 should not have been created
-    Connector.connector.vend.getBankAccountOld(BankId(acc2.bank), AccountId(acc2.id)).isDefined should equal(false)
+    Connector.connector.vend.getBankAccountLegacy(BankId(acc2.bank), AccountId(acc2.id), None).isDefined should equal(false)
   }
 
   it should "require transactions to have non-empty ids" in {

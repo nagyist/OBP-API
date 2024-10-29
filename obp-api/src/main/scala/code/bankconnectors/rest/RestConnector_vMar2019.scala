@@ -759,35 +759,8 @@ trait RestConnector_vMar2019 extends Connector with KafkaHelper with MdcLoggable
         val response: Future[Box[InBound]] = sendRequest[InBound](getUrl(callContext, "getBankAccountsForUser"), HttpMethods.POST, req, callContext)
         response.map(convertToTuple[List[InboundAccountCommons]](callContext))        
   }
-          
-  messageDocs += getUserDoc
-  def getUserDoc = MessageDoc(
-    process = "obp.getUser",
-    messageFormat = messageFormat,
-    description = "Get User",
-    outboundTopic = None,
-    inboundTopic = None,
-    exampleOutboundMessage = (
-     OutBoundGetUser(name=userNameExample.value,
-      password=passwordExample.value)
-    ),
-    exampleInboundMessage = (
-     InBoundGetUser(status=MessageDocsSwaggerDefinitions.inboundStatus,
-      data= InboundUser(email=emailExample.value,
-      password=passwordExample.value,
-      displayName=displayNameExample.value))
-    ),
-    adapterImplementation = Some(AdapterImplementation("- Core", 1))
-  )
-
-  override def getUser(name: String, password: String): Box[InboundUser] = {
-        import com.openbankproject.commons.dto.{InBoundGetUser => InBound, OutBoundGetUser => OutBound}  
-        val callContext: Option[CallContext] = None
-        val req = OutBound(name, password)
-        val response: Future[Box[InBound]] = sendRequest[InBound](getUrl(callContext, "getUser"), HttpMethods.POST, req, callContext)
-        response.map(convertToTuple[InboundUser](callContext))        
-  }
-          
+  
+  
   messageDocs += checkExternalUserCredentialsDoc
   def checkExternalUserCredentialsDoc = MessageDoc(
     process = "obp.checkExternalUserCredentials",
@@ -859,49 +832,6 @@ trait RestConnector_vMar2019 extends Connector with KafkaHelper with MdcLoggable
         val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).orNull, username)
         val response: Future[Box[InBound]] = sendRequest[InBound](getUrl(callContext, "checkExternalUserExists"), HttpMethods.POST, req, callContext)
         response.map(convertToTuple[InboundExternalUser](callContext))        
-  }
-          
-  messageDocs += getBankAccountOldDoc
-  def getBankAccountOldDoc = MessageDoc(
-    process = "obp.getBankAccountOld",
-    messageFormat = messageFormat,
-    description = "Get Bank Account Old",
-    outboundTopic = None,
-    inboundTopic = None,
-    exampleOutboundMessage = (
-     OutBoundGetBankAccountOld(bankId=BankId(bankIdExample.value),
-      accountId=AccountId(accountIdExample.value))
-    ),
-    exampleInboundMessage = (
-     InBoundGetBankAccountOld(status=MessageDocsSwaggerDefinitions.inboundStatus,
-      data= BankAccountCommons(accountId=AccountId(accountIdExample.value),
-      accountType=accountTypeExample.value,
-      balance=BigDecimal(balanceExample.value),
-      currency=currencyExample.value,
-      name=bankAccountNameExample.value,
-      label=labelExample.value,
-      number=bankAccountNumberExample.value,
-      bankId=BankId(bankIdExample.value),
-      lastUpdate=toDate(bankAccountLastUpdateExample),
-      branchId=branchIdExample.value,
-      accountRoutings=List( AccountRouting(scheme=accountRoutingSchemeExample.value,
-      address=accountRoutingAddressExample.value)),
-      accountRules=List( AccountRule(scheme=accountRuleSchemeExample.value,
-      value=accountRuleValueExample.value)),
-      accountHolder=bankAccountAccountHolderExample.value,
-      attributes=Some(List( Attribute(name=attributeNameExample.value,
-      `type`=attributeTypeExample.value,
-      value=attributeValueExample.value)))))
-    ),
-    adapterImplementation = Some(AdapterImplementation("- Core", 1))
-  )
-
-  override def getBankAccountOld(bankId: BankId, accountId: AccountId): Box[BankAccount] = {
-        import com.openbankproject.commons.dto.{InBoundGetBankAccountOld => InBound, OutBoundGetBankAccountOld => OutBound}  
-        val callContext: Option[CallContext] = None
-        val req = OutBound(bankId, accountId)
-        val response: Future[Box[InBound]] = sendRequest[InBound](getUrl(callContext, "getBankAccountOld"), HttpMethods.POST, req, callContext)
-        response.map(convertToTuple[BankAccountCommons](callContext))        
   }
           
   messageDocs += getBankAccountByIbanDoc
@@ -1629,7 +1559,7 @@ trait RestConnector_vMar2019 extends Connector with KafkaHelper with MdcLoggable
       lastMarketingAgreementSignedDate=Some(toDate(dateExample))))
     ),
     exampleInboundMessage = (
-     InBoundGetPhysicalCardsForUser(status=MessageDocsSwaggerDefinitions.inboundStatus,
+     InBoundGetPhysicalCardsForUser(inboundAdapterCallContext=MessageDocsSwaggerDefinitions.inboundAdapterCallContext, status=MessageDocsSwaggerDefinitions.inboundStatus,
       data=List( PhysicalCard(cardId=cardIdExample.value,
       bankId=bankIdExample.value,
       bankCardNumber=bankCardNumberExample.value,
@@ -2972,32 +2902,6 @@ trait RestConnector_vMar2019 extends Connector with KafkaHelper with MdcLoggable
         response.map(convertToTuple[BankAccountCommons](callContext))        
   }
           
-  messageDocs += accountExistsDoc
-  def accountExistsDoc = MessageDoc(
-    process = "obp.accountExists",
-    messageFormat = messageFormat,
-    description = "Account Exists",
-    outboundTopic = None,
-    inboundTopic = None,
-    exampleOutboundMessage = (
-     OutBoundAccountExists(bankId=BankId(bankIdExample.value),
-      accountNumber=accountNumberExample.value)
-    ),
-    exampleInboundMessage = (
-     InBoundAccountExists(status=MessageDocsSwaggerDefinitions.inboundStatus,
-      data=true)
-    ),
-    adapterImplementation = Some(AdapterImplementation("- Core", 1))
-  )
-
-  override def accountExists(bankId: BankId, accountNumber: String): Box[Boolean] = {
-        import com.openbankproject.commons.dto.{InBoundAccountExists => InBound, OutBoundAccountExists => OutBound}  
-        val callContext: Option[CallContext] = None
-        val req = OutBound(bankId, accountNumber)
-        val response: Future[Box[InBound]] = sendRequest[InBound](getUrl(callContext, "accountExists"), HttpMethods.POST, req, callContext)
-        response.map(convertToTuple[Boolean](callContext))        
-  }
-          
   messageDocs += getProductsDoc
   def getProductsDoc = MessageDoc(
     process = "obp.getProducts",
@@ -3006,12 +2910,12 @@ trait RestConnector_vMar2019 extends Connector with KafkaHelper with MdcLoggable
     outboundTopic = None,
     inboundTopic = None,
     exampleOutboundMessage = (
-     OutBoundGetProducts(bankId=BankId(bankIdExample.value),
+     OutBoundGetProducts(outboundAdapterCallContext=MessageDocsSwaggerDefinitions.outboundAdapterCallContext,bankId=BankId(bankIdExample.value),
       params=List( GetProductsParam(name=nameExample.value,
       value=valueExample.value.replaceAll("\\[","").replaceAll("\\]","").split(",").toList)))
     ),
     exampleInboundMessage = (
-     InBoundGetProducts(status=MessageDocsSwaggerDefinitions.inboundStatus,
+     InBoundGetProducts(inboundAdapterCallContext=MessageDocsSwaggerDefinitions.inboundAdapterCallContext, status=MessageDocsSwaggerDefinitions.inboundStatus,
       data=List( ProductCommons(bankId=BankId(bankIdExample.value),
       code=ProductCode(productCodeExample.value),
       parentProductCode=ProductCode(parentProductCodeExample.value),
@@ -3029,10 +2933,9 @@ trait RestConnector_vMar2019 extends Connector with KafkaHelper with MdcLoggable
     adapterImplementation = Some(AdapterImplementation("- Core", 1))
   )
 
-  override def getProducts(bankId: BankId, params: List[GetProductsParam]): Box[List[Product]] = {
+  override def getProducts(bankId: BankId, params: List[GetProductsParam], callContext: Option[CallContext]): OBPReturnType[Box[List[Product]]] = {
         import com.openbankproject.commons.dto.{InBoundGetProducts => InBound, OutBoundGetProducts => OutBound}  
-        val callContext: Option[CallContext] = None
-        val req = OutBound(bankId, params)
+        val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).orNull,bankId, params)
         val response: Future[Box[InBound]] = sendRequest[InBound](getUrl(callContext, "getProducts"), HttpMethods.POST, req, callContext)
         response.map(convertToTuple[List[ProductCommons]](callContext))        
   }
@@ -3045,11 +2948,11 @@ trait RestConnector_vMar2019 extends Connector with KafkaHelper with MdcLoggable
     outboundTopic = None,
     inboundTopic = None,
     exampleOutboundMessage = (
-     OutBoundGetProduct(bankId=BankId(bankIdExample.value),
+     OutBoundGetProduct(outboundAdapterCallContext=MessageDocsSwaggerDefinitions.outboundAdapterCallContext, bankId=BankId(bankIdExample.value),
       productCode=ProductCode(productCodeExample.value))
     ),
     exampleInboundMessage = (
-     InBoundGetProduct(status=MessageDocsSwaggerDefinitions.inboundStatus,
+     InBoundGetProduct(inboundAdapterCallContext=MessageDocsSwaggerDefinitions.inboundAdapterCallContext, status=MessageDocsSwaggerDefinitions.inboundStatus,
       data= ProductCommons(bankId=BankId(bankIdExample.value),
       code=ProductCode(productCodeExample.value),
       parentProductCode=ProductCode(parentProductCodeExample.value),
@@ -3067,10 +2970,9 @@ trait RestConnector_vMar2019 extends Connector with KafkaHelper with MdcLoggable
     adapterImplementation = Some(AdapterImplementation("- Core", 1))
   )
 
-  override def getProduct(bankId: BankId, productCode: ProductCode): Box[Product] = {
+  override def getProduct(bankId: BankId, productCode: ProductCode, callContext: Option[CallContext]): OBPReturnType[Box[Product]] = {
         import com.openbankproject.commons.dto.{InBoundGetProduct => InBound, OutBoundGetProduct => OutBound}  
-        val callContext: Option[CallContext] = None
-        val req = OutBound(bankId, productCode)
+        val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).orNull,bankId, productCode)
         val response: Future[Box[InBound]] = sendRequest[InBound](getUrl(callContext, "getProduct"), HttpMethods.POST, req, callContext)
         response.map(convertToTuple[ProductCommons](callContext))        
   }
@@ -3411,12 +3313,12 @@ trait RestConnector_vMar2019 extends Connector with KafkaHelper with MdcLoggable
     outboundTopic = None,
     inboundTopic = None,
     exampleOutboundMessage = (
-     OutBoundGetCurrentFxRate(bankId=BankId(bankIdExample.value),
+     OutBoundGetCurrentFxRate(outboundAdapterCallContext=MessageDocsSwaggerDefinitions.outboundAdapterCallContext,bankId=BankId(bankIdExample.value),
       fromCurrencyCode=fromCurrencyCodeExample.value,
       toCurrencyCode=toCurrencyCodeExample.value)
     ),
     exampleInboundMessage = (
-     InBoundGetCurrentFxRate(status=MessageDocsSwaggerDefinitions.inboundStatus,
+     InBoundGetCurrentFxRate(inboundAdapterCallContext=MessageDocsSwaggerDefinitions.inboundAdapterCallContext,status=MessageDocsSwaggerDefinitions.inboundStatus,
       data= FXRateCommons(bankId=BankId(bankIdExample.value),
       fromCurrencyCode=fromCurrencyCodeExample.value,
       toCurrencyCode=toCurrencyCodeExample.value,
@@ -3427,10 +3329,9 @@ trait RestConnector_vMar2019 extends Connector with KafkaHelper with MdcLoggable
     adapterImplementation = Some(AdapterImplementation("- Core", 1))
   )
 
-  override def getCurrentFxRate(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String): Box[FXRate] = {
+  override def getCurrentFxRate(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String, callContext: Option[CallContext]): Box[FXRate] = {
         import com.openbankproject.commons.dto.{InBoundGetCurrentFxRate => InBound, OutBoundGetCurrentFxRate => OutBound}  
-        val callContext: Option[CallContext] = None
-        val req = OutBound(bankId, fromCurrencyCode, toCurrencyCode)
+        val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).orNull,bankId, fromCurrencyCode, toCurrencyCode)
         val response: Future[Box[InBound]] = sendRequest[InBound](getUrl(callContext, "getCurrentFxRate"), HttpMethods.POST, req, callContext)
         response.map(convertToTuple[FXRateCommons](callContext))        
   }

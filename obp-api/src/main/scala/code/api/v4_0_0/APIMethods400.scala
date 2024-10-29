@@ -1120,7 +1120,7 @@ trait APIMethods400 extends MdcLoggable {
                 } else Future.successful()
 
                 (newTransactionRequestStatus, callContext) <- NewStyle.function.notifyTransactionRequest(refundFromAccount, refundToAccount, createdTransactionRequest, callContext)
-                _ <- Future(Connector.connector.vend.saveTransactionRequestStatusImpl(createdTransactionRequest.id, newTransactionRequestStatus.toString))
+                _ <- NewStyle.function.saveTransactionRequestStatusImpl(createdTransactionRequest.id, newTransactionRequestStatus.toString, callContext)
                 createdTransactionRequest <- Future(createdTransactionRequest.copy(status = newTransactionRequestStatus.toString))
 
               } yield (createdTransactionRequest, callContext)
@@ -1624,7 +1624,7 @@ trait APIMethods400 extends MdcLoggable {
                       callContext = callContext)
                   } else Future.successful()
                   _ <- NewStyle.function.notifyTransactionRequest(fromAccount, toAccount, transactionRequest, callContext)
-                  _ <- Future(Connector.connector.vend.saveTransactionRequestStatusImpl(transactionRequest.id, transactionRequest.status))
+                  _ <- NewStyle.function.saveTransactionRequestStatusImpl(transactionRequest.id, transactionRequest.status, callContext)
                 } yield (transactionRequest, callContext)
               case _ =>
                 for {
@@ -2608,8 +2608,9 @@ trait APIMethods400 extends MdcLoggable {
             _ <- Helper.booleanToFuture(s"$AccountRoutingAlreadyExist (${alreadyExistingAccountRouting.mkString("; ")})", cc=callContext) {
               alreadyExistingAccountRouting.isEmpty
             }
-            (bankAccount,callContext) <- NewStyle.function.addBankAccount(
+            (bankAccount,callContext) <- NewStyle.function.createBankAccount(
               bankId,
+              AccountId(APIUtil.generateUUID()),
               accountType,
               accountLabel,
               currency,
@@ -2769,10 +2770,8 @@ trait APIMethods400 extends MdcLoggable {
             ) {
               anyViewContainsCanUpdateBankAccountLabelPermission
             }
-            (success, callContext) <- Future {
-              Connector.connector.vend.updateAccountLabel(bankId, accountId, json.label)
-            } map { i =>
-              (unboxFullOrFail(i, callContext, s"$UpdateBankAccountLabelError Current BankId is $bankId and Current AccountId is $accountId", 404), callContext)
+            (success, callContext) <- Connector.connector.vend.updateAccountLabel(bankId, accountId, json.label, callContext)  map { i =>
+              (unboxFullOrFail(i._1, i._2, s"$UpdateBankAccountLabelError Current BankId is $bankId and Current AccountId is $accountId", 404), i._2)
             }
           } yield {
             (Extraction.decompose(successMessage), HttpCode.`200`(callContext))
@@ -3465,7 +3464,7 @@ trait APIMethods400 extends MdcLoggable {
               //2 each bankAccount object find the proper view.
               //3 use view and user to moderate the bankaccount object.
               bankIdAccountId <- availableBankIdAccountIdList2
-              bankAccount <- Connector.connector.vend.getBankAccountOld(bankIdAccountId.bankId, bankIdAccountId.accountId) ?~! s"$BankAccountNotFound Current Bank_Id(${bankIdAccountId.bankId}), Account_Id(${bankIdAccountId.accountId}) "
+              (bankAccount, callContext) <- Connector.connector.vend.getBankAccountLegacy(bankIdAccountId.bankId, bankIdAccountId.accountId,callContext) ?~! s"$BankAccountNotFound Current Bank_Id(${bankIdAccountId.bankId}), Account_Id(${bankIdAccountId.accountId}) "
               moderatedAccount <- bankAccount.moderatedBankAccount(view, bankIdAccountId, Full(u), callContext) //Error handling is in lower method
             } yield {
               moderatedAccount
@@ -6214,9 +6213,7 @@ trait APIMethods400 extends MdcLoggable {
             productAttributeType <- NewStyle.function.tryons(failMsg, 400, callContext) {
               ProductAttributeType.withName(postedData.`type`)
             }
-            _  <- Future(Connector.connector.vend.getProduct(BankId(bankId), ProductCode(productCode))) map {
-              getFullBoxOrFail(_, callContext, ProductNotFoundByProductCode + " {" + productCode + "}", 400)
-            }
+            (products, callContext) <-NewStyle.function.getProduct(BankId(bankId), ProductCode(productCode), callContext)
             (productAttribute, callContext) <- NewStyle.function.createOrUpdateProductAttribute(
               BankId(bankId),
               ProductCode(productCode),
@@ -12208,9 +12205,7 @@ trait APIMethods400 extends MdcLoggable {
             }
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             params = req.params.toList.map(kv => GetProductsParam(kv._1, kv._2))
-            products <- Future(Connector.connector.vend.getProducts(bankId, params)) map {
-              unboxFullOrFail(_, callContext, ProductNotFoundByProductCode)
-            }
+            (products, callContext) <-NewStyle.function.getProducts(bankId, params, callContext)
           } yield {
             (JSONFactory400.createProductsJson(products), HttpCode.`200`(callContext))
           }
@@ -12264,18 +12259,16 @@ trait APIMethods400 extends MdcLoggable {
             product <- NewStyle.function.tryons(failMsg, 400, callContext) {
               json.extract[PutProductJsonV400]
             }
-            parentProductCode <- product.parent_product_code.trim.nonEmpty match {
+            (parentProduct, callContext) <- product.parent_product_code.trim.nonEmpty match {
               case false =>
-                Future(Empty)
+                Future((Empty, callContext))
               case true =>
-                Future(Connector.connector.vend.getProduct(bankId, ProductCode(product.parent_product_code))) map {
-                  getFullBoxOrFail(_, callContext, ParentProductNotFoundByProductCode + " {" + product.parent_product_code + "}", 400)
-                }
+                NewStyle.function.getProduct(bankId, ProductCode(product.parent_product_code), callContext).map(product => (Full(product._1),product._2))
             }
-            success <- Future(Connector.connector.vend.createOrUpdateProduct(
+            (success, callContext) <- NewStyle.function.createOrUpdateProduct(
               bankId = bankId.value,
               code = productCode.value,
-              parentProductCode = parentProductCode.map(_.code.value).toOption,
+              parentProductCode = parentProduct.map(_.code.value).toOption,
               name = product.name,
               category = null,
               family = null,
@@ -12285,10 +12278,9 @@ trait APIMethods400 extends MdcLoggable {
               details = null,
               description = product.description,
               metaLicenceId = product.meta.license.id,
-              metaLicenceName = product.meta.license.name
-            )) map {
-              connectorEmptyResponse(_, callContext)
-            }
+              metaLicenceName = product.meta.license.name,
+              callContext
+            )
           } yield {
             (JSONFactory400.createProductJson(success), HttpCode.`201`(callContext))
           }
@@ -12336,9 +12328,7 @@ trait APIMethods400 extends MdcLoggable {
               case false => authenticatedAccess(cc)
               case true => anonymousAccess(cc)
             }
-            product <- Future(Connector.connector.vend.getProduct(bankId, productCode)) map {
-              unboxFullOrFail(_, callContext, ProductNotFoundByProductCode)
-            }
+            (product, callContext)<- NewStyle.function.getProduct(bankId, productCode, callContext)
             (productAttributes, callContext) <- NewStyle.function.getProductAttributesByBankAndCode(bankId, productCode, callContext)
             
             (productFees, callContext) <- NewStyle.function.getProductFeesFromProvider(bankId, productCode, callContext)

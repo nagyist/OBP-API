@@ -913,51 +913,6 @@ import net.liftweb.util.Helpers._
     * 3 if not existing, will create new AuthUser.
     * @return Return the authUser
     */
-  @deprecated("we have @checkExternalUserViaConnector method ","01-07-2020")
-  def getUserFromConnector(name: String, password: String):Box[AuthUser] = {
-    Connector.connector.vend.getUser(name, password) match {
-      case Full(InboundUser(extEmail, extPassword, extUsername)) => {
-        val extProvider = connector
-        val user = findAuthUserByUsernameLocallyLegacy(name) match {
-          // Check if the external user is already created locally
-          case Full(user) if user.validated_?
-            // && user.provider == extProvider
-            => {
-            // Return existing user if found
-            logger.info("external user already exists locally, using that one")
-            user
-          }
-
-          // If not found, create a new user
-          case _ =>
-            // Create AuthUser using fetched data from connector
-            // assuming that user's email is always validated
-            logger.info("external user "+ extEmail +" does not exist locally, creating one")
-            val newUser = AuthUser.create
-              .firstName(extUsername)
-              .email(extEmail)
-              .username(extUsername)
-              // No need to store password, so store dummy string instead
-              .password(generateUUID())
-              .provider(extProvider)
-              .validated(true)
-            // Return created user
-            newUser.saveMe()
-        }
-        Full(user)
-      }
-      case _ => {
-        Empty
-      }
-    }
-  }
-  /**
-    * This method is belong to AuthUser, it is used for authentication(Login stuff)
-    * 1 get the user over connector.
-    * 2 check whether it is existing in AuthUser table in obp side.
-    * 3 if not existing, will create new AuthUser.
-    * @return Return the authUser
-    */
   def checkExternalUserViaConnector(username: String, password: String):Box[AuthUser] = {
     Connector.connector.vend.checkExternalUserCredentials(username, password, None) match {
       case Full(InboundExternalUser(aud, exp, iat, iss, sub, azp, email, emailVerified, name, userAuthContexts)) =>
@@ -1255,17 +1210,9 @@ def restoreSomeSessions(): Unit = {
     * The user authentications is not exciting in obp side, it need get the user via connector
     */
  def testExternalPassword(usernameFromGui: String, passwordFromGui: String): Boolean = {
-   // TODO Remove kafka and obpjvm special cases
-   if (connector.startsWith("kafka")) {
-     getUserFromConnector(usernameFromGui, passwordFromGui) match {
-       case Full(user:AuthUser) => true
-       case _ => false
-     }
-   } else {
-     checkExternalUserViaConnector(usernameFromGui, passwordFromGui) match {
-       case Full(user:AuthUser) => true
-       case _ => false
-     }
+   checkExternalUserViaConnector(usernameFromGui, passwordFromGui) match {
+     case Full(user:AuthUser) => true
+     case _ => false
    }
   }
 
@@ -1273,21 +1220,11 @@ def restoreSomeSessions(): Unit = {
     * This method will update the views and createAccountHolder ....
     */
   def externalUserHelper(name: String, password: String): Box[AuthUser] = {
-    // TODO Remove kafka and obpjvm special cases
-    if (connector.startsWith("kafka") ) {
-      for {
-       user <- getUserFromConnector(name, password)
-       u <- Users.users.vend.getUserByProviderAndUsername(user.getProvider(), name)
-      } yield {
-        user
-      }
-    } else {
-      for {
-        user <- checkExternalUserViaConnector(name, password)
-        u <- Users.users.vend.getUserByProviderAndUsername(user.getProvider(), name)
-      } yield {
-        user
-      }
+    for {
+      user <- checkExternalUserViaConnector(name, password)
+      u <- Users.users.vend.getUserByProviderAndUsername(user.getProvider(), name)
+    } yield {
+      user
     }
   }
 

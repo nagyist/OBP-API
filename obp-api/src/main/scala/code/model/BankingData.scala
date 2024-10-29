@@ -385,20 +385,27 @@ case class BankAccountExtended(val bankAccount: BankAccount) extends MdcLoggable
     * @return a Box of a list ModeratedOtherBankAccounts, it the bank
     *  accounts that have at least one transaction in common with this bank account
     */
-  final def moderatedOtherBankAccounts(view : View, bankIdAccountId: BankIdAccountId, user : Box[User], callContext: Option[CallContext]) : Box[List[ModeratedOtherBankAccount]] =
+  final def moderatedOtherBankAccounts(view : View, bankIdAccountId: BankIdAccountId, user : Box[User], callContext: Option[CallContext]) : OBPReturnType[Box[List[ModeratedOtherBankAccount]]] =
     if(APIUtil.hasAccountAccess(view, bankIdAccountId, user, callContext)){
-      val implicitModeratedOtherBankAccounts = Connector.connector.vend.getCounterpartiesFromTransaction(bankId, accountId).openOrThrowException(attemptedToOpenAnEmptyBox).map(oAcc => view.moderateOtherAccount(oAcc)).flatten
-      val explicitCounterpartiesBox = Connector.connector.vend.getCounterpartiesLegacy(view.bankId, view.accountId, view.viewId)
-      explicitCounterpartiesBox match {
-        case Full((counterparties, callContext))=> {
-          val explicitModeratedOtherBankAccounts: List[ModeratedOtherBankAccount] = counterparties.flatMap(BankAccountX.toInternalCounterparty).flatMap(counterparty=>view.moderateOtherAccount(counterparty))
-          Full(explicitModeratedOtherBankAccounts ++ implicitModeratedOtherBankAccounts)
+       val moderatedOtherBankAccountListFuture: Future[Full[List[ModeratedOtherBankAccount]]] = for{
+        (implicitCounterpartyList, callContext) <- NewStyle.function.getCounterpartiesFromTransaction(bankId, accountId, callContext)
+        implicitModeratedOtherBankAccounts <- NewStyle.function.tryons(failMsg = InvalidJsonFormat, 400, callContext) {
+          implicitCounterpartyList.map(view.moderateOtherAccount).flatten
         }
-        case _ => Full(implicitModeratedOtherBankAccounts)
+        explicitCounterpartiesBox = Connector.connector.vend.getCounterpartiesLegacy(view.bankId, view.accountId, view.viewId)
+        explicitModeratedOtherBankAccounts <- NewStyle.function.tryons(failMsg = InvalidJsonFormat, 400, callContext) {
+          if(explicitCounterpartiesBox.isDefined)
+            explicitCounterpartiesBox.head._1.map(BankAccountX.toInternalCounterparty).flatMap(counterparty=>view.moderateOtherAccount(counterparty.head))
+          else
+            Nil
+        }
+      }yield{
+        Full(explicitModeratedOtherBankAccounts ++ implicitModeratedOtherBankAccounts)
       }
-    }
-    else
-      viewNotAllowed(view)
+      moderatedOtherBankAccountListFuture.map( i=> (i,callContext))
+    } else
+      Future{(viewNotAllowed(view), callContext)}
+      
   /**
     * @param the ID of the other bank account that the user want have access
     * @param the view that we will use to get the ModeratedOtherBankAccount
@@ -406,23 +413,29 @@ case class BankAccountExtended(val bankAccount: BankAccount) extends MdcLoggable
     * @return a Box of a ModeratedOtherBankAccounts, it a bank
     *  account that have at least one transaction in common with this bank account
     */
-  final def moderatedOtherBankAccount(counterpartyID : String, view : View, bankIdAccountId: BankIdAccountId, user : Box[User], callContext: Option[CallContext]) : Box[ModeratedOtherBankAccount] =
-    if(APIUtil.hasAccountAccess(view, bankIdAccountId, user, callContext))
-      Connector.connector.vend.getCounterpartyByCounterpartyIdLegacy(CounterpartyId(counterpartyID), None).map(_._1).flatMap(BankAccountX.toInternalCounterparty).flatMap(view.moderateOtherAccount) match {
-        //First check the explicit counterparty
-        case Full(moderatedOtherBankAccount) => Full(moderatedOtherBankAccount)
-        //Than we checked the implict counterparty.
-        case _ => Connector.connector.vend.getCounterpartyFromTransaction(bankId, accountId, counterpartyID).flatMap(oAcc => view.moderateOtherAccount(oAcc))
+  final def moderatedOtherBankAccount(counterpartyID : String, view : View, bankIdAccountId: BankIdAccountId, user : Box[User], callContext: Option[CallContext]) : OBPReturnType[Box[ModeratedOtherBankAccount]] =
+    if(APIUtil.hasAccountAccess(view, bankIdAccountId, user, callContext)) {
+      for{
+        (counterparty, callContext) <- Connector.connector.vend.getCounterpartyByCounterpartyId(CounterpartyId(counterpartyID), callContext)
+        moderateOtherAccount <- if(counterparty.isDefined) {
+         Future{
+          counterparty.map(BankAccountX.toInternalCounterparty).flatten.map(view.moderateOtherAccount).flatten
+         }
+        } else {
+          Connector.connector.vend.getCounterpartyFromTransaction(bankId, accountId, counterpartyID, callContext).map(oAccTuple => view.moderateOtherAccount(oAccTuple._1.head))
+        }
+      } yield{
+        (moderateOtherAccount, callContext)
       }
-    else
-      viewNotAllowed(view)
-
+    } else {
+      Future{(viewNotAllowed(view),callContext)}
+    }
 }
 
 object BankAccountX {
 
   def apply(bankId: BankId, accountId: AccountId) : Box[BankAccount] = {
-    Connector.connector.vend.getBankAccountOld(bankId, accountId)
+    Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).map(_._1)
   }
 
   def apply(bankId: BankId, accountId: AccountId, callContext: Option[CallContext]) : Box[(BankAccount,Option[CallContext])] = {

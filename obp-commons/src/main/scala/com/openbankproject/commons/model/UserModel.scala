@@ -86,17 +86,6 @@ trait UserAuthContextUpdate {
   def status: String
   def consumerId: String
 }
-case class UserAuthContextUpdateCommons(
-                                         userAuthContextUpdateId: String,
-                                         userId: String,
-                                         key: String,
-                                         value: String,
-                                         challenge: String,
-                                         status: String, 
-                                         consumerId: String
-                                       ) extends UserAuthContextUpdate
-
-object UserAuthContextUpdateCommons extends Converter[UserAuthContextUpdate, UserAuthContextUpdateCommons]
 
 object UserAuthContextUpdateStatus extends Enumeration {
   type ConsentStatus = Value

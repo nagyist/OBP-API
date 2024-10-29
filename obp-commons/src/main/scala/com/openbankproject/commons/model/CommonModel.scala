@@ -27,13 +27,12 @@ TESOBE (http://www.tesobe.com/)
 package com.openbankproject.commons.model
 
 import java.util.Date
-
 import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
 import com.openbankproject.commons.model.enums._
 import com.openbankproject.commons.util.{ReflectUtils, optional}
 import net.liftweb.json.JsonAST.{JObject, JValue}
-import net.liftweb.json.{JInt, JString}
+import net.liftweb.json.{Formats, JInt, JString}
 
 import java.lang
 import scala.collection.immutable.List
@@ -571,8 +570,163 @@ case class ChallengeCommons(
 ) extends ChallengeTrait
 object ChallengeCommons extends Converter[ChallengeTrait, ChallengeCommons]
 
+case class ProductFeeTraitCommons(
+  bankId: BankId,
+  productCode: ProductCode,
+  productFeeId: String,
+  name: String,
+  isActive: Boolean,
+  moreInfo: String,
+  currency: String,
+  amount: BigDecimal,
+  frequency: String,
+  `type`: String) extends ProductFeeTrait
 
-//----------------obp-api moved to here case classes
+object ProductFeeTraitCommons extends Converter[ProductFeeTrait, ProductFeeTraitCommons]
+
+
+case class CustomerAccountLinkTraitCommons(
+  customerAccountLinkId: String,
+  customerId: String,
+  bankId: String,
+  accountId: String,
+  relationshipType: String) extends CustomerAccountLinkTrait
+
+object CustomerAccountLinkTraitCommons extends Converter[CustomerAccountLinkTrait, CustomerAccountLinkTraitCommons]
+
+
+case class CounterpartyLimitTraitCommons(
+  counterpartyLimitId: String,
+  bankId: String,
+  accountId: String,
+  viewId: String,
+  counterpartyId: String,
+  currency: String,
+  maxSingleAmount: Int,
+  maxMonthlyAmount: Int,
+  maxNumberOfMonthlyTransactions: Int,
+  maxYearlyAmount: Int,
+  maxNumberOfYearlyTransactions: Int
+) extends CounterpartyLimitTrait {
+  override def toJValue(implicit format: Formats): JValue = ???
+}
+
+object CounterpartyLimitTraitCommons extends Converter[CounterpartyLimitTrait, CounterpartyLimitTraitCommons]
+
+case class ChallengeTraitCommons(
+  challengeId: String,
+  transactionRequestId: String,
+  expectedAnswer: String,
+  expectedUserId: String,
+  salt: String,
+  successful: Boolean,
+  challengeType: String,
+  consentId: Option[String],
+  basketId: Option[String],
+  scaMethod: Option[SCA],
+  scaStatus: Option[SCAStatus],
+  authenticationMethodId: Option[String],
+  attemptCounter: Int) extends ChallengeTrait with JsonFieldReName
+
+object ChallengeTraitCommons extends Converter[ChallengeTrait, ChallengeTraitCommons]
+
+
+case class PhysicalCardTraitCommons(
+  cardId: String,
+  bankId: String,
+  bankCardNumber: String,
+  cardType: String,
+  nameOnCard: String,
+  issueNumber: String,
+  serialNumber: String,
+  validFrom: Date,
+  expires: Date,
+  enabled: Boolean,
+  cancelled: Boolean,
+  onHotList: Boolean,
+  technology: String,
+  networks: List[String],
+  allows: List[CardAction],
+  account: BankAccount,
+  replacement: Option[CardReplacementInfo],
+  pinResets: List[PinResetInfo],
+  collected: Option[CardCollectionInfo],
+  posted: Option[CardPostedInfo],
+  customerId: String,
+  cvv: Option[String],
+  brand: Option[String]
+) extends PhysicalCardTrait
+
+object PhysicalCardTraitCommons extends Converter[PhysicalCardTrait, PhysicalCardTraitCommons]
+
+case class TransactionRequestAttributeTraitCommons(
+  bankId: BankId,
+  transactionRequestId: TransactionRequestId,
+  transactionRequestAttributeId: String,
+  attributeType: TransactionRequestAttributeType,
+  name: String,
+  value: String) extends TransactionRequestAttributeTrait
+
+object TransactionRequestAttributeTraitCommons extends Converter[TransactionRequestAttributeTrait, TransactionRequestAttributeTraitCommons]
+
+
+case class EndpointTagTCommons(
+  endpointTagId: Option[String],
+  operationId: String,
+  tagName: String,
+  bankId: Option[String]) extends EndpointTagT
+
+object EndpointTagTCommons extends Converter[EndpointTagT, EndpointTagTCommons]
+
+case class StandingOrderTraitCommons(
+  standingOrderId: String,
+  bankId: String,
+  accountId: String,
+  customerId: String,
+  userId: String,
+  counterpartyId: String,
+  amountValue: BigDecimal,
+  amountCurrency: String,
+  whenFrequency: String,
+  whenDetail: String,
+  dateSigned: Date,
+  dateCancelled: Date,
+  dateStarts: Date,
+  dateExpires: Date,
+  active: Boolean) extends StandingOrderTrait
+
+object StandingOrderTraitCommons extends Converter[StandingOrderTrait, StandingOrderTraitCommons]
+
+case class UserAuthContextUpdateCommons(
+  userAuthContextUpdateId: String,
+  userId: String,
+  key: String,
+  value: String,
+  challenge: String,
+  status: String,
+  consumerId: String) extends UserAuthContextUpdate
+
+object UserAuthContextUpdateCommons extends Converter[UserAuthContextUpdate, UserAuthContextUpdateCommons]
+
+case class ConsentImplicitSCATCommons(
+  scaMethod: StrongCustomerAuthentication,
+  recipient: String) extends ConsentImplicitSCAT
+
+object ConsentImplicitSCATCommons extends Converter[ConsentImplicitSCAT, ConsentImplicitSCATCommons]
+
+
+case class CardAttributeCommons(
+  bankId: Option[BankId],
+  cardId: Option[String],
+  cardAttributeId: Option[String],
+  name: String,
+  attributeType: CardAttributeType.Value,
+  value: String
+) extends CardAttribute with JsonFieldReName
+
+object CardAttributeCommons extends Converter[CardAttribute, CardAttributeCommons]
+
+  //----------------obp-api moved to here case classes
 
 case class BranchRoutingJsonV141(
                                   scheme: String,
@@ -1049,28 +1203,6 @@ case class InternalCustomer(
   kycStatus: lang.Boolean,
   lastOkDate: Date
 )
-
-case class InboundAccountJune2017(
-  errorCode: String,
-  cbsToken: String, //TODO, this maybe move to AuthInfo, but it is used in GatewayLogin
-  bankId: String,
-  branchId: String,
-  accountId: String,
-  accountNumber: String,
-  accountType: String,
-  balanceAmount: String,
-  balanceCurrency: String,
-  owners: List[String],
-  viewsToGenerate: List[String],
-  bankRoutingScheme: String,
-  bankRoutingAddress: String,
-  branchRoutingScheme: String,
-  branchRoutingAddress: String,
-  accountRoutingScheme: String,
-  accountRoutingAddress: String,
-  accountRouting: List[AccountRouting],
-  accountRules: List[AccountRule]
-) extends InboundMessageBase with InboundAccount
 
 case class Bank2(r: InboundBank) extends Bank {
   def fullName = r.name

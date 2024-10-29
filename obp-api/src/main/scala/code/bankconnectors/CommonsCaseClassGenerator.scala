@@ -25,12 +25,12 @@ object CommonsCaseClassGenerator extends App {
     .map(extractReturnModel)
     .filter(it => {
       val symbol = it.typeSymbol
-//      val isAbstract = symbol.isAbstract
+      val isAbstract = symbol.isAbstract
       val isOurClass = symbol.fullName.matches("(code\\.|com.openbankproject\\.).+")
-      //isAbstract &&
-        isOurClass
-    }).toSet
-
+      isAbstract && isOurClass
+    })
+    .toSet
+  
   returnModels.map(_.typeSymbol.fullName).foreach(it => println(s"import $it"))
 
   def mkClass(tp: ru.Type) = {
@@ -39,6 +39,7 @@ object CommonsCaseClassGenerator extends App {
       s"""
          |case class ${tp.typeSymbol.name}Commons(
          |    $varibles) extends ${tp.typeSymbol.name}
+         |object ${tp.typeSymbol.name}Commons extends Converter[${tp.typeSymbol.name}, ${tp.typeSymbol.name}Commons]    
        """.stripMargin
   }
  // private val str: String = ru.typeOf[Bank].decls.map(it => s"${it.name} :${it.typeSignature.typeSymbol.name}").mkString(", \n")

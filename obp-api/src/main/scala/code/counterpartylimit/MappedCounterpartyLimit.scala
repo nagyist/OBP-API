@@ -10,6 +10,7 @@ import net.liftweb.json.Formats
 import net.liftweb.json.JsonAST.{JValue,JString}
 import net.liftweb.json.JsonDSL._
 import scala.concurrent.Future
+import com.openbankproject.commons.model.CounterpartyLimitTrait
 
 object MappedCounterpartyLimitProvider extends CounterpartyLimitProviderTrait {
   

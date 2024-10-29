@@ -7,7 +7,7 @@ import code.util.Helper.convertToSmallestCurrencyUnits
 import code.util.{Helper, UUIDString}
 import net.liftweb.common.Box
 import net.liftweb.mapper._
-
+import com.openbankproject.commons.model.StandingOrderTrait
 import scala.math.BigDecimal
 
 object MappedStandingOrderProvider extends StandingOrderProvider {

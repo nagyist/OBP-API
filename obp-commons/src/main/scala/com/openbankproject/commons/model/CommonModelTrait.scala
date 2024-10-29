@@ -31,7 +31,7 @@ import java.util.Date
 import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
 import com.openbankproject.commons.model.enums._
-import com.openbankproject.commons.util.ReflectUtils
+import com.openbankproject.commons.util.{JsonAble, ReflectUtils}
 
 import scala.collection.immutable.List
 import scala.math.BigDecimal
@@ -158,16 +158,6 @@ trait CardAttribute {
   def attributeType: CardAttributeType.Value
   def value: String
 }
-case class CardAttributeCommons(
-  bankId: Option[BankId],
-  cardId: Option[String],
-  cardAttributeId: Option[String],
-  name: String,
-  attributeType: CardAttributeType.Value,
-  value: String
-) extends CardAttribute with JsonFieldReName
-
-object CardAttributeCommons extends Converter[CardAttribute, CardAttributeCommons]
 
 case class CustomAttribute(
   name: String,
@@ -650,6 +640,53 @@ trait ConsentImplicitSCAT {
   def recipient: String
 }
 
+trait CustomerAccountLinkTrait {
+  def customerAccountLinkId: String
+  def customerId: String
+  def bankId: String
+  def accountId: String
+  def relationshipType: String
+}
+
+trait CounterpartyLimitTrait extends JsonAble{
+  def counterpartyLimitId: String
+  def bankId: String
+  def accountId: String
+  def viewId: String
+  def counterpartyId: String
+
+  def currency: String
+  def maxSingleAmount: Int
+  def maxMonthlyAmount: Int
+  def maxNumberOfMonthlyTransactions: Int
+  def maxYearlyAmount: Int
+  def maxNumberOfYearlyTransactions: Int
+}
+
+trait EndpointTagT {
+  def endpointTagId: Option[String]
+  def operationId: String
+  def tagName: String
+  def bankId: Option[String]
+}
+
+trait StandingOrderTrait {
+  def standingOrderId: String
+  def bankId: String
+  def accountId: String
+  def customerId: String
+  def userId: String
+  def counterpartyId: String
+  def amountValue : BigDecimal
+  def amountCurrency: String
+  def whenFrequency: String
+  def whenDetail: String
+  def dateSigned: Date
+  def dateCancelled: Date
+  def dateStarts: Date
+  def dateExpires: Date
+  def active: Boolean
+}
 //---------------------------------------- trait dependents of case class
 case class ConsentImplicitSCA(
   scaMethod: SCA,

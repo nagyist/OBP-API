@@ -1,13 +1,12 @@
 package code.customeraccountlinks
-
-import code.api.util.APIUtil
+import com.openbankproject.commons.model.CustomerAccountLinkTrait
 import net.liftweb.common.Box
 import net.liftweb.util.SimpleInjector
 
 import scala.concurrent.Future
 
 
-object CustomerAccountLinkTrait extends SimpleInjector {
+object CustomerAccountLinkX extends SimpleInjector {
 
   val customerAccountLink = new Inject(buildOne _) {}
 
@@ -27,12 +26,4 @@ trait CustomerAccountLinkProvider {
   def getCustomerAccountLinks: Box[List[CustomerAccountLinkTrait]]
   def bulkDeleteCustomerAccountLinks(): Boolean
   def deleteCustomerAccountLinkById(customerAccountLinkId: String): Future[Box[Boolean]]
-}
-
-trait CustomerAccountLinkTrait {
-  def customerAccountLinkId: String
-  def customerId: String
-  def bankId: String
-  def accountId: String
-  def relationshipType: String
 }

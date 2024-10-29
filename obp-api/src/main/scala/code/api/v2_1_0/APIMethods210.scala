@@ -1,15 +1,13 @@
 package code.api.v2_1_0
 
-import java.util.Date
 import code.TransactionTypes.TransactionType
-import code.api.util
 import code.api.util.ApiTag._
 import code.api.util.ErrorMessages.TransactionDisabled
 import code.api.util.FutureUtil.EndpointContext
 import code.api.util.NewStyle.HttpCode
 import code.api.util.{APIUtil, ApiRole, ErrorMessages, NewStyle}
 import code.api.v1_2_1.JSONFactory
-import code.api.v1_3_0.{JSONFactory1_3_0, _}
+import code.api.v1_3_0._
 import code.api.v1_4_0.JSONFactory1_4_0
 import code.api.v1_4_0.JSONFactory1_4_0._
 import code.api.v2_0_0._
@@ -19,46 +17,40 @@ import code.bankconnectors._
 import code.branches.Branches
 import code.consumer.Consumers
 import code.customer.CustomerX
-import code.entitlement.Entitlement
 import code.fx.fx
 import code.metrics.APIMetrics
-import code.model.{BankAccountX, BankX, Consumer, UserX, toUserExtended}
+import code.model.{BankAccountX, BankX, Consumer, UserX}
 import code.sandbox.SandboxData
 import code.usercustomerlinks.UserCustomerLink
 import code.users.Users
 import code.util.Helper.booleanToBox
-import code.views.Views
 import code.views.system.ViewDefinition
 import com.github.dwickern.macros.NameOf.nameOf
+import com.openbankproject.commons.dto.GetProductsParam
 import com.openbankproject.commons.model._
-import com.openbankproject.commons.model.enums.{ChallengeType, SuppliedAnswerType, TransactionRequestTypes}
 import com.openbankproject.commons.model.enums.TransactionRequestTypes._
-import com.openbankproject.commons.model.enums.PaymentServiceTypes._
+import com.openbankproject.commons.model.enums.{ChallengeType, SuppliedAnswerType, TransactionRequestTypes}
 import com.openbankproject.commons.util.ApiVersion
 import net.liftweb.json.Extraction
 import net.liftweb.util.Helpers.tryo
-import net.liftweb.util.{Props, StringHelpers}
+import net.liftweb.util.StringHelpers
 
-import scala.collection.immutable.Nil
+import java.util.Date
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 // Makes JValue assignment to Nil work
+import code.api.ChargePolicy
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON._
 import code.api.util.APIUtil._
 import code.api.util.ApiRole._
 import code.api.util.ErrorMessages._
-import code.api.{APIFailure, ChargePolicy}
 import code.sandbox.{OBPDataImport, SandboxDataImport}
-import com.openbankproject.commons.model.enums.TransactionRequestTypes._
-import com.openbankproject.commons.model.enums.PaymentServiceTypes._
 import code.util.Helper
-import code.util.Helper._
+import com.openbankproject.commons.ExecutionContext.Implicits.global
 import net.liftweb.common.{Box, Full}
 import net.liftweb.http.rest.RestHelper
 import net.liftweb.json.Serialization.write
 import net.liftweb.json._
-
-import com.openbankproject.commons.ExecutionContext.Implicits.global
 
 trait APIMethods210 {
   //needs to be a RestHelper to get access to JsonGet, JsonPost, etc.
@@ -1269,25 +1261,22 @@ trait APIMethods210 {
         ProductNotFoundByProductCode,
         UnknownError
       ),
-      List(apiTagProduct, apiTagOldStyle)
+      List(apiTagProduct)
     )
 
     lazy val getProduct: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "products" :: ProductCode(productCode) :: Nil JsonGet _ => {
         cc => {
+          implicit val ec = EndpointContext(Some(cc))
           for {
-          // Get product from the active provider
-            _ <- if (getProductsIsPublic)
-              Box(Some(1))
-            else
-              cc.user ?~! UserNotLoggedIn
-            (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! {BankNotFound}
-            product <- Connector.connector.vend.getProduct(bankId, productCode)?~! {ProductNotFoundByProductCode}
+            (_, callContext) <- getProductsIsPublic match {
+              case false => authenticatedAccess(cc)
+              case true => anonymousAccess(cc)
+            }
+            (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            (product, callContext) <- NewStyle.function.getProduct(bankId, productCode, callContext)
           } yield {
-            // Format the data as json
-            val json = JSONFactory210.createProductJson(product)
-            // Return
-            successJsonResponse(Extraction.decompose(json))
+            (JSONFactory210.createProductJson(product), HttpCode.`200`(callContext))
           }
         }
       }
@@ -1320,25 +1309,23 @@ trait APIMethods210 {
         ProductNotFoundByProductCode,
         UnknownError
       ),
-      List(apiTagProduct, apiTagOldStyle)
+      List(apiTagProduct)
     )
 
     lazy val getProducts : OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "products" :: Nil JsonGet _ => {
+      case "banks" :: BankId(bankId) :: "products" :: Nil  JsonGet req => {
         cc => {
+          implicit val ec = EndpointContext(Some(cc))
           for {
-          // Get products from the active provider
-            _ <- if(getProductsIsPublic)
-              Box(Some(1))
-            else
-              cc.user ?~! UserNotLoggedIn
-            (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! {BankNotFound}
-            products <- Connector.connector.vend.getProducts(bankId)?~!  {ProductNotFoundByProductCode}
+            (_, callContext) <- getProductsIsPublic match {
+              case false => authenticatedAccess(cc)
+              case true => anonymousAccess(cc)
+            }
+            (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            params = req.params.toList.map(kv => GetProductsParam(kv._1, kv._2))
+            (products,callContext) <- NewStyle.function.getProducts(bankId, params, callContext)
           } yield {
-            // Format the data as json
-            val json = JSONFactory210.createProductsJson(products)
-            // Return
-            successJsonResponse(Extraction.decompose(json))
+            (JSONFactory210.createProductsJson(products), HttpCode.`200`(callContext))
           }
         }
       }
@@ -1529,26 +1516,30 @@ trait APIMethods210 {
         UserHasMissingRoles, 
         UnknownError
       ),
-      List(apiTagBranch, apiTagOldStyle),
+      List(apiTagBranch),
       Some(List(canUpdateBranch)))
 
 
     lazy val updateBranch: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "branches" :: BranchId(branchId)::  Nil JsonPut json -> _ => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~ UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! {BankNotFound}
-            branchJsonPutV210 <- tryo {json.extract[BranchJsonPutV210]} ?~! InvalidJsonFormat
-            _ <- NewStyle.function.ownEntitlement(bank.bankId.value, u.userId, canUpdateBranch, callContext)
-            //package the BranchJsonPut to toBranchJsonPost, to call the createOrUpdateBranch method
-            // branchPost <- toBranchJsonPost(branchId, branchJsonPutV210)
-
-            branch <- transformToBranch(branchId, branchJsonPutV210)
-            success <- Connector.connector.vend.createOrUpdateBranch(branch)
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            branchJsonPutV210 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonPutV210", 400, callContext) {
+              json.extract[BranchJsonPutV210]
+            }
+            _ <- Helper.booleanToFuture(failMsg = s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body", 400, callContext) {
+              branchJsonPutV210.bank_id == bank.bankId.value
+            }
+            _ <- NewStyle.function.hasEntitlement(bankId.value, u.userId, ApiRole.canUpdateBranch, callContext)
+            branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, callContext) {
+              transformToBranch(branchId, branchJsonPutV210).head
+            }
+            (success, callContext)  <- NewStyle.function.createOrUpdateBranch(branch, callContext)
           } yield {
             val json = JSONFactory1_4_0.createBranchJson(success)
-            createdJsonResponse(Extraction.decompose(json),201)
+            (json, HttpCode.`201`(callContext))
           }
       }
     }
@@ -1572,24 +1563,34 @@ trait APIMethods210 {
         InsufficientAuthorisationToCreateBranch, 
         UnknownError
       ),
-      List(apiTagBranch, apiTagOpenData, apiTagOldStyle),
-      Some(List(canCreateBranch)))
+      List(apiTagBranch, apiTagOpenData),
+      Some(List(canCreateBranch, canCreateBranchAtAnyBank)))
 
     lazy val createBranch: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "branches" ::  Nil JsonPost json -> _ => {
-        cc =>
-          for {
-            u <- cc.user ?~ UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! {BankNotFound}
-            branchJsonPostV210 <- tryo {json.extract[BranchJsonPostV210]} ?~! InvalidJsonFormat
-            _ <- NewStyle.function.ownEntitlement(bank.bankId.value, u.userId, canCreateBranch, cc.callContext, InsufficientAuthorisationToCreateBranch)
-            branch <- transformToBranch(branchJsonPostV210)
-            success <- Connector.connector.vend.createOrUpdateBranch(branch)
-          } yield {
-           val json = JSONFactory1_4_0.createBranchJson(success)
-            createdJsonResponse(Extraction.decompose(json), 201)
-          }
-      }
+      case "banks" :: BankId(bankId) :: "branches" ::  Nil JsonPost json -> _ =>
+        {
+          cc => implicit val ec = EndpointContext(Some(cc))
+            for {
+              (Full(u), callContext) <- authenticatedAccess(cc)
+              (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+              branchJsonPostV210 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonPostV210", 400, callContext) {
+                json.extract[BranchJsonPostV210]
+              }
+              _ <- Helper.booleanToFuture(failMsg = s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body", 400, callContext) {
+                branchJsonPostV210.bank_id == bank.bankId.value
+              }
+              _ <- Future(
+                NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, canCreateBranch::Nil, canCreateBranchAtAnyBank::Nil, cc.callContext)
+              )
+              branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
+                transformToBranch(branchJsonPostV210).head
+              }
+              (success, callContext) <- NewStyle.function.createOrUpdateBranch(branch, callContext)
+            } yield {
+              val json = JSONFactory1_4_0.createBranchJson(success)
+              (json, HttpCode.`201`(callContext))
+            }
+        }
     }
 
     resourceDocs += ResourceDoc(

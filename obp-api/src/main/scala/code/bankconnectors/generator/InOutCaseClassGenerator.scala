@@ -1,6 +1,6 @@
-package code.bankconnectors
+package code.bankconnectors.generator
 
-import code.bankconnectors.ConnectorUtils._
+import code.bankconnectors.generator.ConnectorBuilderUtil._
 
 object InOutCaseClassGenerator extends App {
 

@@ -1,8 +1,6 @@
 package code.bankconnectors
 
-import java.lang.reflect.Method
-
-import code.api.util.{CallContext, CustomJsonFormats, OptionalFieldSerializer, OBPQueryParam}
+import code.api.util.{CallContext, CustomJsonFormats, OBPQueryParam, OptionalFieldSerializer}
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.dto.{InBoundTrait, OutInBoundTransfer}
 import com.openbankproject.commons.model.TopicTrait
@@ -13,43 +11,12 @@ import net.liftweb.json.JsonDSL._
 import net.liftweb.json.{Formats, JObject, JValue}
 import net.sf.cglib.proxy.{Enhancer, MethodInterceptor, MethodProxy}
 import org.apache.commons.lang3.StringUtils
-
+import java.lang.reflect.Method
 import scala.concurrent.Future
-import scala.reflect.runtime.universe
 import scala.reflect.ManifestFactory
+import scala.reflect.runtime.universe
 
 object ConnectorUtils {
-
-  /**
-   * //def getAdapterInfo(callContext: Option[CallContext]) : Future[Box[(InboundAdapterInfoInternal, Option[CallContext])]] = ??? 
-   * //def validateAndCheckIbanNumber(iban: String, callContext: Option[CallContext]): OBPReturnType[Box[IbanChecker]] = ??? 
-   *
-   *  This method will only extact the first return class from the method, this is the OBP pattern. 
-   *  so we can use it for gernerate the commons case class.
-   *
-   *  eg: getAdapterInfo -->  return InboundAdapterInfoInternal
-   *  validateAndCheckIbanNumber -->return IbanChecker
-   */
-  def extractReturnModel(tp: universe.Type): universe.Type = {
-    if (tp.typeArgs.isEmpty) {
-      tp
-    } else {
-      extractReturnModel(tp.typeArgs(0))
-    }
-  }
-  
-  val mirror: universe.Mirror = universe.runtimeMirror(this.getClass.getClassLoader)
-  val clazz: universe.ClassSymbol = mirror.typeOf[Connector].typeSymbol.asClass
-  val connectorDecls= mirror.typeOf[Connector].decls
-  val connectorDeclsMethods= connectorDecls.filter(symbol => {
-    val isMethod = symbol.isMethod && !symbol.asMethod.isVal && !symbol.asMethod.isVar && !symbol.asMethod.isConstructor && !symbol.isProtected
-    isMethod})
-  val connectorDeclsMethodsReturnOBPRequiredType = connectorDeclsMethods
-    .map(it => it.asMethod)
-    .filter(it => {
-      extractReturnModel(it.returnType).typeSymbol.fullName.matches("((code\\.|com.openbankproject\\.).+)|(scala\\.Boolean)") //to make sure, it returned the OBP class and Boolean.
-    })
-  
   
   lazy val proxyConnector: Connector = {
     val excludeProxyMethods = Set("getDynamicEndpoints", "dynamicEntityProcess", "setAccountHolder", "updateUserAccountViewsOld")

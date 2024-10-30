@@ -1,16 +1,15 @@
-package code.bankconnectors
+package code.bankconnectors.generator
 
-import java.io.File
-import java.util.Date
-
-import code.api.util.{APIUtil, CallContext}
 import code.api.util.CodeGenerateUtils.createDocExample
+import code.api.util.{APIUtil, CallContext}
+import code.bankconnectors.Connector
 import code.bankconnectors.vSept2018.KafkaMappedConnector_vSept2018
 import com.openbankproject.commons.util.ReflectUtils
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils.uncapitalize
 
-import scala.collection.immutable.List
+import java.io.File
+import java.util.Date
 import scala.language.postfixOps
 import scala.reflect.runtime.universe._
 import scala.reflect.runtime.{universe => ru}
@@ -31,9 +30,38 @@ object ConnectorBuilderUtil {
     // if(ctClass != null) ctClass.detach()
   }
 
-  private val mirror: ru.Mirror = ru.runtimeMirror(getClass().getClassLoader)
-  private val clazz: ru.ClassSymbol = ru.typeOf[Connector].typeSymbol.asClass
+  /**
+   * //def getAdapterInfo(callContext: Option[CallContext]) : Future[Box[(InboundAdapterInfoInternal, Option[CallContext])]] = ??? 
+   * //def validateAndCheckIbanNumber(iban: String, callContext: Option[CallContext]): OBPReturnType[Box[IbanChecker]] = ??? 
+   *
+   *  This method will only extact the first return class from the method, this is the OBP pattern. 
+   *  so we can use it for gernerate the commons case class.
+   *
+   *  eg: getAdapterInfo -->  return InboundAdapterInfoInternal
+   *  validateAndCheckIbanNumber -->return IbanChecker
+   */
+  def extractReturnModel(tp: ru.Type): ru.Type = {
+    if (tp.typeArgs.isEmpty) {
+      tp
+    } else {
+      extractReturnModel(tp.typeArgs(0))
+    }
+  }
+
+  val mirror: ru.Mirror = ru.runtimeMirror(this.getClass.getClassLoader)
+  val clazz: ru.ClassSymbol = mirror.typeOf[Connector].typeSymbol.asClass
+  val connectorDecls: MemberScope = mirror.typeOf[Connector].decls
+  val connectorDeclsMethods: Iterable[Symbol] = connectorDecls.filter(symbol => {
+    val isMethod = symbol.isMethod && !symbol.asMethod.isVal && !symbol.asMethod.isVar && !symbol.asMethod.isConstructor && !symbol.isProtected
+    isMethod})
+  val connectorDeclsMethodsReturnOBPRequiredType: Iterable[MethodSymbol] = connectorDeclsMethods
+    .map(it => it.asMethod)
+    .filter(it => {
+      extractReturnModel(it.returnType).typeSymbol.fullName.matches("((code\\.|com.openbankproject\\.).+)|(scala\\.Boolean)") //to make sure, it returned the OBP class and Boolean.
+    })
+  
   private val classMirror: ru.ClassMirror = mirror.reflectClass(clazz)
+  
   /*
     * generateMethods and buildMethods has the same function, only responseExpression parameter type
     * different, because overload method can't compile for different responseExpression parameter.

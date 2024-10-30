@@ -7,7 +7,7 @@ import code.api.ResourceDocs1_4_0.MessageDocsSwaggerDefinitions.successStatus
 import code.api.util.APIUtil.MessageDoc
 import code.api.util.CustomJsonFormats.formats
 import code.api.util.{APIUtil, OptionalFieldSerializer}
-import code.bankconnectors.ConnectorBuilderUtil._
+import code.bankconnectors.generator.ConnectorBuilderUtil._
 import com.openbankproject.commons.model.Status
 import com.openbankproject.commons.util.Functions
 import net.liftweb.json

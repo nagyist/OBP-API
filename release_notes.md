@@ -3,6 +3,7 @@
 ### Most recent changes at top of file
 ```
 Date          Commit        Action
+30/10/2024    e69161b6      set V121, V130 and V200 status to DEPRECATED
 29/10/2024    c83032f0      added the props for RabbitMq connector:
                             Added props rabbitmq_connector.host=localhost
                             Added props rabbitmq_connector.port=5672

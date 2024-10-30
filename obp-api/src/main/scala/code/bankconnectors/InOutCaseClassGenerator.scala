@@ -1,34 +1,8 @@
 package code.bankconnectors
 
-import code.api.util.{APIUtil, NewStyle}
-import org.apache.commons.io.FileUtils
-
-import java.io.File
-import java.util.Date
-import scala.concurrent.Future
-import scala.reflect.runtime.{universe => ru}
+import code.bankconnectors.ConnectorUtils._
 
 object InOutCaseClassGenerator extends App {
-
-  def extractReturnModel(tp: ru.Type): ru.Type = {
-    if (tp.typeArgs.isEmpty) {
-      tp
-    } else {
-      extractReturnModel(tp.typeArgs(0))
-    }
-  }
-  
-  private val mirror: ru.Mirror = ru.runtimeMirror(this.getClass.getClassLoader)
-  private val clazz: ru.ClassSymbol = mirror.typeOf[Connector].typeSymbol.asClass
-  private val connectorDecls= mirror.typeOf[Connector].decls
-  private val connectorDeclsMethods= connectorDecls.filter(symbol => {
-      val isMethod = symbol.isMethod && !symbol.asMethod.isVal && !symbol.asMethod.isVar && !symbol.asMethod.isConstructor && !symbol.isProtected
-      isMethod})
-  private val connectorDeclsMethodsReturnOBPRequiredType = connectorDeclsMethods
-    .map(it => it.asMethod)
-    .filter(it => {
-      extractReturnModel(it.returnType).typeSymbol.fullName.matches("((code\\.|com.openbankproject\\.).+)|(scala\\.Boolean)") //to make sure, it returned the OBP class and Boolean.
-    })
 
   val code = connectorDeclsMethodsReturnOBPRequiredType.map(it => {
     val returnType = it.returnType

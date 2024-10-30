@@ -32,6 +32,7 @@ object MSsqlStoredProcedureBuilder {
   }
 
   def main(args: Array[String]): Unit = {
+    commonMethodNames// do not delete this line, it is to modify "MappedWebUiPropsProvider", to avoid access DB cause dataSource not found exception
     // Boot.scala set default TimeZone, So here need also fix the TimeZone to make example Date is a fix value,
     // not affect by local TimeZone.
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
@@ -49,6 +50,10 @@ object MSsqlStoredProcedureBuilder {
     val path = new File(getClass.getResource("").toURI.toString.replaceFirst("target/.*", "").replace("file:", ""),
     "src/main/scala/code/bankconnectors/storedprocedure/MSsqlStoredProcedure.sql")
     val source = FileUtils.write(path, procedureNameToInbound, "utf-8")
+
+
+    // After generatin the code, then exit 
+    sys.exit(0)
   }
 
   def buildProcedure(processName: String, outBoundExample: String, inBoundExample: String) = {
@@ -79,5 +84,7 @@ object MSsqlStoredProcedureBuilder {
       |
       |""".stripMargin
   }
+
+
 
 }

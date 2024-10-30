@@ -23,7 +23,7 @@ import scala.collection.mutable.ArrayBuffer
  * create ms sql server stored procedure according messageDocs.
  */
 object AdapterStubBuilder {
-  specialMethods// do not delete this line, it is to modify "MappedWebUiPropsProvider"
+  commonMethodNames// do not delete this line, it is to modify "MappedWebUiPropsProvider", to avoid access DB cause dataSource not found exception
   object StatusSerializer extends Serializer[Status] {
 
     override def deserialize(implicit format: Formats): PartialFunction[(TypeInfo, JValue), Status] = Functions.doNothing

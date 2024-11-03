@@ -141,22 +141,34 @@ object OpenIdConnect extends OBPRestHelper with MdcLoggable {
                           saveAuthorizationToken(tokenType, accessToken, idToken, refreshToken, scope, expiresIn, authUser.id.get) match {
                             case Full(token) => (200, "OK", Some(authUser))
                             case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotHandleOpenIDConnectData+ "saveAuthorizationToken") 
-                            case _ => (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "saveAuthorizationToken", Some(authUser))
+                            case everythingElse =>
+                              logger.debug("Error at saveAuthorizationToken: " + everythingElse)
+                              (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "saveAuthorizationToken", Some(authUser))
                           }
                         case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateConsumer")
-                        case _ => (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateConsumer", Some(authUser))
+                        case everythingElse =>
+                          logger.debug("Error at getOrCreateConsumer: " + everythingElse)
+                          (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateConsumer", Some(authUser))
                       }
                     case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateAuthUser")
-                    case _ => (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateAuthUser", None)
+                    case everythingElse =>
+                      logger.debug("Error at getOrCreateAuthUser: " + everythingElse)
+                      (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateAuthUser", None)
                   }
                 case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotSaveOpenIDConnectUser)
-                case _ => (401, ErrorMessages.CouldNotSaveOpenIDConnectUser, None)
+                case everythingElse =>
+                  logger.debug("Error at getOrCreateResourceUser: " + everythingElse)
+                  (401, ErrorMessages.CouldNotSaveOpenIDConnectUser, None)
               }
             case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotValidateIDToken)
-            case _ => (401, ErrorMessages.CouldNotValidateIDToken, None)
+            case everythingElse =>
+              logger.debug("Error at JwtUtil.validateIdToken: " + everythingElse)
+              (401, ErrorMessages.CouldNotValidateIDToken, None)
           }
         case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotExchangeAuthorizationCodeForTokens)
-        case _ => (401, ErrorMessages.CouldNotExchangeAuthorizationCodeForTokens, None)
+        case everythingElse =>
+          logger.debug("Error at exchangeAuthorizationCodeForTokens: " + everythingElse)
+          (401, ErrorMessages.CouldNotExchangeAuthorizationCodeForTokens, None)
       }
     } else {
       (401, ErrorMessages.InvalidOpenIDConnectState, None)

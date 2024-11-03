@@ -3,14 +3,12 @@ package code.transactionrequests
 import code.api.util.APIUtil.DateWithMsFormat
 import code.api.util.CustomJsonFormats
 import code.api.util.ErrorMessages._
-import code.bankconnectors.Connector
+import code.bankconnectors.LocalMappedConnectorInternal
 import code.model._
 import code.util.{AccountIdString, UUIDString}
 import com.openbankproject.commons.model._
 import com.openbankproject.commons.model.enums.{AccountRoutingScheme, TransactionRequestStatus}
 import com.openbankproject.commons.model.enums.TransactionRequestTypes
-import com.openbankproject.commons.model.enums.TransactionRequestTypes._
-import com.openbankproject.commons.model.enums.PaymentServiceTypes._
 import net.liftweb.common.{Box, Failure, Full, Logger}
 import net.liftweb.json
 import net.liftweb.json.JsonAST.{JField, JObject, JString}
@@ -36,7 +34,7 @@ object MappedTransactionRequestProvider extends TransactionRequestProvider {
   override def updateAllPendingTransactionRequests: Box[Option[Unit]] = {
     val transactionRequests = MappedTransactionRequest.find(By(MappedTransactionRequest.mStatus, TransactionRequestStatus.PENDING.toString))
     logger.debug("Updating status of all pending transactions: ")
-    val statuses = Connector.connector.vend.getTransactionRequestStatuses
+    val statuses = LocalMappedConnectorInternal.getTransactionRequestStatuses
     transactionRequests.map{ tr =>
       for {
         transactionRequest <- tr.toTransactionRequest

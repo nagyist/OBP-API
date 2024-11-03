@@ -1,7 +1,6 @@
 package code.api.v3_0_0
 
 import java.util.regex.Pattern
-
 import code.accountattribute.AccountAttributeX
 import code.accountholders.AccountHolders
 import code.api.{APIFailureNewStyle, Constant}
@@ -46,7 +45,8 @@ import com.openbankproject.commons.ExecutionContext.Implicits.global
 
 import scala.concurrent.Future
 import code.api.v2_0_0.AccountsHelper._
-import code.api.v4_0_0.JSONFactory400
+import code.api.v2_2_0.{AtmJsonV220, JSONFactory220}
+import code.api.v4_0_0.{AtmJsonV400, JSONFactory400}
 import code.model
 import com.openbankproject.commons.dto.CustomerAndAttribute
 import com.openbankproject.commons.util.ApiVersion
@@ -577,7 +577,7 @@ trait APIMethods300 {
               //2 each bankAccount object find the proper view.
               //3 use view and user to moderate the bankaccount object.
               bankIdAccountId <- availableBankIdAccountIdList2
-              bankAccount <- Connector.connector.vend.getBankAccountOld(bankIdAccountId.bankId, bankIdAccountId.accountId) ?~! s"$BankAccountNotFound Current Bank_Id(${bankIdAccountId.bankId}), Account_Id(${bankIdAccountId.accountId}) "
+              (bankAccount, callContext) <- Connector.connector.vend.getBankAccountLegacy(bankIdAccountId.bankId, bankIdAccountId.accountId, callContext) ?~! s"$BankAccountNotFound Current Bank_Id(${bankIdAccountId.bankId}), Account_Id(${bankIdAccountId.accountId}) "
               moderatedAccount <- bankAccount.moderatedBankAccount(view, bankIdAccountId, Full(u), callContext) //Error handling is in lower method
             } yield {
               moderatedAccount
@@ -1138,7 +1138,7 @@ trait APIMethods300 {
             branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
               transformToBranch(branchJsonV300)
             }
-            success: BranchT <- NewStyle.function.createOrUpdateBranch(branch, callContext)
+            (success, callContext) <- NewStyle.function.createOrUpdateBranch(branch, callContext)
           } yield {
             val json = JSONFactory300.createBranchJsonV300(success)
             (json, HttpCode.`201`(callContext))
@@ -1166,20 +1166,25 @@ trait APIMethods300 {
         InsufficientAuthorisationToCreateBranch,
         UnknownError
       ),
-      List(apiTagBranch, apiTagOldStyle),
+      List(apiTagBranch),
       Some(List(canUpdateBranch))
     )
 
     lazy val updateBranch: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "branches" :: BranchId(branchId)::  Nil JsonPut json -> _  => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, _) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            _ <- NewStyle.function.ownEntitlement(bank.bankId.value, u.userId, canUpdateBranch, cc.callContext)
-            postBranchJsonV300 <- tryo {json.extract[PostBranchJsonV300]} ?~! {ErrorMessages.InvalidJsonFormat + PostBranchJsonV300.toString()}
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            _ <- NewStyle.function.hasEntitlement(bank.bankId.value, u.userId, canUpdateBranch, cc.callContext)
+            postBranchJsonV300 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonV300", 400, callContext) {
+              json.extract[PostBranchJsonV300]
+            }
+            _ <- Helper.booleanToFuture(failMsg = "BANK_ID has to be the same in the URL and Body", 400, callContext) {
+              postBranchJsonV300.bank_id == bank.bankId.value
+            }
             branchJsonV300 = BranchJsonV300(
-              id = branchId.value, 
+              id = branchId.value,
               postBranchJsonV300.bank_id,
               postBranchJsonV300.name,
               postBranchJsonV300.address,
@@ -1193,12 +1198,13 @@ trait APIMethods300 {
               postBranchJsonV300.branch_type,
               postBranchJsonV300.more_info,
               postBranchJsonV300.phone_number)
-            _ <- booleanToBox(branchJsonV300.bank_id == bank.bankId.value, "BANK_ID has to be the same in the URL and Body")
-            branch <- transformToBranchFromV300(branchJsonV300) ?~! {ErrorMessages.CouldNotTransformJsonToInternalModel + " Branch"}
-            success: BranchT <- Connector.connector.vend.createOrUpdateBranch(branch) ?~! {ErrorMessages.CountNotSaveOrUpdateResource + " Branch"}
+            branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
+              transformToBranchFromV300(branchJsonV300).head
+            }
+            (success, callContext)  <- NewStyle.function.createOrUpdateBranch(branch, callContext)
           } yield {
             val json = JSONFactory300.createBranchJsonV300(success)
-            createdJsonResponse(Extraction.decompose(json), 201)
+            (json, HttpCode.`201`(callContext))
           }
       }
     }
@@ -1227,7 +1233,7 @@ trait APIMethods300 {
         UserHasMissingRoles,
         UnknownError
       ),
-      List(apiTagATM, apiTagOldStyle),
+      List(apiTagATM),
       Some(List(canCreateAtm,canCreateAtmAtAnyBank))
     )
 
@@ -1235,18 +1241,20 @@ trait APIMethods300 {
 
     lazy val createAtm: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "atms" ::  Nil JsonPost json -> _ => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, _) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            _ <- NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, createAtmEntitlementsRequiredForSpecificBank, createAtmEntitlementsRequiredForAnyBank, cc.callContext)
-              atmJson <- tryo {json.extract[AtmJsonV300]} ?~! ErrorMessages.InvalidJsonFormat
-            atm <- transformToAtmFromV300(atmJson) ?~! {ErrorMessages.CouldNotTransformJsonToInternalModel + " Atm"}
-            _ <- booleanToBox(atmJson.bank_id == bank.bankId.value, s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body")
-            success <- Connector.connector.vend.createOrUpdateAtmLegacy(atm)
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            atmJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[AtmJsonV400]}", 400, callContext) {
+              json.extract[AtmJsonV300]
+            }
+            _ <- NewStyle.function.hasAtLeastOneEntitlement(failMsg = createAtmEntitlementsRequiredText)(bankId.value, u.userId, createAtmEntitlements, callContext)
+            _ <-  Helper.booleanToFuture(s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body", 400, callContext){atmJsonV400.bank_id == bankId.value}
+            atm <- NewStyle.function.tryons(ErrorMessages.CouldNotTransformJsonToInternalModel + " Atm", 400, callContext) {
+              transformToAtmFromV300(atmJson).head
+            }
+            (atm, callContext) <- NewStyle.function.createOrUpdateAtm(atm, callContext)
           } yield {
-            val json = JSONFactory300.createAtmJsonV300(success)
-            createdJsonResponse(Extraction.decompose(json), 201)
+            (JSONFactory300.createAtmJsonV300(atm), HttpCode.`201`(callContext))
           }
       }
     }
@@ -1787,7 +1795,7 @@ trait APIMethods300 {
             (u, callContext) <- authenticatedAccess(cc)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(account.bankId, account.accountId), u, callContext)
-            otherBankAccounts <- NewStyle.function.moderatedOtherBankAccounts(account, view, u, callContext)
+            (otherBankAccounts, callContext) <- NewStyle.function.moderatedOtherBankAccounts(account, view, u, callContext)
           } yield {
             val otherBankAccountsJson = createOtherBankAccountsJson(otherBankAccounts)
             (otherBankAccountsJson, HttpCode.`200`(callContext))
@@ -1823,7 +1831,7 @@ trait APIMethods300 {
             (u, callContext) <- authenticatedAccess(cc)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(account.bankId, account.accountId), u, callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, u, callContext)
+            (otherBankAccount,callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, u, callContext)
           } yield {
             val otherBankAccountJson = createOtherBankAccount(otherBankAccount)
             (otherBankAccountJson, HttpCode.`200`(callContext))

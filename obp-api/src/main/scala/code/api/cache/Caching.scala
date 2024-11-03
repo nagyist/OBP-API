@@ -33,6 +33,29 @@ object Caching extends MdcLoggable {
     }
 
   }
+  
+  def memoizeSyncWithImMemory[A](cacheKey: Option[String])(ttl: Duration)(f: => A)(implicit m: Manifest[A]): A = {
+    (cacheKey, ttl) match {
+      case (_, t) if t == Duration.Zero  => // Just forwarding a call
+        f
+      case (Some(_), _) => // Caching a call
+        InMemory.memoizeSyncWithInMemory(cacheKey)(ttl)(f)
+      case _  => // Just forwarding a call
+        f
+    }
+
+  }
+
+  def memoizeWithImMemory[A](cacheKey: Option[String])(ttl: Duration)(f: => Future[A])(implicit m: Manifest[A]): Future[A] = {
+    (cacheKey, ttl) match {
+      case (_, t) if t == Duration.Zero  => // Just forwarding a call
+        f
+      case (Some(_), _) => // Caching a call
+        InMemory.memoizeWithInMemory(cacheKey)(ttl)(f)
+      case _  => // Just forwarding a call
+        f
+    }
+  }
 
   def getLocalisedResourceDocCache(key: String) = {
     use(JedisMethod.GET, (LOCALISED_RESOURCE_DOC_PREFIX + key).intern(), Some(CREATE_LOCALISED_RESOURCE_DOC_JSON_TTL)) 

@@ -24,7 +24,7 @@ import scala.collection.mutable.ArrayBuffer
  * create ms sql server stored procedure according messageDocs.
  */
 object AdapterStubBuilder {
-  specialMethods // this line just for modify "MappedWebUiPropsProvider"
+  specialMethods// do not delete this line, it is to modify "MappedWebUiPropsProvider"
   object StatusSerializer extends Serializer[Status] {
 
     override def deserialize(implicit format: Formats): PartialFunction[(TypeInfo, JValue), Status] = Functions.doNothing
@@ -42,8 +42,8 @@ object AdapterStubBuilder {
 
     val codeList = messageDocs
       //these are only for debugging.
-//      .filterNot(_.process.equals("obp.getBankAccountOld"))//getBanks is the template code, already in the code.
-//      .filter(_.process.equals("obp.getCustomers"))//getBanks is the template code, already in the code.
+//      .filterNot(_.process.equals("obp.getCustomers"))//getBanks is the template code, already in the code.
+//      .filter(_.process.equals("obp.validateAndCheckIbanNumber"))//getBanks is the template code, already in the code.
 //      .take(80)
 //      .slice(91,1000)
       .map(
@@ -137,9 +137,7 @@ object AdapterStubBuilder {
     else 
       null
     
-    val inboundAdapterCallContext = if(ConnectorBuilderUtil.specialMethods.contains(connectorMethodName) ||
-      connectorMethodName == "getPhysicalCardsForUser" // this need to be check, InBoundGetPhysicalCardsForUser is missing inboundAdapterCallContext field.
-    )
+    val inboundAdapterCallContext = if(ConnectorBuilderUtil.specialMethods.contains(connectorMethodName))
       ""
     else
       """          

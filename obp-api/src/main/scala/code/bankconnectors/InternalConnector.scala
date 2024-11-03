@@ -19,7 +19,10 @@ import com.openbankproject.commons.util.ReflectUtils
 
 import scala.reflect.runtime.universe.{MethodSymbol, TermSymbol, typeOf}
 
-
+/**
+ * InternalConnector is actually the dynamic connector, if set method to `internal`. this allows the developer to use `Create Connector Method`
+ * endpoint to upload the scala/Js/Java source code to redesign the logic for the connector method
+ */
 object InternalConnector {
 
   lazy val instance: Connector = {

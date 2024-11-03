@@ -24,10 +24,10 @@ Berlin 13359, Germany
 */
 
 import code.api.Constant
+
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.UUID.randomUUID
-
 import code.api.APIFailure
 import code.api.Constant._
 import code.api.JSONFactoryGateway.PayloadOfJwtJSON
@@ -45,6 +45,7 @@ import code.customer._
 import code.kafka.{KafkaHelper, Topics}
 import code.model._
 import code.model.dataAccess._
+import code.transactionrequests.TransactionRequests
 import code.users.Users
 import code.util.Helper.MdcLoggable
 import code.views.Views
@@ -296,56 +297,6 @@ trait KafkaMappedConnector_vSept2018 extends Connector with KafkaHelper with Mdc
       inbound.map(_.data).map(inboundAdapterInfoInternal =>(inboundAdapterInfoInternal, callContext))
     }
   }
-
-  messageDocs += MessageDoc(
-    process = "obp.getUser",
-    messageFormat = messageFormat,
-    description = "Gets the User as identifiedgetAdapterInfo by the the credentials (username and password) supplied.",
-    outboundTopic = Some(Topics.createTopicByClassName(OutboundGetUserByUsernamePassword.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutboundGetUserByUsernamePassword.getClass.getSimpleName).response),
-    exampleOutboundMessage = (
-      OutboundGetUserByUsernamePassword(
-        authInfoExample,
-        password = "2b78e8"
-      )
-    ),
-    exampleInboundMessage = (
-      InboundGetUserByUsernamePassword(
-        inboundAuthInfoExample,
-        InboundValidatedUser(
-          errorCodeExample,
-          inboundStatusMessagesExample,
-          email = "susan.uk.29@example.com",
-          displayName = "susan"
-        )
-      )
-    ),
-    outboundAvroSchema = Some(parse(SchemaFor[OutboundGetUserByUsernamePassword]().toString(true))),
-    inboundAvroSchema = Some(parse(SchemaFor[InboundGetUserByUsernamePassword]().toString(true))),
-    adapterImplementation = Some(AdapterImplementation("User", 1))
-
-  )
-  //TODO This method  is not used in api level, so not CallContext here for now..
-  override def getUser(username: String, password: String): Box[InboundUser] = writeMetricEndpointTiming {
-    /**
-      * Please note that "var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)"
-      * is just a temporary value field with UUID values in order to prevent any ambiguity.
-      * The real value will be assigned by Macro during compile time at this line of a code:
-      * https://github.com/OpenBankProject/scala-macros/blob/master/macros/src/main/scala/com/tesobe/CacheKeyFromArgumentsMacro.scala#L49
-      */
-    var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)
-    CacheKeyFromArguments.buildCacheKey {
-      Caching.memoizeSyncWithProvider(Some(cacheKey.toString()))(userTTL second) {
-
-        val req = OutboundGetUserByUsernamePassword(AuthInfo("", username, ""), password = password)
-        val InboundFuture = processRequest[InboundGetUserByUsernamePassword](req) map { inbound =>
-          inbound.map(_.data).map(inboundValidatedUser =>(InboundUser(inboundValidatedUser.email, password, inboundValidatedUser.displayName)))
-        }
-        getValueFromFuture(InboundFuture)
-      }
-    }
-  }("getUser")
-
 
   messageDocs += MessageDoc(
     process = s"obp.getBanks",
@@ -1202,7 +1153,8 @@ trait KafkaMappedConnector_vSept2018 extends Connector with KafkaHelper with Mdc
             val transactionRequest = for{
               adapterTransactionRequests <- Full(data)
               //TODO, this will cause performance issue, we need limit the number of transaction requests.
-              obpTransactionRequests <- LocalMappedConnector.getTransactionRequestsImpl210(fromAccount) ?~! s"$InvalidConnectorResponse, error on LocalMappedConnector.getTransactionRequestsImpl210"
+              obpTransactionRequests <- TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId) ?~! s"$InvalidConnectorResponse, error on TransactionRequests.transactionRequestProvider.vend.getTransactionRequests"
+              obpTransactionRequests <- TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId) ?~! s"$InvalidConnectorResponse, error on TransactionRequests.transactionRequestProvider.vend.getTransactionRequests"
             } yield {
               adapterTransactionRequests ::: obpTransactionRequests
             }

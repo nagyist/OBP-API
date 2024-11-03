@@ -328,8 +328,10 @@ object ErrorMessages {
   val DeleteAtmError = "OBP-30120: Could not delete the ATM"
   val UpdateAtmError = "OBP-30029: Could not update the ATM"
 
-  val CreateProductError = "OBP-30030: Could not insert the Product"
-  val UpdateProductError = "OBP-30031: Could not update the Product"
+  val CreateProductError = "OBP-30030: Could not insert the Product."
+  val UpdateProductError = "OBP-30031: Could not update the Product."
+  val GetProductError = "OBP-30320: Could not get the Product."
+  val GetProductTreeError = "OBP-30321: Could not get the Product Tree."
 
   val CreateCardError = "OBP-30032: Could not insert the Card"
   val UpdateCardError = "OBP-30033: Could not update the Card"
@@ -518,6 +520,9 @@ object ErrorMessages {
   val DeleteCounterpartyError = "OBP-30317: Could not delete the Counterparty."
   val DeleteCounterpartyMetadataError = "OBP-30318: Could not delete CounterpartyMetadata"
   val UpdateBankAccountLabelError = "OBP-30319: Could not update Bank Account Label."
+
+  val GetChargeValueError = "OBP-30323: Could not get the Charge Value."
+  val GetTransactionRequestTypeChargesError = "OBP-30324: Could not get Transaction Request Type Charges."
   
   // Branch related messages
   val BranchesNotFoundLicense = "OBP-32001: No branches available. License may not be set."
@@ -691,7 +696,6 @@ object ErrorMessages {
   val InvalidConnectorResponseForGetChargeLevel = "OBP-50207: Connector did not return the set of challenge level we requested."
   val InvalidConnectorResponseForCreateTransactionRequestImpl210 = "OBP-50208: Connector did not return the set of transactions requests we requested."
   val InvalidConnectorResponseForMakePayment = "OBP-50209: Connector did not return the set of transactions we requested."
-  val InvalidConnectorResponseForMakePaymentv200 = "OBP-50210: Connector did not return the set of transaction id we requested."
   val InvalidConnectorResponseForGetCheckbookOrdersFuture = "OBP-50211: Connector did not return the set of check book."
   val InvalidConnectorResponseForGetStatusOfCreditCardOrderFuture = "OBP-50212: Connector did not return the set of status of credit card."
   val InvalidConnectorResponseForCreateTransactionAfterChallengev300 = "OBP-50213: The Connector did not return a valid response for payments."
@@ -703,6 +707,7 @@ object ErrorMessages {
   val InvalidConnectorResponseForGetBankAccountsWithAttributes = "OBP-50219: Connector did not return the bank accounts we requested."
   val InvalidConnectorResponseForGetPaymentLimit = "OBP-50220: Connector did not return the payment limit we requested."
   val InvalidConnectorResponseForCreateTransactionRequestBGV1 = "OBP-50221: CreateTransactionRequestBGV1 Connector did not return the data we requested."
+  val InvalidConnectorResponseForGetStatus = "OBP-50222: Connector method getStatus did not return the data we requested."
   
   // Adapter Exceptions (OBP-6XXXX)
   // Reserved for adapter (south of Kafka) messages

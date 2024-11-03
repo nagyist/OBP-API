@@ -830,6 +830,12 @@ featured_apis=elasticSearchWarehouseV300
 # please add the name of the field for the UserAuthContext and/or link to other documentation.. 
 #rest_connector_sends_x-sign_header=false
 
+# -- RabbitMQ connector --------------------------------------------
+# rabbitmq_connector.host=localhost
+# rabbitmq_connector.port=5672
+# rabbitmq_connector.username=obp
+# rabbitmq_connector.password=obp
+
  
 # -- Scopes -----------------------------------------------------
 # Scopes can be used to limit the APIs a Consumer can call.

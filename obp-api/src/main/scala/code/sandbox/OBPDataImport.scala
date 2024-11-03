@@ -321,7 +321,7 @@ trait OBPDataImport extends MdcLoggable {
     val duplicateNumbers = numbers diff numbers.distinct
 
     val existing = data.accounts.flatMap(acc => {
-      Connector.connector.vend.getBankAccountOld(BankId(acc.bank), AccountId(acc.id))
+      Connector.connector.vend.getBankAccountLegacy(BankId(acc.bank), AccountId(acc.id), None).map(_._1)
     })
 
     val ibans = data.accounts.map(_.IBAN)

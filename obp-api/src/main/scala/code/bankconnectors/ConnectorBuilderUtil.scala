@@ -257,7 +257,6 @@ object ConnectorBuilderUtil {
     "createTransactionAfterChallengeV210",
     "updateBankAccount",
     "createBankAccount",
-    "accountExists",
     "getBranch",
     "getBranches",
     "getAtm",
@@ -361,10 +360,6 @@ object ConnectorBuilderUtil {
     "deleteCustomerAttribute",
     "getPhysicalCardsForUser",
     "getChallengesByBasketId",
-
-    // The follow methods's parameter or return type are special
-    "getCurrentFxRate",
-//    "getBankAccountOld",    // old method, but v3.0.0 apis use a lot, no callContext, and return box. 
     "createChallengesC2",
     "createChallengesC3",
     "getChallenge",
@@ -377,86 +372,36 @@ object ConnectorBuilderUtil {
     "validateChallengeAnswerC5",
     "validateChallengeAnswerV2",
     "getCounterpartyByIbanAndBankAccountId",
+    "getChargeValue",
+    "saveTransactionRequestTransaction",
+    "saveTransactionRequestChallenge",
+    "getTransactionRequestTypes",
+    "updateAccountLabel",
+    "getProduct",
+    "saveTransactionRequestStatusImpl",
+    "getTransactionRequestTypeCharges"
   ).distinct
 
   /**
    * these connector methods have special parameter or return type
    */
   val specialMethods = List(
-    "getCounterparty",
-    "getPhysicalCards",
-    "makePayment",
-    "makePaymentv200",
-    "createTransactionRequest",
-    "createTransactionRequestv200",
     "getStatus",
-    "getChargeValue",
-    "saveTransactionRequestTransaction",
-    "saveTransactionRequestChallenge",
-    "getTransactionRequests",
-    "getTransactionRequestStatuses",
-    "getTransactionRequestTypes",
-    "createTransactionAfterChallenge",
-    "createTransactionAfterChallengev200",
-    "createBankAndAccount",
-    "createSandboxBankAccount",
-    "accountExists",
-    "removeAccount",
-    "getMatchingTransactionCount",
-    "updateAccountBalance",
-    "setBankAccountLastUpdated",
-    "updateAccountLabel",
-    "updateAccount",
-    "getProducts",
-    "getProduct",
     "createOrUpdateBranch",
     "createOrUpdateBank",
     "createOrUpdateAtm",
     "createOrUpdateProduct",
     "createOrUpdateFXRate",
-    "accountOwnerExists",
     "getCurrentFxRate",
-    "getCurrentFxRateCached",
-    "getTransactionRequestTypeCharge",
-    "getTransactionRequestTypeCharges",
-    //"getPhysicalCardsForBankLegacy", // should not generate for Legacy methods
-    //"getBranchLegacy", // should not generate for Legacy methods
-    //"getAtmLegacy", // should not generate for Legacy methods
-    "getEmptyBankAccount",
     "getCounterpartyFromTransaction",
     "getCounterpartiesFromTransaction",
   ).distinct
 
-  /**
-   * modifier is protected methods, not recommend generate these methods, they should always for special purpose
-   */
-  val protectedMethods = List(
-    "makePaymentImpl",
-    "createTransactionRequestImpl",
-    "saveTransactionRequestTransactionImpl",
-    "saveTransactionRequestChallengeImpl",
-    "saveTransactionRequestStatusImpl",
-    "getTransactionRequestStatusesImpl",
-    "getTransactionRequestsImpl",
-    "getTransactionRequestsImpl210",
-    "getTransactionRequestTypesImpl"
-  ).distinct
-
   val omitMethods = List(
-    // "answerTransactionRequestChallenge", //deprecated
-    //"setAccountHolder", //deprecated
-    // "createImportedTransaction", // should create manually
-    // "createViews", // should not be auto generated
-    // "updateUserAccountViewsOld", // deprecated
-    //"createBankAccountLegacy", // should not generate for Legacy methods //deprecated
-
     // "createOrUpdateAttributeDefinition", // should not be auto generated
     // "deleteAttributeDefinition", // should not be auto generated
     // "getAttributeDefinition", // should not be auto generated
-
     // "createStandingOrder", // should not be auto generated
-
-    // "addBankAccount", // non-standard calls, should be used for test
 
     //** the follow 5 methods should not be generated, should create manually
     //      "dynamicEntityProcess",
@@ -465,8 +410,7 @@ object ConnectorBuilderUtil {
     //      "getDynamicEndpoint",
     //      "getDynamicEndpoints",
     
-    //    "checkExternalUserCredentials",// this is not a standard connector method. 
-    //    "getUser", // this is not a standard connector method.
+    //    "checkExternalUserCredentials",// this is not a standard connector method.
     //    "checkExternalUserExists", // this is not a standard connector method. 
   ).distinct
 }

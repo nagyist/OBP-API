@@ -2192,16 +2192,16 @@ class API1_2_1Test extends ServerSetupWithTestData with DefaultUsers with Privat
       )
     }
 
-    scenario("we will not get the other bank accounts of a bank account due to missing access token", API1_2_1, GetCounterparties){
+    scenario("we will not get the other bank accounts of a bank account due to missing view access ", API1_2_1, GetCounterparties){
       Given("We will not use an access token")
       val bankId = randomBank
       val bankAccount : AccountJSON = randomPrivateAccount(bankId)
       When("the request is sent")
       val reply = getTheCounterparties(bankId, bankAccount.id, randomCustomViewPermalink(bankId, bankAccount), None)
-      Then("we should get a 400 code")
-      reply.code should equal (400)
+      Then("we should get a 403 code")
+      reply.code should equal (403)
       And("we should get an error message")
-      reply.body.extract[ErrorMessage].message.nonEmpty should equal (true)
+      reply.body.extract[ErrorMessage].message contains ("OBP-20017") shouldBe (true)
     }
 
     scenario("we will not get the other bank accounts of a bank account because the user does not have enough privileges", API1_2_1, GetCounterparties){
@@ -2210,10 +2210,10 @@ class API1_2_1Test extends ServerSetupWithTestData with DefaultUsers with Privat
       val bankAccount : AccountJSON = randomPrivateAccount(bankId)
       When("the request is sent")
       val reply = getTheCounterparties(bankId, bankAccount.id, randomCustomViewPermalink(bankId, bankAccount), user3)
-      Then("we should get a 400 code")
-      reply.code should equal (400)
+      Then("we should get a 403 code")
+      reply.code should equal (403)
       And("we should get an error message")
-      reply.body.extract[ErrorMessage].message.nonEmpty should equal (true)
+      reply.body.extract[ErrorMessage].message contains ("OBP-20017") shouldBe (true)
     }
 
     scenario("we will not get the other bank accounts of a bank account because the view does not exist", API1_2_1, GetCounterparties){
@@ -2222,10 +2222,10 @@ class API1_2_1Test extends ServerSetupWithTestData with DefaultUsers with Privat
       val bankAccount : AccountJSON = randomPrivateAccount(bankId)
       When("the request is sent")
       val reply = getTheCounterparties(bankId, bankAccount.id, randomString(10), user1)
-      Then("we should get a 400 code")
-      reply.code should equal (400)
+      Then("we should get a 403 code")
+      reply.code should equal (403)
       And("we should get an error message")
-      reply.body.extract[ErrorMessage].message.nonEmpty should equal (true)
+      reply.body.extract[ErrorMessage].message contains ("OBP-20017") shouldBe (true)
     }
   }
 
@@ -2253,10 +2253,10 @@ class API1_2_1Test extends ServerSetupWithTestData with DefaultUsers with Privat
       val otherBankAccount = randomCounterparty(bankId, bankAccount.id, view)
       When("the request is sent")
       val reply = getTheCounterparty(bankId, bankAccount.id, view, otherBankAccount.id, None)
-      Then("we should get a 400 code")
-      reply.code should equal (400)
+      Then("we should get a 401 code")
+      reply.code should equal (401)
       And("we should get an error message")
-      reply.body.extract[ErrorMessage].message.nonEmpty should equal (true)
+      reply.body.extract[ErrorMessage].message contains ("OBP-20001") shouldBe (true)
     }
 
     scenario("we will not get one random other bank account of a bank account because the user does not have enough privileges", API1_2_1, GetCounterparty){
@@ -2267,10 +2267,10 @@ class API1_2_1Test extends ServerSetupWithTestData with DefaultUsers with Privat
       val otherBankAccount = randomCounterparty(bankId, bankAccount.id, view)
       When("the request is sent")
       val reply = getTheCounterparty(bankId, bankAccount.id, view, otherBankAccount.id, user3)
-      Then("we should get a 400 code")
-      reply.code should equal (400)
+      Then("we should get a 403 code")
+      reply.code should equal (403)
       And("we should get an error message")
-      reply.body.extract[ErrorMessage].message.nonEmpty should equal (true)
+      reply.body.extract[ErrorMessage].message contains ("OBP-20017") shouldBe (true)
     }
 
     scenario("we will not get one random other bank account of a bank account because the view does not exist", API1_2_1, GetCounterparty){
@@ -2280,10 +2280,10 @@ class API1_2_1Test extends ServerSetupWithTestData with DefaultUsers with Privat
       val otherBankAccount = randomCounterparty(bankId, bankAccount.id, randomCustomViewPermalink(bankId, bankAccount))
       When("the request is sent")
       val reply = getTheCounterparty(bankId, bankAccount.id, randomString(10), otherBankAccount.id, user1)
-      Then("we should get a 400 code")
-      reply.code should equal (400)
+      Then("we should get a 403 code")
+      reply.code should equal (403)
       And("we should get an error message")
-      reply.body.extract[ErrorMessage].message.nonEmpty should equal (true)
+      reply.body.extract[ErrorMessage].message contains ("OBP-20017") shouldBe (true)
     }
 
     scenario("we will not get one random other bank account of a bank account because the account does not exist", API1_2_1, GetCounterparty){

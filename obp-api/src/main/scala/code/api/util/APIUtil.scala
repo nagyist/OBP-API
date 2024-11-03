@@ -28,59 +28,53 @@ TESOBE (http://www.tesobe.com/)
 package code.api.util
 
 import bootstrap.liftweb.CustomDBVendor
-
-import java.io.InputStream
-import java.net.URLDecoder
-import java.nio.charset.Charset
-import java.text.{ParsePosition, SimpleDateFormat}
-import java.util.concurrent.ConcurrentHashMap
-import java.util.{Calendar, Date, TimeZone, UUID}
-import code.UserRefreshes.UserRefreshes
 import code.accountholders.AccountHolders
 import code.api.Constant._
 import code.api.OAuthHandshake._
 import code.api.UKOpenBanking.v2_0_0.OBP_UKOpenBanking_200
 import code.api.UKOpenBanking.v3_1_0.OBP_UKOpenBanking_310
+import code.api._
 import code.api.berlin.group.v1.OBP_BERLIN_GROUP_1
+import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{ErrorMessageBG, ErrorMessagesBG}
+import code.api.cache.Caching
 import code.api.dynamic.endpoint.OBPAPIDynamicEndpoint
 import code.api.dynamic.endpoint.helper.{DynamicEndpointHelper, DynamicEndpoints}
+import code.api.dynamic.entity.OBPAPIDynamicEntity
+import code.api.dynamic.entity.helper.DynamicEntityHelper
 import code.api.oauth1a.Arithmetics
 import code.api.oauth1a.OauthParams._
 import code.api.util.APIUtil.ResourceDoc.{findPathVariableNames, isPathVariable}
-import code.api.util.ApiRole.{canCreateAnyTransactionRequest, canCreateProduct, canCreateProductAtAnyBank}
+import code.api.util.ApiRole._
 import code.api.util.ApiTag.{ResourceDocTag, apiTagBank}
+import code.api.util.FutureUtil.{EndpointContext, EndpointTimeout}
 import code.api.util.Glossary.GlossaryItem
-import code.api.util.RateLimitingJson.CallLimit
 import code.api.v1_2.ErrorMessage
 import code.api.v2_0_0.CreateEntitlementJSON
-import code.api.dynamic.endpoint.helper.DynamicEndpointHelper
-import code.api.dynamic.entity.OBPAPIDynamicEntity
-import code.api._
-import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{ErrorMessageBG, ErrorMessagesBG}
-import code.api.dynamic.entity.helper.DynamicEntityHelper
-import code.api.v5_0_0.OBPAPI5_0_0
+import code.api.v2_2_0.OBPAPI2_2_0.Implementations2_2_0
 import code.api.v5_1_0.OBPAPI5_1_0
-import code.api.{DirectLogin, _}
 import code.authtypevalidation.AuthenticationTypeValidationProvider
 import code.bankconnectors.Connector
 import code.consumer.Consumers
 import code.customer.CustomerX
 import code.entitlement.Entitlement
+import code.etag.MappedETag
 import code.metrics._
 import code.model._
 import code.model.dataAccess.AuthUser
 import code.scope.Scope
 import code.usercustomerlinks.UserCustomerLink
+import code.users.Users
 import code.util.Helper.{MdcLoggable, ObpS, SILENCE_IS_GOLDEN}
 import code.util.{Helper, JsonSchemaUtil}
+import code.views.system.{AccountAccess, ViewDefinition}
 import code.views.{MapperViews, Views}
 import code.webuiprops.MappedWebUiPropsProvider.getWebUiPropsValue
 import com.alibaba.ttl.internal.javassist.CannotCompileException
 import com.github.dwickern.macros.NameOf.{nameOf, nameOfType}
 import com.openbankproject.commons.ExecutionContext.Implicits.global
+import com.openbankproject.commons.model._
 import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.{ContentParam, PemCertificateRole, StrongCustomerAuthentication}
-import com.openbankproject.commons.model._
 import com.openbankproject.commons.util.Functions.Implicits._
 import com.openbankproject.commons.util.Functions.Memo
 import com.openbankproject.commons.util._
@@ -97,38 +91,26 @@ import net.liftweb.json
 import net.liftweb.json.JsonAST.{JField, JNothing, JObject, JString, JValue}
 import net.liftweb.json.JsonParser.ParseException
 import net.liftweb.json._
+import net.liftweb.mapper.By
 import net.liftweb.util.Helpers._
 import net.liftweb.util._
 import org.apache.commons.io.IOUtils
 import org.apache.commons.lang3.StringUtils
 
+import java.io.InputStream
+import java.net.URLDecoder
+import java.nio.charset.Charset
+import java.security.AccessControlException
+import java.text.{ParsePosition, SimpleDateFormat}
+import java.util.concurrent.ConcurrentHashMap
+import java.util.regex.Pattern
+import java.util.{Calendar, Date, UUID}
 import scala.collection.JavaConverters._
 import scala.collection.immutable.{List, Nil}
-import scala.collection.{immutable, mutable}
-import com.openbankproject.commons.ExecutionContext.Implicits.global
-import com.openbankproject.commons.util.{ApiVersion, Functions, JsonAble, ReflectUtils, ScannedApiVersion}
-import com.openbankproject.commons.util.Functions.Implicits._
-import com.openbankproject.commons.util.Functions.Memo
-import javassist.{ClassPool, LoaderClassPath}
-import javassist.expr.{ExprEditor, MethodCall}
-import org.apache.commons.io.IOUtils
-import org.apache.commons.lang3.StringUtils
-
-import java.security.AccessControlException
-import java.util.regex.Pattern
-import code.api.util.FutureUtil.{EndpointContext, EndpointTimeout}
-import code.api.v2_1_0.OBPAPI2_1_0.Implementations2_1_0
-import code.api.v2_2_0.OBPAPI2_2_0.Implementations2_2_0
-import code.etag.MappedETag
-import code.users.Users
-import code.views.system.{AccountAccess, ViewDefinition}
-import net.liftweb.mapper.By
-
-import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.{immutable, mutable}
 import scala.concurrent.Future
 import scala.io.BufferedSource
-import scala.util.Either
 import scala.util.control.Breaks.{break, breakable}
 import scala.xml.{Elem, XML}
 
@@ -3368,9 +3350,9 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
    * eg: CounterpartyId, because we use this Id both for Counterparty and counterpartyMetaData by some input fields.
    */
   def createOBPId(in:String)= {
-    import java.security.MessageDigest
-
     import net.liftweb.util.SecurityHelpers._
+
+    import java.security.MessageDigest
     def base64EncodedSha256(in: String) = base64EncodeURLSafe(MessageDigest.getInstance("SHA-256").digest(in.getBytes("UTF-8"))).stripSuffix("=")
 
     base64EncodedSha256(in)
@@ -4246,10 +4228,6 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
     case x => NewStyle.function.getCounterpartyByCounterpartyId(x, _)
   }
 
-  // cache for method -> called obp methods:
-  // (className, methodName, signature) -> List[(className, methodName, signature)]
-  private val memo = new Memo[(String, String, String), List[(String, String, String)]]
-
   private val classPool = {
     val pool = ClassPool.getDefault
     // avoid error when call with JDK 1.8:
@@ -4257,13 +4235,14 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
     pool.appendClassPath(new LoaderClassPath(Thread.currentThread.getContextClassLoader))
     pool
   }
-  //NOTE: this will be also a issue, to set the big object classLoader as the cache key.
-  private val memoClassPool = new Memo[ClassLoader, ClassPool]
 
-  private def getClassPool(classLoader: ClassLoader) = memoClassPool.memoize(classLoader){
-    val classPool = ClassPool.getDefault
-    classPool.appendClassPath(new LoaderClassPath(classLoader))
-    classPool
+  private def getClassPool(classLoader: ClassLoader) = {
+    import scala.concurrent.duration._
+    Caching.memoizeSyncWithImMemory(Some(classLoader.toString()))(DurationInt(30) days) {
+      val classPool: ClassPool = ClassPool.getDefault
+      classPool.appendClassPath(new LoaderClassPath(classLoader))
+      classPool
+    }
   }
 
   /**
@@ -4358,8 +4337,9 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
      * The comment will take "className = code.api.UKOpenBanking.v3_1_0.APIMethods_AccountAccessApi$$anonfun$createAccountAccessConsents$lzycompute$1" 
      * as an example to explain the whole code.  
      */
-    def getObpTrace(clazzName: String, methodName: String, signature: String, exclude: List[(String, String, String)] = Nil): List[(String, String, String)] =
-      memo.memoize((clazzName, methodName, signature)) {
+    def getObpTrace(clazzName: String, methodName: String, signature: String, exclude: List[(String, String, String)] = Nil): List[(String, String, String)] = {
+      import scala.concurrent.duration._
+      Caching.memoizeSyncWithImMemory(Some(clazzName + methodName + signature))(DurationInt(30) days) {
         // List:: className->methodName->signature, find all the dependent methods for one 
         val methods = getDependentMethods(clazzName, methodName, signature)
 
@@ -4372,7 +4352,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
             getObpTrace(clazzName, mName, mSignature, list ::: exclude)
         }.flatten.distinct
       }
-
+    }
     //NOTE: MEMORY_USER this ctClass will be cached in ClassPool, it may load too many classes into heap. 
     //in scala the partialFunction is also treat as a class, we can get it from classPool
     val endpointCtClass = classPool.get(endpointClassName)
@@ -4745,6 +4725,10 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
   val createProductEntitlements = canCreateProduct :: canCreateProductAtAnyBank ::  Nil
   
   val createProductEntitlementsRequiredText = UserHasMissingRoles + createProductEntitlements.mkString(" or ")
+  
+  val createAtmEntitlements = canCreateAtm :: canCreateAtmAtAnyBank ::  Nil
+  
+  val createAtmEntitlementsRequiredText = UserHasMissingRoles + createAtmEntitlements.mkString(" or ")
 
   val productHiearchyAndCollectionNote =
     """

@@ -497,7 +497,7 @@ There are the following request types on this access path:
                    if (existAll.getOrElse(false)) {
                      basket.map { i =>
                        i.payments.map(_.map { i =>
-                         Connector.connector.vend.saveTransactionRequestStatusImpl(TransactionRequestId(i), COMPLETED.toString)
+                         NewStyle.function.saveTransactionRequestStatusImpl(TransactionRequestId(i), COMPLETED.toString, callContext)
                          Connector.connector.vend.getTransactionRequestImpl(TransactionRequestId(i), callContext) map { t =>
                            Connector.connector.vend.makePaymentV400(t._1, None, callContext)
                          }
@@ -516,7 +516,7 @@ There are the following request types on this access path:
                    val basket = SigningBasketX.signingBasketProvider.vend.getSigningBasketByBasketId(basketId)
                    basket.map { i =>
                      i.payments.map(_.map { i =>
-                       Connector.connector.vend.saveTransactionRequestStatusImpl(TransactionRequestId(i), REJECTED.toString)
+                       NewStyle.function.saveTransactionRequestStatusImpl(TransactionRequestId(i), REJECTED.toString, callContext)
                      })
                    }
                    // Fail in case of an error message

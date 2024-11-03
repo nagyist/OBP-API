@@ -54,7 +54,7 @@ import code.loginattempts.LoginAttempt
 import code.model.dataAccess.ResourceUser
 import code.model.{Consumer, ModeratedBankAccount, ModeratedBankAccountCore}
 import code.ratelimiting.RateLimiting
-import code.standingorders.StandingOrderTrait
+import com.openbankproject.commons.model.StandingOrderTrait
 import code.userlocks.UserLocks
 import code.users.{UserAgreement, UserAttribute, UserInvitation}
 import code.views.system.AccountAccess

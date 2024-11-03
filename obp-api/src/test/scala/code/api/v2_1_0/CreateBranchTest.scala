@@ -21,14 +21,6 @@ class CreateBranchTest extends V210ServerSetup with DefaultUsers {
 
   feature("Assuring that endpoint 'Update Branch' works as expected - v2.1.0") {
 
-    val customerPutJSON = BranchJsonPutV210(
-      "gh.29.fi", "OBP",
-      AddressJsonV140("VALTATIE 8", "", "", "AKAA", "", "", "DE"),
-      LocationJsonV140(1.2, 2.1),
-      MetaJsonV140(LicenseJsonV140("", "")),
-      LobbyStringJson(""),
-      DriveUpStringJson("")
-    )
     scenario("Update branch successfully ") {
 
       Given("The Bank_ID and Branch_ID")
@@ -42,6 +34,14 @@ class CreateBranchTest extends V210ServerSetup with DefaultUsers {
       hasEntitlement should equal(true)
 
       When("We make the request Update Branch for an account")
+      val customerPutJSON = BranchJsonPutV210(
+        testBank.bankId.value, "OBP",
+        AddressJsonV140("VALTATIE 8", "", "", "AKAA", "", "", "DE"),
+        LocationJsonV140(1.2, 2.1),
+        MetaJsonV140(LicenseJsonV140("", "")),
+        LobbyStringJson(""),
+        DriveUpStringJson("")
+      )
       var requestPut = (v2_1Request / "banks" / bankId.value / "branches" / branchId.value ).PUT <@ (user1)
       var responsePut = makePutRequest(requestPut, write(customerPutJSON))
 
@@ -62,6 +62,14 @@ class CreateBranchTest extends V210ServerSetup with DefaultUsers {
       val branchId = BranchId("1234")
 
       Then("We add entitlement to user1")
+      val customerPutJSON = BranchJsonPutV210(
+        testBank.bankId.value, "OBP",
+        AddressJsonV140("VALTATIE 8", "", "", "AKAA", "", "", "DE"),
+        LocationJsonV140(1.2, 2.1),
+        MetaJsonV140(LicenseJsonV140("", "")),
+        LobbyStringJson(""),
+        DriveUpStringJson("")
+      )
       addEntitlement(bankId.value, resourceUser1.userId, CanUpdateBranch.toString)
       val hasEntitlement = APIUtil.hasEntitlement(bankId.value, resourceUser1.userId, ApiRole.canUpdateBranch)
       hasEntitlement should equal(true)
@@ -89,13 +97,7 @@ class CreateBranchTest extends V210ServerSetup with DefaultUsers {
 
   feature("Assuring that endpoint 'Create Branch' works as expected - v2.1.0") {
 
-    val customerPostJSON = BranchJsonPostV210("123","gh.29.fi", "OBP",
-      AddressJsonV140("VALTATIE 8", "", "", "AKAA", "", "", "DE"),
-      LocationJsonV140(1.2, 2.1),
-      MetaJsonV140(LicenseJsonV140("", "")),
-      LobbyStringJson(""),
-      DriveUpStringJson("")
-    )
+ 
 
     scenario("Create branch successfully ") {
 
@@ -104,14 +106,24 @@ class CreateBranchTest extends V210ServerSetup with DefaultUsers {
       val bankId = testBank.bankId
 
       Then("We add entitlement to user1")
+      val customerPostJSON = BranchJsonPostV210(
+        "123",
+        bankId.value,
+        "OBP",
+        AddressJsonV140("VALTATIE 8", "", "", "AKAA", "", "", "DE"),
+        LocationJsonV140(1.2, 2.1),
+        MetaJsonV140(LicenseJsonV140("", "")),
+        LobbyStringJson(""),
+        DriveUpStringJson("")
+      )
       addEntitlement(bankId.value, resourceUser1.userId, CanCreateBranch.toString)
       val hasEntitlement = APIUtil.hasEntitlement(bankId.value, resourceUser1.userId, ApiRole.canCreateBranch)
       hasEntitlement should equal(true)
 
 
       When("We make the request Update Branch for an account")
-      val requestPut = (v2_1Request / "banks" / bankId.value / "branches").POST <@ (user1)
-      val responsePost = makePostRequest(requestPut, write(customerPostJSON))
+      val requestPost = (v2_1Request / "banks" / bankId.value / "branches").POST <@ (user1)
+      val responsePost = makePostRequest(requestPost, write(customerPostJSON))
 
       Then("We should get a 201 and check all the fields")
       responsePost.code should equal(201)
@@ -133,6 +145,16 @@ class CreateBranchTest extends V210ServerSetup with DefaultUsers {
 
 
       Then("We add `CanCreateBranch`entitlement to user1")
+      val customerPostJSON = BranchJsonPostV210(
+        "123",
+        bankId.value,
+        "OBP",
+        AddressJsonV140("VALTATIE 8", "", "", "AKAA", "", "", "DE"),
+        LocationJsonV140(1.2, 2.1),
+        MetaJsonV140(LicenseJsonV140("", "")),
+        LobbyStringJson(""),
+        DriveUpStringJson("")
+      )
       addEntitlement(bankId.value, resourceUser1.userId, CanCreateBranch.toString)
       val hasEntitlement = APIUtil.hasEntitlement(bankId.value, resourceUser1.userId, ApiRole.canCreateBranch)
       hasEntitlement should equal(true)

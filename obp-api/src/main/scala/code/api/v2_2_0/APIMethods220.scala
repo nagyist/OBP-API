@@ -13,6 +13,8 @@ import code.api.v1_2_1.{CreateViewJsonV121, JSONFactory, UpdateViewJsonV121}
 import code.api.v2_0_0.OBPAPI2_0_0
 import code.api.v2_1_0._
 import code.api.v2_2_0.JSONFactory220.transformV220ToBranch
+import code.api.v3_1_0.{JSONFactory310, PostPutProductJsonV310}
+import code.api.v4_0_0.{AtmJsonV400, JSONFactory400}
 import code.bankconnectors._
 import code.consumer.Consumers
 import code.entitlement.Entitlement
@@ -513,7 +515,8 @@ trait APIMethods220 {
               bank.swift_bic,
               bank.national_identifier,
               bank.bank_routing.scheme,
-              bank.bank_routing.address
+              bank.bank_routing.address,
+              Some(cc)
             )
             entitlements <- Entitlement.entitlement.vend.getEntitlementsByUserId(u.userId)
             
@@ -567,31 +570,34 @@ trait APIMethods220 {
         InsufficientAuthorisationToCreateBranch,
         UnknownError
       ),
-      List(apiTagBranch, apiTagOpenData, apiTagOldStyle),
+      List(apiTagBranch, apiTagOpenData),
       Some(List(canCreateBranch,canCreateBranchAtAnyBank))
     )
 
     lazy val createBranch: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "branches" ::  Nil JsonPost json -> _ => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            canCreateBranch <- NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, canCreateBranch::Nil, canCreateBranchAtAnyBank::Nil, callContext)
-
-            branchJsonV220 <- tryo {json.extract[BranchJsonV220]} ?~! ErrorMessages.InvalidJsonFormat
-            branch <- transformV220ToBranch(branchJsonV220)
-            success <- Connector.connector.vend.createOrUpdateBranch(branch)
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            _ <- Future(
+              NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, canCreateBranch::Nil, canCreateBranchAtAnyBank::Nil, cc.callContext)
+            )
+            branchJsonV220 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonV300", 400, callContext) {
+              json.extract[BranchJsonV220]
+            }
+            _ <- Helper.booleanToFuture(failMsg = "BANK_ID has to be the same in the URL and Body", 400, callContext) {
+              branchJsonV220.bank_id == bank.bankId.value
+            }
+            branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
+              transformV220ToBranch(branchJsonV220).head
+            }
+            (success, callContext)  <- NewStyle.function.createOrUpdateBranch(branch, callContext)
           } yield {
-            val json = JSONFactory220.createBranchJson(success)
-            createdJsonResponse(Extraction.decompose(json))
+            (JSONFactory220.createBranchJson(success), HttpCode.`201`(callContext))
           }
       }
     }
-
-
-    val createAtmEntitlementsRequiredForSpecificBank = canCreateAtm ::  Nil
-    val createAtmEntitlementsRequiredForAnyBank = canCreateAtmAtAnyBank ::  Nil
 
     resourceDocs += ResourceDoc(
       createAtm,
@@ -613,7 +619,7 @@ trait APIMethods220 {
         UserHasMissingRoles,
         UnknownError
       ),
-      List(apiTagATM, apiTagOldStyle),
+      List(apiTagATM),
       Some(List(canCreateAtm,canCreateAtmAtAnyBank))
     )
 
@@ -621,17 +627,20 @@ trait APIMethods220 {
 
     lazy val createAtm: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "atms" ::  Nil JsonPost json -> _ => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            _ <- NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, createAtmEntitlementsRequiredForSpecificBank, createAtmEntitlementsRequiredForAnyBank, callContext)
-            atmJson <- tryo {json.extract[AtmJsonV220]} ?~! ErrorMessages.InvalidJsonFormat
-            atm <- JSONFactory220.transformToAtmFromV220(atmJson) ?~! {ErrorMessages.CouldNotTransformJsonToInternalModel + " Atm"}
-            success <- Connector.connector.vend.createOrUpdateAtmLegacy(atm)
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            atmJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[AtmJsonV400]}", 400, callContext) {
+              json.extract[AtmJsonV220]
+            }
+            _ <- NewStyle.function.hasAtLeastOneEntitlement(failMsg = createAtmEntitlementsRequiredText)(bankId.value, u.userId, createAtmEntitlements, callContext)
+            _ <- Helper.booleanToFuture(s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body", 400, callContext){atmJsonV400.bank_id == bankId.value}
+            atm <- NewStyle.function.tryons(ErrorMessages.CouldNotTransformJsonToInternalModel + " Atm", 400, callContext) {
+              JSONFactory220.transformToAtmFromV220(atmJson).head
+            }
+            (atm, callContext) <- NewStyle.function.createOrUpdateAtm(atm, callContext)
           } yield {
-            val json = JSONFactory220.createAtmJson(success)
-            createdJsonResponse(Extraction.decompose(json))
+            (JSONFactory220.createAtmJson(atm), HttpCode.`201`(callContext))
           }
       }
     }
@@ -661,7 +670,7 @@ trait APIMethods220 {
         UserHasMissingRoles,
         UnknownError
       ),
-      List(apiTagProduct, apiTagOldStyle),
+      List(apiTagProduct),
       Some(List(canCreateProduct, canCreateProductAtAnyBank))
     )
 
@@ -670,29 +679,33 @@ trait APIMethods220 {
     lazy val createProduct: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "products" ::  Nil JsonPut json -> _ => {
         cc =>
+          implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            _ <- NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, createProductEntitlementsRequiredForSpecificBank, createProductEntitlementsRequiredForAnyBank, callContext)
-              product <- tryo {json.extract[ProductJsonV220]} ?~! ErrorMessages.InvalidJsonFormat
-            success <- Connector.connector.vend.createOrUpdateProduct(
-                bankId = product.bank_id,
-                code = product.code,
-                parentProductCode = None, 
-                name = product.name,
-                category = product.category,
-                family = product.family,
-                superFamily = product.super_family,
-                moreInfoUrl = product.more_info_url,
-                termsAndConditionsUrl = null,
-                details = product.details,
-                description = product.description,
-                metaLicenceId = product.meta.license.id,
-                metaLicenceName = product.meta.license.name
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            _ <- NewStyle.function.hasAtLeastOneEntitlement(failMsg = createProductEntitlementsRequiredText)(bankId.value, u.userId, createProductEntitlements, callContext)
+            (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            failMsg = s"$InvalidJsonFormat The Json body should be the $PostPutProductJsonV310 "
+            product <- NewStyle.function.tryons(failMsg, 400, callContext) {
+              json.extract[ProductJsonV220]
+            }
+            (success, callContext) <- NewStyle.function.createOrUpdateProduct(
+              bankId = bankId.value,
+              code = product.code,
+              parentProductCode = None,
+              name = product.name,
+              category = product.category,
+              family = product.family,
+              superFamily = product.super_family,
+              moreInfoUrl = product.more_info_url,
+              termsAndConditionsUrl = null,
+              details = product.details,
+              description = product.description,
+              metaLicenceId = product.meta.license.id,
+              metaLicenceName = product.meta.license.name,
+              callContext
             )
           } yield {
-            val json = JSONFactory220.createProductJson(success)
-            createdJsonResponse(Extraction.decompose(json))
+            (JSONFactory220.createProductJson(success), HttpCode.`201`(callContext))
           }
       }
     }
@@ -760,7 +773,7 @@ trait APIMethods220 {
             }
             _ <- NewStyle.function.isValidCurrencyISOCode(fx.from_currency_code, callContext)
             _ <- NewStyle.function.isValidCurrencyISOCode(fx.to_currency_code, callContext)
-            fxRate <- NewStyle.function.createOrUpdateFXRate(
+            (fxRate, callContext)<- NewStyle.function.createOrUpdateFXRate(
               bankId = fx.bank_id,
               fromCurrencyCode = fx.from_currency_code,
               toCurrencyCode = fx.to_currency_code,

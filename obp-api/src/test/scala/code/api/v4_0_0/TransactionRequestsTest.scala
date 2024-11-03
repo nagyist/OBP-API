@@ -102,7 +102,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
 
       //we expected transfer amount
       val zero: BigDecimal = BigDecimal(0)
-      var expectedAmtTo = fx.exchangeRate(fromCurrency, toCurrency, Some(fromAccount.bankId.value)) match {
+      var expectedAmtTo = fx.exchangeRate(fromCurrency, toCurrency, Some(fromAccount.bankId.value), None) match {
         case Some(exchangeRate) => amt * exchangeRate
         case _ => amt * BigDecimal("0")
       }
@@ -293,7 +293,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
       def checkBankAccountBalance(finishedTransaction: Boolean): Unit = {
         val toAccount = getToAccount
         val fromAccount = getFromAccount
-        val rate = fx.exchangeRate(fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value))
+        val rate = fx.exchangeRate(fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value), None)
         val convertedAmount = fx.convert(amt, rate)
         val fromAccountBalance = fromAccount.balance
         val toAccountBalance = toAccount.balance

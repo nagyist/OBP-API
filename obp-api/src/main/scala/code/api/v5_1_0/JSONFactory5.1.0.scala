@@ -290,6 +290,8 @@ case class UserAttributesResponseJsonV510(
 case class CustomerIdJson(id: String)
 case class CustomersIdsJsonV510(customers: List[CustomerIdJson])
 
+case class PostCustomerLegalNameJsonV510(legal_name: String)
+
 case class MetricJsonV510(
                        user_id: String,
                        url: String,

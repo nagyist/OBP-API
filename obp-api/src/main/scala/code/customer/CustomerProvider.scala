@@ -26,7 +26,8 @@ trait CustomerProvider {
   def getCustomersFuture(bankId : BankId, queryParams: List[OBPQueryParam]): Future[Box[List[Customer]]]
 
   def getCustomersByCustomerPhoneNumber(bankId: BankId, phoneNumber: String): Future[Box[List[Customer]]]
-  
+  def getCustomersByCustomerLegalName(bankId: BankId, legalName: String): Future[Box[List[Customer]]]
+
   def getCustomerByUserId(bankId: BankId, userId: String): Box[Customer]
 
   def getCustomersByUserId(userId: String): List[Customer]

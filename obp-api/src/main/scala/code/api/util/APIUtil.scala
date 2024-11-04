@@ -822,7 +822,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
 
   /** only support en_GB, es_ES at the moment, will support more later*/
   def obpLocaleValidation(value:String): String ={
-    if(value.equalsIgnoreCase("es_Es")|| value.equalsIgnoreCase("en_GB")) 
+    if(value.equalsIgnoreCase("es_Es") || value.equalsIgnoreCase("ro_RO") || value.equalsIgnoreCase("en_GB"))
       SILENCE_IS_GOLDEN
     else
       ErrorMessages.InvalidLocale

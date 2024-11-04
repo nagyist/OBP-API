@@ -34,4 +34,6 @@
 
 [API Tester](https://github.com/OpenBankProject/API-Tester/blob/master/README.md)
 
+[Language support](https://github.com/OpenBankProject/OBP-API/tree/develop?tab=readme-ov-file#language-support)
+
 

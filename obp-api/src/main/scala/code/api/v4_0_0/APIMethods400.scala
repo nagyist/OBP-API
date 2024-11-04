@@ -3416,11 +3416,11 @@ trait APIMethods400 extends MdcLoggable {
          |
          |optional request parameters for filter with attributes
          |URL params example:
-         |  /banks/some-bank-id/firehose/accounts/views/owner?manager=John&count=8
+         |  /banks/some-bank-id/firehose/accounts/views/owner?&limit=50&offset=1
          |
          |to invalid Browser cache, add timestamp query parameter as follow, the parameter name must be `_timestamp_`
          |URL params example:
-         |  `/banks/some-bank-id/firehose/accounts/views/owner?manager=John&count=8&_timestamp_=1596762180358`
+         |  `/banks/some-bank-id/firehose/accounts/views/owner?&limit=50&offset=1&_timestamp_=1596762180358`
          |
          |${authenticationRequiredMessage(true)}
          |
@@ -3556,7 +3556,9 @@ trait APIMethods400 extends MdcLoggable {
         UserCustomerLinksNotFoundForUser,
         UnknownError
       ),
-      List(apiTagCustomer, apiTagKyc))
+      List(apiTagCustomer, apiTagKyc),
+      Some(List(canGetCustomer))
+    )
 
     lazy val getCustomersByCustomerPhoneNumber : OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "search"  :: "customers" :: "mobile-phone-number" ::  Nil JsonPost  json -> _ => {
@@ -3568,7 +3570,7 @@ trait APIMethods400 extends MdcLoggable {
             }
             (customers, callContext) <- NewStyle.function.getCustomersByCustomerPhoneNumber(bankId, postedData.mobile_phone_number , cc.callContext)
           } yield {
-            (JSONFactory300.createCustomersJson(customers), HttpCode.`201`(callContext))
+            (JSONFactory300.createCustomersJson(customers), HttpCode.`200`(callContext))
           }
       }
     }
@@ -4787,7 +4789,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Gets the Customers specified by attributes
          |
          |URL params example: /banks/some-bank-id/customers?name=John&age=8
-         |URL params example: /banks/some-bank-id/customers?manager=John&count=8
+         |URL params example: /banks/some-bank-id/customers?&limit=50&offset=1
          |
          |
          |""",
@@ -5206,7 +5208,7 @@ trait APIMethods400 extends MdcLoggable {
          |Each account must have at least one private View.
          |
          |optional request parameters for filter with attributes
-         |URL params example: /banks/some-bank-id/accounts?manager=John&count=8
+         |URL params example: /banks/some-bank-id/accounts?&limit=50&offset=1
          |
          |
       """.stripMargin,
@@ -12182,7 +12184,7 @@ trait APIMethods400 extends MdcLoggable {
          |* License the data under this endpoint is released under
          |
          |Can filter with attributes name and values.
-         |URL params example: /banks/some-bank-id/products?manager=John&count=8
+         |URL params example: /banks/some-bank-id/products?&limit=50&offset=1
          |
          |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,

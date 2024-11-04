@@ -21,7 +21,7 @@ import code.api.v2_1_0.{ConsumerRedirectUrlJSON, JSONFactory210}
 import code.api.v2_2_0.JSONFactory220
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_0_0.JSONFactory300.createAggregateMetricJson
-import code.api.v3_1_0.{ConsentJsonV310, PostConsentBodyCommonJson}
+import code.api.v3_1_0.{ConsentJsonV310, JSONFactory310, PostConsentBodyCommonJson}
 import code.api.v3_1_0.JSONFactory310.createBadLoginStatusJson
 import code.api.v4_0_0.JSONFactory400.{createAccountBalancesJson, createBalancesJson, createNewCoreBankAccountJson}
 import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, RevokedJsonV400}
@@ -1598,6 +1598,50 @@ trait APIMethods510 {
             (JSONFactory510.createCustomersIds(customers), HttpCode.`200`(callContext))
           }
         }
+      }
+    }
+
+
+    resourceDocs += ResourceDoc(
+      getCustomersByLegalName,
+      implementedInApiVersion,
+      nameOf(getCustomersByLegalName),
+      "POST",
+      "/banks/BANK_ID/customers/legal-name",
+      "Get Customers by Legal Name",
+      s"""Gets the Customers specified by Legal Name.
+         |
+         |
+         |${authenticationRequiredMessage(true)}
+         |
+         |""",
+      postCustomerLegalNameJsonV510,
+      customerJsonV310,
+      List(
+        UserNotLoggedIn,
+        UserCustomerLinksNotFoundForUser,
+        UnknownError
+      ),
+      List(apiTagCustomer, apiTagKyc),
+      Some(List(canGetCustomer))
+    )
+
+    lazy val getCustomersByLegalName: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "customers" :: "legal-name" :: Nil JsonPost json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            _ <- NewStyle.function.hasEntitlement(bankId.value, u.userId, canGetCustomer, callContext)
+            failMsg = s"$InvalidJsonFormat The Json body should be the $PostCustomerLegalNameJsonV510 "
+            postedData <- NewStyle.function.tryons(failMsg, 400, callContext) {
+              json.extract[PostCustomerLegalNameJsonV510]
+            }
+            (customer, callContext) <- NewStyle.function.getCustomersByCustomerLegalName(bank.bankId, postedData.legal_name, callContext)
+          } yield {
+            (JSONFactory300.createCustomersJson(customer), HttpCode.`200`(callContext))
+          }
       }
     }
     

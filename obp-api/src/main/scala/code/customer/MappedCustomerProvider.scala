@@ -55,6 +55,13 @@ object MappedCustomerProvider extends CustomerProvider with MdcLoggable {
     )
     Full(result)
   }
+  override def getCustomersByCustomerLegalName(bankId: BankId, legalName: String): Future[Box[List[Customer]]] = Future {
+    val result = MappedCustomer.findAll(
+      By(MappedCustomer.mBank, bankId.value),
+      Like(MappedCustomer.mLegalName, legalName)
+    )
+    Full(result)
+  }
 
 
   override def checkCustomerNumberAvailable(bankId : BankId, customerNumber : String) : Boolean = {

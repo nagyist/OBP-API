@@ -160,12 +160,16 @@ object OpenIdConnect extends OBPRestHelper with MdcLoggable {
                   logger.debug("Error at getOrCreateResourceUser: " + everythingElse)
                   (401, ErrorMessages.CouldNotSaveOpenIDConnectUser, None)
               }
-            case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotValidateIDToken)
+            case badObj@Failure(_, _, _) =>
+              logger.debug("Error at JwtUtil.validateIdToken: " + badObj)
+              chainErrorMessage(badObj, ErrorMessages.CouldNotValidateIDToken)
             case everythingElse =>
               logger.debug("Error at JwtUtil.validateIdToken: " + everythingElse)
               (401, ErrorMessages.CouldNotValidateIDToken, None)
           }
-        case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotExchangeAuthorizationCodeForTokens)
+        case badObj@Failure(_, _, _) =>
+          logger.debug("Error at exchangeAuthorizationCodeForTokens: " + badObj)
+          chainErrorMessage(badObj, ErrorMessages.CouldNotExchangeAuthorizationCodeForTokens)
         case everythingElse =>
           logger.debug("Error at exchangeAuthorizationCodeForTokens: " + everythingElse)
           (401, ErrorMessages.CouldNotExchangeAuthorizationCodeForTokens, None)
@@ -271,10 +275,15 @@ object OpenIdConnect extends OBPRestHelper with MdcLoggable {
           refreshToken <- tryo{(tokenResponse \ "refresh_token").extractOrElse[String]("")}
           scope <- tryo{(tokenResponse \ "scope").extractOrElse[String]("")}
         } yield {
+          logger.debug(s"(idToken: $idToken, accessToken: $accessToken, tokenType: $tokenType, expiresIn.toLong: ${expiresIn.toLong}, refreshToken: $refreshToken, scope: $scope)")
           (idToken, accessToken, tokenType, expiresIn.toLong, refreshToken, scope)
         }
-      case badObject@Failure(_, _, _) => badObject
-      case _ => Failure(ErrorMessages.InternalServerError + " - exchangeAuthorizationCodeForTokens")
+      case badObject@Failure(_, _, _) =>
+        logger.debug("Error at exchangeAuthorizationCodeForTokens: " + badObject)
+        badObject
+      case everythingElse =>
+        logger.debug("Error at exchangeAuthorizationCodeForTokens: " + everythingElse)
+        Failure(ErrorMessages.InternalServerError + " - exchangeAuthorizationCodeForTokens")
     }
   }
 

@@ -1,12 +1,11 @@
 package code.bankconnectors.rabbitmq.Adapter
 
-import code.api.ResourceDocs1_4_0.MessageDocsSwaggerDefinitions.{outboundAdapterAuthInfo, successStatus}
+import code.api.ResourceDocs1_4_0.MessageDocsSwaggerDefinitions.successStatus
 import code.api.util.APIUtil.MessageDoc
 import code.api.util.CustomJsonFormats.formats
-import code.api.util.{APIUtil, NewStyle, OptionalFieldSerializer}
-import code.bankconnectors.{Connector, ConnectorBuilderUtil}
-import code.bankconnectors.Connector.connector
-import code.bankconnectors.ConnectorBuilderUtil._
+import code.api.util.{APIUtil, NewStyle}
+import code.bankconnectors.generator.ConnectorBuilderUtil
+import code.bankconnectors.generator.ConnectorBuilderUtil._
 import code.bankconnectors.rabbitmq.RabbitMQConnector_vOct2024
 import com.openbankproject.commons.model.{Status, TopicTrait}
 import com.openbankproject.commons.util.Functions
@@ -24,7 +23,7 @@ import scala.collection.mutable.ArrayBuffer
  * create ms sql server stored procedure according messageDocs.
  */
 object AdapterStubBuilder {
-  specialMethods// do not delete this line, it is to modify "MappedWebUiPropsProvider"
+  commonMethodNames// do not delete this line, it is to modify "MappedWebUiPropsProvider", to avoid access DB cause dataSource not found exception
   object StatusSerializer extends Serializer[Status] {
 
     override def deserialize(implicit format: Formats): PartialFunction[(TypeInfo, JValue), Status] = Functions.doNothing

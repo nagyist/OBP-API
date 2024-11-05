@@ -1,6 +1,6 @@
 package code.bankconnectors.vMay2019
 
-import code.bankconnectors.ConnectorBuilderUtil._
+import code.bankconnectors.generator.ConnectorBuilderUtil._
 
 import scala.collection.immutable.List
 import scala.language.postfixOps

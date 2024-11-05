@@ -1,35 +1,10 @@
-package code.bankconnectors
+package code.bankconnectors.generator
 
-import code.api.util.{APIUtil, NewStyle}
-import org.apache.commons.io.FileUtils
-
-import java.io.File
-import java.util.Date
-import scala.concurrent.Future
-import scala.reflect.runtime.{universe => ru}
+import code.bankconnectors.generator.ConnectorBuilderUtil._
 
 object InOutCaseClassGenerator extends App {
 
-  def extractReturnModel(tp: ru.Type): ru.Type = {
-    if (tp.typeArgs.isEmpty) {
-      tp
-    } else {
-      extractReturnModel(tp.typeArgs(0))
-    }
-  }
-  
-  private val mirror: ru.Mirror = ru.runtimeMirror(this.getClass.getClassLoader)
-  private val clazz: ru.ClassSymbol = mirror.typeOf[Connector].typeSymbol.asClass
-  private val returnObpClassMethods1= mirror.typeOf[Connector].decls
-  private val returnObpClassMethods2= returnObpClassMethods1.filter(symbol => {
-      val isMethod = symbol.isMethod && !symbol.asMethod.isVal && !symbol.asMethod.isVar && !symbol.asMethod.isConstructor && !symbol.isProtected
-      isMethod})
-  private val returnObpClassMethods3 = returnObpClassMethods2.map(it => it.asMethod)
-    .filter(it => {
-      extractReturnModel(it.returnType).typeSymbol.fullName.matches("((code\\.|com.openbankproject\\.).+)|(scala\\.Boolean)") //to make sure, it returned the OBP class.
-    })
-
-  val code = returnObpClassMethods3.map(it => {
+  val code = connectorDeclsMethodsReturnOBPRequiredType.map(it => {
     val returnType = it.returnType
     val tp = extractReturnModel(returnType)
     val isCaseClass = tp.typeSymbol.asClass.isCaseClass
@@ -54,6 +29,8 @@ object InOutCaseClassGenerator extends App {
      """.stripMargin
   })
   code.foreach(println)
-  println()
+  
+  println("#################################Finished########################################################################")
+  println("Please copy and compair the result to obp-commons/src/main/scala/com/openbankproject/commons/model/CommonModel.scala")
 
 }

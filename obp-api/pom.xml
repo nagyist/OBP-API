@@ -449,13 +449,6 @@
       <version>3.2.7-RELEASE</version>
     </dependency>
 
-    <!--macro cache-->
-    <dependency>
-      <groupId>com.github.OpenBankProject</groupId>
-      <artifactId>macmemo</artifactId>
-      <version>0.6-OBP-SNAPSHOT</version>
-    </dependency>
-
     <!-- util convert Future to js Promise
     <dependency>
       <groupId>org.scala-js</groupId>

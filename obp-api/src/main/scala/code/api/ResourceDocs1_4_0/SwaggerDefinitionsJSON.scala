@@ -2632,6 +2632,7 @@ object SwaggerDefinitionsJSON {
 
   val putCustomerBranchJsonV310 = PutUpdateCustomerBranchJsonV310(branch_id = "123")
   val postCustomerNumberJsonV310 = PostCustomerNumberJsonV310(customer_number = ExampleValue.customerNumberExample.value)
+  val postCustomerLegalNameJsonV510 = PostCustomerLegalNameJsonV510(legal_name = ExampleValue.legalNameExample.value)
   val postCustomerPhoneNumberJsonV400 = PostCustomerPhoneNumberJsonV400(mobile_phone_number = ExampleValue.mobileNumberExample.value)
   val putUpdateCustomerEmailJsonV310 = PutUpdateCustomerEmailJsonV310("marko@tesobe.com")
   val putUpdateCustomerNumberJsonV310 = PutUpdateCustomerNumberJsonV310(customerNumberExample.value)

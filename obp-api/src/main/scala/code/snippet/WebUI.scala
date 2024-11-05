@@ -63,18 +63,37 @@ class WebUI extends MdcLoggable{
 
   def currentPage = {
 
-    val supportedLocales = APIUtil.getPropsValue("supported_locales","en_GB,es_ES").split(",")
+    val supportedLocales: Array[String] = APIUtil.getPropsValue("supported_locales","en_GB,es_ES").split(",")
     def displayLanguage(locale: String) = {
       val hyphenLocale = locale.replace("_", "-")
-      if (supportedLocales.contains(locale) || supportedLocales.contains(hyphenLocale) ) {""} else {"none"}
+      // Split the string by the underscore
+      val parts = hyphenLocale.split("-")
+
+      // Access the language and country codes
+      val languageCode = parts(0)
+      val countryCode = parts(1)
+      languageCode.toUpperCase()
     }
     val language = I18NUtil.currentLocale().getLanguage()
 
-      "#es a [style]"  #> s"display: ${displayLanguage("es_ES")}" &
-      "#locale_separator [style]"  #> {if(supportedLocales.size == 1) "display: none" else ""} &
-      "#en a [style]"  #> s"display: ${displayLanguage("en_GB")}" &
-      s"#${language.toLowerCase()} *" #> scala.xml.Unparsed(s"<b>${language.toUpperCase()}</b>")
-    
+    // Dynamically generate language links
+    val html = supportedLocales.toList.zipWithIndex.map { case (lang, index) =>
+      // Bold selected language
+      val languageAbbreviation = if (language.toLowerCase() == displayLanguage(lang).toLowerCase()) {
+        s"<b>${displayLanguage(lang)}</b>"
+      } else {
+        s"${displayLanguage(lang)}"
+      }
+      // Create a span for the language link
+      val link = s"""<span><a onclick="setCookie('SELECTED_LOCALE', '${lang}')" id="${displayLanguage(lang).toLowerCase()}" href="/">${languageAbbreviation}</a></span>"""
+      // Add separator except for the last language
+      if (index < supportedLocales.length - 1) {
+        link + s"""<span id="locale_separator_${displayLanguage(lang)}">|</span>"""
+      } else {
+        link
+      }
+    }.mkString("") // Join all parts into a single string
+    "#supported-language-list" #> scala.xml.Unparsed(html)
   }
 
 

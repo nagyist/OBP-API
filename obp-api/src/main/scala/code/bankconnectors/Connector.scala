@@ -1187,7 +1187,7 @@ trait Connector extends MdcLoggable {
   
   def getCustomersByCustomerPhoneNumber(bankId : BankId, phoneNumber: String, callContext: Option[CallContext]): OBPReturnType[Box[List[Customer]]] = Future{(Failure(setUnimplementedError(nameOf(getCustomersByCustomerPhoneNumber _))), callContext)}
 
-
+  def getCustomersByCustomerLegalName(bankId: BankId, legalName: String, callContext: Option[CallContext]): OBPReturnType[Box[List[Customer]]] = Future{(Failure(setUnimplementedError(nameOf(getCustomersByCustomerLegalName _))), callContext)}
   def getCheckbookOrders(
                           bankId: String,
                           accountId: String,

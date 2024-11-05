@@ -674,3 +674,13 @@ resourceDocs += ResourceDoc(
       ...
 )
 ```
+
+## Language support
+### Add a new language
+An additional language can be added via props `supported_locales`
+
+Steps to add Spanish language:
+* tweak the property supported_locales = en_GB to `supported_locales = en_GB,es_ES`
+* add file `lift-core_es_ES.properties` at the folder `/resources/i18n`
+
+Please note that default translation file is `lift-core.properties` 

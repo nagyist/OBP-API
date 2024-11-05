@@ -2598,7 +2598,7 @@ trait APIMethods310 {
          |* License the data under this endpoint is released under
          |
          |Can filter with attributes name and values.
-         |URL params example: /banks/some-bank-id/products?manager=John&count=8
+         |URL params example: /banks/some-bank-id/products?&limit=50&offset=1
          |
          |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,

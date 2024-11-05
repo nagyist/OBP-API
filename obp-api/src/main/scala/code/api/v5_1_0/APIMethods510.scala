@@ -26,7 +26,7 @@ import code.api.v3_1_0.JSONFactory310.createBadLoginStatusJson
 import code.api.v4_0_0.JSONFactory400.{createAccountBalancesJson, createBalancesJson, createNewCoreBankAccountJson}
 import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, RevokedJsonV400}
 import code.api.v5_0_0.{JSONFactory500, PostConsentRequestJsonV500}
-import code.api.v5_1_0.JSONFactory510.{createRegulatedEntitiesJson, createRegulatedEntityJson}
+import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
 import code.atmattribute.AtmAttribute
 import code.bankconnectors.Connector
 import code.consent.{ConsentRequests, Consents}
@@ -969,6 +969,46 @@ trait APIMethods510 {
             (atmAttribute, callContext) <- NewStyle.function.deleteAtmAttribute(atmAttributeId, callContext)
           } yield {
             (Full(atmAttribute), HttpCode.`204`(callContext))
+          }
+      }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
+      getMyConsents,
+      implementedInApiVersion,
+      nameOf(getMyConsents),
+      "GET",
+      "/banks/BANK_ID/my/consents",
+      "Get My Consents",
+      s"""
+         |
+         |This endpoint gets the Consents created by a current User.
+         |
+         |${authenticationRequiredMessage(true)}
+         |
+      """.stripMargin,
+      EmptyBody,
+      consentsJsonV400,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        UnknownError
+      ),
+      List(apiTagConsent, apiTagPSD2AIS, apiTagPsd2))
+
+    lazy val getMyConsents: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "my" :: "consents" :: Nil JsonGet _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            consents <- Future {
+              Consents.consentProvider.vend.getConsentsByUser(cc.userId)
+                .sortBy(i => (i.creationDateTime, i.apiStandard)).reverse
+            }
+          } yield {
+            val consentsOfBank = Consent.filterByBankId(consents, bankId)
+            (createConsentsInfoJsonV510(consentsOfBank), HttpCode.`200`(cc))
           }
       }
     }

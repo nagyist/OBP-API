@@ -332,12 +332,27 @@ case class ConsumerJsonV510(consumer_id: String,
                             certificate_info: Option[CertificateInfoJsonV510],
                             created_by_user: ResourceUserJSON,
                             enabled: Boolean,
-                            created: Date
+                            created: Date, 
+                            logo_url: Option[String]
                            )
 
 case class PostCreateUserAccountAccessJsonV510(username: String, provider:String, view_id:String)
 
 case class PostAccountAccessJsonV510(user_id: String, view_id: String)
+
+case class CreateConsumerRequestJsonV510(
+  app_name: String,
+  app_type: String,
+  description: String,
+  developer_email: String,
+  company: String,
+  redirect_url: String,
+  created_by_user_id: String,
+  enabled: Boolean,
+  created: Date,
+  clientCertificate: String,
+  logoUrl: Option[String]
+)
 
 case class CreateCustomViewJson(
   name: String,
@@ -813,7 +828,8 @@ object JSONFactory510 extends CustomJsonFormats {
       certificate_info = certificateInfo,
       created_by_user = resourceUserJSON,
       enabled = c.isActive.get,
-      created = c.createdAt.get
+      created = c.createdAt.get,
+      logo_url =  if (c.logoUrl.get == null) null else Some(c.logoUrl.get)
     )
   }
 

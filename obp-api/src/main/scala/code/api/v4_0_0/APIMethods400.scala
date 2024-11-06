@@ -5300,6 +5300,7 @@ trait APIMethods400 extends MdcLoggable {
               redirectURL = Some(postedJson.redirect_url),
               createdByUserId = Some(u.userId),
               clientCertificate = Some(postedJson.clientCertificate),
+              logoUrl = None,
               callContext
             )
             user <- Users.users.vend.getUserByUserIdFuture(u.userId)

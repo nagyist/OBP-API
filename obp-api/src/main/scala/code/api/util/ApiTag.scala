@@ -151,5 +151,10 @@ object ApiTag {
     .values.map(_.displayTag).toSet
 }
 
+object myApp extends App{
+  println(ApiTag.allDisplayTagNames)
+  println(ApiTag.allDisplayTagNames)
+}
+
 
 

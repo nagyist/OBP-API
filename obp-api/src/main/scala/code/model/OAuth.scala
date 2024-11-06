@@ -155,7 +155,8 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
                               redirectURL: Option[String],
                               createdByUserId: Option[String],
                               clientCertificate: Option[String] = None,
-                              company: Option[String] = None
+                              company: Option[String] = None,
+                              logoUrl: Option[String]
                              ): Box[Consumer] = {
     tryo {
       val c = Consumer.create
@@ -198,6 +199,10 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
       }
       redirectURL match {
         case Some(v) => c.redirectURL(v)
+        case None =>
+      }
+      logoUrl match {
+        case Some(v) => c.logoUrl(v)
         case None =>
       }
       createdByUserId match {
@@ -538,6 +543,11 @@ class Consumer extends LongKeyedMapper[Consumer] with CreatedUpdated{
   }
   object redirectURL extends MappedString(this, 250){
     override def displayName = "Redirect URL:"
+    override def validations = validUri(this) _ :: super.validations
+  }
+  
+  object logoUrl extends MappedString(this, 250){
+    override def displayName = "Logo URL:"
     override def validations = validUri(this) _ :: super.validations
   }
   //if the application needs to delegate the user authentication

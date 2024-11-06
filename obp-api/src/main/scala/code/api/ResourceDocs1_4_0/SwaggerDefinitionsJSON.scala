@@ -2710,7 +2710,8 @@ object SwaggerDefinitionsJSON {
     certificate_info = Some(certificateInfoJsonV510),
     created_by_user = resourceUserJSON,
     enabled = true,
-    created = DateWithDayExampleObject
+    created = DateWithDayExampleObject,
+    logo_url = Some("www.openbankproject.com/logo")
   )
 
   val consumersJson = ConsumersJson(

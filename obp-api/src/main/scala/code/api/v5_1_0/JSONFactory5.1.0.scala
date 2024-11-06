@@ -435,6 +435,10 @@ case class PostVRPConsentRequestJsonV510(
   time_to_live: Option[Long]
 )
 
+case class APITags(
+  tags : List[String]
+)
+
 object JSONFactory510 extends CustomJsonFormats {
 
   def createViewJson(view: View): CustomViewJsonV510 = {

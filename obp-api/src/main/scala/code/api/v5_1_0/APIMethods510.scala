@@ -2242,6 +2242,36 @@ trait APIMethods510 {
             (JSONFactory400.createAccountsMinimalJson400(accountAccess), HttpCode.`200`(callContext))
           }
     }
+    
+    
+    staticResourceDocs += ResourceDoc(
+      getApiTags,
+      implementedInApiVersion,
+      nameOf(getApiTags),
+      "GET",
+      "/tags",
+      "Get API Tags",
+      s"""Get API TagsGet API Tags
+         |
+         |${authenticationRequiredMessage(false)}
+         |
+         |""",
+      EmptyBody,
+      accountsMinimalJson400,
+      List(
+        UnknownError
+      ),
+      List(apiTagApi))
+
+    lazy val getApiTags : OBPEndpoint = {
+      case "tags" ::  Nil JsonGet _ =>
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            _ <- Future.successful() // Just start async call
+          } yield {
+            (APITags(ApiTag.allDisplayTagNames.toList), HttpCode.`200`(cc.callContext))
+          }
+    }
 
 
 

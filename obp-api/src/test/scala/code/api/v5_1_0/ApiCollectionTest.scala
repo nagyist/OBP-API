@@ -48,7 +48,7 @@ class ApiCollectionTest extends V510ServerSetup {
    *
    *  This is made possible by the scalatest maven plugin
    */
-  object VersionOfApi extends Tag(ApiVersion.v4_0_0.toString)
+  object VersionOfApi extends Tag(ApiVersion.v5_0_0.toString)
   object ApiEndpoint1 extends Tag(nameOf(Implementations4_0_0.createMyApiCollection))
   object ApiEndpoint2 extends Tag(nameOf(Implementations4_0_0.getMyApiCollectionById))
   object ApiEndpoint3 extends Tag(nameOf(Implementations5_1_0.updateMyApiCollection))

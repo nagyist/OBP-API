@@ -5489,7 +5489,9 @@ object SwaggerDefinitionsJSON {
     "http://localhost:8888"
   )
   
-  
+  val consumersJsonV510 = ConsumersJsonV510(
+    List(consumerJsonV510)
+  )
   //The common error or success format.
   //Just some helper format to use in Json 
   case class NotSupportedYet()

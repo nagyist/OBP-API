@@ -27,6 +27,7 @@ import code.api.v5_1_0.JSONFactory510.{createRegulatedEntitiesJson, createRegula
 import code.atmattribute.AtmAttribute
 import code.bankconnectors.Connector
 import code.consent.{ConsentRequests, Consents}
+import code.consumer.Consumers
 import code.loginattempts.LoginAttempt
 import code.metrics.APIMetrics
 import code.model.AppType
@@ -2134,6 +2135,44 @@ trait APIMethods510 {
               callContext)
           } yield {
             (JSONFactory510.createConsumerJSON(updatedConsumer), HttpCode.`200`(callContext))
+          }
+      }
+    }
+    resourceDocs += ResourceDoc(
+      getConsumers,
+      implementedInApiVersion,
+      nameOf(getConsumers),
+      "GET",
+      "/management/consumers",
+      "Get Consumers",
+      s"""Get the all Consumers.
+         |
+         |${authenticationRequiredMessage(true)}
+         |
+         |${urlParametersDocument(true, true)}
+         |
+         |""",
+      EmptyBody,
+      consumersJsonV510,
+      List(
+        $UserNotLoggedIn,
+        UserHasMissingRoles,
+        UnknownError
+      ),
+      List(apiTagConsumer),
+      Some(List(canGetConsumers))
+    )
+
+
+    lazy val getConsumers: OBPEndpoint = {
+      case "management" :: "consumers" :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            httpParams <- NewStyle.function.extractHttpParamsFromUrl(cc.url)
+            (obpQueryParams, callContext) <- createQueriesByHttpParamsFuture(httpParams, Some(cc))
+            consumers <- Consumers.consumers.vend.getConsumersFuture(obpQueryParams, callContext)
+          } yield {
+            (JSONFactory510.createConsumersJson(consumers), HttpCode.`200`(callContext))
           }
       }
     }

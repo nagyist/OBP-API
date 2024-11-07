@@ -336,6 +336,9 @@ case class ConsumerJsonV510(consumer_id: String,
                             logo_url: Option[String]
                            )
 
+case class ConsumersJsonV510(
+  consumers : List[ConsumerJsonV510]
+)
 case class PostCreateUserAccountAccessJsonV510(username: String, provider:String, view_id:String)
 
 case class PostAccountAccessJsonV510(user_id: String, view_id: String)
@@ -835,6 +838,10 @@ object JSONFactory510 extends CustomJsonFormats {
       created = c.createdAt.get,
       logo_url =  if (c.logoUrl.get == null || c.logoUrl.get.isEmpty ) null else Some(c.logoUrl.get)
     )
+  }
+  
+  def createConsumersJson(consumers:List[Consumer]) = {
+    ConsumersJsonV510(consumers.map(createConsumerJSON(_,None)))
   }
 
 

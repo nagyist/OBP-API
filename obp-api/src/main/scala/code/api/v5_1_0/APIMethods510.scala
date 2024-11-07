@@ -2019,12 +2019,12 @@ trait APIMethods510 {
     
     
     staticResourceDocs += ResourceDoc(
-      updateConsumerRedirectUrl,
+      updateConsumerRedirectURL,
       implementedInApiVersion,
       "updateConsumerRedirectUrl",
       "PUT",
       "/management/consumers/CONSUMER_ID/consumer/redirect_url",
-      "Update Consumer RedirectUrl",
+      "Update Consumer RedirectURL",
       s"""Update an existing redirectUrl for a Consumer specified by CONSUMER_ID.
          |
          | ${consumerDisabledText()}
@@ -2045,7 +2045,7 @@ trait APIMethods510 {
       Some(List(canUpdateConsumerRedirectUrl))
     )
 
-    lazy val updateConsumerRedirectUrl: OBPEndpoint = {
+    lazy val updateConsumerRedirectURL: OBPEndpoint = {
       case "management" :: "consumers" :: consumerId :: "consumer" :: "redirect_url" :: Nil JsonPut json -> _ => {
         cc =>
           implicit val ec = EndpointContext(Some(cc))

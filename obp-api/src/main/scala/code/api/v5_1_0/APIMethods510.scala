@@ -1964,7 +1964,7 @@ trait APIMethods510 {
       nameOf(createConsumer),
       "POST",
       "/management/consumers",
-      "Post a Consumer",
+      "Create a Consumer",
       s"""Create a Consumer (Authenticated access).
          |
          |""",
@@ -2013,11 +2013,10 @@ trait APIMethods510 {
               company = Some(postedJson.company),
               redirectURL = Some(postedJson.redirect_url),
               createdByUserId = Some(u.userId),
-              clientCertificate = Some(postedJson.clientCertificate),
-              logoUrl = None,
+              clientCertificate = Some(postedJson.client_certificate),
+              logoUrl = postedJson.logo_url,
               callContext
             )
-            user <- Users.users.vend.getUserByUserIdFuture(u.userId)
           } yield {
             (JSONFactory510.createConsumerJSON(consumer, None), HttpCode.`201`(callContext))
           }

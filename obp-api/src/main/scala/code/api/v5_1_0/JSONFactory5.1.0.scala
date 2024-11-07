@@ -350,8 +350,8 @@ case class CreateConsumerRequestJsonV510(
   created_by_user_id: String,
   enabled: Boolean,
   created: Date,
-  clientCertificate: String,
-  logoUrl: Option[String]
+  client_certificate: String,
+  logo_url: Option[String]
 )
 
 case class CreateCustomViewJson(
@@ -829,7 +829,7 @@ object JSONFactory510 extends CustomJsonFormats {
       created_by_user = resourceUserJSON,
       enabled = c.isActive.get,
       created = c.createdAt.get,
-      logo_url =  if (c.logoUrl.get == null) null else Some(c.logoUrl.get)
+      logo_url =  if (c.logoUrl.get == null || c.logoUrl.get.isEmpty ) null else Some(c.logoUrl.get)
     )
   }
 

@@ -1,7 +1,7 @@
 package code.consent
 
 import java.util.Date
-import code.api.util.{APIUtil, Consent, ErrorMessages, OBPBankId, OBPOffset, OBPQueryParam, OBPUserId, OBPLimit, OBPConsumerId, SecureRandomUtil}
+import code.api.util.{APIUtil, Consent, ErrorMessages, OBPStatus, OBPOffset, OBPQueryParam, OBPUserId, OBPLimit, OBPConsumerId, SecureRandomUtil}
 import code.consent.ConsentStatus.ConsentStatus
 import code.model.Consumer
 import code.util.MappedUUID
@@ -70,12 +70,14 @@ object MappedConsentProvider extends ConsentProvider {
     // he optional variables:
     val consumerId = queryParams.collect { case OBPConsumerId(value) => By(MappedConsent.mConsumerId, value)}.headOption
     val userId = queryParams.collect { case OBPUserId(value) => By(MappedConsent.mUserId, value)}.headOption
+    val status = queryParams.collect { case OBPStatus(value) => By(MappedConsent.mStatus, value.toUpperCase())}.headOption
 
     Seq(
       offset.toSeq,
+      limit.toSeq,
+      status.toSeq,
       userId.toSeq,
-      consumerId.toSeq,
-      limit.toSeq
+      consumerId.toSeq
     ).flatten
   }
 

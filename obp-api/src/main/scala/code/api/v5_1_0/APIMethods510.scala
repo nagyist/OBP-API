@@ -1035,6 +1035,8 @@ trait APIMethods510 {
          |
          |4 user_id  (ignore if omitted)
          |
+         |5 status  (ignore if omitted)
+         |
          |eg: /management/consents/banks/BANK_ID?&consumer_id=78&limit=10&offset=10
          |
       """.stripMargin,

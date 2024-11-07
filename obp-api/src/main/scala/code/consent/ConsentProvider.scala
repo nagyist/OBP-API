@@ -1,5 +1,6 @@
 package code.consent
 
+import code.api.util.OBPQueryParam
 import com.openbankproject.commons.model.User
 import net.liftweb.common.Box
 import net.liftweb.util.SimpleInjector
@@ -16,6 +17,7 @@ object Consents extends SimpleInjector {
 }
 
 trait ConsentProvider {
+  def getConsents(queryParams: List[OBPQueryParam]): List[MappedConsent]
   def getConsentByConsentId(consentId: String): Box[MappedConsent]
   def getConsentByConsentRequestId(consentRequestId: String): Box[MappedConsent]
   def updateConsentStatus(consentId: String, status: ConsentStatus): Box[MappedConsent]

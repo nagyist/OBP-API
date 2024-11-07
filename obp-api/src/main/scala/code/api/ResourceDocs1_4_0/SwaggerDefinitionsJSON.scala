@@ -11,7 +11,7 @@ import code.api.dynamic.endpoint.helper.practise.PractiseEndpoint
 import code.api.util.APIUtil.{defaultJValue, _}
 import code.api.util.ApiRole._
 import code.api.util.ExampleValue._
-import code.api.util.{APIUtil, ApiRole, ApiTrigger, ExampleValue}
+import code.api.util.{APIUtil, ApiRole, ApiTrigger, ConsentJWT, CustomJsonFormats, ExampleValue}
 import code.api.v2_2_0.JSONFactory220.{AdapterImplementationJson, MessageDocJson, MessageDocsJson}
 import code.api.v3_0_0.JSONFactory300.createBranchJsonV300
 import code.api.v3_0_0.custom.JSONFactoryCustom300
@@ -39,7 +39,7 @@ import java.net.URLEncoder
 
 import code.api.v5_1_0.{AtmsJsonV510, CustomViewJsonV510, _}
 import code.endpointMapping.EndpointMappingCommons
-import net.liftweb.json.Extraction
+import net.liftweb.json.{Extraction, parse}
 
 import scala.collection.immutable.List
 
@@ -54,6 +54,8 @@ import scala.collection.immutable.List
 object SwaggerDefinitionsJSON {
 
   implicit def convertStringToBoolean(value:String) = value.toBoolean
+
+  implicit val formats = CustomJsonFormats.formats
 
   lazy val regulatedEntitiesJsonV510: RegulatedEntitiesJsonV510 = RegulatedEntitiesJsonV510(List(regulatedEntityJsonV510))
   lazy val regulatedEntityJsonV510: RegulatedEntityJsonV510 = RegulatedEntityJsonV510(
@@ -4200,7 +4202,44 @@ object SwaggerDefinitionsJSON {
     status = ConsentStatus.INITIATED.toString,
     api_standard = "Berlin Group",
     api_version = "v1.3"
-  )  
+  )
+
+  val allConsentJsonV510 = AllConsentJsonV510(
+    consent_reference_id = "9d429899-24f5-42c8-8565-943ffa6a7945",
+    consumer_id = consumerIdExample.value,
+    created_by_user_id = userIdExample.value,
+    last_action_date = dateExample.value,
+    last_usage_date = dateTimeExample.value,
+    status = ConsentStatus.INITIATED.toString,
+    api_standard = "Berlin Group",
+    api_version = "v1.3",
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiIiLCJzdWIiOiJmY2YzNDZkMi0xNTNiLTQ0MzAtOWE4Zi1mMzU3Njg1MzM5ODciLCJhdWQiOiIyNjY0NjUwYy04MDkwLTQ4MWUtOGJkOC0wM2E5MmY5Yzg3ZWEiLCJuYmYiOjE3MzAzNzMyNzEsImFjY2VzcyI6eyJhY2NvdW50cyI6W3siaWJhbiI6IlJTMzUyNjAwMDU2MDEwMDE2MTEzNzkifV19LCJpc3MiOiJodHRwczovLzEyNy4wLjAuMTo4MDgwIiwiZXhwIjoxNzMwOTM3NjAwLCJpYXQiOjE3MzAzNzMyNzEsImp0aSI6ImQzM2Y3NDYzLWVlNDktNGU4YS04YTkyLTYxMzhkYzE4M2QxNiIsInZpZXdzIjpbeyJiYW5rX2lkIjoibmxia2IiLCJhY2NvdW50X2lkIjoiOTUzODkyOTctNDVjNC00MGViLTllZmQtMzMxYmExOTQzZGE0Iiwidmlld19pZCI6IlJlYWRBY2NvdW50c0Jlcmxpbkdyb3VwIn1dfQ.SXE4W34596lrSXqZrA8cvQs_fvhjWYilU8VDpXZ3C3Y",
+    jwt_payload = parse("""{
+      "createdByUserId": "",
+      "sub": "fcf346d2-153b-4430-9a8f-f35768533987",
+      "iss": "https://127.0.0.1:8080",
+      "aud": "2664650c-8090-481e-8bd8-03a92f9c87ea",
+      "jti": "d33f7463-ee49-4e8a-8a92-6138dc183d16",
+      "iat": 1730373271,
+      "nbf": 1730373271,
+      "exp": 1730937600,
+      "entitlements": [],
+      "views": [ {
+      "bank_id": "nlbkb",
+      "account_id": "95389297-45c4-40eb-9efd-331ba1943da4",
+      "view_id": "ReadAccountsBerlinGroup"
+    }
+      ],
+      "access": {
+      "accounts": [ {
+      "iban": "RS35260005601001611379"
+    }
+      ]
+    }
+    }""").extractOpt[ConsentJWT],
+  )
+  val consentsJsonV510 = ConsentsJsonV510(List(allConsentJsonV510))
+
   val revokedConsentJsonV310 = ConsentJsonV310(
     consent_id = "9d429899-24f5-42c8-8565-943ffa6a7945",
     jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiJhYjY1MzlhOS1iMTA1LTQ0ODktYTg4My0wYWQ4ZDZjNjE2NTciLCJzdWIiOiIyMWUxYzhjYy1mOTE4LTRlYWMtYjhlMy01ZTVlZWM2YjNiNGIiLCJhdWQiOiJlanpuazUwNWQxMzJyeW9tbmhieDFxbXRvaHVyYnNiYjBraWphanNrIiwibmJmIjoxNTUzNTU0ODk5LCJpc3MiOiJodHRwczpcL1wvd3d3Lm9wZW5iYW5rcHJvamVjdC5jb20iLCJleHAiOjE1NTM1NTg0OTksImlhdCI6MTU1MzU1NDg5OSwianRpIjoiMDlmODhkNWYtZWNlNi00Mzk4LThlOTktNjYxMWZhMWNkYmQ1Iiwidmlld3MiOlt7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAxIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifSx7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAyIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifV19.8cc7cBEf2NyQvJoukBCmDLT7LXYcuzTcSYLqSpbxLp4",
@@ -4240,9 +4279,9 @@ object SwaggerDefinitionsJSON {
   val consentsJsonV310 = ConsentsJsonV310(List(consentJsonV310))
   
   val consentsJsonV400 = ConsentsJsonV400(List(consentJsonV400))
-  
+
   val consentInfosJsonV400 = ConsentInfosJsonV400(List(consentInfoJsonV400))
-  
+
   val oAuth2ServerJWKURIJson = OAuth2ServerJWKURIJson("https://www.googleapis.com/oauth2/v3/certs")
   
   val oAuth2ServerJwksUrisJson = OAuth2ServerJwksUrisJson(List(oAuth2ServerJWKURIJson))

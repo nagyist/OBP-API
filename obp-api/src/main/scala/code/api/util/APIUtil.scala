@@ -1090,6 +1090,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
             value <- tryo(values.head.toBoolean) ?~! FilterIsDeletedFormatError
             deleted = OBPIsDeleted(value)
           } yield deleted
+        case "status" => Full(OBPStatus(values.head))
         case "consumer_id" => Full(OBPConsumerId(values.head))
         case "user_id" => Full(OBPUserId(values.head))
         case "bank_id" => Full(OBPBankId(values.head))
@@ -1134,6 +1135,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
       limit <- getLimit(httpParams)
       offset <- getOffset(httpParams)
       //all optional fields
+      status <- getHttpParamValuesByName(httpParams,"status")
       anon <- getHttpParamValuesByName(httpParams,"anon")
       deletedStatus <- getHttpParamValuesByName(httpParams,"is_deleted")
       consumerId <- getHttpParamValuesByName(httpParams,"consumer_id")
@@ -1174,7 +1176,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
       val ordering = OBPOrdering(sortBy, sortDirection)
       //This guarantee the order 
       List(limit, offset, ordering, fromDate, toDate,
-        anon, consumerId, userId, url, appName, implementedByPartialFunction, implementedInVersion,
+        anon, status, consumerId, userId, url, appName, implementedByPartialFunction, implementedInVersion,
         verb, correlationId, duration, excludeAppNames, excludeUrlPattern, excludeImplementedByPartialfunctions,
         includeAppNames, includeUrlPattern, includeImplementedByPartialfunctions, 
         connectorName,functionName, bankId, accountId, customerId, lockedStatus, deletedStatus
@@ -1209,6 +1211,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
     val limit =  getHttpRequestUrlParam(httpRequestUrl,"limit")
     val offset =  getHttpRequestUrlParam(httpRequestUrl,"offset")
     val anon =  getHttpRequestUrlParam(httpRequestUrl,"anon")
+    val status =  getHttpRequestUrlParam(httpRequestUrl,"status")
     val isDeleted = getHttpRequestUrlParam(httpRequestUrl, "is_deleted")
     val consumerId =  getHttpRequestUrlParam(httpRequestUrl,"consumer_id")
     val userId =  getHttpRequestUrlParam(httpRequestUrl, "user_id")
@@ -1241,7 +1244,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
 
     Full(List(
       HTTPParam("sort_direction",sortDirection), HTTPParam("from_date",fromDate), HTTPParam("to_date", toDate), HTTPParam("limit",limit), HTTPParam("offset",offset),
-      HTTPParam("anon", anon), HTTPParam("consumer_id", consumerId), HTTPParam("user_id", userId), HTTPParam("url", url), HTTPParam("app_name", appName),
+      HTTPParam("anon", anon), HTTPParam("status", status), HTTPParam("consumer_id", consumerId), HTTPParam("user_id", userId), HTTPParam("url", url), HTTPParam("app_name", appName),
       HTTPParam("implemented_by_partial_function",implementedByPartialFunction), HTTPParam("implemented_in_version",implementedInVersion), HTTPParam("verb", verb),
       HTTPParam("correlation_id", correlationId), HTTPParam("duration", duration), HTTPParam("exclude_app_names", excludeAppNames),
       HTTPParam("exclude_url_patterns", excludeUrlPattern),HTTPParam("exclude_implemented_by_partial_functions", excludeImplementedByPartialfunctions), 

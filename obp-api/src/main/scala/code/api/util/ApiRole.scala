@@ -230,6 +230,9 @@ object ApiRole extends MdcLoggable{
   case class CanUpdateConsumerRedirectUrl(requiresBankId: Boolean = false) extends ApiRole
   lazy val canUpdateConsumerRedirectUrl = CanUpdateConsumerRedirectUrl()
 
+  case class CanUpdateConsumerLogoUrl(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canUpdateConsumerLogoUrl = CanUpdateConsumerLogoUrl()
+
   case class CanCreateConsumer (requiresBankId: Boolean = false) extends ApiRole
   lazy val canCreateConsumer = CanCreateConsumer()
 

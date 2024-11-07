@@ -156,7 +156,7 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
                               createdByUserId: Option[String],
                               clientCertificate: Option[String] = None,
                               company: Option[String] = None,
-                              logoUrl: Option[String]
+                              logoURL: Option[String]
                              ): Box[Consumer] = {
     tryo {
       val c = Consumer.create
@@ -201,7 +201,7 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
         case Some(v) => c.redirectURL(v)
         case None =>
       }
-      logoUrl match {
+      logoURL match {
         case Some(v) => c.logoUrl(v)
         case None =>
       }
@@ -238,7 +238,9 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
                               description: Option[String],
                               developerEmail: Option[String],
                               redirectURL: Option[String],
-                              createdByUserId: Option[String]): Box[Consumer] = {
+                              createdByUserId: Option[String],
+                              logoURL: Option[String]
+  ): Box[Consumer] = {
     val consumer = Consumer.find(By(Consumer.id, id))
     consumer match {
       case Full(c) => tryo {
@@ -277,6 +279,10 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
         }
         redirectURL match {
           case Some(v) => c.redirectURL(v)
+          case None =>
+        }
+        logoURL match {
+          case Some(v) => c.logoUrl(v)
           case None =>
         }
         createdByUserId match {

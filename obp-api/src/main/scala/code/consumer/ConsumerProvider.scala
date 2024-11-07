@@ -40,10 +40,15 @@ trait ConsumersProvider {
     createdByUserId: Option[String],
     clientCertificate: Option[String],
     company: Option[String],
-    logoUrl: Option[String]
+    logoURL: Option[String]
   ): Box[Consumer]
   def deleteConsumer(consumer: Consumer): Boolean
-  def updateConsumer(id: Long, key: Option[String], secret: Option[String], isActive: Option[Boolean], name: Option[String], appType: Option[AppType], description: Option[String], developerEmail: Option[String], redirectURL: Option[String], createdByUserId: Option[String]): Box[Consumer]
+  def updateConsumer(id: Long, key: Option[String], secret: Option[String], isActive: Option[Boolean], name: Option[String], 
+    appType: Option[AppType], description: Option[String], developerEmail: Option[String], 
+    redirectURL: Option[String], 
+    createdByUserId: Option[String],
+    LogoURL: Option[String],
+  ): Box[Consumer]
   def updateConsumerCallLimits(id: Long, perSecond: Option[String], perMinute: Option[String], perHour: Option[String], perDay: Option[String], perWeek: Option[String], perMonth: Option[String]): Future[Box[Consumer]]
   def getOrCreateConsumer(consumerId: Option[String], 
                           key: Option[String], 

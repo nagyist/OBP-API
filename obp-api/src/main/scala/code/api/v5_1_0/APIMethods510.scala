@@ -1930,7 +1930,7 @@ trait APIMethods510 {
               redirectURL = postedJson.redirect_url,
               createdByUserId = None,
               clientCertificate = pem,
-              logoUrl = None,
+              logoURL = None,
               cc.callContext
             )
           } yield {
@@ -2007,7 +2007,7 @@ trait APIMethods510 {
               redirectURL = Some(postedJson.redirect_url),
               createdByUserId = Some(u.userId),
               clientCertificate = Some(postedJson.client_certificate),
-              logoUrl = postedJson.logo_url,
+              logoURL = postedJson.logo_url,
               callContext
             )
           } yield {
@@ -2063,10 +2063,77 @@ trait APIMethods510 {
               consumer.createdByUserId.equals(u.userId)
             }
             //update the redirectURL and isactive (set to false when change redirectUrl) field in consumer table
-            updatedConsumer <- NewStyle.function.updateConsumer(consumer.id.get, None, None, Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false)), None, None, None, None, Some(postJson.redirect_url), None, callContext)
+            updatedConsumer <- NewStyle.function.updateConsumer(
+              consumer.id.get, None, None, Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false)), 
+              None, None, None, None, 
+              Some(postJson.redirect_url), 
+              None, 
+              None, 
+              callContext
+            )
           } yield {
             val json = JSONFactory510.createConsumerJSON(updatedConsumer)
             (json, HttpCode.`200`(callContext))
+          }
+      }
+    }   
+    
+    staticResourceDocs += ResourceDoc(
+      updateConsumerLogoURL,
+      implementedInApiVersion,
+      nameOf(updateConsumerLogoURL),
+      "PUT",
+      "/management/consumers/CONSUMER_ID/consumer/logo_url",
+      "Update Consumer LogoURL",
+      s"""Update an existing logoURL for a Consumer specified by CONSUMER_ID.
+         |
+         | ${consumerDisabledText()}
+         |
+         | CONSUMER_ID can be obtained after you register the application.
+         |
+         | Or use the endpoint 'Get Consumers' to get it
+         |
+       """.stripMargin,
+      consumerLogoUrlJson,
+      consumerJsonV510,
+      List(
+        $UserNotLoggedIn,
+        UserHasMissingRoles,
+        UnknownError
+      ),
+      List(apiTagConsumer),
+      Some(List(canUpdateConsumerLogoUrl))
+    )
+
+    lazy val updateConsumerLogoURL: OBPEndpoint = {
+      case "management" :: "consumers" :: consumerId :: "consumer" :: "logo_url" :: Nil JsonPut json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            postJson <- NewStyle.function.tryons(InvalidJsonFormat, 400, callContext) {
+              json.extract[ConsumerLogoUrlJson]
+            }
+            consumer <- NewStyle.function.getConsumerByConsumerId(consumerId, callContext)
+            //only the developer that created the Consumer should be able to edit it
+            _ <- Helper.booleanToFuture(UserNoPermissionUpdateConsumer, 400, callContext) {
+              consumer.createdByUserId.equals(u.userId)
+            }
+            updatedConsumer <- NewStyle.function.updateConsumer(
+              consumer.id.get, 
+              None, 
+              None,
+              None,
+              None, 
+              None, 
+              None,
+              None, 
+              None, 
+              None,
+              logoURL = Some(postJson.logo_url), 
+              callContext)
+          } yield {
+            (JSONFactory510.createConsumerJSON(updatedConsumer), HttpCode.`200`(callContext))
           }
       }
     }

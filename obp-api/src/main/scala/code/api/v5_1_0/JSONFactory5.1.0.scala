@@ -454,6 +454,10 @@ case class APITags(
   tags : List[String]
 )
 
+case class ConsumerLogoUrlJson(
+  logo_url: String
+)
+
 object JSONFactory510 extends CustomJsonFormats {
 
   def createViewJson(view: View): CustomViewJsonV510 = {

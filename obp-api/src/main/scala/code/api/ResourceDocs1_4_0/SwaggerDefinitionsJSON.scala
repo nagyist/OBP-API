@@ -5484,6 +5484,10 @@ object SwaggerDefinitionsJSON {
     valid_from = Some(new Date()),
     time_to_live = Some(3600)
   )
+
+  val consumerLogoUrlJson = ConsumerLogoUrlJson(
+    "http://localhost:8888"
+  )
   
   
   //The common error or success format.

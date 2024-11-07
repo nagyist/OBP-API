@@ -23,7 +23,7 @@ object Consumer {
                              redirectURL: Option[String],
                              createdByUserId: Option[String],
                              clientCertificate: Option[String],
-                             logoUrl: Option[String],
+                             logoURL: Option[String],
                              callContext: Option[CallContext]): OBPReturnType[Consumer] = {
     Future {
       Consumers.consumers.vend.createConsumer(
@@ -38,7 +38,7 @@ object Consumer {
         createdByUserId,
         clientCertificate,
         company,
-        logoUrl
+        logoURL
       )
     } map {
       (_, callContext)

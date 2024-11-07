@@ -956,7 +956,7 @@ trait APIMethods210 {
               case false => NewStyle.function.ownEntitlement("", u.userId, ApiRole.canDisableConsumers, cc.callContext)
             }
             consumer <- Consumers.consumers.vend.getConsumerByPrimaryId(consumerId.toLong)
-            updatedConsumer <- Consumers.consumers.vend.updateConsumer(consumer.id.get, None, None, Some(putData.enabled), None, None, None, None, None, None) ?~! "Cannot update Consumer"
+            updatedConsumer <- Consumers.consumers.vend.updateConsumer(consumer.id.get, None, None, Some(putData.enabled), None, None, None, None, None,  None, None) ?~! "Cannot update Consumer"
           } yield {
             // Format the data as json
             val json = PutEnabledJSON(updatedConsumer.isActive.get)
@@ -1640,7 +1640,7 @@ trait APIMethods210 {
               consumer.createdByUserId.equals(u.userId)
             }
             //update the redirectURL and isactive (set to false when change redirectUrl) field in consumer table
-            updatedConsumer <- NewStyle.function.updateConsumer(consumer.id.get, None, None, Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false)), None, None, None, None, Some(postJson.redirect_url), None, callContext)
+            updatedConsumer <- NewStyle.function.updateConsumer(consumer.id.get, None, None, Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false)), None, None, None, None, Some(postJson.redirect_url), None,  None, callContext)
           } yield {
             val json = JSONFactory210.createConsumerJSON(updatedConsumer)
             (json, HttpCode.`200`(callContext))

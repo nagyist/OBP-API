@@ -1171,7 +1171,7 @@ trait APIMethods310 {
         CustomerNumberAlreadyExists,
         UserNotFoundById,
         CustomerAlreadyExistsForUser,
-        CreateConsumerError,
+        CreateCustomerError,
         UnknownError
       ),
       List(apiTagCustomer, apiTagPerson),

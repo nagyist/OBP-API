@@ -1993,15 +1993,17 @@ trait APIMethods510 {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
             (Full(u), callContext) <- SS.user
-            postedJson <- NewStyle.function.tryons(InvalidJsonFormat, 400, callContext) {
-              json.extract[CreateConsumerRequestJsonV510]
+            (postedJson, appType)<- NewStyle.function.tryons(InvalidJsonFormat, 400, callContext) {
+              val createConsumerRequestJsonV510 = json.extract[CreateConsumerRequestJsonV510]
+              val appType = if(createConsumerRequestJsonV510.app_type.equals("Confidential")) AppType.valueOf("Confidential") else AppType.valueOf("Public")
+              (createConsumerRequestJsonV510,appType)
             }
             (consumer, callContext) <- createConsumerNewStyle(
               key = Some(Helpers.randomString(40).toLowerCase),
               secret = Some(Helpers.randomString(40).toLowerCase),
               isActive = Some(postedJson.enabled),
               name = Some(postedJson.app_name),
-              appType = Some(postedJson.app_type).map(AppType.valueOf).orElse(Some(AppType.valueOf("Confidential"))),
+              appType = Some(appType),
               description = Some(postedJson.description),
               developerEmail = Some(postedJson.developer_email),
               company = Some(postedJson.company),

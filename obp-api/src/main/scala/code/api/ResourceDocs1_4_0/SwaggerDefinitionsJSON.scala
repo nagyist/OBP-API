@@ -2713,6 +2713,19 @@ object SwaggerDefinitionsJSON {
     created = DateWithDayExampleObject,
     logo_url = Some("www.openbankproject.com/logo")
   )
+  val createConsumerRequestJsonV510 = CreateConsumerRequestJsonV510(
+    appNameExample.value,
+    appTypeExample.value,
+    descriptionExample.value,
+    emailExample.value,
+    companyExample.value,
+    redirectUrlExample.value,
+    userIdExample.value,
+    true,
+    DateWithMsExampleObject,
+    clientCertificateExample.value,
+    Some(logoURLExample.value)
+  )
 
   val consumersJson = ConsumersJson(
     list = List(consumerJSON)

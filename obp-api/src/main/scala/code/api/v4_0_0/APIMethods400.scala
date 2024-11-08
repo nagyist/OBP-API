@@ -5257,7 +5257,7 @@ trait APIMethods400 extends MdcLoggable {
          |""",
       ConsumerPostJSON(
         "Test",
-        "Test",
+        "Web",
         "Description",
         "some@email.com",
         "redirecturl",

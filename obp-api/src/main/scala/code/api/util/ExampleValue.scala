@@ -653,7 +653,7 @@ object ExampleValue {
   lazy val challengeExample = ConnectorField(NoExampleProvided,NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("challenge", challengeExample)
 
-  lazy val appNameExample = ConnectorField(NoExampleProvided,NoDescriptionProvided)
+  lazy val appNameExample = ConnectorField("appNameBank",NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("app_name", appNameExample)
 
   lazy val executionDateExample = ConnectorField("2020-01-27",NoDescriptionProvided)
@@ -1308,7 +1308,7 @@ object ExampleValue {
   lazy val inviteesExample = ConnectorField(NoExampleProvided,NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("invitees", inviteesExample)
 
-  lazy val appTypeExample = ConnectorField(NoExampleProvided,NoDescriptionProvided)
+  lazy val appTypeExample = ConnectorField("Web",NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("app_type", appTypeExample)
 
   lazy val productAttributeIdExample = ConnectorField(NoExampleProvided,NoDescriptionProvided)
@@ -1825,8 +1825,17 @@ object ExampleValue {
   lazy val purposeExample = ConnectorField(UserInvitationPurpose.DEVELOPER.toString, NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("purpose", purposeExample)
 
-  lazy val redirectUrlExample = ConnectorField(NoExampleProvided,NoDescriptionProvided)
+  lazy val redirectUrlExample = ConnectorField("https://apisandbox.openbankproject.com",NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("redirect_url", redirectUrlExample)
+  
+  
+  lazy val logoURLExample = ConnectorField("https://apisandbox.openbankproject.com/logo",NoDescriptionProvided)
+  glossaryItems += makeGlossaryItem("logo_url", logoURLExample)
+  
+  lazy val clientCertificateExample = ConnectorField( """-----BEGIN CERTIFICATE-----
+                                                        |client_certificate_content
+                                                        |-----END CERTIFICATE-----""".stripMargin,NoDescriptionProvided)
+  glossaryItems += makeGlossaryItem("client_certificate", clientCertificateExample)
 
   lazy val roleExample = ConnectorField(NoExampleProvided,NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("role", roleExample)
@@ -2272,7 +2281,7 @@ object ExampleValue {
   lazy val indexExample = ConnectorField(NoExampleProvided,NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("index", indexExample)
 
-  lazy val descriptionExample = ConnectorField(s"This an optional field. Maximum length is ${ApiCollection.Description.maxLen}. It can be any characters here.","The human readable description here.")
+  lazy val descriptionExample = ConnectorField(s"Description of the object. Maximum length is ${ApiCollection.Description.maxLen}. It can be any characters here.","The human readable description here.")
   glossaryItems += makeGlossaryItem("description", descriptionExample)
 
   lazy val paymentServiceExample = ConnectorField("payments", s"The berlin group payment services, eg: payments, periodic-payments and bulk-payments. ")

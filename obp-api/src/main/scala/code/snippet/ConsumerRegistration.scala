@@ -368,7 +368,9 @@ class ConsumerRegistration extends MdcLoggable {
           Some(redirectionURLVar.is),
           Some(AuthUser.getCurrentResourceUserUserId),
           Some(clientCertificate),
-          company = Some(companyVar.is))
+          company = Some(companyVar.is),
+          None
+        )
         logger.debug("consumer: " + consumer)
         consumer match {
           case Full(x) =>

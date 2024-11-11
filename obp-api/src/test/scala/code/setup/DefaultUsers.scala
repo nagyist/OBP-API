@@ -44,7 +44,10 @@ trait DefaultUsers {
     description = Some("test1 description"),
     developerEmail = Some("eveline@example.com"),
     redirectURL = None,
-    createdByUserId = userId1
+    createdByUserId = userId1,
+    None,
+    None,
+    None
   ).openOrThrowException(attemptedToOpenAnEmptyBox)
   lazy val consumer = Consumer(testConsumer.key.get, testConsumer.secret.get)
 
@@ -57,7 +60,10 @@ trait DefaultUsers {
     description = Some("test2 description"),
     developerEmail = Some("eveline@example.com"),
     redirectURL = None,
-    createdByUserId = userId2
+    createdByUserId = userId2,
+    None,
+    None,
+    None,
   ).openOrThrowException(attemptedToOpenAnEmptyBox)
   lazy val consumer2 = Consumer(testConsumer2.key.get, testConsumer2.secret.get)
 
@@ -70,7 +76,10 @@ trait DefaultUsers {
     description = Some("test3 description"),
     developerEmail = Some("eveline@example.com"),
     redirectURL = None,
-    createdByUserId = userId3
+    createdByUserId = userId3,
+    None,
+    None,
+    None
   ).openOrThrowException(attemptedToOpenAnEmptyBox)
   lazy val consumer3 = Consumer(testConsumer3.key.get, testConsumer3.secret.get)
 
@@ -83,7 +92,10 @@ trait DefaultUsers {
     description = Some("test4 description"),
     developerEmail = Some("eveline@example.com"),
     redirectURL = None,
-    createdByUserId = userId4
+    createdByUserId = userId4,
+    None,
+    None,
+    None
   ).openOrThrowException(attemptedToOpenAnEmptyBox)
   lazy val consumer4 = Consumer(testConsumer4.key.get, testConsumer4.secret.get)
   

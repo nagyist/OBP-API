@@ -5257,7 +5257,7 @@ trait APIMethods400 extends MdcLoggable {
          |""",
       ConsumerPostJSON(
         "Test",
-        "Test",
+        "Web",
         "Description",
         "some@email.com",
         "redirecturl",
@@ -5284,8 +5284,10 @@ trait APIMethods400 extends MdcLoggable {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
             (Full(u), callContext) <- SS.user
-            postedJson <- NewStyle.function.tryons(InvalidJsonFormat, 400, callContext) {
-              json.extract[ConsumerPostJSON]
+            (postedJson,appType) <- NewStyle.function.tryons(InvalidJsonFormat, 400, callContext) {
+              val consumerPostJSON = json.extract[ConsumerPostJSON]
+              val appType = if(consumerPostJSON.app_type.equals("Confidential")) AppType.valueOf("Confidential") else AppType.valueOf("Public")
+              (consumerPostJSON, appType)
             }
             _ <- NewStyle.function.hasEntitlement("", u.userId, ApiRole.canCreateConsumer, callContext)
             (consumer, callContext) <- createConsumerNewStyle(
@@ -5293,13 +5295,14 @@ trait APIMethods400 extends MdcLoggable {
               secret = Some(Helpers.randomString(40).toLowerCase),
               isActive = Some(postedJson.enabled),
               name= Some(postedJson.app_name),
-              appType = None,
+              appType = Some(appType),
               description = Some(postedJson.description),
               developerEmail = Some(postedJson.developer_email),
               company = None,
               redirectURL = Some(postedJson.redirect_url),
               createdByUserId = Some(u.userId),
               clientCertificate = Some(postedJson.clientCertificate),
+              logoURL = None,
               callContext
             )
             user <- Users.users.vend.getUserByUserIdFuture(u.userId)

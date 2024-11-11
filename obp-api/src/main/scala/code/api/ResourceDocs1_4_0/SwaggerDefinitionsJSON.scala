@@ -2698,21 +2698,37 @@ object SwaggerDefinitionsJSON {
     roles = None,
     roles_info = Some("PEM Encoded Certificate does not contain PSD2 roles.")
   )
-  lazy val consumerJsonV510: ConsumerJsonV510 = ConsumerJsonV510(
-    consumer_id = "d0d7b08c-f0ec-4e57-ac99-7d9eafe99225",
-    consumer_key = "d0d7b08c-f0ec-4e57-ac99-7d9eafe99225",
-    consumer_secret = "d0d7b08c-f0ec-4e57-ac99-7d9eafe99225",
-    app_name = "SOFI",
-    app_type = "Web",
-    description = "Account Management",
-    developer_email = ExampleValue.emailExample.value,
-    company = ExampleValue.companyExample.value,
-    redirect_url = "www.openbankproject.com",
+  
+  val consumerJsonV510: ConsumerJsonV510 = ConsumerJsonV510(
+    consumer_id = consumerIdExample.value,
+    consumer_key = consumerKeyExample.value,
+    consumer_secret = consumerSecretExample.value,
+    app_name = appNameExample.value,
+    app_type = appTypeExample.value,
+    description = descriptionExample.value,
+    developer_email = emailExample.value,
+    company = companyExample.value,
+    redirect_url = redirectUrlExample.value,
     certificate_pem = pem,
     certificate_info = Some(certificateInfoJsonV510),
     created_by_user = resourceUserJSON,
     enabled = true,
-    created = DateWithDayExampleObject
+    created = DateWithDayExampleObject,
+    logo_url = Some(logoURLExample.value)
+  )
+  
+  val createConsumerRequestJsonV510 = CreateConsumerRequestJsonV510(
+    appNameExample.value,
+    appTypeExample.value,
+    descriptionExample.value,
+    emailExample.value,
+    companyExample.value,
+    redirectUrlExample.value,
+    userIdExample.value,
+    true,
+    DateWithMsExampleObject,
+    "-----BEGIN CERTIFICATE-----MIICsjCCAZqgAwIBAgIGAYwQ62R0MA0GCSqGSIb3DQEBCwUAMBoxGDAWBgNVBAMMD2FwcC5leGFtcGxlLmNvbTAeFw0yMzExMjcxMzE1MTFaFw0yNTExMjYxMzE1MTFaMBoxGDAWBgNVBAMMD2FwcC5leGFtcGxlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAK9WIodZHWzKyCcf9YfWEhPURbfO6zKuMqzHN27GdqHsVVEGxP4F/J4mso+0ENcRr6ur4u81iREaVdCc40rHDHVJNEtniD8Icbz7tcsqAewIVhc/q6WXGqImJpCq7hA0m247dDsaZT0lb/MVBiMoJxDEmAE/GYYnWTEn84R35WhJsMvuQ7QmLvNg6RkChY6POCT/YKe9NKwa1NqI1U+oA5RFzAaFtytvZCE3jtp+aR0brL7qaGfgxm6B7dEpGyhg0NcVCV7xMQNq2JxZTVdAr6lcsRGaAFulakmW3aNnmK+L35Wu8uW+OxNxwUuC6f3b4FVBa276FMuUTRfu7gc+k6kCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAAU5CjEyAoyTn7PgFpQD48ZNPuUsEQ19gzYgJvHMzFIoZ7jKBodjO5mCzWBcR7A4mpeAsdyiNBl2sTiZscSnNqxk61jVzP5Ba1D7XtOjjr7+3iqowrThj6BY40QqhYh/6BSY9fDzVZQiHnvlo6ZUM5kUK6OavZOovKlp5DIl5sGqoP0qAJnpQ4nhB2WVVsKfPlOXc+2KSsbJ23g9l8zaTMr+X0umlvfEKqyEl1Fa2L1dO0y/KFQ+ILmxcZLpRdq1hRAjd0quq9qGC8ucXhRWDgM4hslVpau0da68g0aItWNez3mc5lB82b3dcZpFMzO41bgw7gvw10AvvTfQDqEYIuQ==-----END CERTIFICATE-----",
+    Some(logoURLExample.value)
   )
 
   val consumersJson = ConsumersJson(
@@ -5522,8 +5538,14 @@ object SwaggerDefinitionsJSON {
     valid_from = Some(new Date()),
     time_to_live = Some(3600)
   )
+
+  val consumerLogoUrlJson = ConsumerLogoUrlJson(
+    "http://localhost:8888"
+  )
   
-  
+  val consumersJsonV510 = ConsumersJsonV510(
+    List(consumerJsonV510)
+  )
   //The common error or success format.
   //Just some helper format to use in Json 
   case class NotSupportedYet()

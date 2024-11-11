@@ -1,8 +1,7 @@
 package code.api.v5_1_0
 
 
-import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
-import code.api.{Constant, UserNotFound}
+import code.api.Constant
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON._
 import code.api.util.APIUtil._
 import code.api.util.ApiRole._
@@ -16,50 +15,50 @@ import code.api.util._
 import code.api.util.newstyle.BalanceNewStyle
 import code.api.util.newstyle.Consumer.createConsumerNewStyle
 import code.api.util.newstyle.RegulatedEntityNewStyle.{createRegulatedEntityNewStyle, deleteRegulatedEntityNewStyle, getRegulatedEntitiesNewStyle, getRegulatedEntityByEntityIdNewStyle}
-import code.api.v1_2_1.CreateViewJsonV121
-import code.api.v2_1_0.{ConsumerRedirectUrlJSON, JSONFactory210}
-import code.api.v2_2_0.JSONFactory220
+import code.api.v2_1_0.ConsumerRedirectUrlJSON
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_0_0.JSONFactory300.createAggregateMetricJson
-import code.api.v3_1_0.{ConsentJsonV310, JSONFactory310, PostConsentBodyCommonJson}
+import code.api.v3_1_0.ConsentJsonV310
 import code.api.v3_1_0.JSONFactory310.createBadLoginStatusJson
 import code.api.v4_0_0.JSONFactory400.{createAccountBalancesJson, createBalancesJson, createNewCoreBankAccountJson}
 import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, RevokedJsonV400}
 import code.api.v5_0_0.{JSONFactory500, PostConsentRequestJsonV500}
 import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createConsentsJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
+import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
+import code.api.v5_0_0.JSONFactory500
+import code.api.v5_1_0.JSONFactory510.{createRegulatedEntitiesJson, createRegulatedEntityJson}
 import code.atmattribute.AtmAttribute
 import code.bankconnectors.Connector
 import code.consent.{ConsentRequests, Consents}
+import code.consumer.Consumers
 import code.loginattempts.LoginAttempt
 import code.metrics.APIMetrics
-import code.model.{AppType, BankAccountX}
+import code.model.AppType
 import code.model.dataAccess.MappedBankAccount
 import code.regulatedentities.MappedRegulatedEntityProvider
 import code.userlocks.UserLocksProvider
 import code.users.Users
 import code.util.Helper
-import code.util.Helper.{ObpS, booleanToBox}
+import code.util.Helper.ObpS
 import code.views.Views
 import code.views.system.{AccountAccess, ViewDefinition}
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.ExecutionContext.Implicits.global
-import com.openbankproject.commons.model.enums.{AtmAttributeType, UserAttributeType}
-import com.openbankproject.commons.model.enums.TransactionRequestTypes._
-import com.openbankproject.commons.model.enums.PaymentServiceTypes._
 import com.openbankproject.commons.model._
+import com.openbankproject.commons.model.enums.{AtmAttributeType, ConsentType, UserAttributeType}
 import com.openbankproject.commons.util.{ApiVersion, ScannedApiVersion}
 import net.liftweb.common.Full
 import net.liftweb.http.rest.RestHelper
 import net.liftweb.json
-import net.liftweb.json.{Extraction, JObject, compactRender, parse, prettyRender}
+import net.liftweb.json.{compactRender, parse, prettyRender}
 import net.liftweb.mapper.By
-import net.liftweb.util.{Helpers, StringHelpers}
 import net.liftweb.util.Helpers.tryo
+import net.liftweb.util.{Helpers, StringHelpers}
 
+import java.util.Date
 import scala.collection.immutable.{List, Nil}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
-import com.openbankproject.commons.model.enums.ConsentType
 
 trait APIMethods510 {
   self: RestHelper =>
@@ -1964,12 +1963,12 @@ trait APIMethods510 {
 
 
     staticResourceDocs += ResourceDoc(
-      createConsumer,
+      createConsumerDynamicRegistraion,
       implementedInApiVersion,
-      "createConsumer",
+      nameOf(createConsumerDynamicRegistraion),
       "POST",
       "/dynamic-registration/consumers",
-      "Create a Consumer",
+      "Create a Consumer(Dynamic Registration)",
       s"""Create a Consumer (mTLS access).
          |
          | JWT payload:
@@ -1996,7 +1995,7 @@ trait APIMethods510 {
       Some(Nil))
 
 
-    lazy val createConsumer: OBPEndpoint = {
+    lazy val createConsumerDynamicRegistraion: OBPEndpoint = {
       case "dynamic-registration" :: "consumers" :: Nil JsonPost json -> _ => {
         cc =>
           implicit val ec = EndpointContext(Some(cc))
@@ -2030,6 +2029,7 @@ trait APIMethods510 {
               redirectURL = postedJson.redirect_url,
               createdByUserId = None,
               clientCertificate = pem,
+              logoURL = None,
               cc.callContext
             )
           } yield {
@@ -2041,7 +2041,6 @@ trait APIMethods510 {
       }
     }
 
-
     private def consumerDisabledText() = {
       if(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false) == false) {
         "Please note: Your consumer may be disabled as a result of this action."
@@ -2050,13 +2049,82 @@ trait APIMethods510 {
       }
     }
 
+
     staticResourceDocs += ResourceDoc(
-      updateConsumerRedirectUrl,
+      createConsumer,
+      implementedInApiVersion,
+      nameOf(createConsumer),
+      "POST",
+      "/management/consumers",
+      "Create a Consumer",
+      s"""Create a Consumer (Authenticated access).
+         |
+         |""",
+      CreateConsumerRequestJsonV510(
+        "Test",
+        "Test",
+        "Description",
+        "some@email.com",
+        "company",
+        "redirecturl",
+        "createdby",
+        true,
+        new Date(),
+        """-----BEGIN CERTIFICATE-----
+          |client_certificate_content
+          |-----END CERTIFICATE-----""".stripMargin,
+        Some("logoUrl")
+      ),
+      consumerJsonV510,
+      List(
+        UserNotLoggedIn,
+        UserHasMissingRoles,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagConsumer),
+      Some(List(canCreateConsumer))
+    )
+    
+    lazy val createConsumer: OBPEndpoint = {
+      case "management" :: "consumers" :: Nil JsonPost json -> _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (Full(u), callContext) <- SS.user
+            (postedJson, appType)<- NewStyle.function.tryons(InvalidJsonFormat, 400, callContext) {
+              val createConsumerRequestJsonV510 = json.extract[CreateConsumerRequestJsonV510]
+              val appType = if(createConsumerRequestJsonV510.app_type.equals("Confidential")) AppType.valueOf("Confidential") else AppType.valueOf("Public")
+              (createConsumerRequestJsonV510,appType)
+            }
+            (consumer, callContext) <- createConsumerNewStyle(
+              key = Some(Helpers.randomString(40).toLowerCase),
+              secret = Some(Helpers.randomString(40).toLowerCase),
+              isActive = Some(postedJson.enabled),
+              name = Some(postedJson.app_name),
+              appType = Some(appType),
+              description = Some(postedJson.description),
+              developerEmail = Some(postedJson.developer_email),
+              company = Some(postedJson.company),
+              redirectURL = Some(postedJson.redirect_url),
+              createdByUserId = Some(u.userId),
+              clientCertificate = Some(postedJson.client_certificate),
+              logoURL = postedJson.logo_url,
+              callContext
+            )
+          } yield {
+            (JSONFactory510.createConsumerJSON(consumer, None), HttpCode.`201`(callContext))
+          }
+      }
+    }
+    
+    
+    staticResourceDocs += ResourceDoc(
+      updateConsumerRedirectURL,
       implementedInApiVersion,
       "updateConsumerRedirectUrl",
       "PUT",
       "/management/consumers/CONSUMER_ID/consumer/redirect_url",
-      "Update Consumer RedirectUrl",
+      "Update Consumer RedirectURL",
       s"""Update an existing redirectUrl for a Consumer specified by CONSUMER_ID.
          |
          | ${consumerDisabledText()}
@@ -2077,7 +2145,7 @@ trait APIMethods510 {
       Some(List(canUpdateConsumerRedirectUrl))
     )
 
-    lazy val updateConsumerRedirectUrl: OBPEndpoint = {
+    lazy val updateConsumerRedirectURL: OBPEndpoint = {
       case "management" :: "consumers" :: consumerId :: "consumer" :: "redirect_url" :: Nil JsonPut json -> _ => {
         cc =>
           implicit val ec = EndpointContext(Some(cc))
@@ -2096,10 +2164,115 @@ trait APIMethods510 {
               consumer.createdByUserId.equals(u.userId)
             }
             //update the redirectURL and isactive (set to false when change redirectUrl) field in consumer table
-            updatedConsumer <- NewStyle.function.updateConsumer(consumer.id.get, None, None, Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false)), None, None, None, None, Some(postJson.redirect_url), None, callContext)
+            updatedConsumer <- NewStyle.function.updateConsumer(
+              consumer.id.get, None, None, Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false)), 
+              None, None, None, None, 
+              Some(postJson.redirect_url), 
+              None, 
+              None, 
+              callContext
+            )
           } yield {
             val json = JSONFactory510.createConsumerJSON(updatedConsumer)
             (json, HttpCode.`200`(callContext))
+          }
+      }
+    }   
+    
+    staticResourceDocs += ResourceDoc(
+      updateConsumerLogoURL,
+      implementedInApiVersion,
+      nameOf(updateConsumerLogoURL),
+      "PUT",
+      "/management/consumers/CONSUMER_ID/consumer/logo_url",
+      "Update Consumer LogoURL",
+      s"""Update an existing logoURL for a Consumer specified by CONSUMER_ID.
+         |
+         | ${consumerDisabledText()}
+         |
+         | CONSUMER_ID can be obtained after you register the application.
+         |
+         | Or use the endpoint 'Get Consumers' to get it
+         |
+       """.stripMargin,
+      consumerLogoUrlJson,
+      consumerJsonV510,
+      List(
+        $UserNotLoggedIn,
+        UserHasMissingRoles,
+        UnknownError
+      ),
+      List(apiTagConsumer),
+      Some(List(canUpdateConsumerLogoUrl))
+    )
+
+    lazy val updateConsumerLogoURL: OBPEndpoint = {
+      case "management" :: "consumers" :: consumerId :: "consumer" :: "logo_url" :: Nil JsonPut json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            postJson <- NewStyle.function.tryons(InvalidJsonFormat, 400, callContext) {
+              json.extract[ConsumerLogoUrlJson]
+            }
+            consumer <- NewStyle.function.getConsumerByConsumerId(consumerId, callContext)
+            //only the developer that created the Consumer should be able to edit it
+            _ <- Helper.booleanToFuture(UserNoPermissionUpdateConsumer, 400, callContext) {
+              consumer.createdByUserId.equals(u.userId)
+            }
+            updatedConsumer <- NewStyle.function.updateConsumer(
+              consumer.id.get, 
+              None, 
+              None,
+              None,
+              None, 
+              None, 
+              None,
+              None, 
+              None, 
+              None,
+              logoURL = Some(postJson.logo_url), 
+              callContext)
+          } yield {
+            (JSONFactory510.createConsumerJSON(updatedConsumer), HttpCode.`200`(callContext))
+          }
+      }
+    }
+    resourceDocs += ResourceDoc(
+      getConsumers,
+      implementedInApiVersion,
+      nameOf(getConsumers),
+      "GET",
+      "/management/consumers",
+      "Get Consumers",
+      s"""Get the all Consumers.
+         |
+         |${authenticationRequiredMessage(true)}
+         |
+         |${urlParametersDocument(true, true)}
+         |
+         |""",
+      EmptyBody,
+      consumersJsonV510,
+      List(
+        $UserNotLoggedIn,
+        UserHasMissingRoles,
+        UnknownError
+      ),
+      List(apiTagConsumer),
+      Some(List(canGetConsumers))
+    )
+
+
+    lazy val getConsumers: OBPEndpoint = {
+      case "management" :: "consumers" :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            httpParams <- NewStyle.function.extractHttpParamsFromUrl(cc.url)
+            (obpQueryParams, callContext) <- createQueriesByHttpParamsFuture(httpParams, Some(cc))
+            consumers <- Consumers.consumers.vend.getConsumersFuture(obpQueryParams, callContext)
+          } yield {
+            (JSONFactory510.createConsumersJson(consumers), HttpCode.`200`(callContext))
           }
       }
     }
@@ -2335,6 +2508,36 @@ trait APIMethods510 {
             (_, accountAccess) <- Future(Views.views.vend.privateViewsUserCanAccess(user))
           } yield {
             (JSONFactory400.createAccountsMinimalJson400(accountAccess), HttpCode.`200`(callContext))
+          }
+    }
+    
+    
+    staticResourceDocs += ResourceDoc(
+      getApiTags,
+      implementedInApiVersion,
+      nameOf(getApiTags),
+      "GET",
+      "/tags",
+      "Get API Tags",
+      s"""Get API TagsGet API Tags
+         |
+         |${authenticationRequiredMessage(false)}
+         |
+         |""",
+      EmptyBody,
+      accountsMinimalJson400,
+      List(
+        UnknownError
+      ),
+      List(apiTagApi))
+
+    lazy val getApiTags : OBPEndpoint = {
+      case "tags" ::  Nil JsonGet _ =>
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            _ <- Future.successful() // Just start async call
+          } yield {
+            (APITags(ApiTag.allDisplayTagNames.toList), HttpCode.`200`(cc.callContext))
           }
     }
 

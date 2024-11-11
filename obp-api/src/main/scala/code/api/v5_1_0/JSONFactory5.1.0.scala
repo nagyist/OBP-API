@@ -361,12 +361,30 @@ case class ConsumerJsonV510(consumer_id: String,
                             certificate_info: Option[CertificateInfoJsonV510],
                             created_by_user: ResourceUserJSON,
                             enabled: Boolean,
-                            created: Date
+                            created: Date, 
+                            logo_url: Option[String]
                            )
 
+case class ConsumersJsonV510(
+  consumers : List[ConsumerJsonV510]
+)
 case class PostCreateUserAccountAccessJsonV510(username: String, provider:String, view_id:String)
 
 case class PostAccountAccessJsonV510(user_id: String, view_id: String)
+
+case class CreateConsumerRequestJsonV510(
+  app_name: String,
+  app_type: String,
+  description: String,
+  developer_email: String,
+  company: String,
+  redirect_url: String,
+  created_by_user_id: String,
+  enabled: Boolean,
+  created: Date,
+  client_certificate: String,
+  logo_url: Option[String]
+)
 
 case class CreateCustomViewJson(
   name: String,
@@ -462,6 +480,14 @@ case class PostVRPConsentRequestJsonV510(
   phone_number: Option[String],
   valid_from: Option[Date],
   time_to_live: Option[Long]
+)
+
+case class APITags(
+  tags : List[String]
+)
+
+case class ConsumerLogoUrlJson(
+  logo_url: String
 )
 
 object JSONFactory510 extends CustomJsonFormats {
@@ -877,8 +903,13 @@ object JSONFactory510 extends CustomJsonFormats {
       certificate_info = certificateInfo,
       created_by_user = resourceUserJSON,
       enabled = c.isActive.get,
-      created = c.createdAt.get
+      created = c.createdAt.get,
+      logo_url =  if (c.logoUrl.get == null || c.logoUrl.get.isEmpty ) null else Some(c.logoUrl.get)
     )
+  }
+  
+  def createConsumersJson(consumers:List[Consumer]) = {
+    ConsumersJsonV510(consumers.map(createConsumerJSON(_,None)))
   }
 
 

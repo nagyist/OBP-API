@@ -1064,7 +1064,9 @@ trait APIMethods220 {
                                                                 Some(postedJson.developer_email),
                                                                 Some(postedJson.redirect_url),
                                                                 Some(u.userId),
-                                                                Some(postedJson.clientCertificate)
+                                                                Some(postedJson.clientCertificate),
+                                                                None,
+                                                                None,
                                                                )
           } yield {
             // Format the data as json

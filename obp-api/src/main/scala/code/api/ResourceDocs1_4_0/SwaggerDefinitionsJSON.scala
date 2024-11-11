@@ -1,9 +1,7 @@
 package code.api.ResourceDocs1_4_0
 
-import java.util.Date
-
-import code.api.Constant._
 import code.api.Constant
+import code.api.Constant._
 import code.api.UKOpenBanking.v2_0_0.JSONFactory_UKOpenBanking_200
 import code.api.UKOpenBanking.v2_0_0.JSONFactory_UKOpenBanking_200.{Account, AccountBalancesUKV200, AccountInner, AccountList, Accounts, BalanceJsonUKV200, BalanceUKOpenBankingJson, BankTransactionCodeJson, CreditLineJson, DataJsonUKV200, Links, MetaBisJson, MetaInnerJson, TransactionCodeJson, TransactionInnerJson, TransactionsInnerJson, TransactionsJsonUKV200}
 import code.api.berlin.group.v1.JSONFactory_BERLIN_GROUP_1.{AccountBalanceV1, AccountBalances, AmountOfMoneyV1, ClosingBookedBody, ExpectedBody, TransactionJsonV1, TransactionsJsonV1, ViewAccount}
@@ -11,37 +9,32 @@ import code.api.dynamic.endpoint.helper.practise.PractiseEndpoint
 import code.api.util.APIUtil.{defaultJValue, _}
 import code.api.util.ApiRole._
 import code.api.util.ExampleValue._
-import code.api.util.{APIUtil, ApiRole, ApiTrigger, ConsentJWT, CustomJsonFormats, ExampleValue}
+import code.api.util.{ApiRole, ApiTrigger, ExampleValue}
 import code.api.v2_2_0.JSONFactory220.{AdapterImplementationJson, MessageDocJson, MessageDocsJson}
 import code.api.v3_0_0.JSONFactory300.createBranchJsonV300
 import code.api.v3_0_0.custom.JSONFactoryCustom300
-import code.api.v3_0_0.{LobbyJsonV330, _}
-import code.api.v3_1_0.{AccountBalanceV310, AccountsBalancesV310Json, BadLoginStatusJson, ContactDetailsJson, CustomerWithAttributesJsonV310, InviteeJson, ObpApiLoopbackJson, PhysicalCardWithAttributesJsonV310, PutUpdateCustomerEmailJsonV310, _}
-import code.api.v4_0_0.{AccountMinimalJson400, BankAttributeBankResponseJsonV400, CardJsonV400, CustomerMinimalJsonV400, FastFirehoseAccountsJsonV400, PostHistoricalTransactionAtBankJson, _}
-import code.api.v3_1_0.{AccountBalanceV310, AccountsBalancesV310Json, BadLoginStatusJson, ContactDetailsJson, InviteeJson, ObpApiLoopbackJson, PhysicalCardWithAttributesJsonV310, PutUpdateCustomerEmailJsonV310, _}
-import code.api.v5_0_0.{AccountResponseJson500, CustomerOverviewFlatJsonV500, _}
+import code.api.v3_0_0._
+import code.api.v3_1_0._
+import code.api.v4_0_0._
+import code.api.v5_0_0._
+import code.api.v5_1_0._
 import code.branches.Branches.{Branch, DriveUpString, LobbyString}
-import code.consent.ConsentStatus
 import code.connectormethod.{JsonConnectorMethod, JsonConnectorMethodMethodBody}
+import code.consent.ConsentStatus
 import code.dynamicMessageDoc.JsonDynamicMessageDoc
 import code.dynamicResourceDoc.JsonDynamicResourceDoc
 import code.sandbox.SandboxData
-import com.openbankproject.commons.model.enums.TransactionRequestTypes._
-import com.openbankproject.commons.model.enums.PaymentServiceTypes._
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.model
 import com.openbankproject.commons.model.PinResetReason.{FORGOT, GOOD_SECURITY_PRACTICE}
+import com.openbankproject.commons.model.enums.TransactionRequestTypes._
 import com.openbankproject.commons.model.enums.{AttributeCategory, CardAttributeType, ChallengeType}
-import com.openbankproject.commons.model.{TransactionRequestSimple, UserAuthContextUpdateStatus, ViewBasic, _}
-import com.openbankproject.commons.util.{ApiVersion, FieldNameApiVersions, ReflectUtils, RequiredArgs, RequiredInfo}
+import com.openbankproject.commons.model._
+import com.openbankproject.commons.util.{ApiVersion, FieldNameApiVersions, ReflectUtils}
 import net.liftweb.json
+
 import java.net.URLEncoder
-
-import code.api.v5_1_0.{AtmsJsonV510, CustomViewJsonV510, _}
-import code.endpointMapping.EndpointMappingCommons
-import net.liftweb.json.{Extraction, parse}
-
-import scala.collection.immutable.List
+import java.util.Date
 
 /**
   * This object prepare all the JSON case classes for Swagger .
@@ -54,8 +47,6 @@ import scala.collection.immutable.List
 object SwaggerDefinitionsJSON {
 
   implicit def convertStringToBoolean(value:String) = value.toBoolean
-
-  implicit val formats = CustomJsonFormats.formats
 
   lazy val regulatedEntitiesJsonV510: RegulatedEntitiesJsonV510 = RegulatedEntitiesJsonV510(List(regulatedEntityJsonV510))
   lazy val regulatedEntityJsonV510: RegulatedEntityJsonV510 = RegulatedEntityJsonV510(
@@ -4230,29 +4221,7 @@ object SwaggerDefinitionsJSON {
     api_standard = "Berlin Group",
     api_version = "v1.3",
     jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiIiLCJzdWIiOiJmY2YzNDZkMi0xNTNiLTQ0MzAtOWE4Zi1mMzU3Njg1MzM5ODciLCJhdWQiOiIyNjY0NjUwYy04MDkwLTQ4MWUtOGJkOC0wM2E5MmY5Yzg3ZWEiLCJuYmYiOjE3MzAzNzMyNzEsImFjY2VzcyI6eyJhY2NvdW50cyI6W3siaWJhbiI6IlJTMzUyNjAwMDU2MDEwMDE2MTEzNzkifV19LCJpc3MiOiJodHRwczovLzEyNy4wLjAuMTo4MDgwIiwiZXhwIjoxNzMwOTM3NjAwLCJpYXQiOjE3MzAzNzMyNzEsImp0aSI6ImQzM2Y3NDYzLWVlNDktNGU4YS04YTkyLTYxMzhkYzE4M2QxNiIsInZpZXdzIjpbeyJiYW5rX2lkIjoibmxia2IiLCJhY2NvdW50X2lkIjoiOTUzODkyOTctNDVjNC00MGViLTllZmQtMzMxYmExOTQzZGE0Iiwidmlld19pZCI6IlJlYWRBY2NvdW50c0Jlcmxpbkdyb3VwIn1dfQ.SXE4W34596lrSXqZrA8cvQs_fvhjWYilU8VDpXZ3C3Y",
-    jwt_payload = parse("""{
-      "createdByUserId": "",
-      "sub": "fcf346d2-153b-4430-9a8f-f35768533987",
-      "iss": "https://127.0.0.1:8080",
-      "aud": "2664650c-8090-481e-8bd8-03a92f9c87ea",
-      "jti": "d33f7463-ee49-4e8a-8a92-6138dc183d16",
-      "iat": 1730373271,
-      "nbf": 1730373271,
-      "exp": 1730937600,
-      "entitlements": [],
-      "views": [ {
-      "bank_id": "nlbkb",
-      "account_id": "95389297-45c4-40eb-9efd-331ba1943da4",
-      "view_id": "ReadAccountsBerlinGroup"
-    }
-      ],
-      "access": {
-      "accounts": [ {
-      "iban": "RS35260005601001611379"
-    }
-      ]
-    }
-    }""").extractOpt[ConsentJWT],
+    jwt_payload = SwaggerDefinitionsJsonUtil.jwtPayload,
   )
   val consentsJsonV510 = ConsentsJsonV510(List(allConsentJsonV510))
 

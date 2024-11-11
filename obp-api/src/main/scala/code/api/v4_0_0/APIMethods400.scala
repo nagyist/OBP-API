@@ -8745,7 +8745,7 @@ trait APIMethods400 extends MdcLoggable {
       nameOf(getConsentInfos),
       "GET",
       "/banks/BANK_ID/my/consent-infos",
-      "Get Consents Info",
+      "Get My Consents Info",
       s"""
          |
          |This endpoint gets the Consents that the current User created.

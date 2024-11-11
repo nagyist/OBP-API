@@ -65,7 +65,8 @@ class ConsentsTest extends V510ServerSetup with PropsReset{
   object ApiEndpoint5 extends Tag(nameOf(Implementations4_0_0.getUsers))
   object ApiEndpoint6 extends Tag(nameOf(Implementations5_1_0.revokeConsentAtBank))
   object ApiEndpoint7 extends Tag(nameOf(Implementations5_1_0.getConsentByConsentId))
-  
+  object ApiEndpoint8 extends Tag(nameOf(Implementations5_1_0.getMyConsents))
+
   lazy val entitlements = List(PostConsentEntitlementJsonV310("", CanGetAnyUser.toString()))
   lazy val bankId = testBankId1.value
   lazy val accountAccess = List(AccountAccessV500(
@@ -85,6 +86,7 @@ class ConsentsTest extends V510ServerSetup with PropsReset{
   def getConsentByRequestIdUrl(requestId:String) = (v5_1_0_Request / "consumer"/ "consent-requests"/requestId/"consents").GET<@(user1)
   def getConsentByIdUrl(requestId:String) = (v5_1_0_Request / "consumer" / "current" / "consents" / requestId ).GET<@(user1)
   def revokeConsentUrl(consentId: String) = (v5_1_0_Request / "banks" / bankId / "consents" / consentId).DELETE
+  def getMyConsents(consentId: String) = (v5_1_0_Request / "banks" / bankId / "my" / "consents").GET
 
   feature(s"test $ApiEndpoint6 version $VersionOfApi - Unauthorized access") {
     scenario("We will call the endpoint without user credentials", ApiEndpoint6, VersionOfApi) {
@@ -96,12 +98,30 @@ class ConsentsTest extends V510ServerSetup with PropsReset{
     }
   }
   feature(s"test $ApiEndpoint6 version $VersionOfApi - Authorized access") {
-    scenario("We will call the endpoint without user credentials", ApiEndpoint6, VersionOfApi) {
+    scenario("We will call the endpoint with user credentials", ApiEndpoint6, VersionOfApi) {
       When(s"We make a request $ApiEndpoint1")
       val response510 = makeDeleteRequest(revokeConsentUrl("whatever")<@(user1))
       Then("We should get a 403")
       response510.code should equal(403)
       response510.body.extract[ErrorMessage].message contains (UserHasMissingRoles + CanRevokeConsentAtBank) should be (true)
+    }
+  }
+
+  feature(s"test $ApiEndpoint8 version $VersionOfApi - Unautenticated access") {
+    scenario("We will call the endpoint without user credentials", ApiEndpoint8, VersionOfApi) {
+      When(s"We make a request $ApiEndpoint8")
+      val response510 = makeGetRequest(getMyConsents("whatever"))
+      Then("We should get a 401")
+      response510.code should equal(401)
+      response510.body.extract[ErrorMessage].message should equal(UserNotLoggedIn)
+    }
+  }
+  feature(s"test $ApiEndpoint8 version $VersionOfApi - Autenticated access") {
+    scenario("We will call the endpoint with user credentials", ApiEndpoint8, VersionOfApi) {
+      When(s"We make a request $ApiEndpoint1")
+      val response510 = makeGetRequest(getMyConsents("whatever")<@(user1))
+      Then("We should get a 200")
+      response510.code should equal(200)
     }
   }
   

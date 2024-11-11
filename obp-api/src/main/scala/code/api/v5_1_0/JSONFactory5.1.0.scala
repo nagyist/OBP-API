@@ -28,7 +28,7 @@ package code.api.v5_1_0
 
 import code.api.Constant
 import code.api.util.{APIUtil, ConsentJWT, CustomJsonFormats, JwtUtil, Role}
-import code.api.util.APIUtil.{gitCommit, stringOrNull}
+import code.api.util.APIUtil.{DateWithDay, DateWithSeconds, gitCommit, stringOrNull}
 import code.api.v1_2_1.BankRoutingJsonV121
 import code.api.v1_4_0.JSONFactory1_4_0.{LocationJsonV140, MetaJsonV140, transformToLocationFromV140, transformToMetaFromV140}
 import code.api.v2_1_0.ResourceUserJSON
@@ -52,6 +52,7 @@ import net.liftweb.common.{Box, Full}
 import net.liftweb.json
 import net.liftweb.json.{JString, JValue, parse, parseOpt}
 
+import java.text.SimpleDateFormat
 import scala.collection.immutable.List
 import scala.util.Try
 
@@ -121,6 +122,21 @@ case class ConsentJsonV510(consent_id: String,
                            status: String,
                            consent_request_id: Option[String],
                            scopes: Option[List[Role]])
+
+
+case class ConsentInfoJsonV510(consent_id: String,
+                               consumer_id: String,
+                               created_by_user_id: String,
+                               status: String,
+                               last_action_date: String,
+                               last_usage_date: String,
+                               jwt: String,
+                               jwt_payload: Box[ConsentJWT],
+                               api_standard: String,
+                               api_version: String,
+                              )
+case class ConsentsInfoJsonV510(consents: List[ConsentInfoJsonV510])
+
 
 case class CurrencyJsonV510(alphanumeric_code: String)
 case class CurrenciesJsonV510(currencies: List[CurrencyJsonV510])
@@ -699,6 +715,26 @@ object JSONFactory510 extends CustomJsonFormats {
       consent.status,
       Some(consent.consentRequestId),
       jsonWebTokenAsJValue.map(_.entitlements).toOption
+    )
+  }
+
+  def createConsentsInfoJsonV510(consents: List[MappedConsent]): ConsentsInfoJsonV510 = {
+    ConsentsInfoJsonV510(
+      consents.map { c =>
+        val jwtPayload: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(c.jsonWebToken).map(parse(_).extract[ConsentJWT])
+        ConsentInfoJsonV510(
+          consent_id = c.consentId,
+          consumer_id = c.consumerId,
+          created_by_user_id = c.userId,
+          status = c.status,
+          last_action_date = if (c.lastActionDate != null) new SimpleDateFormat(DateWithDay).format(c.lastActionDate) else null,
+          last_usage_date = if (c.usesSoFarTodayCounterUpdatedAt != null) new SimpleDateFormat(DateWithSeconds).format(c.usesSoFarTodayCounterUpdatedAt) else null,
+          jwt = c.jsonWebToken,
+          jwt_payload = jwtPayload,
+          api_standard = c.apiStandard,
+          api_version = c.apiVersion
+        )
+      }
     )
   }
 

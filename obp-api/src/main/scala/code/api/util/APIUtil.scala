@@ -3418,7 +3418,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
     val sysEnvironmentPropertyValue: Box[String] =  sys.env.get(sysEnvironmentPropertyName)
     val directPropsValue = sysEnvironmentPropertyValue match {
       case Full(_) =>
-        logger.debug("System environment property value found for: " + sysEnvironmentPropertyName)
+        logger.debug(s"System environment property value found for $sysEnvironmentPropertyName : $sysEnvironmentPropertyValue")
         sysEnvironmentPropertyValue
       case _ =>
         (Props.get(brandSpecificPropertyName), Props.get(brandSpecificPropertyName + ".is_encrypted"), Props.get(brandSpecificPropertyName + ".is_obfuscated")) match {

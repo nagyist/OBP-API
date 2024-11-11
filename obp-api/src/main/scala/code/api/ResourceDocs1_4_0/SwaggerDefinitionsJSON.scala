@@ -2696,23 +2696,25 @@ object SwaggerDefinitionsJSON {
     roles = None,
     roles_info = Some("PEM Encoded Certificate does not contain PSD2 roles.")
   )
-  lazy val consumerJsonV510: ConsumerJsonV510 = ConsumerJsonV510(
-    consumer_id = "d0d7b08c-f0ec-4e57-ac99-7d9eafe99225",
-    consumer_key = "d0d7b08c-f0ec-4e57-ac99-7d9eafe99225",
-    consumer_secret = "d0d7b08c-f0ec-4e57-ac99-7d9eafe99225",
-    app_name = "SOFI",
-    app_type = "Web",
-    description = "Account Management",
-    developer_email = ExampleValue.emailExample.value,
-    company = ExampleValue.companyExample.value,
-    redirect_url = "www.openbankproject.com",
+  
+  val consumerJsonV510: ConsumerJsonV510 = ConsumerJsonV510(
+    consumer_id = consumerIdExample.value,
+    consumer_key = consumerKeyExample.value,
+    consumer_secret = consumerSecretExample.value,
+    app_name = appNameExample.value,
+    app_type = appTypeExample.value,
+    description = descriptionExample.value,
+    developer_email = emailExample.value,
+    company = companyExample.value,
+    redirect_url = redirectUrlExample.value,
     certificate_pem = pem,
     certificate_info = Some(certificateInfoJsonV510),
     created_by_user = resourceUserJSON,
     enabled = true,
     created = DateWithDayExampleObject,
-    logo_url = Some("www.openbankproject.com/logo")
+    logo_url = Some(logoURLExample.value)
   )
+  
   val createConsumerRequestJsonV510 = CreateConsumerRequestJsonV510(
     appNameExample.value,
     appTypeExample.value,

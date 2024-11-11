@@ -137,6 +137,19 @@ case class ConsentInfoJsonV510(consent_id: String,
                               )
 case class ConsentsInfoJsonV510(consents: List[ConsentInfoJsonV510])
 
+case class AllConsentJsonV510(consent_reference_id: String,
+                              consumer_id: String,
+                              created_by_user_id: String,
+                              status: String,
+                              last_action_date: String,
+                              last_usage_date: String,
+                              jwt: String,
+                              jwt_payload: Box[ConsentJWT],
+                              api_standard: String,
+                              api_version: String,
+                             )
+case class ConsentsJsonV510(consents: List[AllConsentJsonV510])
+
 
 case class CurrencyJsonV510(alphanumeric_code: String)
 case class CurrenciesJsonV510(currencies: List[CurrencyJsonV510])
@@ -724,6 +737,25 @@ object JSONFactory510 extends CustomJsonFormats {
         val jwtPayload: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(c.jsonWebToken).map(parse(_).extract[ConsentJWT])
         ConsentInfoJsonV510(
           consent_id = c.consentId,
+          consumer_id = c.consumerId,
+          created_by_user_id = c.userId,
+          status = c.status,
+          last_action_date = if (c.lastActionDate != null) new SimpleDateFormat(DateWithDay).format(c.lastActionDate) else null,
+          last_usage_date = if (c.usesSoFarTodayCounterUpdatedAt != null) new SimpleDateFormat(DateWithSeconds).format(c.usesSoFarTodayCounterUpdatedAt) else null,
+          jwt = c.jsonWebToken,
+          jwt_payload = jwtPayload,
+          api_standard = c.apiStandard,
+          api_version = c.apiVersion
+        )
+      }
+    )
+  }
+  def createConsentsJsonV510(consents: List[MappedConsent]): ConsentsJsonV510 = {
+    ConsentsJsonV510(
+      consents.map { c =>
+        val jwtPayload: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(c.jsonWebToken).map(parse(_).extract[ConsentJWT])
+        AllConsentJsonV510(
+          consent_reference_id = c.id.get.toString,
           consumer_id = c.consumerId,
           created_by_user_id = c.userId,
           status = c.status,

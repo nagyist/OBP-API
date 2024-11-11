@@ -23,6 +23,7 @@ import code.api.v3_1_0.JSONFactory310.createBadLoginStatusJson
 import code.api.v4_0_0.JSONFactory400.{createAccountBalancesJson, createBalancesJson, createNewCoreBankAccountJson}
 import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, RevokedJsonV400}
 import code.api.v5_0_0.{JSONFactory500, PostConsentRequestJsonV500}
+import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createConsentsJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
 import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
 import code.api.v5_0_0.JSONFactory500
 import code.api.v5_1_0.JSONFactory510.{createRegulatedEntitiesJson, createRegulatedEntityJson}
@@ -1007,6 +1008,61 @@ trait APIMethods510 {
           } yield {
             val consentsOfBank = Consent.filterByBankId(consents, bankId)
             (createConsentsInfoJsonV510(consentsOfBank), HttpCode.`200`(cc))
+          }
+      }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
+      getConsentsAtBank,
+      implementedInApiVersion,
+      nameOf(getConsentsAtBank),
+      "GET",
+      "/management/consents/banks/BANK_ID",
+      "Get Consents at Bank",
+      s"""
+         |
+         |This endpoint gets the Consents at Bank by BANK_ID.
+         |
+         |${authenticationRequiredMessage(true)}
+         |
+         |1 limit (for pagination: defaults to 50)  eg:limit=200
+         |
+         |2 offset (for pagination: zero index, defaults to 0) eg: offset=10
+         |
+         |3 consumer_id  (ignore if omitted)
+         |
+         |4 user_id  (ignore if omitted)
+         |
+         |5 status  (ignore if omitted)
+         |
+         |eg: /management/consents/banks/BANK_ID?&consumer_id=78&limit=10&offset=10
+         |
+      """.stripMargin,
+      EmptyBody,
+      consentsJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        UnknownError
+      ),
+      List(apiTagConsent, apiTagPSD2AIS, apiTagPsd2),
+      Some(List(canGetConsentsAtOneBank, canGetConsentsAtAnyBank)),
+    )
+
+    lazy val getConsentsAtBank: OBPEndpoint = {
+      case "management" :: "consents" :: "banks" :: BankId(bankId) :: Nil JsonGet _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            httpParams <- NewStyle.function.extractHttpParamsFromUrl(cc.url)
+            (obpQueryParams, callContext) <- createQueriesByHttpParamsFuture(httpParams, cc.callContext)
+            consents <- Future {
+              Consents.consentProvider.vend.getConsents(obpQueryParams)
+            }
+          } yield {
+            val consentsOfBank = Consent.filterByBankId(consents, bankId)
+            (createConsentsJsonV510(consentsOfBank), HttpCode.`200`(callContext))
           }
       }
     }

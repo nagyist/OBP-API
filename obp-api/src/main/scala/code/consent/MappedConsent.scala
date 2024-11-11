@@ -1,8 +1,7 @@
 package code.consent
 
 import java.util.Date
-
-import code.api.util.{APIUtil, Consent, ErrorMessages, SecureRandomUtil}
+import code.api.util.{APIUtil, Consent, ErrorMessages, OBPStatus, OBPOffset, OBPQueryParam, OBPUserId, OBPLimit, OBPConsumerId, SecureRandomUtil}
 import code.consent.ConsentStatus.ConsentStatus
 import code.model.Consumer
 import code.util.MappedUUID
@@ -62,6 +61,29 @@ object MappedConsentProvider extends ConsentProvider {
   }
   override def getConsentsByUser(userId: String): List[MappedConsent] = {
     MappedConsent.findAll(By(MappedConsent.mUserId, userId))
+  }
+
+
+  private def getQueryParams(queryParams: List[OBPQueryParam]) = {
+    val limit = queryParams.collect { case OBPLimit(value) => MaxRows[MappedConsent](value) }.headOption
+    val offset = queryParams.collect { case OBPOffset(value) => StartAt[MappedConsent](value) }.headOption
+    // he optional variables:
+    val consumerId = queryParams.collect { case OBPConsumerId(value) => By(MappedConsent.mConsumerId, value)}.headOption
+    val userId = queryParams.collect { case OBPUserId(value) => By(MappedConsent.mUserId, value)}.headOption
+    val status = queryParams.collect { case OBPStatus(value) => By(MappedConsent.mStatus, value.toUpperCase())}.headOption
+
+    Seq(
+      offset.toSeq,
+      limit.toSeq,
+      status.toSeq,
+      userId.toSeq,
+      consumerId.toSeq
+    ).flatten
+  }
+
+  override def getConsents(queryParams: List[OBPQueryParam]): List[MappedConsent] = {
+    val optionalParams = getQueryParams(queryParams)
+    MappedConsent.findAll(optionalParams: _*)
   }
   override def createObpConsent(user: User, challengeAnswer: String, consentRequestId:Option[String], consumer: Option[Consumer]): Box[MappedConsent] = {
     tryo {

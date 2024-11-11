@@ -1831,11 +1831,6 @@ object ExampleValue {
   
   lazy val logoURLExample = ConnectorField("https://apisandbox.openbankproject.com/logo",NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("logo_url", logoURLExample)
-  
-  lazy val clientCertificateExample = ConnectorField( """-----BEGIN CERTIFICATE-----
-                                                        |client_certificate_content
-                                                        |-----END CERTIFICATE-----""".stripMargin,NoDescriptionProvided)
-  glossaryItems += makeGlossaryItem("client_certificate", clientCertificateExample)
 
   lazy val roleExample = ConnectorField(NoExampleProvided,NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("role", roleExample)

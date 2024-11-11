@@ -8,22 +8,64 @@ import org.apache.commons.pool2.impl.{GenericObjectPool, GenericObjectPoolConfig
 import org.apache.commons.pool2.BasePooledObjectFactory
 import org.apache.commons.pool2.PooledObject
 import org.apache.commons.pool2.impl.DefaultPooledObject
+import java.io.FileInputStream
+import java.security.KeyStore
+import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 
-// Factory to create RabbitMQ connections
 class RabbitMQConnectionFactory extends BasePooledObjectFactory[Connection] {
 
+  private def createSSLContext(
+    keystorePath: String, keystorePassword: String,
+    truststorePath: String, truststorePassword: String
+  ): SSLContext = {
+    // Load client keystore
+    val keyStore = KeyStore.getInstance(KeyStore.getDefaultType)
+    val keystoreFile = new FileInputStream(keystorePath)
+    keyStore.load(keystoreFile, keystorePassword.toCharArray)
+    keystoreFile.close()
+    // Set up KeyManagerFactory for client certificates
+    val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
+    kmf.init(keyStore, keystorePassword.toCharArray)
+
+    // Load truststore for CA certificates
+    val trustStore = KeyStore.getInstance(KeyStore.getDefaultType)
+    val truststoreFile = new FileInputStream(truststorePath)
+    trustStore.load(truststoreFile, truststorePassword.toCharArray)
+    truststoreFile.close()
+    
+    // Set up TrustManagerFactory for CA certificates
+    val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm)
+    tmf.init(trustStore)
+
+    // Initialize SSLContext
+    val sslContext = SSLContext.getInstance("TLSv1.2")
+    sslContext.init(kmf.getKeyManagers, tmf.getTrustManagers, null)
+    sslContext
+  }
+  
   // lazy initial RabbitMQ connection
   val host = APIUtil.getPropsValue("rabbitmq_connector.host").openOrThrowException("mandatory property rabbitmq_connector.host is missing!")
   val port = APIUtil.getPropsAsIntValue("rabbitmq_connector.port").openOrThrowException("mandatory property rabbitmq_connector.port is missing!")
   val username = APIUtil.getPropsValue("rabbitmq_connector.username").openOrThrowException("mandatory property rabbitmq_connector.username is missing!")
   val password = APIUtil.getPropsValue("rabbitmq_connector.password").openOrThrowException("mandatory property rabbitmq_connector.password is missing!")
-
+  val keystorePath = APIUtil.getPropsValue("keystore.path").getOrElse("")
+  val keystorePassword = APIUtil.getPropsValue("keystore.password").getOrElse(APIUtil.initPasswd)
+  val truststorePath = APIUtil.getPropsValue("truststore.path").getOrElse("")
+  val truststorePassword = APIUtil.getPropsValue("keystore.password").getOrElse(APIUtil.initPasswd)
+  
   private val factory = new ConnectionFactory()
   factory.setHost(host)
   factory.setPort(port)
   factory.setUsername(username)
   factory.setPassword(password)
+  factory.useSslProtocol(createSSLContext(
+    keystorePath,
+    keystorePassword,
+    truststorePath,
+    truststorePassword
+  ))
 
+  
   // Create a new RabbitMQ connection
   override def create(): Connection = factory.newConnection()
 

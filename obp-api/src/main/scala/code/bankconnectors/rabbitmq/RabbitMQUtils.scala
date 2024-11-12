@@ -28,6 +28,7 @@ object RabbitMQUtils extends MdcLoggable{
   val port = APIUtil.getPropsAsIntValue("rabbitmq_connector.port").openOrThrowException("mandatory property rabbitmq_connector.port is missing!")
   val username = APIUtil.getPropsValue("rabbitmq_connector.username").openOrThrowException("mandatory property rabbitmq_connector.username is missing!")
   val password = APIUtil.getPropsValue("rabbitmq_connector.password").openOrThrowException("mandatory property rabbitmq_connector.password is missing!")
+  val virtualHost = APIUtil.getPropsValue("rabbitmq_connector.virtual_host").openOrThrowException("mandatory property rabbitmq_connector.virtual_host is missing!")
   
   val keystorePath = APIUtil.getPropsValue("keystore.path").getOrElse("")
   val keystorePassword = APIUtil.getPropsValue("keystore.password").getOrElse(APIUtil.initPasswd)

@@ -3082,6 +3082,7 @@ object MockedRabbitMqAdapter extends App with MdcLoggable{
     factory.setPort(port)
     factory.setUsername(username)
     factory.setPassword(password)
+    factory.setVirtualHost(virtualHost)
     if (APIUtil.getPropsAsBoolValue("rabbitmq.use.ssl", false)){
       factory.useSslProtocol(RabbitMQUtils.createSSLContext(
         keystorePath,

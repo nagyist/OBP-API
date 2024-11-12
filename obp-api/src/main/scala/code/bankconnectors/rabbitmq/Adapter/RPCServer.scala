@@ -2,6 +2,7 @@ package code.bankconnectors.rabbitmq.Adapter
 
 import bootstrap.liftweb.ToSchemify
 import code.api.util.APIUtil
+import code.bankconnectors.rabbitmq.RabbitMQUtils
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.dto._
 import com.openbankproject.commons.model._
@@ -14,7 +15,7 @@ import net.liftweb.mapper.Schemifier
 
 import scala.concurrent.Future
 import com.openbankproject.commons.ExecutionContext.Implicits.global
-
+import code.bankconnectors.rabbitmq.RabbitMQUtils._
 import java.util.Date
 
 class ServerCallback(val ch: Channel) extends DeliverCallback {
@@ -3067,12 +3068,7 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
 
 object RPCServer extends App {
   private val RPC_QUEUE_NAME = "obp_rpc_queue"
-  // lazy initial RabbitMQ connection
-  val host = APIUtil.getPropsValue("rabbitmq_connector.host").openOrThrowException("mandatory property rabbitmq_connector.host is missing!")
-  val port = APIUtil.getPropsAsIntValue("rabbitmq_connector.port").openOrThrowException("mandatory property rabbitmq_connector.port is missing!")
-//  val username = APIUtil.getPropsValue("rabbitmq_connector.username").openOrThrowException("mandatory property rabbitmq_connector.username is missing!")
-//  val password = APIUtil.getPropsValue("rabbitmq_connector.password").openOrThrowException("mandatory property rabbitmq_connector.password is missing!")
-
+  
   DB.defineConnectionManager(net.liftweb.util.DefaultConnectionIdentifier, APIUtil.vendor)
   Schemifier.schemify(true, Schemifier.infoF _, ToSchemify.models: _*)
   
@@ -3083,8 +3079,17 @@ object RPCServer extends App {
     val factory = new ConnectionFactory()
     factory.setHost(host)
     factory.setPort(port)
-    factory.setUsername("server")
-    factory.setPassword("server")
+    factory.setUsername(username)
+    factory.setPassword(password)
+    if (APIUtil.getPropsAsBoolValue("rabbitmq.use.ssl", false)){
+      factory.useSslProtocol(RabbitMQUtils.createSSLContext(
+        keystorePath,
+        keystorePassword,
+        truststorePath,
+        truststorePassword
+      ))
+    }
+
     connection = factory.newConnection()
     channel = connection.createChannel()
     channel.queueDeclare(RPC_QUEUE_NAME, false, false, false, null)

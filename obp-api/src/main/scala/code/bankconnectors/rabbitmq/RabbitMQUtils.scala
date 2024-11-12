@@ -3,14 +3,17 @@ package code.bankconnectors.rabbitmq
 import code.api.util.ErrorMessages.AdapterUnknownError
 import code.bankconnectors.Connector
 import code.util.Helper.MdcLoggable
+import code.api.util.APIUtil
 import com.openbankproject.commons.model.TopicTrait
 import net.liftweb.common.{Box, Empty, Failure, Full}
 import net.liftweb.json.Serialization.write
 import com.rabbitmq.client.AMQP.BasicProperties
 import com.rabbitmq.client._
-
 import java.util
 import java.util.UUID
+import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
+import java.io.FileInputStream
+import java.security.KeyStore
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, Promise}
 
@@ -21,6 +24,16 @@ import scala.concurrent.{Future, Promise}
  */
 object RabbitMQUtils extends MdcLoggable{
 
+  val host = APIUtil.getPropsValue("rabbitmq_connector.host").openOrThrowException("mandatory property rabbitmq_connector.host is missing!")
+  val port = APIUtil.getPropsAsIntValue("rabbitmq_connector.port").openOrThrowException("mandatory property rabbitmq_connector.port is missing!")
+  val username = APIUtil.getPropsValue("rabbitmq_connector.username").openOrThrowException("mandatory property rabbitmq_connector.username is missing!")
+  val password = APIUtil.getPropsValue("rabbitmq_connector.password").openOrThrowException("mandatory property rabbitmq_connector.password is missing!")
+  
+  val keystorePath = APIUtil.getPropsValue("keystore.path").getOrElse("")
+  val keystorePassword = APIUtil.getPropsValue("keystore.password").getOrElse(APIUtil.initPasswd)
+  val truststorePath = APIUtil.getPropsValue("truststore.path").getOrElse("")
+  val truststorePassword = APIUtil.getPropsValue("keystore.password").getOrElse(APIUtil.initPasswd)
+  
   private implicit val formats = code.api.util.CustomJsonFormats.nullTolerateFormats
   
   val requestQueueName: String = "obp_rpc_queue"
@@ -107,4 +120,36 @@ object RabbitMQUtils extends MdcLoggable{
     rabbitResponseJsonFuture.map(rabbitResponseJsonString =>logger.debug(s"${RabbitMQConnector_vOct2024.toString} inBoundJson: $messageId = $rabbitResponseJsonString" ))
     rabbitResponseJsonFuture.map(rabbitResponseJsonString =>Connector.extractAdapterResponse[T](rabbitResponseJsonString, Empty))
   }
+
+  def createSSLContext(
+    keystorePath: String, 
+    keystorePassword: String,
+    truststorePath: String, 
+    truststorePassword: String
+  ): SSLContext = {
+    // Load client keystore
+    val keyStore = KeyStore.getInstance("jks")
+    val keystoreFile = new FileInputStream(keystorePath)
+    keyStore.load(keystoreFile, keystorePassword.toCharArray)
+    keystoreFile.close()
+    // Set up KeyManagerFactory for client certificates
+    val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
+    kmf.init(keyStore, keystorePassword.toCharArray)
+
+    // Load truststore for CA certificates
+    val trustStore = KeyStore.getInstance("jks")
+    val truststoreFile = new FileInputStream(truststorePath)
+    trustStore.load(truststoreFile, truststorePassword.toCharArray)
+    truststoreFile.close()
+
+    // Set up TrustManagerFactory for CA certificates
+    val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm)
+    tmf.init(trustStore)
+
+    // Initialize SSLContext
+    val sslContext = SSLContext.getInstance("TLSv1.3")
+    sslContext.init(kmf.getKeyManagers, tmf.getTrustManagers, null)
+    sslContext
+  }
+  
 }

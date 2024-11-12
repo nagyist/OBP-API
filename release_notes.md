@@ -3,6 +3,10 @@
 ### Most recent changes at top of file
 ```
 Date          Commit        Action
+12/11/2024    d2e711b4      Added props rabbitmq_connector.virtual_host, default is /.
+                            If you need to set it, please make sure you already add the virtual_host to the rabbitmq and grant the access to the user:
+                            eg: run `rabbitmqctl add_vhost /obp/` => create the `/obp/` 
+                            and run `rabbitmqctl set_permissions -p /obp/ obp ".*" ".*" ".*"` => grant user `obp` the access permissions.
 12/11/2024    d2e711b4      Added props rabbitmq.adapter.enabled, default is false
 12/11/2024    a5253b4e      Added props rabbitmq.use.ssl, default is false
 30/10/2024    e69161b6      set V121, V130 and V200 status to DEPRECATED

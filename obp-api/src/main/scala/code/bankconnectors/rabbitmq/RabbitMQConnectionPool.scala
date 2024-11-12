@@ -58,12 +58,14 @@ class RabbitMQConnectionFactory extends BasePooledObjectFactory[Connection] {
   factory.setPort(port)
   factory.setUsername(username)
   factory.setPassword(password)
-  factory.useSslProtocol(createSSLContext(
-    keystorePath,
-    keystorePassword,
-    truststorePath,
-    truststorePassword
-  ))
+  if (APIUtil.getPropsAsBoolValue("rabbitmq.use.ssl", false)){
+    factory.useSslProtocol(createSSLContext(
+      keystorePath,
+      keystorePassword,
+      truststorePath,
+      truststorePassword
+    ))
+  }
 
   
   // Create a new RabbitMQ connection

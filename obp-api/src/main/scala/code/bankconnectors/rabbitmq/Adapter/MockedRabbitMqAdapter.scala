@@ -3067,6 +3067,10 @@ class ServerCallback(val ch: Channel) extends DeliverCallback with MdcLoggable{
 
 }
 
+/**
+ * This is only for testing, not ready for production.
+ * Still in processing.
+ */
 object MockedRabbitMqAdapter extends App with MdcLoggable{
   private val RPC_QUEUE_NAME = "obp_rpc_queue"
   
@@ -3105,7 +3109,7 @@ object MockedRabbitMqAdapter extends App with MdcLoggable{
   } finally {
     if (connection != null) {
       try {
-        //          connection.close()
+        //          connection.close() //this is a tempreory solution, we keep this connection open to wait for messages
       } catch {
         case e: Exception =>  logger.error(s"unknown Exception:$e")
       }

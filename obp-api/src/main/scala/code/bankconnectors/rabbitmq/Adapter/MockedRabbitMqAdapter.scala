@@ -3069,7 +3069,8 @@ class ServerCallback(val ch: Channel) extends DeliverCallback with MdcLoggable{
 
 /**
  * This is only for testing, not ready for production.
- * Still in processing.
+ * use mapped connector as the bank CBS. 
+ * Work in progress
  */
 object MockedRabbitMqAdapter extends App with MdcLoggable{
   private val RPC_QUEUE_NAME = "obp_rpc_queue"
@@ -3109,7 +3110,7 @@ object MockedRabbitMqAdapter extends App with MdcLoggable{
   } finally {
     if (connection != null) {
       try {
-        //          connection.close() //this is a tempreory solution, we keep this connection open to wait for messages
+        //          connection.close() //this is a temporary solution, we keep this connection open to wait for messages
       } catch {
         case e: Exception =>  logger.error(s"unknown Exception:$e")
       }
@@ -3119,7 +3120,7 @@ object MockedRabbitMqAdapter extends App with MdcLoggable{
 }
 
 /**
- * This adapter is only for testing poplors, not ready for the production
+ * This adapter is only for testing, not ready for the production
  */
 object startRabbitMqAdapter {
   def main(args: Array[String]): Unit = {

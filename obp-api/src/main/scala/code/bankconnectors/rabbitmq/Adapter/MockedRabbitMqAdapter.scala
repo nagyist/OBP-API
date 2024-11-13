@@ -2,6 +2,7 @@ package code.bankconnectors.rabbitmq.Adapter
 
 import bootstrap.liftweb.ToSchemify
 import code.api.util.APIUtil
+import code.bankconnectors.rabbitmq.RabbitMQUtils
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.dto._
 import com.openbankproject.commons.model._
@@ -14,10 +15,11 @@ import net.liftweb.mapper.Schemifier
 
 import scala.concurrent.Future
 import com.openbankproject.commons.ExecutionContext.Implicits.global
-
+import code.bankconnectors.rabbitmq.RabbitMQUtils._
 import java.util.Date
+import code.util.Helper.MdcLoggable
 
-class ServerCallback(val ch: Channel) extends DeliverCallback {
+class ServerCallback(val ch: Channel) extends DeliverCallback with MdcLoggable{
 
   private implicit val formats = code.api.util.CustomJsonFormats.nullTolerateFormats
 
@@ -32,7 +34,7 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
       .messageId(obpMessageId)
       .build
     val message = new String(delivery.getBody, "UTF-8")
-    println(s"Request: OutBound message from OBP: methodId($obpMessageId) : message is $message ")
+     logger.debug(s"Request: OutBound message from OBP: methodId($obpMessageId) : message is $message ")
 
     try {
       val responseToOBP = if (obpMessageId.contains("obp_get_banks")) {
@@ -3052,10 +3054,10 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
       }
       
       response = responseToOBP.map(a => write(a)).map("" + _)
-      response.map(res => println(s"Response: inBound message to OBP: process($obpMessageId) : message is $res "))
+      response.map(res =>  logger.debug(s"Response: inBound message to OBP: process($obpMessageId) : message is $res "))
       response
     } catch {
-      case e: Throwable => println("Unknown exception: " + e.toString)
+      case e: Throwable =>  logger.error("Unknown exception: " + e.toString)
 
     } finally {
       response.map(res => ch.basicPublish("", delivery.getProperties.getReplyTo, replyProps, res.getBytes("UTF-8")))
@@ -3065,14 +3067,13 @@ class ServerCallback(val ch: Channel) extends DeliverCallback {
 
 }
 
-object RPCServer extends App {
+/**
+ * This is only for testing, not ready for production.
+ * Still in processing.
+ */
+object MockedRabbitMqAdapter extends App with MdcLoggable{
   private val RPC_QUEUE_NAME = "obp_rpc_queue"
-  // lazy initial RabbitMQ connection
-  val host = APIUtil.getPropsValue("rabbitmq_connector.host").openOrThrowException("mandatory property rabbitmq_connector.host is missing!")
-  val port = APIUtil.getPropsAsIntValue("rabbitmq_connector.port").openOrThrowException("mandatory property rabbitmq_connector.port is missing!")
-//  val username = APIUtil.getPropsValue("rabbitmq_connector.username").openOrThrowException("mandatory property rabbitmq_connector.username is missing!")
-//  val password = APIUtil.getPropsValue("rabbitmq_connector.password").openOrThrowException("mandatory property rabbitmq_connector.password is missing!")
-
+  
   DB.defineConnectionManager(net.liftweb.util.DefaultConnectionIdentifier, APIUtil.vendor)
   Schemifier.schemify(true, Schemifier.infoF _, ToSchemify.models: _*)
   
@@ -3083,8 +3084,18 @@ object RPCServer extends App {
     val factory = new ConnectionFactory()
     factory.setHost(host)
     factory.setPort(port)
-    factory.setUsername("server")
-    factory.setPassword("server")
+    factory.setUsername(username)
+    factory.setPassword(password)
+    factory.setVirtualHost(virtualHost)
+    if (APIUtil.getPropsAsBoolValue("rabbitmq.use.ssl", false)){
+      factory.useSslProtocol(RabbitMQUtils.createSSLContext(
+        keystorePath,
+        keystorePassword,
+        truststorePath,
+        truststorePassword
+      ))
+    }
+
     connection = factory.newConnection()
     channel = connection.createChannel()
     channel.queueDeclare(RPC_QUEUE_NAME, false, false, false, null)
@@ -3092,17 +3103,32 @@ object RPCServer extends App {
     // stop after one consumed message since this is example code
     val serverCallback = new ServerCallback(channel)
     channel basicConsume(RPC_QUEUE_NAME, false, serverCallback, _ => {})
-    println("Start awaiting OBP Connector Requests:")
+    logger.info("Start awaiting OBP Connector Requests:")
   } catch {
     case e: Exception => e.printStackTrace()
   } finally {
     if (connection != null) {
       try {
-        //          connection.close()
+        //          connection.close() //this is a tempreory solution, we keep this connection open to wait for messages
       } catch {
-        case e: Exception => println(s"unknown Exception:$e")
+        case e: Exception =>  logger.error(s"unknown Exception:$e")
       }
     }
   }
 
+}
+
+/**
+ * This adapter is only for testing poplors, not ready for the production
+ */
+object startRabbitMqAdapter {
+  def main(args: Array[String]): Unit = {
+    val thread = new Thread(new Runnable {
+      override def run(): Unit = {
+        MockedRabbitMqAdapter.main(Array.empty)  
+      }
+    })
+    thread.start()
+    thread.join()
+  }
 }

@@ -59,7 +59,7 @@ object AdapterStubBuilder {
     println("===================")
 
     val path = new File(getClass.getResource("").toURI.toString.replaceFirst("target/.*", "").replace("file:", ""),
-      "src/main/scala/code/bankconnectors/rabbitmq/Adapter/RPCServer.scala")
+      "src/main/scala/code/bankconnectors/rabbitmq/Adapter/MockedRabbitMqAdapter.scala")
     val source = FileUtils.readFileToString(path, "utf-8")
     val start = "//---------------- dynamic start -------------------please don't modify this line"
     val end   = "//---------------- dynamic end ---------------------please don't modify this line"

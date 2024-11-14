@@ -80,6 +80,8 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           Yahoo.applyRules(value, cc)
         } else if (Azure.isIssuer(value)) {
           Azure.applyRules(value, cc)
+        } else if (Keycloack.isIssuer(value)) {
+          Keycloack.applyRules(value, cc)
         } else {
           Hydra.applyRules(value, cc)
         }
@@ -100,6 +102,8 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           Yahoo.applyRulesFuture(value, cc)
         } else if (Azure.isIssuer(value)) {
           Azure.applyRulesFuture(value, cc)
+        } else if (Keycloack.isIssuer(value)) {
+          Keycloack.applyRulesFuture(value, cc)
         } else {
           Hydra.applyRulesFuture(value, cc)
         }
@@ -198,10 +202,10 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       super.applyRules(value, cc)
     }
 
-    override def applyRules(value: String, cc: CallContext): (Box[User], Some[CallContext]) = {
-      isIssuer(jwtToken=value, identityProvider = hydraPublicUrl) match {
-        case true => applyIdTokenRules(value, cc)
-        case false => applyAccessTokenRules(value, cc)
+    override def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
+      isIssuer(jwtToken=token, identityProvider = hydraPublicUrl) match {
+        case true => applyIdTokenRules(token, cc)
+        case false => applyAccessTokenRules(token, cc)
       }
     }
     
@@ -241,6 +245,18 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       urlOfJwkSets match {
         case Full(url) =>
           JwtUtil.validateIdToken(idToken, url)
+        case ParamFailure(a, b, c, apiFailure : APIFailure) =>
+          ParamFailure(a, b, c, apiFailure : APIFailure)
+        case Failure(msg, t, c) =>
+          Failure(msg, t, c)
+        case _ =>
+          Failure(Oauth2ThereIsNoUrlOfJwkSet)
+      }
+    }
+    def validateAccessToken(accessToken: String): Box[JWTClaimsSet] = {
+      urlOfJwkSets match {
+        case Full(url) =>
+          JwtUtil.validateAccessToken(accessToken, url)
         case ParamFailure(a, b, c, apiFailure : APIFailure) =>
           ParamFailure(a, b, c, apiFailure : APIFailure)
         case Failure(msg, t, c) =>
@@ -364,11 +380,11 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       )
     }
 
-    def applyRules(value: String, cc: CallContext): (Box[User], Some[CallContext]) = {
-      validateIdToken(value) match {
+    def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
+      validateIdToken(token) match {
         case Full(_) =>
-          val user = IdentityProviderCommon.getOrCreateResourceUser(value)
-          val consumer = IdentityProviderCommon.getOrCreateConsumer(value, user.map(_.userId))
+          val user = getOrCreateResourceUser(token)
+          val consumer = getOrCreateConsumer(token, user.map(_.userId))
           LoginAttempt.userIsLocked(user.map(_.provider).getOrElse(""), user.map(_.name).getOrElse("")) match {
             case true => ((Failure(UsernameHasBeenLocked), Some(cc.copy(consumer = consumer))))
             case false => (user, Some(cc.copy(consumer = consumer)))
@@ -385,8 +401,8 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       validateIdToken(value) match {
         case Full(_) =>
           for {
-            user <-  IdentityProviderCommon.getOrCreateResourceUserFuture(value)
-            consumer <-  Future{IdentityProviderCommon.getOrCreateConsumer(value, user.map(_.userId))}
+            user <-  getOrCreateResourceUserFuture(value)
+            consumer <-  Future{getOrCreateConsumer(value, user.map(_.userId))}
           } yield {
             LoginAttempt.userIsLocked(user.map(_.provider).getOrElse(""), user.map(_.name).getOrElse("")) match {
               case true => ((Failure(UsernameHasBeenLocked), Some(cc.copy(consumer = consumer))))
@@ -401,11 +417,6 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           Future((Failure(Oauth2IJwtCannotBeVerified), Some(cc)))
       }
     }
-  }
-  
-  object IdentityProviderCommon extends OAuth2Util {
-    override def wellKnownOpenidConfiguration: URI = new URI("")
-    override def urlOfJwkSets: Box[String] = checkUrlOfJwkSets(identityProvider = "common")
   }
 
   object Google extends OAuth2Util {
@@ -442,6 +453,50 @@ object OAuth2Login extends RestHelper with MdcLoggable {
     override def wellKnownOpenidConfiguration: URI = new URI("https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration")
     override def urlOfJwkSets: Box[String] = checkUrlOfJwkSets(identityProvider = microsoft)
     def isIssuer(jwt: String): Boolean = isIssuer(jwtToken=jwt, identityProvider = microsoft)
+  }
+
+  object Keycloack extends OAuth2Util {
+    val keycloackHost = APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloack.host", "http://localhost:7070")
+    /**
+      * OpenID Connect Discovery.
+      * Yahoo exposes OpenID Connect discovery documents ( https://YOUR_DOMAIN/.well-known/openid-configuration ).
+      * These can be used to automatically configure applications.
+      */
+    override def wellKnownOpenidConfiguration: URI =
+      new URI(
+        APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloack.well-known", "http://localhost:7070/realms/master/.well-known/openid-configuration")
+      )
+    override def urlOfJwkSets: Box[String] = checkUrlOfJwkSets(identityProvider = keycloackHost)
+    def isIssuer(jwt: String): Boolean = isIssuer(jwtToken=jwt, identityProvider = keycloackHost)
+
+    private def applyIdTokenRules(value: String, cc: CallContext): (Box[User], Some[CallContext]) = {
+      super.applyRules(value, cc) // OpenID Connect flow is unified
+    }
+
+    private def applyAccessTokenRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
+      super.validateAccessToken(token) match {
+        case Full(_) =>
+          val user = getOrCreateResourceUser(token)
+          val consumer = getOrCreateConsumer(token, user.map(_.userId))
+          LoginAttempt.userIsLocked(user.map(_.provider).getOrElse(""), user.map(_.name).getOrElse("")) match {
+            case true => ((Failure(UsernameHasBeenLocked), Some(cc.copy(consumer = consumer))))
+            case false => (user, Some(cc.copy(consumer = consumer)))
+          }
+        case ParamFailure(a, b, c, apiFailure: APIFailure) =>
+          (ParamFailure(a, b, c, apiFailure: APIFailure), Some(cc))
+        case Failure(msg, t, c) =>
+          (Failure(msg, t, c), Some(cc))
+        case _ =>
+          (Failure(Oauth2IJwtCannotBeVerified), Some(cc))
+      }
+    }
+
+    override def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
+      applyAccessTokenRules(token, cc)
+    }
+    override def applyRulesFuture(value: String, cc: CallContext): Future[(Box[User], Some[CallContext])] = Future {
+      applyRules(value, cc)
+    }
   }
 
 }

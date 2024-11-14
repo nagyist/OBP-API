@@ -37,7 +37,7 @@ object RabbitMQUtils extends MdcLoggable{
   
   private implicit val formats = code.api.util.CustomJsonFormats.nullTolerateFormats
   
-  val requestQueueName: String = "obp_rpc_queue"
+  val RPC_QUEUE_NAME: String = "obp_rpc_queue"
 
   class ResponseCallback(val rabbitCorrelationId: String, channel: Channel) extends DeliverCallback {
 
@@ -82,6 +82,7 @@ object RabbitMQUtils extends MdcLoggable{
 
     val connection = RabbitMQConnectionPool.borrowConnection()
     val channel = connection.createChannel() // channel is not thread safe, so we always create new channel for each message.
+    channel.queueDeclare(RPC_QUEUE_NAME, false, false, false, null)
     val replyQueueName:String = channel.queueDeclare(
       "",  // Queue name
       false,  // durable: non-persistent
@@ -101,7 +102,7 @@ object RabbitMQUtils extends MdcLoggable{
           .correlationId(rabbitMQCorrelationId)
           .replyTo(replyQueueName)
           .build()
-        channel.basicPublish("", requestQueueName, rabbitMQProps, rabbitRequestJsonString.getBytes("UTF-8"))
+        channel.basicPublish("", RPC_QUEUE_NAME, rabbitMQProps, rabbitRequestJsonString.getBytes("UTF-8"))
 
         val responseCallback = new ResponseCallback(rabbitMQCorrelationId, channel)
         channel.basicConsume(replyQueueName, true, responseCallback, cancelCallback)

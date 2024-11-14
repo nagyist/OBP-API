@@ -18,15 +18,13 @@ import code.api.util.newstyle.RegulatedEntityNewStyle.{createRegulatedEntityNewS
 import code.api.v2_1_0.ConsumerRedirectUrlJSON
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_0_0.JSONFactory300.createAggregateMetricJson
-import code.api.v3_1_0.ConsentJsonV310
+import code.api.v3_1_0.{ConsentJsonV310, JSONFactory310}
 import code.api.v3_1_0.JSONFactory310.createBadLoginStatusJson
+import code.api.v4_0_0.APIMethods400.{createTransactionRequest, transactionRequestGeneralText}
 import code.api.v4_0_0.JSONFactory400.{createAccountBalancesJson, createBalancesJson, createNewCoreBankAccountJson}
 import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, RevokedJsonV400}
-import code.api.v5_0_0.{JSONFactory500, PostConsentRequestJsonV500}
-import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createConsentsJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
-import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
 import code.api.v5_0_0.JSONFactory500
-import code.api.v5_1_0.JSONFactory510.{createRegulatedEntitiesJson, createRegulatedEntityJson}
+import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createConsentsJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
 import code.atmattribute.AtmAttribute
 import code.bankconnectors.Connector
 import code.consent.{ConsentRequests, Consents}
@@ -345,6 +343,178 @@ trait APIMethods510 {
           }
       }
     }
+
+    staticResourceDocs += ResourceDoc(
+      createAgent,
+      implementedInApiVersion,
+      nameOf(createAgent),
+      "POST",
+      "/banks/BANK_ID/agents",
+      "Create Agent",
+      s"""
+         |The Customer resource stores the customer number (which is set by the backend), legal name, email, phone number, their date of birth, relationship status, education attained, a url for a profile image, KYC status etc.
+         |Dates need to be in the format 2013-01-21T23:08:00Z
+         |
+         |Note: If you need to set a specific customer number, use the Update Customer Number endpoint after this call.
+         |
+         |${authenticationRequiredMessage(true)}
+         |""",
+      postAgentJsonV510,
+      agentJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        InvalidJsonFormat,
+        CustomerNumberAlreadyExists,
+        UserNotFoundById,
+        CustomerAlreadyExistsForUser,
+        CreateConsumerError,
+        UnknownError
+      ),
+      List(apiTagCustomer, apiTagPerson)
+    )
+    
+    lazy val createAgent : OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents" :: Nil JsonPost json -> _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            postedData <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PostAgentJsonV510 ", 400, cc.callContext) {
+              json.extract[PostAgentJsonV510]
+            }
+            (_, callContext) <- NewStyle.function.checkCustomerNumberAvailable(bankId, postedData.agent_number, cc.callContext)
+            (customer, callContext) <- NewStyle.function.createCustomerC2(
+              bankId,
+              postedData.legal_name,
+              postedData.agent_number,
+              postedData.mobile_phone_number,
+              "",
+              CustomerFaceImage(null, ""),
+              null,
+              "",
+              0,
+              Nil,
+              "",
+              "",
+              false,
+              null,
+              None,
+              None,
+              "",
+              "",
+              "",
+              callContext,
+            )
+            (bankAccount, callContext) <- NewStyle.function.createBankAccount(
+              bankId,
+              AccountId(APIUtil.generateUUID()),
+              "AGENT",
+              "AGENT",
+              postedData.currency,
+              0,
+              postedData.legal_name,
+              null,
+              Nil,
+              callContext
+            )
+            (_, callContext) <- NewStyle.function.createCustomerAccountLink(customer.customerId, bankAccount.bankId.value, bankAccount.accountId.value, "Owner", callContext)
+          } yield {
+            (JSONFactory510.createAgentJson(customer, bankAccount), HttpCode.`201`(callContext))
+          }
+      }
+    }
+    
+    staticResourceDocs += ResourceDoc(
+      getAgent,
+      implementedInApiVersion,
+      nameOf(getAgent),
+      "GET",
+      "/banks/BANK_ID/agents/AGENT_ID",
+      "Get Agent",
+      s"""Get Agent.
+         |
+         |${authenticationRequiredMessage(true)}
+         |""".stripMargin,
+      EmptyBody,
+      agentJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        UnknownError
+      ),
+      List(apiTagAccount)
+    )
+
+    lazy val getAgent: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents" :: agentId  :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (Full(u), callContext) <- SS.user
+            (agent, callContext) <- NewStyle.function.getAgentByAgentId(agentId, callContext)
+            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(agentId, callContext)
+            customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, cc.callContext) {
+              customerAccountLinks.head
+            }
+            (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(customerAccountLink.bankId), AccountId(customerAccountLink.accountId), callContext)
+          } yield {
+            (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      createTransactionRequestAgent,
+      implementedInApiVersion,
+      nameOf(createTransactionRequestAgent),
+      "POST",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-request-types/AGENT/transaction-requests",
+      "Create Transaction Request (AGENT)",
+      s"""
+         |
+         |Either the `from` or the `to` field must be filled. Those fields refers to the information about the party that will be refunded.
+         |
+         |In case the `from` object is used, it means that the refund comes from the part that sent you a transaction.
+         |In the `from` object, you have two choices :
+         |- Use `bank_id` and `account_id` fields if the other account is registered on the OBP-API
+         |- Use the `counterparty_id` field in case the counterparty account is out of the OBP-API
+         |
+         |In case the `to` object is used, it means you send a request to a counterparty to ask for a refund on a previous transaction you sent.
+         |(This case is not managed by the OBP-API and require an external adapter)
+         |
+         |
+         |$transactionRequestGeneralText
+         |
+       """.stripMargin,
+      transactionRequestBodyAgentJsonV510,
+      transactionRequestWithChargeJSON400,
+      List(
+        $UserNotLoggedIn,
+        InvalidBankIdFormat,
+        InvalidAccountIdFormat,
+        InvalidJsonFormat,
+        $BankNotFound,
+        AccountNotFound,
+        $BankAccountNotFound,
+        InsufficientAuthorisationToCreateTransactionRequest,
+        InvalidTransactionRequestType,
+        InvalidJsonFormat,
+        InvalidNumber,
+        NotPositiveAmount,
+        InvalidTransactionRequestCurrency,
+        TransactionDisabled,
+        UnknownError
+      ),
+      List(apiTagTransactionRequest, apiTagPSD2PIS, apiTagPsd2)
+    )
+
+    lazy val createTransactionRequestAgent: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-request-types" ::
+        "AGENT-CASH-WITHDRAWAL" :: "transaction-requests" :: Nil JsonPost json -> _ =>
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          val transactionRequestType = TransactionRequestType("ACCOUNT")
+          createTransactionRequest(bankId, accountId, viewId, transactionRequestType, json)
+    }
+    
     staticResourceDocs += ResourceDoc(
       createNonPersonalUserAttribute,
       implementedInApiVersion,

@@ -40,7 +40,7 @@ import code.atmattribute.AtmAttribute
 import code.atms.Atms.Atm
 import code.users.{UserAttribute, Users}
 import code.views.system.{AccountAccess, ViewDefinition}
-import com.openbankproject.commons.model.{AccountRoutingJsonV121, Address, AtmId, AtmT, BankId, BankIdAccountId, BranchRoutingJsonV141, CreateViewJson, Customer, Location, Meta, RegulatedEntityTrait, UpdateViewJSON, View}
+import com.openbankproject.commons.model.{AccountRoutingJsonV121, Address, AmountOfMoneyJsonV121, AtmId, AtmT, BankAccount, BankId, BankIdAccountId, BranchRoutingJsonV141, CreateViewJson, Customer, Location, Meta, RegulatedEntityTrait, TransactionRequestCommonBodyJSON, UpdateViewJSON, View}
 import com.openbankproject.commons.util.{ApiVersion, ScannedApiVersion}
 
 import java.util.Date
@@ -317,6 +317,38 @@ case class UserAttributesResponseJsonV510(
 )
 
 case class CustomerIdJson(id: String)
+case class AgentJson(
+  id: String,
+  name:String
+)
+
+case class AgentIdJson(
+  agent_id: String
+)
+
+case class TransactionRequestBodyAgentJsonV510(
+  to: AgentIdJson,
+  value: AmountOfMoneyJsonV121,
+  description: String,
+  charge_policy: String,
+  future_date: Option[String] = None
+) extends TransactionRequestCommonBodyJSON
+
+case class PostAgentJsonV510(
+  legal_name: String,
+  mobile_phone_number: String,
+  agent_number: String,
+  currency: String
+)
+
+case class AgentJsonV510(
+  agent_id: String,
+  legal_name: String,
+  mobile_phone_number: String,
+  agent_number: String,
+  currency: String
+)
+
 case class CustomersIdsJsonV510(customers: List[CustomerIdJson])
 
 case class PostCustomerLegalNameJsonV510(legal_name: String)
@@ -912,6 +944,15 @@ object JSONFactory510 extends CustomJsonFormats {
     ConsumersJsonV510(consumers.map(createConsumerJSON(_,None)))
   }
 
+  def createAgentJson(customer: Customer, bankAccount: BankAccount): AgentJsonV510 = {
+    AgentJsonV510(
+      agent_id =  customer.customerId,
+      legal_name = customer.legalName,
+      mobile_phone_number = customer.mobileNumber,
+      agent_number = customer.number,
+      currency = bankAccount.currency
+    )
+  }
 
 }
 

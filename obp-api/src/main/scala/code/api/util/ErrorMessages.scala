@@ -452,6 +452,7 @@ object ErrorMessages {
   val UpdateProductFeeError = "OBP-30119: Could not update the Product Fee."
   
   val InvalidCardNumber = "OBP-30200: Card not found. Please specify a valid value for CARD_NUMBER. "
+  val AgentNotFound = "OBP-30201: Agent not found. Please specify a valid value for AGENT_ID. "
 
   val CustomerAccountLinkNotFound = "OBP-30204: Customer Account Link not found"
 
@@ -523,6 +524,7 @@ object ErrorMessages {
 
   val GetChargeValueError = "OBP-30323: Could not get the Charge Value."
   val GetTransactionRequestTypeChargesError = "OBP-30324: Could not get Transaction Request Type Charges."
+  val AgentAccountLinkNotFound = "OBP-30325: Agent Account Link not found."
   
   // Branch related messages
   val BranchesNotFoundLicense = "OBP-32001: No branches available. License may not be set."

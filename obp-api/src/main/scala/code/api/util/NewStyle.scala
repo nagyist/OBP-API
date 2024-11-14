@@ -748,6 +748,12 @@ object NewStyle extends MdcLoggable{
         unboxFullOrFail(_, callContext, s"$CustomerNotFoundByCustomerId. Current CustomerId($customerId)", 404)
       }
     }
+    
+    def getAgentByAgentId(agentId : String, callContext: Option[CallContext]): OBPReturnType[Customer] = {
+      Connector.connector.vend.getCustomerByCustomerId(agentId, callContext) map {
+        unboxFullOrFail(_, callContext, s"$AgentNotFound. Current AGENT_ID($agentId)", 404)
+      }
+    }
     def checkCustomerNumberAvailable(bankId: BankId, customerNumber: String, callContext: Option[CallContext]): OBPReturnType[Boolean] = {
       Connector.connector.vend.checkCustomerNumberAvailable(bankId: BankId, customerNumber: String, callContext: Option[CallContext]) map {
         i => (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse", 400), i._2) 

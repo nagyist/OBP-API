@@ -75,11 +75,11 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       case true =>
         val value = getValueOfOAuh2HeaderField(cc)
         if (Google.isIssuer(value)) {
-          Google.applyRules(value, cc)
+          Google.applyIdTokenRules(value, cc)
         } else if (Yahoo.isIssuer(value)) {
-          Yahoo.applyRules(value, cc)
+          Yahoo.applyIdTokenRules(value, cc)
         } else if (Azure.isIssuer(value)) {
-          Azure.applyRules(value, cc)
+          Azure.applyIdTokenRules(value, cc)
         } else if (Keycloack.isIssuer(value)) {
           Keycloack.applyRules(value, cc)
         } else {
@@ -97,11 +97,11 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       case true =>
         val value = getValueOfOAuh2HeaderField(cc)
         if (Google.isIssuer(value)) {
-          Google.applyRulesFuture(value, cc)
+          Google.applyIdTokenRulesFuture(value, cc)
         } else if (Yahoo.isIssuer(value)) {
-          Yahoo.applyRulesFuture(value, cc)
+          Yahoo.applyIdTokenRulesFuture(value, cc)
         } else if (Azure.isIssuer(value)) {
-          Azure.applyRulesFuture(value, cc)
+          Azure.applyIdTokenRulesFuture(value, cc)
         } else if (Keycloack.isIssuer(value)) {
           Keycloack.applyRulesFuture(value, cc)
         } else {
@@ -116,8 +116,8 @@ object OAuth2Login extends RestHelper with MdcLoggable {
   object Hydra extends OAuth2Util {
     override def wellKnownOpenidConfiguration: URI = new URI(hydraPublicUrl)
     override def urlOfJwkSets: Box[String] = checkUrlOfJwkSets(identityProvider = hydraPublicUrl)
-    
-    private def applyAccessTokenRules(value: String, cc: CallContext): (Box[User], Some[CallContext]) = {
+
+    override def applyAccessTokenRules(value: String, cc: CallContext): (Box[User], Some[CallContext]) = {
       // In case of Hydra issued access tokens are not self-encoded/self-contained like JWT tokens are.
       // It implies the access token can be revoked at any time.
       val introspectOAuth2Token: OAuth2TokenIntrospection = hydraAdmin.introspectOAuth2Token(value, null)
@@ -197,19 +197,15 @@ object OAuth2Login extends RestHelper with MdcLoggable {
         case _ => (user, Some(cc.copy(consumer = consumer)))
       }
     }
-    
-    private def applyIdTokenRules(value: String, cc: CallContext): (Box[User], Some[CallContext]) = {
-      super.applyRules(value, cc)
-    }
 
-    override def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
+    def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
       isIssuer(jwtToken=token, identityProvider = hydraPublicUrl) match {
-        case true => applyIdTokenRules(token, cc)
+        case true => super.applyIdTokenRules(token, cc)
         case false => applyAccessTokenRules(token, cc)
       }
     }
-    
-    override def applyRulesFuture(value: String, cc: CallContext): Future[(Box[User], Some[CallContext])] = Future {
+
+    def applyRulesFuture(value: String, cc: CallContext): Future[(Box[User], Some[CallContext])] = Future {
       applyRules(value, cc)
     }
 
@@ -380,7 +376,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       )
     }
 
-    def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
+    def applyIdTokenRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
       validateIdToken(token) match {
         case Full(_) =>
           val user = getOrCreateResourceUser(token)
@@ -397,25 +393,29 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           (Failure(Oauth2IJwtCannotBeVerified), Some(cc))
       }
     }
-    def applyRulesFuture(value: String, cc: CallContext): Future[(Box[User], Some[CallContext])] = {
-      validateIdToken(value) match {
+    def applyIdTokenRulesFuture(value: String, cc: CallContext): Future[(Box[User], Some[CallContext])] = Future {
+      applyIdTokenRules(value, cc)
+    }
+
+    def applyAccessTokenRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
+      validateAccessToken(token) match {
         case Full(_) =>
-          for {
-            user <-  getOrCreateResourceUserFuture(value)
-            consumer <-  Future{getOrCreateConsumer(value, user.map(_.userId))}
-          } yield {
-            LoginAttempt.userIsLocked(user.map(_.provider).getOrElse(""), user.map(_.name).getOrElse("")) match {
-              case true => ((Failure(UsernameHasBeenLocked), Some(cc.copy(consumer = consumer))))
-              case false => (user, Some(cc.copy(consumer = consumer)))
-            }
+          val user = getOrCreateResourceUser(token)
+          val consumer = getOrCreateConsumer(token, user.map(_.userId))
+          LoginAttempt.userIsLocked(user.map(_.provider).getOrElse(""), user.map(_.name).getOrElse("")) match {
+            case true => ((Failure(UsernameHasBeenLocked), Some(cc.copy(consumer = consumer))))
+            case false => (user, Some(cc.copy(consumer = consumer)))
           }
-        case ParamFailure(a, b, c, apiFailure : APIFailure) =>
-          Future((ParamFailure(a, b, c, apiFailure : APIFailure), Some(cc)))
+        case ParamFailure(a, b, c, apiFailure: APIFailure) =>
+          (ParamFailure(a, b, c, apiFailure: APIFailure), Some(cc))
         case Failure(msg, t, c) =>
-          Future((Failure(msg, t, c), Some(cc)))
+          (Failure(msg, t, c), Some(cc))
         case _ =>
-          Future((Failure(Oauth2IJwtCannotBeVerified), Some(cc)))
+          (Failure(Oauth2IJwtCannotBeVerified), Some(cc))
       }
+    }
+    def applyAccessTokenRulesFuture(value: String, cc: CallContext): Future[(Box[User], Some[CallContext])] = Future {
+      applyAccessTokenRules(value, cc)
     }
   }
 
@@ -423,7 +423,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
     val google = "google"
     /**
       * OpenID Connect Discovery.
-      * Google exposes OpenID Connect discovery documents ( https://YOUR_DOMAIN/.well-known/openid-configuration ). 
+      * Google exposes OpenID Connect discovery documents ( https://YOUR_DOMAIN/.well-known/openid-configuration ).
       * These can be used to automatically configure applications.
       */
     override def wellKnownOpenidConfiguration: URI = new URI("https://accounts.google.com/.well-known/openid-configuration")
@@ -469,32 +469,14 @@ object OAuth2Login extends RestHelper with MdcLoggable {
     override def urlOfJwkSets: Box[String] = checkUrlOfJwkSets(identityProvider = keycloackHost)
     def isIssuer(jwt: String): Boolean = isIssuer(jwtToken=jwt, identityProvider = keycloackHost)
 
-    private def applyIdTokenRules(value: String, cc: CallContext): (Box[User], Some[CallContext]) = {
-      super.applyRules(value, cc) // OpenID Connect flow is unified
-    }
-
-    private def applyAccessTokenRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
-      super.validateAccessToken(token) match {
-        case Full(_) =>
-          val user = getOrCreateResourceUser(token)
-          val consumer = getOrCreateConsumer(token, user.map(_.userId))
-          LoginAttempt.userIsLocked(user.map(_.provider).getOrElse(""), user.map(_.name).getOrElse("")) match {
-            case true => ((Failure(UsernameHasBeenLocked), Some(cc.copy(consumer = consumer))))
-            case false => (user, Some(cc.copy(consumer = consumer)))
-          }
-        case ParamFailure(a, b, c, apiFailure: APIFailure) =>
-          (ParamFailure(a, b, c, apiFailure: APIFailure), Some(cc))
-        case Failure(msg, t, c) =>
-          (Failure(msg, t, c), Some(cc))
-        case _ =>
-          (Failure(Oauth2IJwtCannotBeVerified), Some(cc))
+    def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
+      JwtUtil.getClaim("typ", token) match {
+        case "ID" => super.applyIdTokenRules(token, cc)
+        case "Bearer" => super.applyAccessTokenRules(token, cc)
+        case "" => super.applyAccessTokenRules(token, cc)
       }
     }
-
-    override def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
-      applyAccessTokenRules(token, cc)
-    }
-    override def applyRulesFuture(value: String, cc: CallContext): Future[(Box[User], Some[CallContext])] = Future {
+    def applyRulesFuture(value: String, cc: CallContext): Future[(Box[User], Some[CallContext])] = Future {
       applyRules(value, cc)
     }
   }

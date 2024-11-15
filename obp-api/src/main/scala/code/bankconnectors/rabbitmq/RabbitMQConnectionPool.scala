@@ -8,22 +8,26 @@ import org.apache.commons.pool2.impl.{GenericObjectPool, GenericObjectPoolConfig
 import org.apache.commons.pool2.BasePooledObjectFactory
 import org.apache.commons.pool2.PooledObject
 import org.apache.commons.pool2.impl.DefaultPooledObject
+import code.bankconnectors.rabbitmq.RabbitMQUtils._
 
-// Factory to create RabbitMQ connections
 class RabbitMQConnectionFactory extends BasePooledObjectFactory[Connection] {
-
-  // lazy initial RabbitMQ connection
-  val host = APIUtil.getPropsValue("rabbitmq_connector.host").openOrThrowException("mandatory property rabbitmq_connector.host is missing!")
-  val port = APIUtil.getPropsAsIntValue("rabbitmq_connector.port").openOrThrowException("mandatory property rabbitmq_connector.port is missing!")
-  val username = APIUtil.getPropsValue("rabbitmq_connector.username").openOrThrowException("mandatory property rabbitmq_connector.username is missing!")
-  val password = APIUtil.getPropsValue("rabbitmq_connector.password").openOrThrowException("mandatory property rabbitmq_connector.password is missing!")
-
+  
   private val factory = new ConnectionFactory()
   factory.setHost(host)
   factory.setPort(port)
   factory.setUsername(username)
   factory.setPassword(password)
+  factory.setVirtualHost(virtualHost)
+  if (APIUtil.getPropsAsBoolValue("rabbitmq.use.ssl", false)){
+    factory.useSslProtocol(RabbitMQUtils.createSSLContext(
+      keystorePath,
+      keystorePassword,
+      truststorePath,
+      truststorePassword
+    ))
+  }
 
+  
   // Create a new RabbitMQ connection
   override def create(): Connection = factory.newConnection()
 

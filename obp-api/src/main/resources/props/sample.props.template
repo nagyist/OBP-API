@@ -153,6 +153,9 @@ jwt.use.ssl=false
 ## Enable SSL for kafka, if set to true must set paths for the keystore locations
 #kafka.use.ssl=true
 
+## Enable SSL for rabbitmq, if set to true must set paths for the keystore locations
+#rabbitmq.use.ssl=false
+
 # Paths to the SSL keystore files - has to be jks    
 #keystore.path=/path/to/api.keystore.jks
 #keystore password
@@ -836,6 +839,10 @@ featured_apis=elasticSearchWarehouseV300
 # rabbitmq_connector.port=5672
 # rabbitmq_connector.username=obp
 # rabbitmq_connector.password=obp
+# rabbitmq_connector.virtual_host=/
+# -- RabbitMQ Adapter --------------------------------------------
+#rabbitmq.adapter.enabled=false
+
 
  
 # -- Scopes -----------------------------------------------------

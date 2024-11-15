@@ -386,6 +386,19 @@ For SSL encryption we use JKS keystores. Note that both the keystore and the tru
    truststore.path=/path/to/api.truststore.jks
    ```
 
+## Using SSL Encryption with RabbitMq
+
+For SSL encryption we use JKS keystores. Note that both the keystore and the truststore (and all keys within) must have the same password for unlocking, for which the API will stop at boot up and ask for. 
+
+* Edit your props file(s) to contain:
+
+   ```
+    rabbitmq.use.ssl=true
+    keystore.path=/path/to/api.keystore.jks
+    keystore.password=123456
+    truststore.path=/path/to/api.truststore.jks
+   ```
+
 ## Using SSL Encryption with props file
 
 For SSL encryption we use jks keystores.

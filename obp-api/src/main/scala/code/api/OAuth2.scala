@@ -28,13 +28,12 @@ package code.api
 
 import java.net.URI
 import java.util
-
 import code.api.util.ErrorMessages._
 import code.api.util.{APIUtil, CallContext, CertificateUtil, JwtUtil}
 import code.consumer.Consumers
 import code.consumer.Consumers.consumers
 import code.loginattempts.LoginAttempt
-import code.model.Consumer
+import code.model.{AppType, Consumer}
 import code.util.HydraUtil._
 import code.users.Users
 import code.util.Helper.MdcLoggable
@@ -351,13 +350,13 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       *                }
       * @return an existing or a new consumer
       */
-    def getOrCreateConsumer(idToken: String, userId: Box[String]): Box[Consumer] = {
+    def getOrCreateConsumer(idToken: String, userId: Box[String], description: Option[String]): Box[Consumer] = {
       val aud = Some(JwtUtil.getAudience(idToken).mkString(","))
       val azp = getClaim(name = "azp", idToken = idToken)
       val iss = getClaim(name = "iss", idToken = idToken)
       val sub = getClaim(name = "sub", idToken = idToken)
       val email = getClaim(name = "email", idToken = idToken)
-      val name = getClaim(name = "name", idToken = idToken)
+      val name = getClaim(name = "name", idToken = idToken).orElse(description)
       Consumers.consumers.vend.getOrCreateConsumer(
         consumerId = None,
         key = Some(Helpers.randomString(40).toLowerCase),
@@ -368,8 +367,8 @@ object OAuth2Login extends RestHelper with MdcLoggable {
         sub = sub,
         Some(true),
         name = name,
-        appType = None,
-        description = Some(OpenIdConnect.openIdConnect),
+        appType = Some(AppType.Confidential),
+        description = description,
         developerEmail = email,
         redirectURL = None,
         createdByUserId = userId.toOption
@@ -380,7 +379,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       validateIdToken(token) match {
         case Full(_) =>
           val user = getOrCreateResourceUser(token)
-          val consumer = getOrCreateConsumer(token, user.map(_.userId))
+          val consumer = getOrCreateConsumer(token, user.map(_.userId), Some(OpenIdConnect.openIdConnect))
           LoginAttempt.userIsLocked(user.map(_.provider).getOrElse(""), user.map(_.name).getOrElse("")) match {
             case true => ((Failure(UsernameHasBeenLocked), Some(cc.copy(consumer = consumer))))
             case false => (user, Some(cc.copy(consumer = consumer)))
@@ -401,7 +400,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       validateAccessToken(token) match {
         case Full(_) =>
           val user = getOrCreateResourceUser(token)
-          val consumer = getOrCreateConsumer(token, user.map(_.userId))
+          val consumer = getOrCreateConsumer(token, user.map(_.userId), Some("OAuth 2.0"))
           LoginAttempt.userIsLocked(user.map(_.provider).getOrElse(""), user.map(_.name).getOrElse("")) match {
             case true => ((Failure(UsernameHasBeenLocked), Some(cc.copy(consumer = consumer))))
             case false => (user, Some(cc.copy(consumer = consumer)))

@@ -339,7 +339,7 @@ class Boot extends MdcLoggable {
      }
     }
 
-    // start RabbitMq Adatper
+    // start RabbitMq Adapter(using mapped connector as mockded CBS)  
     if (APIUtil.getPropsAsBoolValue("rabbitmq.adapter.enabled", false)) {
       code.bankconnectors.rabbitmq.Adapter.startRabbitMqAdapter.main(Array(""))
     }

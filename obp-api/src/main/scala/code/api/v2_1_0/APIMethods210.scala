@@ -434,16 +434,14 @@ trait APIMethods210 {
             _ <- NewStyle.function.isEnabledTransactionRequests(callContext)
             _ <- Helper.booleanToFuture(InvalidAccountIdFormat, cc=callContext) {isValidID(accountId.value)}
             _ <- Helper.booleanToFuture(InvalidBankIdFormat, cc=callContext) {isValidID(bankId.value)}
+            _ <- Helper.booleanToFuture(s"${InvalidTransactionRequestType}: '${transactionRequestType.value}'", cc=callContext) {
+              APIUtil.getPropsValue("transactionRequests_supported_types", "").split(",").contains(transactionRequestType.value)
+            }
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext) 
             (fromAccount, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             
             account = BankIdAccountId(fromAccount.bankId, fromAccount.accountId)
             _ <- NewStyle.function.checkAuthorisationToCreateTransactionRequest(viewId, account, u, callContext)
-            
-            _ <- Helper.booleanToFuture(s"${InvalidTransactionRequestType}: '${transactionRequestType.value}'", cc=callContext) {
-              APIUtil.getPropsValue("transactionRequests_supported_types", "").split(",").contains(transactionRequestType.value)
-            }
-
             // Check the input JSON format, here is just check the common parts of all four types
             transDetailsJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $TransactionRequestBodyCommonJSON ", 400, callContext) {
               json.extract[TransactionRequestBodyCommonJSON]

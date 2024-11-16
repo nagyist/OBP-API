@@ -499,7 +499,15 @@
       <artifactId>amqp-client</artifactId>
       <version>5.22.0</version>
     </dependency>
-    
+
+    <!-- https://mvnrepository.com/artifact/org.testcontainers/rabbitmq -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>rabbitmq</artifactId>
+      <version>1.20.3</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>

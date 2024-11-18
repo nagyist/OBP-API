@@ -748,9 +748,9 @@ display_internal_errors=false
 # URL of Public server JWK set used for validating bearer JWT access tokens
 # It can contain more than one URL i.e. list of uris. Values are comma separated.
 # oauth2.jwk_set.url=http://localhost:8080/jwk.json,https://www.googleapis.com/oauth2/v3/certs
-# Keycloack Identity Provider Host
-# oauth2.keycloack.host=http://localhost:7070
-# oauth2.keycloack.well-known=http://localhost:7070/realms/master/.well-known/openid-configuration
+# Keycloak Identity Provider Host
+# oauth2.keycloak.host=http://localhost:7070
+# oauth2.keycloak.well-known=http://localhost:7070/realms/master/.well-known/openid-configuration
 # ------------------------------------------------------------------------------ OAuth 2 ------
 
 ## This property is used for documenting at Resource Doc. It may include the port also (but not /obp)

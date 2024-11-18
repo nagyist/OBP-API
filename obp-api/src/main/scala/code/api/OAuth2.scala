@@ -79,8 +79,8 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           Yahoo.applyIdTokenRules(value, cc)
         } else if (Azure.isIssuer(value)) {
           Azure.applyIdTokenRules(value, cc)
-        } else if (Keycloack.isIssuer(value)) {
-          Keycloack.applyRules(value, cc)
+        } else if (Keycloak.isIssuer(value)) {
+          Keycloak.applyRules(value, cc)
         } else {
           Hydra.applyRules(value, cc)
         }
@@ -101,8 +101,8 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           Yahoo.applyIdTokenRulesFuture(value, cc)
         } else if (Azure.isIssuer(value)) {
           Azure.applyIdTokenRulesFuture(value, cc)
-        } else if (Keycloack.isIssuer(value)) {
-          Keycloack.applyRulesFuture(value, cc)
+        } else if (Keycloak.isIssuer(value)) {
+          Keycloak.applyRulesFuture(value, cc)
         } else {
           Hydra.applyRulesFuture(value, cc)
         }
@@ -111,7 +111,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
     }
   }
 
-  
+
   object Hydra extends OAuth2Util {
     override def wellKnownOpenidConfiguration: URI = new URI(hydraPublicUrl)
     override def urlOfJwkSets: Box[String] = checkUrlOfJwkSets(identityProvider = hydraPublicUrl)
@@ -138,7 +138,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
         val errorMessage = Oauth2TokenEndpointAuthMethodForbidden + hydraClient.getTokenEndpointAuthMethod()
         return (Failure(errorMessage), Some(cc.copy(consumer = Failure(errorMessage))))
       }
-      
+
       // check access token binding with client certificate
       {
         if(consumer.isEmpty) {
@@ -166,7 +166,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
             // hydra update client endpoint have bug, So here delete and create to do update
             hydraAdmin.deleteOAuth2Client(clientId)
             hydraAdmin.createOAuth2Client(oAuth2Client)
-          } else if(!CertificateUtil.comparePemX509Certificates(certInConsumer, cert)) { 
+          } else if(!CertificateUtil.comparePemX509Certificates(certInConsumer, cert)) {
             // Cannot mat.ch the value from PSD2-CERT header and the database value Consumer.clientCertificate
             logger.debug(s"Cert in Consumer with the name ***${foundConsumer.name}*** : " + certInConsumer)
             logger.debug("Cert in Request: " + cert)
@@ -181,7 +181,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           }
         }
       }
-      
+
       // In case a user is created via OpenID Connect flow implies provider = hydraPublicUrl
       // In case a user is created via GUI of OBP-API implies provider = Constant.localIdentityProvider
       val user = Users.users.vend.getUserByProviderAndUsername(introspectOAuth2Token.getIss, introspectOAuth2Token.getSub).or(
@@ -209,11 +209,11 @@ object OAuth2Login extends RestHelper with MdcLoggable {
     }
 
   }
-  
+
   trait OAuth2Util {
-    
+
     def wellKnownOpenidConfiguration: URI
-    
+
     def urlOfJwkSets: Box[String] = APIUtil.getPropsValue(nameOfProperty = "oauth2.jwk_set.url")
 
     def checkUrlOfJwkSets(identityProvider: String) = {
@@ -225,7 +225,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
         case Nil => Failure(Oauth2CannotMatchIssuerAndJwksUriException)
       }
     }
-    
+
     private def getClaim(name: String, idToken: String): Option[String] = {
       val claim = JwtUtil.getClaim(name = name, jwtToken = idToken)
       claim match {
@@ -267,11 +267,11 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       * sub => ResourceUser.providerId
       * @param idToken Google's response example:
       *                {
-      *                "access_token": "ya29.GluUBg5DflrJciFikW5hqeKEp9r1whWnU5x2JXCm9rKkRMs2WseXX8O5UugFMDsIKuKCZlE7tTm1fMII_YYpvcMX6quyR5DXNHH8Lbx5TrZN__fA92kszHJEVqPc", 
-      *                "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjA4ZDMyNDVjNjJmODZiNjM2MmFmY2JiZmZlMWQwNjk4MjZkZDFkYzEiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTM5NjY4NTQyNDU3ODA4OTI5NTkiLCJlbWFpbCI6Im1hcmtvLm1pbGljLnNyYmlqYUBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6Im5HS1JUb0tOblZBMjhINk1od1hCeHciLCJuYW1lIjoiTWFya28gTWlsacSHIiwicGljdHVyZSI6Imh0dHBzOi8vbGg1Lmdvb2dsZXVzZXJjb250ZW50LmNvbS8tWGQ0NGhuSjZURG8vQUFBQUFBQUFBQUkvQUFBQUFBQUFBQUEvQUt4cndjYWR3emhtNE40dFdrNUU4QXZ4aS1aSzZrczRxZy9zOTYtYy9waG90by5qcGciLCJnaXZlbl9uYW1lIjoiTWFya28iLCJmYW1pbHlfbmFtZSI6Ik1pbGnEhyIsImxvY2FsZSI6ImVuIiwiaWF0IjoxNTQ3NzA1NjkxLCJleHAiOjE1NDc3MDkyOTF9.iUxhF_SU2vi76zPuRqAKJvFOzpb_EeP3lc5u9FO9o5xoXzVq3QooXexTfK2f1YAcWEy9LSftA34PB0QTuCZpkQChZVM359n3a3hplf6oWWkBXZN2_IG10NwEH4g0VVBCsjWBDMp6lvepN_Zn15x8opUB7272m4-smAou_WmUPTeivXRF8yPcp4J55DigcY31YP59dMQr2X-6Rr1vCRnJ6niqqJ1UDldfsgt4L7dXmUCnkDdXHwEQAZwbKbR4dUoEha3QeylCiBErmLdpIyqfKECphC6piGXZB-rRRqLz41WNfuF-3fswQvGmIkzTJDR7lQaletMp7ivsfVw8N5jFxg", 
-      *                "expires_in": 3600, 
-      *                "token_type": "Bearer", 
-      *                "scope": "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email", 
+      *                "access_token": "ya29.GluUBg5DflrJciFikW5hqeKEp9r1whWnU5x2JXCm9rKkRMs2WseXX8O5UugFMDsIKuKCZlE7tTm1fMII_YYpvcMX6quyR5DXNHH8Lbx5TrZN__fA92kszHJEVqPc",
+      *                "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjA4ZDMyNDVjNjJmODZiNjM2MmFmY2JiZmZlMWQwNjk4MjZkZDFkYzEiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTM5NjY4NTQyNDU3ODA4OTI5NTkiLCJlbWFpbCI6Im1hcmtvLm1pbGljLnNyYmlqYUBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6Im5HS1JUb0tOblZBMjhINk1od1hCeHciLCJuYW1lIjoiTWFya28gTWlsacSHIiwicGljdHVyZSI6Imh0dHBzOi8vbGg1Lmdvb2dsZXVzZXJjb250ZW50LmNvbS8tWGQ0NGhuSjZURG8vQUFBQUFBQUFBQUkvQUFBQUFBQUFBQUEvQUt4cndjYWR3emhtNE40dFdrNUU4QXZ4aS1aSzZrczRxZy9zOTYtYy9waG90by5qcGciLCJnaXZlbl9uYW1lIjoiTWFya28iLCJmYW1pbHlfbmFtZSI6Ik1pbGnEhyIsImxvY2FsZSI6ImVuIiwiaWF0IjoxNTQ3NzA1NjkxLCJleHAiOjE1NDc3MDkyOTF9.iUxhF_SU2vi76zPuRqAKJvFOzpb_EeP3lc5u9FO9o5xoXzVq3QooXexTfK2f1YAcWEy9LSftA34PB0QTuCZpkQChZVM359n3a3hplf6oWWkBXZN2_IG10NwEH4g0VVBCsjWBDMp6lvepN_Zn15x8opUB7272m4-smAou_WmUPTeivXRF8yPcp4J55DigcY31YP59dMQr2X-6Rr1vCRnJ6niqqJ1UDldfsgt4L7dXmUCnkDdXHwEQAZwbKbR4dUoEha3QeylCiBErmLdpIyqfKECphC6piGXZB-rRRqLz41WNfuF-3fswQvGmIkzTJDR7lQaletMp7ivsfVw8N5jFxg",
+      *                "expires_in": 3600,
+      *                "token_type": "Bearer",
+      *                "scope": "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
       *                "refresh_token": "1/HkTtUahtUTdG7D6urpPNz6g-_qufF-Y1YppcBf0v3Cs"
       *                }
       * @return an existing or a new user
@@ -282,7 +282,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       Users.users.vend.getOrCreateUserByProviderIdFuture(
         provider = provider,
         idGivenByProvider = uniqueIdGivenByProvider,
-        consentId = None, 
+        consentId = None,
         name = getClaim(name = "given_name", idToken = idToken).orElse(Some(uniqueIdGivenByProvider)),
         email = getClaim(name = "email", idToken = idToken)
       ).map(_._1)
@@ -294,11 +294,11 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       * sub => ResourceUser.providerId
       * @param idToken Google's response example:
       *                {
-      *                "access_token": "ya29.GluUBg5DflrJciFikW5hqeKEp9r1whWnU5x2JXCm9rKkRMs2WseXX8O5UugFMDsIKuKCZlE7tTm1fMII_YYpvcMX6quyR5DXNHH8Lbx5TrZN__fA92kszHJEVqPc", 
-      *                "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjA4ZDMyNDVjNjJmODZiNjM2MmFmY2JiZmZlMWQwNjk4MjZkZDFkYzEiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTM5NjY4NTQyNDU3ODA4OTI5NTkiLCJlbWFpbCI6Im1hcmtvLm1pbGljLnNyYmlqYUBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6Im5HS1JUb0tOblZBMjhINk1od1hCeHciLCJuYW1lIjoiTWFya28gTWlsacSHIiwicGljdHVyZSI6Imh0dHBzOi8vbGg1Lmdvb2dsZXVzZXJjb250ZW50LmNvbS8tWGQ0NGhuSjZURG8vQUFBQUFBQUFBQUkvQUFBQUFBQUFBQUEvQUt4cndjYWR3emhtNE40dFdrNUU4QXZ4aS1aSzZrczRxZy9zOTYtYy9waG90by5qcGciLCJnaXZlbl9uYW1lIjoiTWFya28iLCJmYW1pbHlfbmFtZSI6Ik1pbGnEhyIsImxvY2FsZSI6ImVuIiwiaWF0IjoxNTQ3NzA1NjkxLCJleHAiOjE1NDc3MDkyOTF9.iUxhF_SU2vi76zPuRqAKJvFOzpb_EeP3lc5u9FO9o5xoXzVq3QooXexTfK2f1YAcWEy9LSftA34PB0QTuCZpkQChZVM359n3a3hplf6oWWkBXZN2_IG10NwEH4g0VVBCsjWBDMp6lvepN_Zn15x8opUB7272m4-smAou_WmUPTeivXRF8yPcp4J55DigcY31YP59dMQr2X-6Rr1vCRnJ6niqqJ1UDldfsgt4L7dXmUCnkDdXHwEQAZwbKbR4dUoEha3QeylCiBErmLdpIyqfKECphC6piGXZB-rRRqLz41WNfuF-3fswQvGmIkzTJDR7lQaletMp7ivsfVw8N5jFxg", 
-      *                "expires_in": 3600, 
-      *                "token_type": "Bearer", 
-      *                "scope": "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email", 
+      *                "access_token": "ya29.GluUBg5DflrJciFikW5hqeKEp9r1whWnU5x2JXCm9rKkRMs2WseXX8O5UugFMDsIKuKCZlE7tTm1fMII_YYpvcMX6quyR5DXNHH8Lbx5TrZN__fA92kszHJEVqPc",
+      *                "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjA4ZDMyNDVjNjJmODZiNjM2MmFmY2JiZmZlMWQwNjk4MjZkZDFkYzEiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTM5NjY4NTQyNDU3ODA4OTI5NTkiLCJlbWFpbCI6Im1hcmtvLm1pbGljLnNyYmlqYUBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6Im5HS1JUb0tOblZBMjhINk1od1hCeHciLCJuYW1lIjoiTWFya28gTWlsacSHIiwicGljdHVyZSI6Imh0dHBzOi8vbGg1Lmdvb2dsZXVzZXJjb250ZW50LmNvbS8tWGQ0NGhuSjZURG8vQUFBQUFBQUFBQUkvQUFBQUFBQUFBQUEvQUt4cndjYWR3emhtNE40dFdrNUU4QXZ4aS1aSzZrczRxZy9zOTYtYy9waG90by5qcGciLCJnaXZlbl9uYW1lIjoiTWFya28iLCJmYW1pbHlfbmFtZSI6Ik1pbGnEhyIsImxvY2FsZSI6ImVuIiwiaWF0IjoxNTQ3NzA1NjkxLCJleHAiOjE1NDc3MDkyOTF9.iUxhF_SU2vi76zPuRqAKJvFOzpb_EeP3lc5u9FO9o5xoXzVq3QooXexTfK2f1YAcWEy9LSftA34PB0QTuCZpkQChZVM359n3a3hplf6oWWkBXZN2_IG10NwEH4g0VVBCsjWBDMp6lvepN_Zn15x8opUB7272m4-smAou_WmUPTeivXRF8yPcp4J55DigcY31YP59dMQr2X-6Rr1vCRnJ6niqqJ1UDldfsgt4L7dXmUCnkDdXHwEQAZwbKbR4dUoEha3QeylCiBErmLdpIyqfKECphC6piGXZB-rRRqLz41WNfuF-3fswQvGmIkzTJDR7lQaletMp7ivsfVw8N5jFxg",
+      *                "expires_in": 3600,
+      *                "token_type": "Bearer",
+      *                "scope": "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
       *                "refresh_token": "1/HkTtUahtUTdG7D6urpPNz6g-_qufF-Y1YppcBf0v3Cs"
       *                }
       * @return an existing or a new user
@@ -341,11 +341,11 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       * We can find consumer by sub and azp => Get
       * @param idToken Google's response example:
       *                {
-      *                "access_token": "ya29.GluUBg5DflrJciFikW5hqeKEp9r1whWnU5x2JXCm9rKkRMs2WseXX8O5UugFMDsIKuKCZlE7tTm1fMII_YYpvcMX6quyR5DXNHH8Lbx5TrZN__fA92kszHJEVqPc", 
-      *                "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjA4ZDMyNDVjNjJmODZiNjM2MmFmY2JiZmZlMWQwNjk4MjZkZDFkYzEiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTM5NjY4NTQyNDU3ODA4OTI5NTkiLCJlbWFpbCI6Im1hcmtvLm1pbGljLnNyYmlqYUBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6Im5HS1JUb0tOblZBMjhINk1od1hCeHciLCJuYW1lIjoiTWFya28gTWlsacSHIiwicGljdHVyZSI6Imh0dHBzOi8vbGg1Lmdvb2dsZXVzZXJjb250ZW50LmNvbS8tWGQ0NGhuSjZURG8vQUFBQUFBQUFBQUkvQUFBQUFBQUFBQUEvQUt4cndjYWR3emhtNE40dFdrNUU4QXZ4aS1aSzZrczRxZy9zOTYtYy9waG90by5qcGciLCJnaXZlbl9uYW1lIjoiTWFya28iLCJmYW1pbHlfbmFtZSI6Ik1pbGnEhyIsImxvY2FsZSI6ImVuIiwiaWF0IjoxNTQ3NzA1NjkxLCJleHAiOjE1NDc3MDkyOTF9.iUxhF_SU2vi76zPuRqAKJvFOzpb_EeP3lc5u9FO9o5xoXzVq3QooXexTfK2f1YAcWEy9LSftA34PB0QTuCZpkQChZVM359n3a3hplf6oWWkBXZN2_IG10NwEH4g0VVBCsjWBDMp6lvepN_Zn15x8opUB7272m4-smAou_WmUPTeivXRF8yPcp4J55DigcY31YP59dMQr2X-6Rr1vCRnJ6niqqJ1UDldfsgt4L7dXmUCnkDdXHwEQAZwbKbR4dUoEha3QeylCiBErmLdpIyqfKECphC6piGXZB-rRRqLz41WNfuF-3fswQvGmIkzTJDR7lQaletMp7ivsfVw8N5jFxg", 
-      *                "expires_in": 3600, 
-      *                "token_type": "Bearer", 
-      *                "scope": "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email", 
+      *                "access_token": "ya29.GluUBg5DflrJciFikW5hqeKEp9r1whWnU5x2JXCm9rKkRMs2WseXX8O5UugFMDsIKuKCZlE7tTm1fMII_YYpvcMX6quyR5DXNHH8Lbx5TrZN__fA92kszHJEVqPc",
+      *                "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjA4ZDMyNDVjNjJmODZiNjM2MmFmY2JiZmZlMWQwNjk4MjZkZDFkYzEiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI0MDc0MDg3MTgxOTIuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTM5NjY4NTQyNDU3ODA4OTI5NTkiLCJlbWFpbCI6Im1hcmtvLm1pbGljLnNyYmlqYUBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6Im5HS1JUb0tOblZBMjhINk1od1hCeHciLCJuYW1lIjoiTWFya28gTWlsacSHIiwicGljdHVyZSI6Imh0dHBzOi8vbGg1Lmdvb2dsZXVzZXJjb250ZW50LmNvbS8tWGQ0NGhuSjZURG8vQUFBQUFBQUFBQUkvQUFBQUFBQUFBQUEvQUt4cndjYWR3emhtNE40dFdrNUU4QXZ4aS1aSzZrczRxZy9zOTYtYy9waG90by5qcGciLCJnaXZlbl9uYW1lIjoiTWFya28iLCJmYW1pbHlfbmFtZSI6Ik1pbGnEhyIsImxvY2FsZSI6ImVuIiwiaWF0IjoxNTQ3NzA1NjkxLCJleHAiOjE1NDc3MDkyOTF9.iUxhF_SU2vi76zPuRqAKJvFOzpb_EeP3lc5u9FO9o5xoXzVq3QooXexTfK2f1YAcWEy9LSftA34PB0QTuCZpkQChZVM359n3a3hplf6oWWkBXZN2_IG10NwEH4g0VVBCsjWBDMp6lvepN_Zn15x8opUB7272m4-smAou_WmUPTeivXRF8yPcp4J55DigcY31YP59dMQr2X-6Rr1vCRnJ6niqqJ1UDldfsgt4L7dXmUCnkDdXHwEQAZwbKbR4dUoEha3QeylCiBErmLdpIyqfKECphC6piGXZB-rRRqLz41WNfuF-3fswQvGmIkzTJDR7lQaletMp7ivsfVw8N5jFxg",
+      *                "expires_in": 3600,
+      *                "token_type": "Bearer",
+      *                "scope": "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
       *                "refresh_token": "1/HkTtUahtUTdG7D6urpPNz6g-_qufF-Y1YppcBf0v3Cs"
       *                }
       * @return an existing or a new consumer
@@ -429,24 +429,24 @@ object OAuth2Login extends RestHelper with MdcLoggable {
     override def urlOfJwkSets: Box[String] = checkUrlOfJwkSets(identityProvider = google)
     def isIssuer(jwt: String): Boolean = isIssuer(jwtToken=jwt, identityProvider = google)
   }
-  
+
   object Yahoo extends OAuth2Util {
     val yahoo = "yahoo"
     /**
       * OpenID Connect Discovery.
-      * Yahoo exposes OpenID Connect discovery documents ( https://YOUR_DOMAIN/.well-known/openid-configuration ). 
+      * Yahoo exposes OpenID Connect discovery documents ( https://YOUR_DOMAIN/.well-known/openid-configuration ).
       * These can be used to automatically configure applications.
       */
     override def wellKnownOpenidConfiguration: URI = new URI("https://login.yahoo.com/.well-known/openid-configuration")
     override def urlOfJwkSets: Box[String] = checkUrlOfJwkSets(identityProvider = yahoo)
     def isIssuer(jwt: String): Boolean = isIssuer(jwtToken=jwt, identityProvider = yahoo)
-  }  
-  
+  }
+
   object Azure extends OAuth2Util {
     val microsoft = "microsoft"
     /**
       * OpenID Connect Discovery.
-      * Yahoo exposes OpenID Connect discovery documents ( https://YOUR_DOMAIN/.well-known/openid-configuration ). 
+      * Yahoo exposes OpenID Connect discovery documents ( https://YOUR_DOMAIN/.well-known/openid-configuration ).
       * These can be used to automatically configure applications.
       */
     override def wellKnownOpenidConfiguration: URI = new URI("https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration")
@@ -454,8 +454,8 @@ object OAuth2Login extends RestHelper with MdcLoggable {
     def isIssuer(jwt: String): Boolean = isIssuer(jwtToken=jwt, identityProvider = microsoft)
   }
 
-  object Keycloack extends OAuth2Util {
-    val keycloackHost = APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloack.host", "http://localhost:7070")
+  object Keycloak extends OAuth2Util {
+    val keycloakHost = APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloak.host", "http://localhost:7070")
     /**
       * OpenID Connect Discovery.
       * Yahoo exposes OpenID Connect discovery documents ( https://YOUR_DOMAIN/.well-known/openid-configuration ).
@@ -463,10 +463,10 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       */
     override def wellKnownOpenidConfiguration: URI =
       new URI(
-        APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloack.well-known", "http://localhost:7070/realms/master/.well-known/openid-configuration")
+        APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloak.well-known", "http://localhost:7070/realms/master/.well-known/openid-configuration")
       )
-    override def urlOfJwkSets: Box[String] = checkUrlOfJwkSets(identityProvider = keycloackHost)
-    def isIssuer(jwt: String): Boolean = isIssuer(jwtToken=jwt, identityProvider = keycloackHost)
+    override def urlOfJwkSets: Box[String] = checkUrlOfJwkSets(identityProvider = keycloakHost)
+    def isIssuer(jwt: String): Boolean = isIssuer(jwtToken=jwt, identityProvider = keycloakHost)
 
     def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
       JwtUtil.getClaim("typ", token) match {

@@ -34,12 +34,14 @@ object HydraUtil extends MdcLoggable{
   val hydraSupportedTokenEndpointAuthMethods =
     APIUtil.getPropsValue("hydra_supported_token_endpoint_auth_methods", "client_secret_basic,client_secret_post,private_key_jwt")
 
-  lazy val hydraPublicUrl = APIUtil.getPropsValue("hydra_public_url")
+  lazy val hydraPublicUrl: String = APIUtil.getPropsValue("hydra_public_url")
     .openOrThrowException(s"If props $INTEGRATE_WITH_HYDRA is true, hydra_public_url value should not be blank")
+    // This method is a regular expression operation that removes a trailing slash (/) from a string if one is present.
     .replaceFirst("/$", "")
 
-  lazy val hydraAdminUrl = APIUtil.getPropsValue("hydra_admin_url")
+  lazy val hydraAdminUrl: String = APIUtil.getPropsValue("hydra_admin_url")
     .openOrThrowException(s"If props $INTEGRATE_WITH_HYDRA is true, hydra_admin_url value should not be blank")
+    // This method is a regular expression operation that removes a trailing slash (/) from a string if one is present.
     .replaceFirst("/$", "")
 
   lazy val hydraConsents = APIUtil.getPropsValue("hydra_consents")

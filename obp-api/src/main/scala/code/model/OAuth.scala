@@ -430,7 +430,12 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
             case None =>
           }
           name match {
-            case Some(v) => c.name(v)
+            case Some(v) =>
+              val count = Consumer.findAll(By(Consumer.name, v)).size
+              if (count == 0)
+                c.name(v)
+              else
+                c.name(v + "_" + Helpers.randomString(10).toLowerCase)
             case None =>
           }
           appType match {

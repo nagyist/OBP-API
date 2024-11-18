@@ -10,7 +10,12 @@ import org.testcontainers.containers.RabbitMQContainer
 class EmbeddedRabbitMQ extends V500ServerSetup with DefaultUsers {
 
   val rabbitMQContainer = new RabbitMQContainer("rabbitmq:3.7.25-management-alpine")
-
+  // It registers a shutdown hook, which is a block of code (or function) that runs when the application terminates,
+  // - either normally(e.g., when the main method completes)
+  // - or due to an external signal(e.g., Ctrl + C or termination by the operating system).
+  sys.addShutdownHook {
+    rabbitMQContainer.stop()
+  }
   override def beforeAll(): Unit = {
     super.beforeAll()
     // Start RabbitMQ container

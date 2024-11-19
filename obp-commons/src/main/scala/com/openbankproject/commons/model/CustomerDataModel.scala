@@ -53,6 +53,9 @@ trait Customer {
   def title: String
   def branchId: String
   def nameSuffix: String
+  
+  def isConfirmedAgent: Option[Boolean] = None //this is for agent 
+  def isPendingAgent: Option[Boolean]= None // this is for agent
 }
 
 trait CustomerFaceImageTrait {

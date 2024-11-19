@@ -196,6 +196,8 @@ object MappedCustomerProvider extends CustomerProvider with MdcLoggable {
         .mTitle(title)
         .mBranchId(branchId)
         .mNameSuffix(nameSuffix)
+        .mIsPendingAgent(true)
+        .mIsConfirmedAgent(false)
         .saveMe()
       
         // This is especially for OneToMany table, to save a List to database.
@@ -361,7 +363,12 @@ class MappedCustomer extends Customer with LongKeyedMapper[MappedCustomer] with 
   object mTitle extends MappedString(this, 255)
   object mBranchId extends MappedString(this, 255)
   object mNameSuffix extends MappedString(this, 255)
-
+  object mIsPendingAgent extends MappedBoolean(this){
+    override def defaultValue = true
+  }
+  object mIsConfirmedAgent extends MappedBoolean(this){
+    override def defaultValue = false
+  }
   override def customerId: String = mCustomerId.get // id.toString
   override def bankId: String = mBank.get
   override def number: String = mNumber.get
@@ -395,6 +402,9 @@ class MappedCustomer extends Customer with LongKeyedMapper[MappedCustomer] with 
   override def title: String = mTitle.get
   override def branchId: String = mBranchId.get
   override def nameSuffix: String = mNameSuffix.get
+  
+  override def isConfirmedAgent = Some(mIsConfirmedAgent.get)
+  override def isPendingAgent = Some(mIsPendingAgent.get)
 }
 
 object MappedCustomer extends MappedCustomer with LongKeyedMetaMapper[MappedCustomer] {

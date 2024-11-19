@@ -1112,6 +1112,13 @@ trait Connector extends MdcLoggable {
                             customerNumber: Option[String],
                             callContext: Option[CallContext]): OBPReturnType[Box[Customer]] = 
     Future{(Failure(setUnimplementedError(nameOf(updateCustomerScaData _))), callContext)}
+    
+  def updateAgentStatus(
+    agentId: String,
+    is_pending_agent: Boolean,
+    is_confirmed_agent: Boolean,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Customer]] = Future{(Failure(setUnimplementedError(nameOf(updateCustomerScaData _))), callContext)}
 
   def updateCustomerCreditData(customerId: String,
                                creditRating: Option[String],

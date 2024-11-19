@@ -10,6 +10,7 @@ import code.api.util.ErrorMessages.{$UserNotLoggedIn, BankNotFound, ConsentNotFo
 import code.api.util.FutureUtil.{EndpointContext, EndpointTimeout}
 import code.api.util.JwtUtil.{getSignedPayloadAsJson, verifyJwt}
 import code.api.util.NewStyle.HttpCode
+import code.api.util.NewStyle.function.extractQueryParams
 import code.api.util.X509.{getCommonName, getEmailAddress, getOrganization}
 import code.api.util._
 import code.api.util.newstyle.BalanceNewStyle
@@ -422,6 +423,57 @@ trait APIMethods510 {
           }
       }
     }
+
+    staticResourceDocs += ResourceDoc(
+      updateAgentstatus,
+      implementedInApiVersion,
+      nameOf(updateAgentstatus),
+      "PUT",
+      "/banks/BANK_ID/agents/AGENT_ID",
+      "Update Agent status",
+      s"""
+         |${authenticationRequiredMessage(true)}
+         |""",
+      putAgentJsonV510,
+      agentJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        InvalidJsonFormat,
+        CustomerNumberAlreadyExists,
+        UserNotFoundById,
+        CustomerAlreadyExistsForUser,
+        CreateConsumerError,
+        UnknownError
+      ),
+      List(apiTagCustomer, apiTagPerson),
+      Some(canUpdateAgentStatusAtAnyBank :: canUpdateAgentStatusAtOneBank :: Nil)
+    )
+    
+    lazy val updateAgentstatus : OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents"  :: agentId  :: Nil JsonPost json -> _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            postedData <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PostAgentJsonV510 ", 400, cc.callContext) {
+              json.extract[PutAgentJsonV510]
+            }
+            (agent, callContext) <- NewStyle.function.getAgentByAgentId(agentId, cc.callContext)
+            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(agentId, callContext)
+            customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              customerAccountLinks.head
+            }
+            (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(customerAccountLink.bankId), AccountId(customerAccountLink.accountId), callContext)
+            (customer, callContext) <- NewStyle.function.updateCustomerScaData(
+              agentId,
+              Some(postedData.is_pending_agent.toString),
+              None,
+              None,
+              callContext)
+          } yield {
+            (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`201`(callContext))
+          }
+      }
+    }
     
     staticResourceDocs += ResourceDoc(
       getAgent,
@@ -451,7 +503,7 @@ trait APIMethods510 {
             (Full(u), callContext) <- SS.user
             (agent, callContext) <- NewStyle.function.getAgentByAgentId(agentId, callContext)
             (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(agentId, callContext)
-            customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, cc.callContext) {
+            customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
               customerAccountLinks.head
             }
             (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(customerAccountLink.bankId), AccountId(customerAccountLink.accountId), callContext)
@@ -459,60 +511,6 @@ trait APIMethods510 {
             (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`200`(callContext))
           }
       }
-    }
-
-    staticResourceDocs += ResourceDoc(
-      createTransactionRequestAgent,
-      implementedInApiVersion,
-      nameOf(createTransactionRequestAgent),
-      "POST",
-      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-request-types/AGENT/transaction-requests",
-      "Create Transaction Request (AGENT)",
-      s"""
-         |
-         |Either the `from` or the `to` field must be filled. Those fields refers to the information about the party that will be refunded.
-         |
-         |In case the `from` object is used, it means that the refund comes from the part that sent you a transaction.
-         |In the `from` object, you have two choices :
-         |- Use `bank_id` and `account_id` fields if the other account is registered on the OBP-API
-         |- Use the `counterparty_id` field in case the counterparty account is out of the OBP-API
-         |
-         |In case the `to` object is used, it means you send a request to a counterparty to ask for a refund on a previous transaction you sent.
-         |(This case is not managed by the OBP-API and require an external adapter)
-         |
-         |
-         |$transactionRequestGeneralText
-         |
-       """.stripMargin,
-      transactionRequestBodyAgentJsonV510,
-      transactionRequestWithChargeJSON400,
-      List(
-        $UserNotLoggedIn,
-        InvalidBankIdFormat,
-        InvalidAccountIdFormat,
-        InvalidJsonFormat,
-        $BankNotFound,
-        AccountNotFound,
-        $BankAccountNotFound,
-        InsufficientAuthorisationToCreateTransactionRequest,
-        InvalidTransactionRequestType,
-        InvalidJsonFormat,
-        InvalidNumber,
-        NotPositiveAmount,
-        InvalidTransactionRequestCurrency,
-        TransactionDisabled,
-        UnknownError
-      ),
-      List(apiTagTransactionRequest, apiTagPSD2PIS, apiTagPsd2)
-    )
-
-    lazy val createTransactionRequestAgent: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-request-types" ::
-        "AGENT-CASH-WITHDRAWAL" :: "transaction-requests" :: Nil JsonPost json -> _ =>
-        cc =>
-          implicit val ec = EndpointContext(Some(cc))
-          val transactionRequestType = TransactionRequestType("ACCOUNT")
-          createTransactionRequest(bankId, accountId, viewId, transactionRequestType, json)
     }
     
     staticResourceDocs += ResourceDoc(
@@ -969,6 +967,39 @@ trait APIMethods510 {
             )
           } yield {
             (JSONFactory510.createAtmAttributeJson(atmAttribute), HttpCode.`201`(callContext))
+          }
+      }
+    }
+    staticResourceDocs += ResourceDoc(
+      getAgents,
+      implementedInApiVersion,
+      nameOf(getAgents),
+      "GET",
+      "/banks/BANK_ID/agents",
+      "Get Agents at Bank",
+      s"""Get Agents at Bank.
+         |
+         |${authenticationRequiredMessage(false)}
+         |
+         |${urlParametersDocument(true, true)}
+         |""".stripMargin,
+      EmptyBody,
+      agentMinimalsJsonV510,
+      List(
+        $BankNotFound,
+        UnknownError
+      ),
+      List(apiTagAccount)
+    )
+
+    lazy val getAgents: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents"  :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (requestParams, callContext) <- extractQueryParams(cc.url, List("limit","offset","sort_direction"), cc.callContext)
+            customers <- NewStyle.function.getCustomers(bankId, callContext, requestParams)
+          } yield {
+            (JSONFactory510.createAgentMinimalsJson(customers), HttpCode.`200`(callContext))
           }
       }
     }

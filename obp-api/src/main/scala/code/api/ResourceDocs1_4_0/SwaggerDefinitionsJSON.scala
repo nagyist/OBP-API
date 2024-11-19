@@ -5516,9 +5516,9 @@ object SwaggerDefinitionsJSON {
     List(consumerJsonV510)
   )
 
-  val agentIdJson = AgentIdJson("")
+  val agentIdJson = AgentIdJson(agentIdExample.value)
   
-  val transactionRequestBodyAgentJsonV510 = TransactionRequestBodyAgentJsonV510(
+  val transactionRequestBodyAgentJsonV400 = TransactionRequestBodyAgentJsonV400(
     to = agentIdJson,
     value = amountOfMoneyJsonV121,
     description =  descriptionExample.value,
@@ -5533,12 +5533,26 @@ object SwaggerDefinitionsJSON {
     currency = currencyExample.value
   )
   
+  val putAgentJsonV510  = PutAgentJsonV510(
+    is_pending_agent = true,
+    is_confirmed_agent = true
+  )
+  
   val agentJsonV510  = AgentJsonV510(
     agent_id = agentIdExample.value,
     legal_name = legalNameExample.value,
     mobile_phone_number = mobilePhoneNumberExample.value,
     agent_number = agentNumberExample.value,
     currency = currencyExample.value
+  )
+  
+  val agentMinimalJsonV510 = AgentMinimalJsonV510(
+    agent_id = agentIdExample.value,
+    legal_name = legalNameExample.value,
+  )
+  
+  val agentMinimalsJsonV510 = AgentMinimalsJsonV510(
+    agents = List(agentMinimalJsonV510)
   )
   
   //The common error or success format.

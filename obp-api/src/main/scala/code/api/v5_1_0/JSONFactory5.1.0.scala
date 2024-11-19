@@ -322,23 +322,16 @@ case class AgentJson(
   name:String
 )
 
-case class AgentIdJson(
-  agent_id: String
-)
-
-case class TransactionRequestBodyAgentJsonV510(
-  to: AgentIdJson,
-  value: AmountOfMoneyJsonV121,
-  description: String,
-  charge_policy: String,
-  future_date: Option[String] = None
-) extends TransactionRequestCommonBodyJSON
-
 case class PostAgentJsonV510(
   legal_name: String,
   mobile_phone_number: String,
   agent_number: String,
   currency: String
+)
+
+case class PutAgentJsonV510(
+  is_pending_agent: Boolean,
+  is_confirmed_agent: Boolean
 )
 
 case class AgentJsonV510(
@@ -347,6 +340,14 @@ case class AgentJsonV510(
   mobile_phone_number: String,
   agent_number: String,
   currency: String
+)
+
+case class AgentMinimalJsonV510(
+  agent_id: String,
+  legal_name: String,
+)
+case class AgentMinimalsJsonV510(
+  agents: List[AgentMinimalJsonV510]
 )
 
 case class CustomersIdsJsonV510(customers: List[CustomerIdJson])
@@ -952,6 +953,15 @@ object JSONFactory510 extends CustomJsonFormats {
       agent_number = customer.number,
       currency = bankAccount.currency
     )
+  }
+  def createAgentMinimalsJson(customers: List[Customer]): AgentMinimalsJsonV510 = {
+    AgentMinimalsJsonV510(
+      customers
+        .filter(_.isConfirmedAgent == Some(true))
+        .map(customer => AgentMinimalJsonV510(
+          agent_id = customer.customerId, 
+          legal_name = customer.legalName
+        )))
   }
 
 }

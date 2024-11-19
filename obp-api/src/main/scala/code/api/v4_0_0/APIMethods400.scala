@@ -45,8 +45,7 @@ import code.api.dynamic.endpoint.helper.practise.PractiseEndpoint
 import code.api.dynamic.entity.helper.{DynamicEntityHelper, DynamicEntityInfo}
 import code.api.util.FutureUtil.EndpointContext
 import code.api.v4_0_0.APIMethods400.{createTransactionRequest, exchangeRates, lowAmount, sharedChargePolicy, transactionRequestGeneralText}
-import code.api.v5_0_0.OBPAPI5_0_0
-import code.api.v5_1_0.TransactionRequestBodyAgentJsonV510
+import code.api.v4_0_0.TransactionRequestBodyAgentJsonV400
 import code.api.{ChargePolicy, Constant, JsonResponseException}
 import code.apicollection.MappedApiCollectionsProvider
 import code.apicollectionendpoint.MappedApiCollectionEndpointsProvider
@@ -858,6 +857,61 @@ trait APIMethods400 extends MdcLoggable {
       ),
       List(apiTagTransactionRequest, apiTagPSD2PIS),
       Some(List(canCreateAnyTransactionRequest)))
+
+
+    staticResourceDocs += ResourceDoc(
+      createTransactionRequestAgentCashWithDrawal,
+      implementedInApiVersion,
+      nameOf(createTransactionRequestAgentCashWithDrawal),
+      "POST",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-request-types/AGENT_CASH_WITHDRAWAL/transaction-requests",
+      "Create Transaction Request (AGENT_CASH_WITHDRAWAL)",
+      s"""
+         |
+         |Either the `from` or the `to` field must be filled. Those fields refers to the information about the party that will be refunded.
+         |
+         |In case the `from` object is used, it means that the refund comes from the part that sent you a transaction.
+         |In the `from` object, you have two choices :
+         |- Use `bank_id` and `account_id` fields if the other account is registered on the OBP-API
+         |- Use the `counterparty_id` field in case the counterparty account is out of the OBP-API
+         |
+         |In case the `to` object is used, it means you send a request to a counterparty to ask for a refund on a previous transaction you sent.
+         |(This case is not managed by the OBP-API and require an external adapter)
+         |
+         |
+         |$transactionRequestGeneralText
+         |
+       """.stripMargin,
+      transactionRequestBodyAgentJsonV400,
+      transactionRequestWithChargeJSON400,
+      List(
+        $UserNotLoggedIn,
+        InvalidBankIdFormat,
+        InvalidAccountIdFormat,
+        InvalidJsonFormat,
+        $BankNotFound,
+        AccountNotFound,
+        $BankAccountNotFound,
+        InsufficientAuthorisationToCreateTransactionRequest,
+        InvalidTransactionRequestType,
+        InvalidJsonFormat,
+        InvalidNumber,
+        NotPositiveAmount,
+        InvalidTransactionRequestCurrency,
+        TransactionDisabled,
+        UnknownError
+      ),
+      List(apiTagTransactionRequest, apiTagPSD2PIS, apiTagPsd2)
+    )
+
+    lazy val createTransactionRequestAgentCashWithDrawal: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-request-types" ::
+        "AGENT_CASH_WITHDRAWAL" :: "transaction-requests" :: Nil JsonPost json -> _ =>
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          val transactionRequestType = TransactionRequestType("AGENT_CASH_WITHDRAWAL")
+          createTransactionRequest(bankId, accountId, viewId, transactionRequestType, json)
+    }
     
     lazy val createTransactionRequestAccount: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-request-types" ::
@@ -12575,9 +12629,10 @@ object APIMethods400 extends RestHelper with APIMethods400 {
           for {
             //For Agent, Use the agentId to find the agent and set up the toAccount
             transactionRequestBodyAgent <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $AGENT_CASH_WITHDRAWAL json format", 400, callContext) {
-              json.extract[TransactionRequestBodyAgentJsonV510]
+              json.extract[TransactionRequestBodyAgentJsonV400]
             }
             toAgentId = transactionRequestBodyAgent.to.agent_id
+            (agent, callContext) <- NewStyle.function.getAgentByAgentId(toAgentId, callContext)
             (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(toAgentId, callContext)
             customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
               customerAccountLinks.head

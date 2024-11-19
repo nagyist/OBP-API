@@ -840,6 +840,9 @@ case class TransactionRequestTransferToAtm(
 //For COUNTERPARTY, it needs the counterparty_id to find the toCounterparty--> toBankAccount
 case class TransactionRequestCounterpartyId (counterparty_id : String)
 
+//For AGENT_CASH_WITHDRAWAL, it needs the agent_id to find the toAgent--> toBankAccount
+case class TransactionRequestAgentId (agent_id : String)
+
 case class TransactionRequestSimple (
   otherBankRoutingScheme: String,
   otherBankRoutingAddress: String,
@@ -951,6 +954,8 @@ case class TransactionRequestBodyAllTypes (
                                             to_transfer_to_account: Option[TransactionRequestTransferToAccount]= None,//TODO not stable
                                             @optional
                                             to_sepa_credit_transfers: Option[SepaCreditTransfers]= None,//TODO not stable, from berlin Group
+                                            @optional
+                                            to_agent: Option[TransactionRequestAgentId]= None,
   
                                             value: AmountOfMoney,
                                             description: String
@@ -1160,29 +1165,6 @@ case class AuthInfo(
   userAuthContexts: List[BasicUserAuthContext]= Nil,
   authViews: List[AuthView] = Nil,
 )
-
-case class ObpCustomer(
-  customerId: String,
-  bankId: String,
-  number: String,
-  legalName: String,
-  mobileNumber: String,
-  email: String,
-  faceImage: CustomerFaceImage,
-  dateOfBirth: Date,
-  relationshipStatus: String,
-  dependents: Integer,
-  dobOfDependents: List[Date],
-  highestEducationAttained: String,
-  employmentStatus: String,
-  creditRating: CreditRating,
-  creditLimit: CreditLimit,
-  kycStatus: lang.Boolean,
-  lastOkDate: Date,
-  title: String = "", //These new fields for V310, not from Connector for now. 
-  branchId: String = "", //These new fields for V310, not from Connector for now. 
-  nameSuffix: String = "", //These new fields for V310, not from Connector for now. 
-) extends Customer
 
 case class InternalCustomer(
   customerId: String,

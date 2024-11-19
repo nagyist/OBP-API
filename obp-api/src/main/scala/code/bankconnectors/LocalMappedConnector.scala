@@ -15,7 +15,7 @@ import code.api.util.ErrorMessages._
 import code.api.util._
 import code.api.v1_4_0.JSONFactory1_4_0.TransactionRequestAccountJsonV140
 import code.api.v2_1_0._
-import code.api.v4_0_0.{PostSimpleCounterpartyJson400, TransactionRequestBodySimpleJsonV400}
+import code.api.v4_0_0.{AgentIdJson, PostSimpleCounterpartyJson400, TransactionRequestBodyAgentJsonV400, TransactionRequestBodySimpleJsonV400}
 import code.atmattribute.{AtmAttribute, AtmAttributeX}
 import code.atms.{Atms, MappedAtm}
 import code.bankattribute.{BankAttribute, BankAttributeX}
@@ -4679,6 +4679,42 @@ object LocalMappedConnector extends Connector with MdcLoggable {
           } yield {
             (transactionId, callContext)
           }
+        case AGENT_CASH_WITHDRAWAL =>
+          for {
+            bodyToAgent <- NewStyle.function.tryons(s"$TransactionRequestDetailsExtractException It can not extract to $TransactionRequestBodyAgentJsonV400", 400, callContext) {
+              body.to_agent.get
+            }
+
+            toAgentId = bodyToAgent.agent_id
+            (agent, callContext) <- NewStyle.function.getAgentByAgentId(toAgentId, callContext)
+            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(toAgentId, callContext)
+            customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              customerAccountLinks.head
+            }
+            (toAccount, callContext) <- NewStyle.function.getBankAccount(BankId(customerAccountLink.bankId), AccountId(customerAccountLink.accountId), callContext)
+
+            agentRequestJsonBody = TransactionRequestBodyAgentJsonV400(
+              to = AgentIdJson(toAgentId),
+              value = AmountOfMoneyJsonV121(body.value.currency, body.value.amount),
+              description = body.description,
+              charge_policy = transactionRequest.charge_policy,
+              future_date = transactionRequest.future_date
+            )
+
+            (transactionId, callContext) <- NewStyle.function.makePaymentv210(
+              fromAccount,
+              toAccount,
+              transactionRequest.id,
+              transactionRequestCommonBody = agentRequestJsonBody,
+              BigDecimal(agentRequestJsonBody.value.amount),
+              agentRequestJsonBody.description,
+              TransactionRequestType(transactionRequestType),
+              transactionRequest.charge_policy,
+              callContext
+            )
+          } yield {
+            (transactionId, callContext)
+          }
         case SIMPLE =>
           for {
             bodyToSimple <- NewStyle.function.tryons(s"$TransactionRequestDetailsExtractException It can not extract to $TransactionRequestBodyCounterpartyJSON", 400, callContext) {
@@ -4844,11 +4880,11 @@ object LocalMappedConnector extends Connector with MdcLoggable {
         case transactionRequestType => Future((throw new Exception(s"${InvalidTransactionRequestType}: '${transactionRequestType}'. Not supported in this version.")), callContext)
       }
 
-      _ = saveTransactionRequestTransaction(transactionRequestId, transactionId, callContext)
+      didSaveTransId <- saveTransactionRequestTransaction(transactionRequestId, transactionId, callContext)
+
+      didSaveStatus <- NewStyle.function.saveTransactionRequestStatusImpl(transactionRequestId, TransactionRequestStatus.COMPLETED.toString, callContext)
       
-      _ <- NewStyle.function.saveTransactionRequestStatusImpl(transactionRequestId, TransactionRequestStatus.COMPLETED.toString, callContext)
-      
-      //After `makePaymentv200` and update data for request, we get the new requqest from database again.
+      //After `makePaymentv210` and update data for request, we get the new request from database .
       (transactionRequest, callContext) <- NewStyle.function.getTransactionRequestImpl(transactionRequestId, callContext)
 
     } yield {

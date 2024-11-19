@@ -2838,6 +2838,20 @@ object NewStyle extends MdcLoggable{
         callContext) map {
         i => (unboxFullOrFail(i._1, callContext, UpdateCustomerError), i._2)
       }
+
+    def updateAgentStatus(
+      agentId: String,
+      is_pending_agent: Boolean,
+      is_confirmed_agent: Boolean,
+      callContext: Option[CallContext]): OBPReturnType[Customer] =
+      Connector.connector.vend.updateAgentStatus(
+        agentId: String,
+        is_pending_agent: Boolean,
+        is_confirmed_agent: Boolean,
+        callContext: Option[CallContext]
+      ) map {
+        i => (unboxFullOrFail(i._1, callContext, UpdateCustomerError), i._2)
+      }
     def updateCustomerCreditData(customerId: String,
                                  creditRating: Option[String],
                                  creditSource: Option[String],

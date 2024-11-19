@@ -25,6 +25,7 @@ import code.cards.MappedPhysicalCard
 import code.context.{UserAuthContextProvider, UserAuthContextUpdateProvider}
 import code.counterpartylimit.CounterpartyLimitProvider
 import code.customer._
+import code.customer.agent.AgentX
 import code.customeraccountlinks.CustomerAccountLinkX
 import com.openbankproject.commons.model.CustomerAccountLinkTrait
 import code.customeraddress.CustomerAddressX
@@ -1623,7 +1624,57 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       transactionRequestId: TransactionRequestId
     ).map((_, callContext))
   }
+  
+  override def createAgent(
+    bankId: String,
+    legalName : String,
+    mobileNumber : String,
+    number : String,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Agent]] = {
+    AgentX.agentProvider.vend.createAgent(
+      bankId: String,
+      legalName : String,
+      mobileNumber : String,
+      number : String,
+      callContext: Option[CallContext]
+    ).map((_, callContext))
+  }
 
+  override def updateAgentStatus(
+    agentId: String,
+    isPendingAgent: Boolean,
+    isConfirmedAgent: Boolean,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Agent]] = {
+    AgentX.agentProvider.vend.updateAgentStatus(
+      agentId: String,
+      isPendingAgent: Boolean,
+      isConfirmedAgent: Boolean,
+      callContext: Option[CallContext]
+    ).map((_, callContext))
+  }
+
+  override def getAgentByAgentId(
+    agentId : String,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Agent]] = {
+    AgentX.agentProvider.vend.getAgentByAgentIdFuture(
+      agentId : String
+    ).map((_, callContext))
+  }
+
+  override def getAgents(
+    bankId : String,
+    queryParams: List[OBPQueryParam],
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[List[Agent]]] = {
+    AgentX.agentProvider.vend.getAgentsFuture(
+      BankId(bankId),
+      queryParams: List[OBPQueryParam]
+    ).map((_, callContext))
+  }
+  
   override def getTransactionRequestAttributes(bankId: BankId,
                                                transactionRequestId: TransactionRequestId,
                                                callContext: Option[CallContext]): OBPReturnType[Box[List[TransactionRequestAttributeTrait]]] = {

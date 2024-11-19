@@ -405,9 +405,9 @@ trait APIMethods510 {
     }
 
     staticResourceDocs += ResourceDoc(
-      updateAgentstatus,
+      updateAgentStatus,
       implementedInApiVersion,
-      nameOf(updateAgentstatus),
+      nameOf(updateAgentStatus),
       "PUT",
       "/banks/BANK_ID/agents/AGENT_ID",
       "Update Agent status",
@@ -430,8 +430,8 @@ trait APIMethods510 {
       Some(canUpdateAgentStatusAtAnyBank :: canUpdateAgentStatusAtOneBank :: Nil)
     )
     
-    lazy val updateAgentstatus : OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "agents"  :: agentId  :: Nil JsonPost json -> _ => {
+    lazy val updateAgentStatus : OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents"  :: agentId  :: Nil JsonPut json -> _ => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
             postedData <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PostAgentJsonV510 ", 400, cc.callContext) {

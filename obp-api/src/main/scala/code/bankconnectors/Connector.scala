@@ -1128,8 +1128,8 @@ trait Connector extends MdcLoggable {
   
   def updateAgentStatus(
     agentId: String,
-    is_pending_agent: Boolean,
-    is_confirmed_agent: Boolean,
+    isPendingAgent: Boolean,
+    isConfirmedAgent: Boolean,
     callContext: Option[CallContext]
   ): OBPReturnType[Box[Agent]] = Future{(Failure(setUnimplementedError(nameOf(updateAgentStatus _))), callContext)}
 

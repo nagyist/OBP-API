@@ -353,11 +353,6 @@ trait APIMethods510 {
       "/banks/BANK_ID/agents",
       "Create Agent",
       s"""
-         |The Customer resource stores the customer number (which is set by the backend), legal name, email, phone number, their date of birth, relationship status, education attained, a url for a profile image, KYC status etc.
-         |Dates need to be in the format 2013-01-21T23:08:00Z
-         |
-         |Note: If you need to set a specific customer number, use the Update Customer Number endpoint after this call.
-         |
          |${authenticationRequiredMessage(true)}
          |""",
       postAgentJsonV510,
@@ -383,26 +378,11 @@ trait APIMethods510 {
               json.extract[PostAgentJsonV510]
             }
             (_, callContext) <- NewStyle.function.checkCustomerNumberAvailable(bankId, postedData.agent_number, cc.callContext)
-            (customer, callContext) <- NewStyle.function.createCustomerC2(
-              bankId,
-              postedData.legal_name,
-              postedData.agent_number,
-              postedData.mobile_phone_number,
-              "",
-              CustomerFaceImage(null, ""),
-              null,
-              "",
-              0,
-              Nil,
-              "",
-              "",
-              false,
-              null,
-              None,
-              None,
-              "",
-              "",
-              "",
+            (agent, callContext) <- NewStyle.function.createAgent(
+              bankId = bankId.value,
+              legalName = postedData.legal_name,
+              mobileNumber = postedData.mobile_phone_number,
+              number = postedData.agent_number,
               callContext,
             )
             (bankAccount, callContext) <- NewStyle.function.createBankAccount(
@@ -417,9 +397,9 @@ trait APIMethods510 {
               Nil,
               callContext
             )
-            (_, callContext) <- NewStyle.function.createCustomerAccountLink(customer.customerId, bankAccount.bankId.value, bankAccount.accountId.value, "Owner", callContext)
+            (_, callContext) <- NewStyle.function.createCustomerAccountLink(agent.agentId, bankAccount.bankId.value, bankAccount.accountId.value, "Owner", callContext)
           } yield {
-            (JSONFactory510.createAgentJson(customer, bankAccount), HttpCode.`201`(callContext))
+            (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`201`(callContext))
           }
       }
     }
@@ -463,11 +443,10 @@ trait APIMethods510 {
               customerAccountLinks.head
             }
             (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(customerAccountLink.bankId), AccountId(customerAccountLink.accountId), callContext)
-            (customer, callContext) <- NewStyle.function.updateCustomerScaData(
+            (agent, callContext) <- NewStyle.function.updateAgentStatus(
               agentId,
-              Some(postedData.is_pending_agent.toString),
-              None,
-              None,
+              postedData.is_pending_agent,
+              postedData.is_confirmed_agent,
               callContext)
           } yield {
             (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`201`(callContext))
@@ -997,9 +976,9 @@ trait APIMethods510 {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
             (requestParams, callContext) <- extractQueryParams(cc.url, List("limit","offset","sort_direction"), cc.callContext)
-            customers <- NewStyle.function.getCustomers(bankId, callContext, requestParams)
+            (agents, callContext) <- NewStyle.function.getAgents(bankId.value, requestParams, callContext)
           } yield {
-            (JSONFactory510.createAgentMinimalsJson(customers), HttpCode.`200`(callContext))
+            (JSONFactory510.createAgentMinimalsJson(agents), HttpCode.`200`(callContext))
           }
       }
     }

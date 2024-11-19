@@ -32,7 +32,7 @@ object MappedCustomerProvider extends CustomerProvider with MdcLoggable {
     Full(MappedCustomer.findAll(mapperParams:_*))
   }
 
-  private def getOptionalParams(queryParams: List[OBPQueryParam]) = {
+  def getOptionalParams(queryParams: List[OBPQueryParam]) = {
     val limit = queryParams.collect { case OBPLimit(value) => MaxRows[MappedCustomer](value) }.headOption
     val offset = queryParams.collect { case OBPOffset(value) => StartAt[MappedCustomer](value) }.headOption
     val fromDate = queryParams.collect { case OBPFromDate(date) => By_>=(MappedCustomer.updatedAt, date) }.headOption
@@ -333,7 +333,7 @@ object MappedCustomerProvider extends CustomerProvider with MdcLoggable {
 
 }
 
-class MappedCustomer extends Customer with LongKeyedMapper[MappedCustomer] with IdPK with CreatedUpdated {
+class MappedCustomer extends Customer with Agent with LongKeyedMapper[MappedCustomer] with IdPK with CreatedUpdated {
 
   def getSingleton = MappedCustomer
 
@@ -402,9 +402,12 @@ class MappedCustomer extends Customer with LongKeyedMapper[MappedCustomer] with 
   override def title: String = mTitle.get
   override def branchId: String = mBranchId.get
   override def nameSuffix: String = mNameSuffix.get
-  
-  override def isConfirmedAgent = Some(mIsConfirmedAgent.get)
-  override def isPendingAgent = Some(mIsPendingAgent.get)
+
+  override def isConfirmedAgent: Boolean = mIsConfirmedAgent.get //This is for Agent
+
+  override def isPendingAgent: Boolean = mIsPendingAgent.get //This is for Agent
+
+  override def agentId: String = mCustomerId.get //this is for Agent
 }
 
 object MappedCustomer extends MappedCustomer with LongKeyedMetaMapper[MappedCustomer] {

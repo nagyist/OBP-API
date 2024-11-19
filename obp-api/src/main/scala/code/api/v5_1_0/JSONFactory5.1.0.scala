@@ -27,33 +27,30 @@
 package code.api.v5_1_0
 
 import code.api.Constant
-import code.api.util.{APIUtil, ConsentJWT, CustomJsonFormats, JwtUtil, Role}
 import code.api.util.APIUtil.{DateWithDay, DateWithSeconds, gitCommit, stringOrNull}
+import code.api.util._
 import code.api.v1_2_1.BankRoutingJsonV121
 import code.api.v1_4_0.JSONFactory1_4_0.{LocationJsonV140, MetaJsonV140, transformToLocationFromV140, transformToMetaFromV140}
 import code.api.v2_1_0.ResourceUserJSON
 import code.api.v3_0_0.JSONFactory300.{createLocationJson, createMetaJson, transformToAddressFromV300}
-import code.api.v3_0_0.{AccountIdJson, AccountsIdsJsonV300, AddressJsonV300, OpeningTimesV300, ViewJsonV300}
-import code.api.v4_0_0.{EnergySource400, HostedAt400, HostedBy400, PostViewJsonV400}
+import code.api.v3_0_0.{AddressJsonV300, OpeningTimesV300}
+import code.api.v4_0_0.{EnergySource400, HostedAt400, HostedBy400}
 import code.api.v5_0_0.PostConsentRequestJsonV500
 import code.atmattribute.AtmAttribute
 import code.atms.Atms.Atm
-import code.users.{UserAttribute, Users}
-import code.views.system.{AccountAccess, ViewDefinition}
-import com.openbankproject.commons.model.{AccountRoutingJsonV121, Address, AmountOfMoneyJsonV121, AtmId, AtmT, BankAccount, BankId, BankIdAccountId, BranchRoutingJsonV141, CreateViewJson, Customer, Location, Meta, RegulatedEntityTrait, TransactionRequestCommonBodyJSON, UpdateViewJSON, View}
-import com.openbankproject.commons.util.{ApiVersion, ScannedApiVersion}
-
-import java.util.Date
 import code.consent.MappedConsent
 import code.metrics.APIMetric
 import code.model.Consumer
-import com.openbankproject.commons.model.enums.ConsentType
+import code.users.{UserAttribute, Users}
+import code.views.system.{AccountAccess, ViewDefinition}
+import com.openbankproject.commons.model._
+import com.openbankproject.commons.util.ApiVersion
 import net.liftweb.common.{Box, Full}
 import net.liftweb.json
 import net.liftweb.json.{JString, JValue, parse, parseOpt}
 
 import java.text.SimpleDateFormat
-import scala.collection.immutable.List
+import java.util.Date
 import scala.util.Try
 
 
@@ -945,22 +942,22 @@ object JSONFactory510 extends CustomJsonFormats {
     ConsumersJsonV510(consumers.map(createConsumerJSON(_,None)))
   }
 
-  def createAgentJson(customer: Customer, bankAccount: BankAccount): AgentJsonV510 = {
+  def createAgentJson(agent: Agent, bankAccount: BankAccount): AgentJsonV510 = {
     AgentJsonV510(
-      agent_id =  customer.customerId,
-      legal_name = customer.legalName,
-      mobile_phone_number = customer.mobileNumber,
-      agent_number = customer.number,
+      agent_id =  agent.agentId,
+      legal_name = agent.legalName,
+      mobile_phone_number = agent.mobileNumber,
+      agent_number = agent.number,
       currency = bankAccount.currency
     )
   }
-  def createAgentMinimalsJson(customers: List[Customer]): AgentMinimalsJsonV510 = {
+  def createAgentMinimalsJson(agents: List[Agent]): AgentMinimalsJsonV510 = {
     AgentMinimalsJsonV510(
-      customers
-        .filter(_.isConfirmedAgent == Some(true))
-        .map(customer => AgentMinimalJsonV510(
-          agent_id = customer.customerId, 
-          legal_name = customer.legalName
+      agents
+        .filter(_.isConfirmedAgent == true)
+        .map(agent => AgentMinimalJsonV510(
+          agent_id = agent.agentId, 
+          legal_name = agent.legalName
         )))
   }
 

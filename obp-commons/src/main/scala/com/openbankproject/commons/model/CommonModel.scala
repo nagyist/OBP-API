@@ -170,6 +170,16 @@ case class CustomerCommons(
 
 object CustomerCommons extends Converter[Customer, CustomerCommons]
 
+case class AgentCommons(
+  agentId: String,
+  bankId: String,
+  number: String,
+  legalName: String,
+  mobileNumber: String,
+  isConfirmedAgent: Boolean,
+  isPendingAgent: Boolean,
+) extends Agent
+object AgentCommons extends Converter[Agent, AgentCommons]
 
 case class CustomerAddressCommons(
                                    customerId :String,

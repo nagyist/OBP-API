@@ -749,11 +749,6 @@ object NewStyle extends MdcLoggable{
       }
     }
     
-    def getAgentByAgentId(agentId : String, callContext: Option[CallContext]): OBPReturnType[Customer] = {
-      Connector.connector.vend.getCustomerByCustomerId(agentId, callContext) map {
-        unboxFullOrFail(_, callContext, s"$AgentNotFound. Current AGENT_ID($agentId)", 404)
-      }
-    }
     def checkCustomerNumberAvailable(bankId: BankId, customerNumber: String, callContext: Option[CallContext]): OBPReturnType[Boolean] = {
       Connector.connector.vend.checkCustomerNumberAvailable(bankId: BankId, customerNumber: String, callContext: Option[CallContext]) map {
         i => (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse", 400), i._2) 
@@ -2839,19 +2834,49 @@ object NewStyle extends MdcLoggable{
         i => (unboxFullOrFail(i._1, callContext, UpdateCustomerError), i._2)
       }
 
+    def createAgent(
+      bankId: String,
+      legalName : String,
+      mobileNumber : String,
+      number : String,
+      callContext: Option[CallContext]
+    ): OBPReturnType[Agent] =
+      Connector.connector.vend.createAgent(
+        bankId: String,
+        legalName : String,
+        mobileNumber : String,
+        number : String,
+        callContext: Option[CallContext]
+      ) map {
+        i => (unboxFullOrFail(i._1, callContext, CreateAgentError), i._2)
+      }
+    
+    def getAgents(bankId : String, queryParams: List[OBPQueryParam], callContext: Option[CallContext]): OBPReturnType[List[Agent]] = {
+      Connector.connector.vend.getAgents(bankId : String, queryParams: List[OBPQueryParam], callContext: Option[CallContext]) map {
+        i => (unboxFullOrFail(i._1, callContext,  s"$AgentsNotFound."), i._2)
+      }
+    }
+
+    def getAgentByAgentId(agentId : String, callContext: Option[CallContext]): OBPReturnType[Agent] = {
+      Connector.connector.vend.getAgentByAgentId(agentId : String, callContext: Option[CallContext]) map {
+        i => (unboxFullOrFail(i._1, callContext,  s"$AgentNotFound. Current AGENT_ID($agentId)"), i._2)
+      }
+    }
+    
     def updateAgentStatus(
       agentId: String,
       is_pending_agent: Boolean,
       is_confirmed_agent: Boolean,
-      callContext: Option[CallContext]): OBPReturnType[Customer] =
+      callContext: Option[CallContext]): OBPReturnType[Agent] =
       Connector.connector.vend.updateAgentStatus(
         agentId: String,
         is_pending_agent: Boolean,
         is_confirmed_agent: Boolean,
         callContext: Option[CallContext]
       ) map {
-        i => (unboxFullOrFail(i._1, callContext, UpdateCustomerError), i._2)
+        i => (unboxFullOrFail(i._1, callContext, UpdateAgentError), i._2)
       }
+      
     def updateCustomerCreditData(customerId: String,
                                  creditRating: Option[String],
                                  creditSource: Option[String],
@@ -4101,6 +4126,11 @@ object NewStyle extends MdcLoggable{
     def createCustomerAccountLink(customerId: String, bankId: String, accountId: String, relationshipType: String, callContext: Option[CallContext]): OBPReturnType[CustomerAccountLinkTrait] =
       Connector.connector.vend.createCustomerAccountLink(customerId: String, bankId, accountId: String, relationshipType: String, callContext: Option[CallContext]) map {
         i => (unboxFullOrFail(i._1, callContext, CreateCustomerAccountLinkError), i._2)
+      }
+    
+    def createAgentAccountLink(agentId: String, bankId: String, accountId: String, relationshipType: String, callContext: Option[CallContext]): OBPReturnType[CustomerAccountLinkTrait] =
+      Connector.connector.vend.createCustomerAccountLink(agentId: String, bankId, accountId: String, relationshipType: String, callContext: Option[CallContext]) map {
+        i => (unboxFullOrFail(i._1, callContext, CreateAgentAccountLinkError), i._2)
       }
     
     def getCustomerAccountLinksByCustomerId(customerId: String, callContext: Option[CallContext]): OBPReturnType[List[CustomerAccountLinkTrait]] =

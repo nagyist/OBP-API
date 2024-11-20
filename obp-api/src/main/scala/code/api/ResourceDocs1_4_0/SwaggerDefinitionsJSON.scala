@@ -5534,7 +5534,7 @@ object SwaggerDefinitionsJSON {
   )
   
   val putAgentJsonV510  = PutAgentJsonV510(
-    is_pending_agent = true,
+    is_pending_agent = false,
     is_confirmed_agent = true
   )
   
@@ -5543,7 +5543,9 @@ object SwaggerDefinitionsJSON {
     legal_name = legalNameExample.value,
     mobile_phone_number = mobilePhoneNumberExample.value,
     agent_number = agentNumberExample.value,
-    currency = currencyExample.value
+    currency = currencyExample.value,
+    is_confirmed_agent = false,
+    is_pending_agent = true
   )
   
   val agentMinimalJsonV510 = AgentMinimalJsonV510(

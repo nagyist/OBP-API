@@ -449,7 +449,7 @@ trait APIMethods510 {
               postedData.is_confirmed_agent,
               callContext)
           } yield {
-            (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`201`(callContext))
+            (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`200`(callContext))
           }
       }
     }

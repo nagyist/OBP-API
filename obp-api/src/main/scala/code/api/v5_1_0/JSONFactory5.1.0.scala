@@ -336,7 +336,9 @@ case class AgentJsonV510(
   legal_name: String,
   mobile_phone_number: String,
   agent_number: String,
-  currency: String
+  currency: String,
+  is_confirmed_agent: Boolean,
+  is_pending_agent: Boolean
 )
 
 case class AgentMinimalJsonV510(
@@ -948,7 +950,9 @@ object JSONFactory510 extends CustomJsonFormats {
       legal_name = agent.legalName,
       mobile_phone_number = agent.mobileNumber,
       agent_number = agent.number,
-      currency = bankAccount.currency
+      currency = bankAccount.currency,
+      is_confirmed_agent = agent.isConfirmedAgent,
+      is_pending_agent = agent.isPendingAgent
     )
   }
   def createAgentMinimalsJson(agents: List[Agent]): AgentMinimalsJsonV510 = {

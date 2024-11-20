@@ -111,6 +111,7 @@
                 <version>${scala.version}</version>
                 <configuration>
                     <skipTests>true</skipTests>
+                    <argLine>--add-opens java.base/java.lang=ALL-UNNAMED</argLine>
                 </configuration>
             </plugin>
             <plugin>

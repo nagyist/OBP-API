@@ -1250,10 +1250,14 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
   
   feature(s"we can create transaction requests -- $AGENT_CASH_WITHDRAWAL") {
 
+
     if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false) == false) {
       ignore("No challenge, No FX ", ApiEndpoint11) {}
     } else {
       scenario("No challenge, No FX ", ApiEndpoint11) {
+
+        setPropsValues("transactionRequests_supported_types" -> "SEPA,SANDBOX_TAN,FREE_FORM,COUNTERPARTY,ACCOUNT,ACCOUNT_OTP,SIMPLE,CARD,AGENT_CASH_WITHDRAWAL")
+        setPropsValues("AGENT_CASH_WITHDRAWAL_OTP_INSTRUCTION_TRANSPORT" -> "DUMMY")
 
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
         val helper = defaultSetup(AGENT_CASH_WITHDRAWAL.toString)
@@ -1285,6 +1289,8 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     } else {
       scenario("No challenge, With FX ", ApiEndpoint11) {
 
+        setPropsValues("transactionRequests_supported_types" -> "SEPA,SANDBOX_TAN,FREE_FORM,COUNTERPARTY,ACCOUNT,ACCOUNT_OTP,SIMPLE,CARD,AGENT_CASH_WITHDRAWAL")
+        setPropsValues("AGENT_CASH_WITHDRAWAL_OTP_INSTRUCTION_TRANSPORT" -> "DUMMY")
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
         val helper = defaultSetup(AGENT_CASH_WITHDRAWAL.toString)
 
@@ -1324,6 +1330,10 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
       ignore("With challenge, No FX ", ApiEndpoint11) {}
     } else {
       scenario("With challenge, No FX ", ApiEndpoint11) {
+
+        setPropsValues("transactionRequests_supported_types" -> "SEPA,SANDBOX_TAN,FREE_FORM,COUNTERPARTY,ACCOUNT,ACCOUNT_OTP,SIMPLE,CARD,AGENT_CASH_WITHDRAWAL")
+        setPropsValues("AGENT_CASH_WITHDRAWAL_OTP_INSTRUCTION_TRANSPORT" -> "DUMMY")
+        
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
         val helper = defaultSetup(AGENT_CASH_WITHDRAWAL.toString)
         And("We set the special conditions for different currencies")
@@ -1370,6 +1380,10 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
       ignore("With challenge, With FX", ApiEndpoint11) {}
     } else {
       scenario("With challenge, With FX", ApiEndpoint11) {
+
+        setPropsValues("transactionRequests_supported_types" -> "SEPA,SANDBOX_TAN,FREE_FORM,COUNTERPARTY,ACCOUNT,ACCOUNT_OTP,SIMPLE,CARD,AGENT_CASH_WITHDRAWAL")
+        setPropsValues("AGENT_CASH_WITHDRAWAL_OTP_INSTRUCTION_TRANSPORT" -> "DUMMY")
+        
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
         val helper = defaultSetup(AGENT_CASH_WITHDRAWAL.toString)
 
@@ -1420,6 +1434,10 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
       ignore("With N challenges, With FX", ApiEndpoint11) {}
     } else {
       scenario("With N challenges, With FX", ApiEndpoint1) {
+
+        setPropsValues("transactionRequests_supported_types" -> "SEPA,SANDBOX_TAN,FREE_FORM,COUNTERPARTY,ACCOUNT,ACCOUNT_OTP,SIMPLE,CARD,AGENT_CASH_WITHDRAWAL")
+        setPropsValues("AGENT_CASH_WITHDRAWAL_OTP_INSTRUCTION_TRANSPORT" -> "DUMMY")
+        
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
         val helper = defaultSetup(AGENT_CASH_WITHDRAWAL.toString)
 

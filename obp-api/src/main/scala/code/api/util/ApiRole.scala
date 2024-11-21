@@ -103,12 +103,6 @@ object ApiRole extends MdcLoggable{
 
   case class CanCreateCustomer(requiresBankId: Boolean = true) extends ApiRole
   lazy val canCreateCustomer = CanCreateCustomer()
-
-  case class CanCreateAgent(requiresBankId: Boolean = true) extends ApiRole
-  lazy val canCreateAgent = CanCreateAgent()
-
-  case class CanGetAgent(requiresBankId: Boolean = true) extends ApiRole
-  lazy val canGetAgent = CanGetAgent()
   
   case class CanUpdateAgentStatusAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
   lazy val canUpdateAgentStatusAtAnyBank = CanUpdateAgentStatusAtAnyBank()
@@ -145,9 +139,6 @@ object ApiRole extends MdcLoggable{
 
   case class CanCreateCustomerAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
   lazy val canCreateCustomerAtAnyBank = CanCreateCustomerAtAnyBank()
-  
-  case class CanCreateAgentAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
-  lazy val canCreateAgentAtAnyBank = CanCreateAgentAtAnyBank()
   
   case class CanGetCorrelatedUsersInfo(requiresBankId: Boolean = true) extends ApiRole
   lazy val canGetCorrelatedUsersInfo = CanGetCorrelatedUsersInfo() 

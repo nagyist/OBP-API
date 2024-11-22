@@ -368,13 +368,22 @@ class MappedTransactionRequest extends LongKeyedMapper[MappedTransactionRequest]
       None
     
     val t_to_agent = if (TransactionRequestTypes.withName(transactionType) == TransactionRequestTypes.AGENT_CASH_WITHDRAWAL && details.nonEmpty) {
-      val agentIdList: List[String] = for {
+      val agentNumberList: List[String] = for {
         JObject(child) <- parsedDetails
-        JField("agent_id", JString(agentId)) <- child
+        JField("agent_number", JString(agentNumber)) <- child
       } yield
-        agentId
-      val agentIdValue = if (agentIdList.isEmpty) "" else agentIdList.head
-      Some(TransactionRequestAgentId(agent_id = agentIdValue))
+        agentNumber
+     val bankIdList: List[String] = for {
+        JObject(child) <- parsedDetails
+        JField("bank_id", JString(agentNumber)) <- child
+      } yield
+        agentNumber
+      val agentNumberValue = if (agentNumberList.isEmpty) "" else agentNumberList.head
+      val bankIdValue = if (bankIdList.isEmpty) "" else bankIdList.head
+      Some(transactionRequestAgentCashWithdrawal(
+        bank_id = bankIdValue,
+        agent_number = agentNumberValue
+      ))
     }
     else
       None

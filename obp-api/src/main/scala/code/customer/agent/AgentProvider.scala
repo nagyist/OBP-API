@@ -31,9 +31,9 @@ trait AgentProvider {
 
   def getBankIdByAgentId(agentId: String): Box[String]
 
-  def getAgentByAgentNumber(agentNumber: String, bankId: BankId): Box[Agent]
+  def getAgentByAgentNumber(bankId: BankId, agentNumber: String): Box[Agent]
 
-  def getAgentByAgentNumberFuture(agentNumber: String, bankId: BankId): Future[Box[Agent]]
+  def getAgentByAgentNumberFuture(bankId: BankId, agentNumber: String): Future[Box[Agent]]
 
   def checkAgentNumberAvailable(bankId: BankId, agentNumber: String): Boolean
 

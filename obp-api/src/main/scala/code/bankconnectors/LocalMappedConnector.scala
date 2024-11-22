@@ -10,12 +10,12 @@ import code.api.Constant._
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
 import code.api.attributedefinition.{AttributeDefinition, AttributeDefinitionDI}
 import code.api.cache.Caching
-import code.api.util.APIUtil.{OBPReturnType, _}
+import code.api.util.APIUtil._
 import code.api.util.ErrorMessages._
 import code.api.util._
 import code.api.v1_4_0.JSONFactory1_4_0.TransactionRequestAccountJsonV140
 import code.api.v2_1_0._
-import code.api.v4_0_0.{AgentIdJson, PostSimpleCounterpartyJson400, TransactionRequestBodyAgentJsonV400, TransactionRequestBodySimpleJsonV400}
+import code.api.v4_0_0.{AgentCashWithdrawalJson, PostSimpleCounterpartyJson400, TransactionRequestBodyAgentJsonV400, TransactionRequestBodySimpleJsonV400}
 import code.atmattribute.{AtmAttribute, AtmAttributeX}
 import code.atms.{Atms, MappedAtm}
 import code.bankattribute.{BankAttribute, BankAttributeX}
@@ -1661,6 +1661,16 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   ): OBPReturnType[Box[Agent]] = {
     AgentX.agentProvider.vend.getAgentByAgentIdFuture(
       agentId : String
+    ).map((_, callContext))
+  }
+
+  override def getAgentByAgentNumber(
+    bankId : BankId,
+    agentNumber : String,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Agent]] = {
+    AgentX.agentProvider.vend.getAgentByAgentNumberFuture(
+      bankId, agentNumber: String
     ).map((_, callContext))
   }
 
@@ -4746,17 +4756,15 @@ object LocalMappedConnector extends Connector with MdcLoggable {
             bodyToAgent <- NewStyle.function.tryons(s"$TransactionRequestDetailsExtractException It can not extract to $TransactionRequestBodyAgentJsonV400", 400, callContext) {
               body.to_agent.get
             }
-
-            toAgentId = bodyToAgent.agent_id
-            (agent, callContext) <- NewStyle.function.getAgentByAgentId(toAgentId, callContext)
-            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(toAgentId, callContext)
+            (agent, callContext) <- NewStyle.function.getAgentByAgentNumber(BankId(bodyToAgent.bank_id), bodyToAgent.agent_number, callContext)
+            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(agent.agentId, callContext)
             customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
               customerAccountLinks.head
             }
             (toAccount, callContext) <- NewStyle.function.getBankAccount(BankId(customerAccountLink.bankId), AccountId(customerAccountLink.accountId), callContext)
 
             agentRequestJsonBody = TransactionRequestBodyAgentJsonV400(
-              to = AgentIdJson(toAgentId),
+              to = AgentCashWithdrawalJson(bodyToAgent.bank_id, bodyToAgent.agent_number),
               value = AmountOfMoneyJsonV121(body.value.currency, body.value.amount),
               description = body.description,
               charge_policy = transactionRequest.charge_policy,

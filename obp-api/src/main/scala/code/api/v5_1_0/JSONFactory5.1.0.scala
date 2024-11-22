@@ -333,6 +333,7 @@ case class PutAgentJsonV510(
 
 case class AgentJsonV510(
   agent_id: String,
+  bank_id: String,
   legal_name: String,
   mobile_phone_number: String,
   agent_number: String,
@@ -948,6 +949,7 @@ object JSONFactory510 extends CustomJsonFormats {
   def createAgentJson(agent: Agent, bankAccount: BankAccount): AgentJsonV510 = {
     AgentJsonV510(
       agent_id =  agent.agentId,
+      bank_id =  agent.bankId,
       legal_name = agent.legalName,
       mobile_phone_number = agent.mobileNumber,
       agent_number = agent.number,

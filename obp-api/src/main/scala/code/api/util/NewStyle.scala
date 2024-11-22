@@ -2868,6 +2868,12 @@ object NewStyle extends MdcLoggable{
         i => (unboxFullOrFail(i._1, callContext,  s"$AgentNotFound. Current AGENT_ID($agentId)"), i._2)
       }
     }
+
+    def getAgentByAgentNumber(bankId: BankId, agentNumber : String, callContext: Option[CallContext]): OBPReturnType[Agent] = {
+      Connector.connector.vend.getAgentByAgentNumber(bankId: BankId, agentNumber : String, callContext: Option[CallContext]) map {
+        i => (unboxFullOrFail(i._1, callContext,  s"$AgentNotFound. Current BANK_ID(${bankId.value}) and AGENT_NUMBER($agentNumber)"), i._2)
+      }
+    }
     
     def updateAgentStatus(
       agentId: String,

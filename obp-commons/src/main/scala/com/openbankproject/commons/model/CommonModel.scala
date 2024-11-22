@@ -859,8 +859,8 @@ case class TransactionRequestTransferToAtm(
 //For COUNTERPARTY, it needs the counterparty_id to find the toCounterparty--> toBankAccount
 case class TransactionRequestCounterpartyId (counterparty_id : String)
 
-//For AGENT_CASH_WITHDRAWAL, it needs the agent_id to find the toAgent--> toBankAccount
-case class TransactionRequestAgentId (agent_id : String)
+//For AGENT_CASH_WITHDRAWAL, it needs the agent_number to find the toAgent--> toBankAccount
+case class transactionRequestAgentCashWithdrawal (bank_id: String , agent_number : String)
 
 case class TransactionRequestSimple (
   otherBankRoutingScheme: String,
@@ -974,7 +974,7 @@ case class TransactionRequestBodyAllTypes (
                                             @optional
                                             to_sepa_credit_transfers: Option[SepaCreditTransfers]= None,//TODO not stable, from berlin Group
                                             @optional
-                                            to_agent: Option[TransactionRequestAgentId]= None,
+                                            to_agent: Option[transactionRequestAgentCashWithdrawal]= None,
   
                                             value: AmountOfMoney,
                                             description: String

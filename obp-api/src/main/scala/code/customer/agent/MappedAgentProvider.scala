@@ -56,30 +56,30 @@ object MappedAgentProvider extends AgentProvider with MdcLoggable {
     available
   }
 
-  override def getAgentByAgentId(customerId: String): Box[Agent] = {
+  override def getAgentByAgentId(agentId: String): Box[Agent] = {
     MappedCustomer.find(
-      By(MappedCustomer.mCustomerId, customerId)
+      By(MappedCustomer.mCustomerId, agentId)
     )
   }
 
-  override def getBankIdByAgentId(customerId: String): Box[String] = {
+  override def getBankIdByAgentId(agentId: String): Box[String] = {
     val customer: Box[MappedCustomer] = MappedCustomer.find(
-      By(MappedCustomer.mCustomerId, customerId)
+      By(MappedCustomer.mCustomerId, agentId)
     )
     for (c <- customer) yield {
       c.mBank.get
     }
   }
 
-  override def getAgentByAgentNumber(customerNumber: String, bankId: BankId): Box[Agent] = {
+  override def getAgentByAgentNumber(bankId: BankId, agentNumber: String): Box[Agent] = {
     MappedCustomer.find(
-      By(MappedCustomer.mNumber, customerNumber),
+      By(MappedCustomer.mNumber, agentNumber),
       By(MappedCustomer.mBank, bankId.value)
     )
   }
 
-  override def getAgentByAgentNumberFuture(customerNumber: String, bankId: BankId): Future[Box[Agent]] = {
-    Future(getAgentByAgentNumber(customerNumber, bankId))
+  override def getAgentByAgentNumberFuture(bankId: BankId, agentNumber: String): Future[Box[Agent]] = {
+    Future(getAgentByAgentNumber(bankId: BankId, agentNumber: String))
   }
 
 

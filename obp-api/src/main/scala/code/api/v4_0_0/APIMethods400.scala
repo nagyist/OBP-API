@@ -12631,9 +12631,8 @@ object APIMethods400 extends RestHelper with APIMethods400 {
             transactionRequestBodyAgent <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $AGENT_CASH_WITHDRAWAL json format", 400, callContext) {
               json.extract[TransactionRequestBodyAgentJsonV400]
             }
-            toAgentId = transactionRequestBodyAgent.to.agent_id
-            (agent, callContext) <- NewStyle.function.getAgentByAgentId(toAgentId, callContext)
-            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(toAgentId, callContext)
+            (agent, callContext) <- NewStyle.function.getAgentByAgentNumber(BankId(transactionRequestBodyAgent.to.bank_id),transactionRequestBodyAgent.to.agent_number, callContext)
+            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(agent.agentId, callContext)
             customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
               customerAccountLinks.head
             }

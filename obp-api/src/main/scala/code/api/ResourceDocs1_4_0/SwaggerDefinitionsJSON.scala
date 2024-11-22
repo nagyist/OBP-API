@@ -5516,7 +5516,10 @@ object SwaggerDefinitionsJSON {
     List(consumerJsonV510)
   )
 
-  val agentIdJson = AgentIdJson(agentIdExample.value)
+  val agentIdJson = AgentCashWithdrawalJson(
+    bankIdExample.value,
+    agentNumberExample.value
+  )
   
   val transactionRequestBodyAgentJsonV400 = TransactionRequestBodyAgentJsonV400(
     to = agentIdJson,
@@ -5540,6 +5543,7 @@ object SwaggerDefinitionsJSON {
   
   val agentJsonV510  = AgentJsonV510(
     agent_id = agentIdExample.value,
+    bank_id = bankIdExample.value,
     legal_name = legalNameExample.value,
     mobile_phone_number = mobilePhoneNumberExample.value,
     agent_number = agentNumberExample.value,

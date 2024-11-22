@@ -344,6 +344,7 @@ case class AgentJsonV510(
 case class MinimalAgentJsonV510(
   agent_id: String,
   legal_name: String,
+  agent_number: String,
 )
 case class MinimalAgentsJsonV510(
   agents: List[MinimalAgentJsonV510]
@@ -961,7 +962,8 @@ object JSONFactory510 extends CustomJsonFormats {
         .filter(_.isConfirmedAgent == true)
         .map(agent => MinimalAgentJsonV510(
           agent_id = agent.agentId, 
-          legal_name = agent.legalName
+          legal_name = agent.legalName,
+          agent_number = agent.number
         )))
   }
 

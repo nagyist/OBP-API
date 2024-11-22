@@ -161,6 +161,8 @@ class AgentTest extends V510ServerSetup {
         val response = makeGetRequest(request)
         response.code should equal(200)
         response.body.extract[MinimalAgentsJsonV510].agents.length shouldBe(1)
+        response.body.extract[MinimalAgentsJsonV510].agents.head.agent_number should equal(postAgentJsonV510.agent_number)
+        response.body.extract[MinimalAgentsJsonV510].agents.head.legal_name should equal(postAgentJsonV510.legal_name)
       }
       
       

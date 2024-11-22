@@ -5551,6 +5551,7 @@ object SwaggerDefinitionsJSON {
   val minimalAgentJsonV510 = MinimalAgentJsonV510(
     agent_id = agentIdExample.value,
     legal_name = legalNameExample.value,
+    agent_number = agentNumberExample.value
   )
   
   val minimalAgentsJsonV510 = MinimalAgentsJsonV510(

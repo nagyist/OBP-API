@@ -5548,13 +5548,13 @@ object SwaggerDefinitionsJSON {
     is_pending_agent = true
   )
   
-  val agentMinimalJsonV510 = AgentMinimalJsonV510(
+  val minimalAgentJsonV510 = MinimalAgentJsonV510(
     agent_id = agentIdExample.value,
     legal_name = legalNameExample.value,
   )
   
-  val agentMinimalsJsonV510 = AgentMinimalsJsonV510(
-    agents = List(agentMinimalJsonV510)
+  val minimalAgentsJsonV510 = MinimalAgentsJsonV510(
+    agents = List(minimalAgentJsonV510)
   )
   
   //The common error or success format.

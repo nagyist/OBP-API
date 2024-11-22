@@ -963,7 +963,7 @@ trait APIMethods510 {
          |${urlParametersDocument(true, true)}
          |""".stripMargin,
       EmptyBody,
-      agentMinimalsJsonV510,
+      minimalAgentsJsonV510,
       List(
         $BankNotFound,
         UnknownError
@@ -978,7 +978,7 @@ trait APIMethods510 {
             (requestParams, callContext) <- extractQueryParams(cc.url, List("limit","offset","sort_direction"), cc.callContext)
             (agents, callContext) <- NewStyle.function.getAgents(bankId.value, requestParams, callContext)
           } yield {
-            (JSONFactory510.createAgentMinimalsJson(agents), HttpCode.`200`(callContext))
+            (JSONFactory510.createMinimalAgentsJson(agents), HttpCode.`200`(callContext))
           }
       }
     }

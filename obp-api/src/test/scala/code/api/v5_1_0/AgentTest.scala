@@ -143,7 +143,7 @@ class AgentTest extends V510ServerSetup {
         val request = (v5_1_0_Request / "banks" / bankId / "agents").GET
         val response = makeGetRequest(request)
         response.code should equal(200)
-        response.body.extract[AgentMinimalsJsonV510].agents.length shouldBe(0)
+        response.body.extract[MinimalAgentsJsonV510].agents.length shouldBe(0)
       }
 
       {
@@ -160,7 +160,7 @@ class AgentTest extends V510ServerSetup {
         val request = (v5_1_0_Request / "banks" / bankId / "agents").GET
         val response = makeGetRequest(request)
         response.code should equal(200)
-        response.body.extract[AgentMinimalsJsonV510].agents.length shouldBe(1)
+        response.body.extract[MinimalAgentsJsonV510].agents.length shouldBe(1)
       }
       
       

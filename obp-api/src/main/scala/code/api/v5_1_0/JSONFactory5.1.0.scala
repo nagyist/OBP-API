@@ -341,12 +341,12 @@ case class AgentJsonV510(
   is_pending_agent: Boolean
 )
 
-case class AgentMinimalJsonV510(
+case class MinimalAgentJsonV510(
   agent_id: String,
   legal_name: String,
 )
-case class AgentMinimalsJsonV510(
-  agents: List[AgentMinimalJsonV510]
+case class MinimalAgentsJsonV510(
+  agents: List[MinimalAgentJsonV510]
 )
 
 case class CustomersIdsJsonV510(customers: List[CustomerIdJson])
@@ -955,11 +955,11 @@ object JSONFactory510 extends CustomJsonFormats {
       is_pending_agent = agent.isPendingAgent
     )
   }
-  def createAgentMinimalsJson(agents: List[Agent]): AgentMinimalsJsonV510 = {
-    AgentMinimalsJsonV510(
+  def createMinimalAgentsJson(agents: List[Agent]): MinimalAgentsJsonV510 = {
+    MinimalAgentsJsonV510(
       agents
         .filter(_.isConfirmedAgent == true)
-        .map(agent => AgentMinimalJsonV510(
+        .map(agent => MinimalAgentJsonV510(
           agent_id = agent.agentId, 
           legal_name = agent.legalName
         )))

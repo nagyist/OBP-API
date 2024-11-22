@@ -10,6 +10,7 @@ import code.api.util.ErrorMessages.{$UserNotLoggedIn, BankNotFound, ConsentNotFo
 import code.api.util.FutureUtil.{EndpointContext, EndpointTimeout}
 import code.api.util.JwtUtil.{getSignedPayloadAsJson, verifyJwt}
 import code.api.util.NewStyle.HttpCode
+import code.api.util.NewStyle.function.extractQueryParams
 import code.api.util.X509.{getCommonName, getEmailAddress, getOrganization}
 import code.api.util._
 import code.api.util.newstyle.BalanceNewStyle
@@ -18,15 +19,13 @@ import code.api.util.newstyle.RegulatedEntityNewStyle.{createRegulatedEntityNewS
 import code.api.v2_1_0.ConsumerRedirectUrlJSON
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_0_0.JSONFactory300.createAggregateMetricJson
-import code.api.v3_1_0.ConsentJsonV310
+import code.api.v3_1_0.{ConsentJsonV310, JSONFactory310}
 import code.api.v3_1_0.JSONFactory310.createBadLoginStatusJson
+import code.api.v4_0_0.APIMethods400.{createTransactionRequest, transactionRequestGeneralText}
 import code.api.v4_0_0.JSONFactory400.{createAccountBalancesJson, createBalancesJson, createNewCoreBankAccountJson}
 import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, RevokedJsonV400}
-import code.api.v5_0_0.{JSONFactory500, PostConsentRequestJsonV500}
-import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createConsentsJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
-import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
 import code.api.v5_0_0.JSONFactory500
-import code.api.v5_1_0.JSONFactory510.{createRegulatedEntitiesJson, createRegulatedEntityJson}
+import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createConsentsJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
 import code.atmattribute.AtmAttribute
 import code.bankconnectors.Connector
 import code.consent.{ConsentRequests, Consents}
@@ -345,6 +344,153 @@ trait APIMethods510 {
           }
       }
     }
+
+    staticResourceDocs += ResourceDoc(
+      createAgent,
+      implementedInApiVersion,
+      nameOf(createAgent),
+      "POST",
+      "/banks/BANK_ID/agents",
+      "Create Agent",
+      s"""
+         |${authenticationRequiredMessage(true)}
+         |""",
+      postAgentJsonV510,
+      agentJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        InvalidJsonFormat,
+        AgentNumberAlreadyExists,
+        CreateAgentError,
+        UnknownError
+      ),
+      List(apiTagCustomer, apiTagPerson)
+    )
+    
+    lazy val createAgent : OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents" :: Nil JsonPost json -> _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            putData <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PostAgentJsonV510 ", 400, cc.callContext) {
+              json.extract[PostAgentJsonV510]
+            }
+            (agentNumberIsAvailable, callContext) <- NewStyle.function.checkAgentNumberAvailable(bankId, putData.agent_number, cc.callContext)
+            _ <- Helper.booleanToFuture(failMsg= s"$AgentNumberAlreadyExists Current agent_number(${putData.agent_number}) and Current bank_id(${bankId.value})", cc=callContext) {agentNumberIsAvailable}
+            (agent, callContext) <- NewStyle.function.createAgent(
+              bankId = bankId.value,
+              legalName = putData.legal_name,
+              mobileNumber = putData.mobile_phone_number,
+              number = putData.agent_number,
+              callContext,
+            )
+            (bankAccount, callContext) <- NewStyle.function.createBankAccount(
+              bankId,
+              AccountId(APIUtil.generateUUID()),
+              "AGENT",
+              "AGENT",
+              putData.currency,
+              0,
+              putData.legal_name,
+              null,
+              Nil,
+              callContext
+            )
+            (_, callContext) <- NewStyle.function.createAgentAccountLink(agent.agentId, bankAccount.bankId.value, bankAccount.accountId.value, callContext)
+            
+          } yield {
+            (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`201`(callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      updateAgentStatus,
+      implementedInApiVersion,
+      nameOf(updateAgentStatus),
+      "PUT",
+      "/banks/BANK_ID/agents/AGENT_ID",
+      "Update Agent status",
+      s"""
+         |${authenticationRequiredMessage(true)}
+         |""",
+      putAgentJsonV510,
+      agentJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        InvalidJsonFormat,
+        AgentNotFound,
+        AgentAccountLinkNotFound,
+        UnknownError
+      ),
+      List(apiTagCustomer, apiTagPerson),
+      Some(canUpdateAgentStatusAtAnyBank :: canUpdateAgentStatusAtOneBank :: Nil)
+    )
+    
+    lazy val updateAgentStatus : OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents"  :: agentId  :: Nil JsonPut json -> _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            postedData <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PostAgentJsonV510 ", 400, cc.callContext) {
+              json.extract[PutAgentJsonV510]
+            }
+            (agent, callContext) <- NewStyle.function.getAgentByAgentId(agentId, cc.callContext)
+            (agentAccountLinks, callContext) <- NewStyle.function.getAgentAccountLinksByAgentId(agentId, callContext)
+            agentAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              agentAccountLinks.head
+            }
+            (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(agentAccountLink.bankId), AccountId(agentAccountLink.accountId), callContext)
+            (agent, callContext) <- NewStyle.function.updateAgentStatus(
+              agentId,
+              postedData.is_pending_agent,
+              postedData.is_confirmed_agent,
+              callContext)
+          } yield {
+            (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`200`(callContext))
+          }
+      }
+    }
+    
+    staticResourceDocs += ResourceDoc(
+      getAgent,
+      implementedInApiVersion,
+      nameOf(getAgent),
+      "GET",
+      "/banks/BANK_ID/agents/AGENT_ID",
+      "Get Agent",
+      s"""Get Agent.
+         |
+         |${authenticationRequiredMessage(true)}
+         |""".stripMargin,
+      EmptyBody,
+      agentJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        AgentNotFound,
+        AgentAccountLinkNotFound,
+        UnknownError
+      ),
+      List(apiTagAccount)
+    )
+
+    lazy val getAgent: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents" :: agentId  :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (agent, callContext) <- NewStyle.function.getAgentByAgentId(agentId, cc.callContext)
+            (agentAccountLinks, callContext) <- NewStyle.function.getAgentAccountLinksByAgentId(agentId, callContext)
+            agentAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              agentAccountLinks.head
+            }
+            (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(agentAccountLink.bankId), AccountId(agentAccountLink.accountId), callContext)
+          } yield {
+            (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`200`(callContext))
+          }
+      }
+    }
+    
     staticResourceDocs += ResourceDoc(
       createNonPersonalUserAttribute,
       implementedInApiVersion,
@@ -799,6 +945,40 @@ trait APIMethods510 {
             )
           } yield {
             (JSONFactory510.createAtmAttributeJson(atmAttribute), HttpCode.`201`(callContext))
+          }
+      }
+    }
+    staticResourceDocs += ResourceDoc(
+      getAgents,
+      implementedInApiVersion,
+      nameOf(getAgents),
+      "GET",
+      "/banks/BANK_ID/agents",
+      "Get Agents at Bank",
+      s"""Get Agents at Bank.
+         |
+         |${authenticationRequiredMessage(false)}
+         |
+         |${urlParametersDocument(true, true)}
+         |""".stripMargin,
+      EmptyBody,
+      minimalAgentsJsonV510,
+      List(
+        $BankNotFound,
+        AgentsNotFound,
+        UnknownError
+      ),
+      List(apiTagAccount)
+    )
+
+    lazy val getAgents: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents"  :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (requestParams, callContext) <- extractQueryParams(cc.url, List("limit","offset","sort_direction"), cc.callContext)
+            (agents, callContext) <- NewStyle.function.getAgents(bankId.value, requestParams, callContext)
+          } yield {
+            (JSONFactory510.createMinimalAgentsJson(agents), HttpCode.`200`(callContext))
           }
       }
     }

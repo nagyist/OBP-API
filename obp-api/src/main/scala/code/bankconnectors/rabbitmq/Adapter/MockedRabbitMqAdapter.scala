@@ -31,6 +31,7 @@ class ServerCallback(val ch: Channel) extends DeliverCallback with MdcLoggable{
     val replyProps = new BasicProperties.Builder()
       .correlationId(delivery.getProperties.getCorrelationId)
       .contentType("application/json")
+      .expiration("60000")
       .messageId(obpMessageId)
       .build
     val message = new String(delivery.getBody, "UTF-8")
@@ -3099,7 +3100,7 @@ object MockedRabbitMqAdapter extends App with MdcLoggable{
 
     connection = factory.newConnection()
     channel = connection.createChannel()
-    channel.queueDeclare(RPC_QUEUE_NAME, false, false, false, null)
+    channel.queueDeclare(RPC_QUEUE_NAME, false, false, false, RabbitMQUtils.args)
     channel.basicQos(1)
     // stop after one consumed message since this is example code
     val serverCallback = new ServerCallback(channel)

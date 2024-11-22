@@ -170,6 +170,16 @@ case class CustomerCommons(
 
 object CustomerCommons extends Converter[Customer, CustomerCommons]
 
+case class AgentCommons(
+  agentId: String,
+  bankId: String,
+  number: String,
+  legalName: String,
+  mobileNumber: String,
+  isConfirmedAgent: Boolean,
+  isPendingAgent: Boolean,
+) extends Agent
+object AgentCommons extends Converter[Agent, AgentCommons]
 
 case class CustomerAddressCommons(
                                    customerId :String,
@@ -594,6 +604,15 @@ case class CustomerAccountLinkTraitCommons(
 
 object CustomerAccountLinkTraitCommons extends Converter[CustomerAccountLinkTrait, CustomerAccountLinkTraitCommons]
 
+case class AgentAccountLinkTraitCommons(
+  agentAccountLinkId: String,
+  agentId: String,
+  bankId: String,
+  accountId: String
+) extends AgentAccountLinkTrait
+
+object AgentAccountLinkTraitCommons extends Converter[AgentAccountLinkTrait, AgentAccountLinkTraitCommons]
+
 
 case class CounterpartyLimitTraitCommons(
   counterpartyLimitId: String,
@@ -840,6 +859,9 @@ case class TransactionRequestTransferToAtm(
 //For COUNTERPARTY, it needs the counterparty_id to find the toCounterparty--> toBankAccount
 case class TransactionRequestCounterpartyId (counterparty_id : String)
 
+//For AGENT_CASH_WITHDRAWAL, it needs the agent_number to find the toAgent--> toBankAccount
+case class transactionRequestAgentCashWithdrawal (bank_id: String , agent_number : String)
+
 case class TransactionRequestSimple (
   otherBankRoutingScheme: String,
   otherBankRoutingAddress: String,
@@ -951,6 +973,8 @@ case class TransactionRequestBodyAllTypes (
                                             to_transfer_to_account: Option[TransactionRequestTransferToAccount]= None,//TODO not stable
                                             @optional
                                             to_sepa_credit_transfers: Option[SepaCreditTransfers]= None,//TODO not stable, from berlin Group
+                                            @optional
+                                            to_agent: Option[transactionRequestAgentCashWithdrawal]= None,
   
                                             value: AmountOfMoney,
                                             description: String
@@ -1160,29 +1184,6 @@ case class AuthInfo(
   userAuthContexts: List[BasicUserAuthContext]= Nil,
   authViews: List[AuthView] = Nil,
 )
-
-case class ObpCustomer(
-  customerId: String,
-  bankId: String,
-  number: String,
-  legalName: String,
-  mobileNumber: String,
-  email: String,
-  faceImage: CustomerFaceImage,
-  dateOfBirth: Date,
-  relationshipStatus: String,
-  dependents: Integer,
-  dobOfDependents: List[Date],
-  highestEducationAttained: String,
-  employmentStatus: String,
-  creditRating: CreditRating,
-  creditLimit: CreditLimit,
-  kycStatus: lang.Boolean,
-  lastOkDate: Date,
-  title: String = "", //These new fields for V310, not from Connector for now. 
-  branchId: String = "", //These new fields for V310, not from Connector for now. 
-  nameSuffix: String = "", //These new fields for V310, not from Connector for now. 
-) extends Customer
 
 case class InternalCustomer(
   customerId: String,

@@ -391,6 +391,19 @@ case class ConsentInfoJsonV400(consent_id: String,
                                api_version: String)
 case class ConsentInfosJsonV400(consents: List[ConsentInfoJsonV400])
 
+case class AgentCashWithdrawalJson(
+  bank_id: String,
+  agent_number: String
+)
+
+case class TransactionRequestBodyAgentJsonV400(
+  to: AgentCashWithdrawalJson,
+  value: AmountOfMoneyJsonV121,
+  description: String,
+  charge_policy: String,
+  future_date: Option[String] = None
+) extends TransactionRequestCommonBodyJSON
+
 case class TransactionRequestBodySEPAJsonV400(
                                                value: AmountOfMoneyJsonV121,
                                                to: IbanJson,

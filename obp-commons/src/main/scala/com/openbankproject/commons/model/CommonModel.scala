@@ -604,6 +604,15 @@ case class CustomerAccountLinkTraitCommons(
 
 object CustomerAccountLinkTraitCommons extends Converter[CustomerAccountLinkTrait, CustomerAccountLinkTraitCommons]
 
+case class AgentAccountLinkTraitCommons(
+  agentAccountLinkId: String,
+  agentId: String,
+  bankId: String,
+  accountId: String
+) extends AgentAccountLinkTrait
+
+object AgentAccountLinkTraitCommons extends Converter[AgentAccountLinkTrait, AgentAccountLinkTraitCommons]
+
 
 case class CounterpartyLimitTraitCommons(
   counterpartyLimitId: String,

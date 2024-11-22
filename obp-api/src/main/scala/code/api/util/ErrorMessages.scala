@@ -529,6 +529,8 @@ object ErrorMessages {
   val AgentAccountLinkNotFound = "OBP-30325: Agent Account Link not found."
   val AgentsNotFound = "OBP-30326: Agents not found."
   val CreateAgentAccountLinkError = "OBP-30327: Could not create the agent account link."
+  val AgentNumberAlreadyExists = "OBP-30328: Agent Number already exists. Please specify a different value for BANK_ID or AGENT_NUMBER."
+  val GetAgentAccountLinksError = "OBP-30226: Could not get the agent account links."
   
   // Branch related messages
   val BranchesNotFoundLicense = "OBP-32001: No branches available. License may not be set."

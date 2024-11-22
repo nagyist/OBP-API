@@ -1059,6 +1059,12 @@ trait Connector extends MdcLoggable {
     callContext: Option[CallContext]
   ): OBPReturnType[Box[Boolean]] = Future{(Failure(setUnimplementedError(nameOf(checkCustomerNumberAvailable _))), callContext)}
 
+  def checkAgentNumberAvailable(
+    bankId: BankId,
+    agentNumber: String, 
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Boolean]] = Future{(Failure(setUnimplementedError(nameOf(checkAgentNumberAvailable _))), callContext)}
+
   def createCustomer(
                       bankId: BankId,
                       legalName: String,
@@ -1793,6 +1799,8 @@ trait Connector extends MdcLoggable {
   
   def getCustomerAccountLinksByCustomerId(customerId: String, callContext: Option[CallContext]): OBPReturnType[Box[List[CustomerAccountLinkTrait]]] = Future{(Failure(setUnimplementedError(nameOf(getCustomerAccountLinksByCustomerId _))), callContext)}
   
+  def getAgentAccountLinksByAgentId(agnetId: String, callContext: Option[CallContext]): OBPReturnType[Box[List[CustomerAccountLinkTrait]]] = Future{(Failure(setUnimplementedError(nameOf(getCustomerAccountLinksByCustomerId _))), callContext)}
+  
   def getCustomerAccountLinksByBankIdAccountId(bankId: String, accountId: String, callContext: Option[CallContext]): OBPReturnType[Box[List[CustomerAccountLinkTrait]]] = Future{(Failure(setUnimplementedError(nameOf(getCustomerAccountLinksByBankIdAccountId _))), callContext)}
   
   def getCustomerAccountLinkById(customerAccountLinkId: String, callContext: Option[CallContext]): OBPReturnType[Box[CustomerAccountLinkTrait]] = Future{(Failure(setUnimplementedError(nameOf(getCustomerAccountLinkById _))), callContext)}
@@ -1800,6 +1808,8 @@ trait Connector extends MdcLoggable {
   def deleteCustomerAccountLinkById(customerAccountLinkId: String, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = Future{(Failure(setUnimplementedError(nameOf(deleteCustomerAccountLinkById _))), callContext)}
   
   def createCustomerAccountLink(customerId: String, bankId: String, accountId: String, relationshipType: String, callContext: Option[CallContext]): OBPReturnType[Box[CustomerAccountLinkTrait]] = Future{(Failure(setUnimplementedError(nameOf(createCustomerAccountLink _))), callContext)}
+  
+  def createAgentAccountLink(agentId: String, bankId: String, accountId: String, callContext: Option[CallContext]): OBPReturnType[Box[AgentAccountLinkTrait]] = Future{(Failure(setUnimplementedError(nameOf(createAgentAccountLink _))), callContext)}
   
   def updateCustomerAccountLinkById(customerAccountLinkId: String, relationshipType: String, callContext: Option[CallContext]): OBPReturnType[Box[CustomerAccountLinkTrait]] = Future{(Failure(setUnimplementedError(nameOf(updateCustomerAccountLinkById _))), callContext)}
   

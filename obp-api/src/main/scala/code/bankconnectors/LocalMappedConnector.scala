@@ -3074,6 +3074,17 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       CustomerX.customerProvider.vend.checkCustomerNumberAvailable(bankId, customerNumber)
     }, callContext)
   }
+  
+  override def checkAgentNumberAvailable(
+    bankId: BankId,
+    agentNumber: String,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Boolean]] = Future {
+    //in OBP, customer and agent share the same customer model. the CustomerAccountLink and AgentAccountLink also share the same model
+    (tryo {
+      CustomerX.customerProvider.vend.checkCustomerNumberAvailable(bankId, agentNumber)
+    }, callContext)
+  }
 
 
   override def createCustomer(
@@ -5059,6 +5070,11 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     (CustomerAccountLinkX.customerAccountLink.vend.getCustomerAccountLinksByCustomerId(customerId),callContext)
   }
 
+  override def getAgentAccountLinksByAgentId(agentId: String, callContext: Option[CallContext]) = Future{
+    //in OBP, customer and agent share the same customer model. the CustomerAccountLink and AgentAccountLink also share the same model
+    (CustomerAccountLinkX.customerAccountLink.vend.getCustomerAccountLinksByCustomerId(agentId),callContext) 
+  }
+
   override def getCustomerAccountLinkById(customerAccountLinkId: String, callContext: Option[CallContext]) = Future{
     (CustomerAccountLinkX.customerAccountLink.vend.getCustomerAccountLinkById(customerAccountLinkId),callContext)
   }
@@ -5076,6 +5092,19 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
   override def createCustomerAccountLink(customerId: String, bankId: String, accountId: String, relationshipType: String, callContext: Option[CallContext]): OBPReturnType[Box[CustomerAccountLinkTrait]] = Future{
     CustomerAccountLinkX.customerAccountLink.vend.createCustomerAccountLink(customerId: String, bankId, accountId: String, relationshipType: String) map { ( _, callContext) }
+  }
+
+  override def createAgentAccountLink(agentId: String, bankId: String, accountId: String, callContext: Option[CallContext]): OBPReturnType[Box[AgentAccountLinkTrait]] = Future{
+    //in OBP, customer and agent share the same customer model. the CustomerAccountLink and AgentAccountLink also share the same model
+    CustomerAccountLinkX.customerAccountLink.vend.createCustomerAccountLink(agentId: String, bankId, accountId: String, "Owner") map { customer => (
+      AgentAccountLinkTraitCommons(
+        agentAccountLinkId = customer.customerAccountLinkId,
+        agentId = customer.customerId,
+        bankId = customer.bankId,
+        accountId = customer.accountId,
+      ), 
+      callContext) 
+    }
   }
 
   override def getConsentImplicitSCA(user: User, callContext: Option[CallContext]): OBPReturnType[Box[ConsentImplicitSCAT]] = Future {

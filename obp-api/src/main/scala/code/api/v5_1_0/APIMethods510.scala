@@ -361,10 +361,8 @@ trait APIMethods510 {
         $UserNotLoggedIn,
         $BankNotFound,
         InvalidJsonFormat,
-        CustomerNumberAlreadyExists,
-        UserNotFoundById,
-        CustomerAlreadyExistsForUser,
-        CreateConsumerError,
+        AgentNumberAlreadyExists,
+        CreateAgentError,
         UnknownError
       ),
       List(apiTagCustomer, apiTagPerson)
@@ -374,15 +372,16 @@ trait APIMethods510 {
       case "banks" :: BankId(bankId) :: "agents" :: Nil JsonPost json -> _ => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            postedData <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PostAgentJsonV510 ", 400, cc.callContext) {
+            putData <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PostAgentJsonV510 ", 400, cc.callContext) {
               json.extract[PostAgentJsonV510]
             }
-            (_, callContext) <- NewStyle.function.checkCustomerNumberAvailable(bankId, postedData.agent_number, cc.callContext)
+            (agentNumberIsAvailable, callContext) <- NewStyle.function.checkAgentNumberAvailable(bankId, putData.agent_number, cc.callContext)
+            _ <- Helper.booleanToFuture(failMsg= s"$AgentNumberAlreadyExists Current agent_number(${putData.agent_number}) and Current bank_id(${bankId.value})", cc=callContext) {agentNumberIsAvailable}
             (agent, callContext) <- NewStyle.function.createAgent(
               bankId = bankId.value,
-              legalName = postedData.legal_name,
-              mobileNumber = postedData.mobile_phone_number,
-              number = postedData.agent_number,
+              legalName = putData.legal_name,
+              mobileNumber = putData.mobile_phone_number,
+              number = putData.agent_number,
               callContext,
             )
             (bankAccount, callContext) <- NewStyle.function.createBankAccount(
@@ -390,14 +389,15 @@ trait APIMethods510 {
               AccountId(APIUtil.generateUUID()),
               "AGENT",
               "AGENT",
-              postedData.currency,
+              putData.currency,
               0,
-              postedData.legal_name,
+              putData.legal_name,
               null,
               Nil,
               callContext
             )
-            (_, callContext) <- NewStyle.function.createCustomerAccountLink(agent.agentId, bankAccount.bankId.value, bankAccount.accountId.value, "Owner", callContext)
+            (_, callContext) <- NewStyle.function.createAgentAccountLink(agent.agentId, bankAccount.bankId.value, bankAccount.accountId.value, callContext)
+            
           } yield {
             (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`201`(callContext))
           }
@@ -420,10 +420,8 @@ trait APIMethods510 {
         $UserNotLoggedIn,
         $BankNotFound,
         InvalidJsonFormat,
-        CustomerNumberAlreadyExists,
-        UserNotFoundById,
-        CustomerAlreadyExistsForUser,
-        CreateConsumerError,
+        AgentNotFound,
+        AgentAccountLinkNotFound,
         UnknownError
       ),
       List(apiTagCustomer, apiTagPerson),
@@ -438,11 +436,11 @@ trait APIMethods510 {
               json.extract[PutAgentJsonV510]
             }
             (agent, callContext) <- NewStyle.function.getAgentByAgentId(agentId, cc.callContext)
-            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(agentId, callContext)
-            customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
-              customerAccountLinks.head
+            (agentAccountLinks, callContext) <- NewStyle.function.getAgentAccountLinksByAgentId(agentId, callContext)
+            agentAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              agentAccountLinks.head
             }
-            (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(customerAccountLink.bankId), AccountId(customerAccountLink.accountId), callContext)
+            (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(agentAccountLink.bankId), AccountId(agentAccountLink.accountId), callContext)
             (agent, callContext) <- NewStyle.function.updateAgentStatus(
               agentId,
               postedData.is_pending_agent,
@@ -470,6 +468,8 @@ trait APIMethods510 {
       List(
         $UserNotLoggedIn,
         $BankNotFound,
+        AgentNotFound,
+        AgentAccountLinkNotFound,
         UnknownError
       ),
       List(apiTagAccount)
@@ -479,13 +479,12 @@ trait APIMethods510 {
       case "banks" :: BankId(bankId) :: "agents" :: agentId  :: Nil JsonGet _ => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            (Full(u), callContext) <- SS.user
-            (agent, callContext) <- NewStyle.function.getAgentByAgentId(agentId, callContext)
-            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(agentId, callContext)
-            customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
-              customerAccountLinks.head
+            (agent, callContext) <- NewStyle.function.getAgentByAgentId(agentId, cc.callContext)
+            (agentAccountLinks, callContext) <- NewStyle.function.getAgentAccountLinksByAgentId(agentId, callContext)
+            agentAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              agentAccountLinks.head
             }
-            (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(customerAccountLink.bankId), AccountId(customerAccountLink.accountId), callContext)
+            (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(agentAccountLink.bankId), AccountId(agentAccountLink.accountId), callContext)
           } yield {
             (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`200`(callContext))
           }
@@ -966,6 +965,7 @@ trait APIMethods510 {
       minimalAgentsJsonV510,
       List(
         $BankNotFound,
+        AgentsNotFound,
         UnknownError
       ),
       List(apiTagAccount)

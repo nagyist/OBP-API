@@ -77,7 +77,7 @@ import code.counterpartylimit.{CounterpartyLimit}
 import com.openbankproject.commons.model.CounterpartyLimitTrait
 import code.crm.CrmEvent
 import code.crm.CrmEvent.CrmEvent
-import com.openbankproject.commons.model.CustomerAccountLinkTrait
+import com.openbankproject.commons.model.{CustomerAccountLinkTrait, AgentAccountLinkTrait}
 import code.dynamicMessageDoc.{DynamicMessageDocProvider, JsonDynamicMessageDoc}
 import code.dynamicResourceDoc.{DynamicResourceDocProvider, JsonDynamicResourceDoc}
 import code.endpointMapping.{EndpointMappingProvider, EndpointMappingT}
@@ -754,12 +754,18 @@ object NewStyle extends MdcLoggable{
         i => (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse", 400), i._2) 
       }
     }
+    
+    def checkAgentNumberAvailable(bankId: BankId, agentNumber: String, callContext: Option[CallContext]): OBPReturnType[Boolean] = {
+      Connector.connector.vend.checkAgentNumberAvailable(bankId: BankId, agentNumber: String, callContext: Option[CallContext]) map {
+        i => (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse", 400), i._2) 
+      }
+    }
+    
     def getCustomerByCustomerNumber(customerNumber : String, bankId : BankId, callContext: Option[CallContext]): OBPReturnType[Customer] = {
       Connector.connector.vend.getCustomerByCustomerNumber(customerNumber, bankId, callContext) map {
         unboxFullOrFail(_, callContext, CustomerNotFound, 404)
       }
     }
-
 
     def getCustomerAddress(customerId : String, callContext: Option[CallContext]): OBPReturnType[List[CustomerAddress]] = {
       Connector.connector.vend.getCustomerAddress(customerId, callContext) map {
@@ -4128,14 +4134,19 @@ object NewStyle extends MdcLoggable{
         i => (unboxFullOrFail(i._1, callContext, CreateCustomerAccountLinkError), i._2)
       }
     
-    def createAgentAccountLink(agentId: String, bankId: String, accountId: String, relationshipType: String, callContext: Option[CallContext]): OBPReturnType[CustomerAccountLinkTrait] =
-      Connector.connector.vend.createCustomerAccountLink(agentId: String, bankId, accountId: String, relationshipType: String, callContext: Option[CallContext]) map {
+    def createAgentAccountLink(agentId: String, bankId: String, accountId: String, callContext: Option[CallContext]): OBPReturnType[AgentAccountLinkTrait] =
+      Connector.connector.vend.createAgentAccountLink(agentId: String, bankId, accountId: String, callContext: Option[CallContext]) map {
         i => (unboxFullOrFail(i._1, callContext, CreateAgentAccountLinkError), i._2)
       }
     
     def getCustomerAccountLinksByCustomerId(customerId: String, callContext: Option[CallContext]): OBPReturnType[List[CustomerAccountLinkTrait]] =
       Connector.connector.vend.getCustomerAccountLinksByCustomerId(customerId: String, callContext: Option[CallContext]) map {
         i => (unboxFullOrFail(i._1, callContext, GetCustomerAccountLinksError), i._2)
+      }
+    
+    def getAgentAccountLinksByAgentId(agentId: String, callContext: Option[CallContext]): OBPReturnType[List[CustomerAccountLinkTrait]] =
+      Connector.connector.vend.getAgentAccountLinksByAgentId(agentId: String, callContext: Option[CallContext]) map {
+        i => (unboxFullOrFail(i._1, callContext, GetAgentAccountLinksError), i._2)
       }
     
     def getCustomerAccountLinksByBankIdAccountId(bankId: String, accountId: String, callContext: Option[CallContext]): OBPReturnType[List[CustomerAccountLinkTrait]] =

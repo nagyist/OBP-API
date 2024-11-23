@@ -166,6 +166,16 @@ jwt.use.ssl=false
 #truststore.path=/path/to/api.truststore.jks
 
 
+## Enable mTLS for Redis, if set to true must set paths for the keystore and truststore locations
+# redis.use.ssl=false
+# Client
+# keystore.path.redis = client-keystore.p12
+# keystore.password.redis = keystore-password
+# Server
+# truststore.path.redis = path/to/ca.jks
+# truststore.password.redis = truststore-password
+
+
 ## Enable writing API metrics (which APIs are called) to RDBMS
 write_metrics=true
 ## Enable writing connector metrics (which methods are called)to RDBMS 

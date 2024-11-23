@@ -65,6 +65,9 @@ object ExampleValue {
 
   lazy val customerIdExample = ConnectorField("7uy8a7e4-6d02-40e3-a129-0b2bf89de8uh", s"A non human friendly string that identifies the customer and is used in URLs. This SHOULD NOT be the customer number. The combination of customerId and bankId MUST be unique on an OBP instance. customerId SHOULD be unique on an OBP instance. Ideally customerId is a UUID. A mapping between customer number and customer id is kept in OBP.")
   glossaryItems += makeGlossaryItem("Customer.customerId", customerIdExample)
+
+  lazy val agentIdExample = ConnectorField("7uy8a7e4-6d02-40e3-a129-0b2bf89de8uh", s"A non human friendly string that identifies the agent and is used in URLs. This SHOULD NOT be the agent number. The combination of agentId and bankId MUST be unique on an OBP instance. AgentId SHOULD be unique on an OBP instance. Ideally agentId is a UUID. A mapping between agent number and agent id is kept in OBP.")
+  glossaryItems += makeGlossaryItem("Agent.agent_id", agentIdExample)
   
   lazy val customerAccountLinkIdExample = ConnectorField("xyz8a7e4-6d02-40e3-a129-0b2bf89de8uh", s"A non human friendly string that identifies the Customer Account Link and is used in URLs. ")
   glossaryItems += makeGlossaryItem("Customer.customerAccountLinkId", customerAccountLinkIdExample)
@@ -113,6 +116,9 @@ object ExampleValue {
   
   lazy val customerNumberExample = ConnectorField("5987953", s"The human friendly customer identifier that MUST uniquely identify the Customer at the Bank ID. Customer Number is NOT used in URLs.")
   glossaryItems += makeGlossaryItem("Customer.customerNumber", customerNumberExample)
+  
+  lazy val agentNumberExample = ConnectorField("5987953", s"The human friendly agent identifier that MUST uniquely identify the Agent at the Bank ID. Agent Number is NOT used in URLs.")
+  glossaryItems += makeGlossaryItem("Agent.agent_number", agentNumberExample)
   
   lazy val licenseIdExample = ConnectorField("ODbL-1.0", s"")
   glossaryItems += makeGlossaryItem("License.id", licenseIdExample)

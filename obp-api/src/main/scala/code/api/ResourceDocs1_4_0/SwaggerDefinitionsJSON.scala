@@ -5515,6 +5515,53 @@ object SwaggerDefinitionsJSON {
   val consumersJsonV510 = ConsumersJsonV510(
     List(consumerJsonV510)
   )
+
+  val agentIdJson = AgentCashWithdrawalJson(
+    bankIdExample.value,
+    agentNumberExample.value
+  )
+  
+  val transactionRequestBodyAgentJsonV400 = TransactionRequestBodyAgentJsonV400(
+    to = agentIdJson,
+    value = amountOfMoneyJsonV121,
+    description =  descriptionExample.value,
+    charge_policy = chargePolicyExample.value,
+    future_date = Some(futureDateExample.value)
+  )
+  
+  val postAgentJsonV510  = PostAgentJsonV510(
+    legal_name = legalNameExample.value,
+    mobile_phone_number = mobilePhoneNumberExample.value,
+    agent_number = agentNumberExample.value,
+    currency = currencyExample.value
+  )
+  
+  val putAgentJsonV510  = PutAgentJsonV510(
+    is_pending_agent = false,
+    is_confirmed_agent = true
+  )
+  
+  val agentJsonV510  = AgentJsonV510(
+    agent_id = agentIdExample.value,
+    bank_id = bankIdExample.value,
+    legal_name = legalNameExample.value,
+    mobile_phone_number = mobilePhoneNumberExample.value,
+    agent_number = agentNumberExample.value,
+    currency = currencyExample.value,
+    is_confirmed_agent = false,
+    is_pending_agent = true
+  )
+  
+  val minimalAgentJsonV510 = MinimalAgentJsonV510(
+    agent_id = agentIdExample.value,
+    legal_name = legalNameExample.value,
+    agent_number = agentNumberExample.value
+  )
+  
+  val minimalAgentsJsonV510 = MinimalAgentsJsonV510(
+    agents = List(minimalAgentJsonV510)
+  )
+  
   //The common error or success format.
   //Just some helper format to use in Json 
   case class NotSupportedYet()

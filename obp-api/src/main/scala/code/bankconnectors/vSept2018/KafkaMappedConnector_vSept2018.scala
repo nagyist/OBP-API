@@ -3076,24 +3076,27 @@ object KafkaMappedConnector_vSept2018 extends KafkaMappedConnector_vSept2018{
     )
   }
   def createObpCustomer(customer : InternalCustomer) : Customer = {
-    ObpCustomer(
+    CustomerCommons(
       customerId = customer.customerId,
       bankId = customer.bankId,
       number = customer.number,
       legalName = customer.legalName,
       mobileNumber = customer.mobileNumber,
       email = customer.email,
-      faceImage = customer.faceImage,
+      faceImage = CustomerFaceImage(customer.faceImage.date,customer.faceImage.url),
       dateOfBirth = customer.dateOfBirth,
       relationshipStatus = customer.relationshipStatus,
       dependents = customer.dependents,
       dobOfDependents = customer.dobOfDependents,
       highestEducationAttained = customer.highestEducationAttained,
       employmentStatus = customer.employmentStatus,
-      creditRating = customer.creditRating,
-      creditLimit = customer.creditLimit,
+      creditRating = CreditRating(customer.creditRating.rating, customer.creditRating.source),
+      creditLimit = CreditLimit(customer.creditLimit.amount,customer.creditLimit.currency),
       kycStatus = customer.kycStatus,
       lastOkDate = customer.lastOkDate,
+      title = "",
+      branchId = "",
+      nameSuffix = ""
     )
   }
 

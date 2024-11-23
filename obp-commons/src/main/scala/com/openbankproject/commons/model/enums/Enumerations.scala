@@ -105,6 +105,7 @@ object TransactionRequestTypes extends  OBPEnumeration[TransactionRequestTypes]{
   object TARGET_2_PAYMENTS extends Value
   object CROSS_BORDER_CREDIT_TRANSFERS extends Value
   object REFUND extends Value
+  object AGENT_CASH_WITHDRAWAL extends Value
 }
 
 sealed trait StrongCustomerAuthentication extends EnumValue

@@ -10,12 +10,12 @@ import code.api.Constant._
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
 import code.api.attributedefinition.{AttributeDefinition, AttributeDefinitionDI}
 import code.api.cache.Caching
-import code.api.util.APIUtil.{OBPReturnType, _}
+import code.api.util.APIUtil._
 import code.api.util.ErrorMessages._
 import code.api.util._
 import code.api.v1_4_0.JSONFactory1_4_0.TransactionRequestAccountJsonV140
 import code.api.v2_1_0._
-import code.api.v4_0_0.{PostSimpleCounterpartyJson400, TransactionRequestBodySimpleJsonV400}
+import code.api.v4_0_0.{AgentCashWithdrawalJson, PostSimpleCounterpartyJson400, TransactionRequestBodyAgentJsonV400, TransactionRequestBodySimpleJsonV400}
 import code.atmattribute.{AtmAttribute, AtmAttributeX}
 import code.atms.{Atms, MappedAtm}
 import code.bankattribute.{BankAttribute, BankAttributeX}
@@ -25,6 +25,7 @@ import code.cards.MappedPhysicalCard
 import code.context.{UserAuthContextProvider, UserAuthContextUpdateProvider}
 import code.counterpartylimit.CounterpartyLimitProvider
 import code.customer._
+import code.customer.agent.AgentX
 import code.customeraccountlinks.CustomerAccountLinkX
 import com.openbankproject.commons.model.CustomerAccountLinkTrait
 import code.customeraddress.CustomerAddressX
@@ -1623,7 +1624,67 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       transactionRequestId: TransactionRequestId
     ).map((_, callContext))
   }
+  
+  override def createAgent(
+    bankId: String,
+    legalName : String,
+    mobileNumber : String,
+    number : String,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Agent]] = {
+    AgentX.agentProvider.vend.createAgent(
+      bankId: String,
+      legalName : String,
+      mobileNumber : String,
+      number : String,
+      callContext: Option[CallContext]
+    ).map((_, callContext))
+  }
 
+  override def updateAgentStatus(
+    agentId: String,
+    isPendingAgent: Boolean,
+    isConfirmedAgent: Boolean,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Agent]] = {
+    AgentX.agentProvider.vend.updateAgentStatus(
+      agentId: String,
+      isPendingAgent: Boolean,
+      isConfirmedAgent: Boolean,
+      callContext: Option[CallContext]
+    ).map((_, callContext))
+  }
+
+  override def getAgentByAgentId(
+    agentId : String,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Agent]] = {
+    AgentX.agentProvider.vend.getAgentByAgentIdFuture(
+      agentId : String
+    ).map((_, callContext))
+  }
+
+  override def getAgentByAgentNumber(
+    bankId : BankId,
+    agentNumber : String,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Agent]] = {
+    AgentX.agentProvider.vend.getAgentByAgentNumberFuture(
+      bankId, agentNumber: String
+    ).map((_, callContext))
+  }
+
+  override def getAgents(
+    bankId : String,
+    queryParams: List[OBPQueryParam],
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[List[Agent]]] = {
+    AgentX.agentProvider.vend.getAgentsFuture(
+      BankId(bankId),
+      queryParams: List[OBPQueryParam]
+    ).map((_, callContext))
+  }
+  
   override def getTransactionRequestAttributes(bankId: BankId,
                                                transactionRequestId: TransactionRequestId,
                                                callContext: Option[CallContext]): OBPReturnType[Box[List[TransactionRequestAttributeTrait]]] = {
@@ -3021,6 +3082,17 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                                            ): OBPReturnType[Box[Boolean]] = Future {
     (tryo {
       CustomerX.customerProvider.vend.checkCustomerNumberAvailable(bankId, customerNumber)
+    }, callContext)
+  }
+  
+  override def checkAgentNumberAvailable(
+    bankId: BankId,
+    agentNumber: String,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[Boolean]] = Future {
+    //in OBP, customer and agent share the same customer model. the CustomerAccountLink and AgentAccountLink also share the same model
+    (tryo {
+      CustomerX.customerProvider.vend.checkCustomerNumberAvailable(bankId, agentNumber)
     }, callContext)
   }
 
@@ -4679,6 +4751,40 @@ object LocalMappedConnector extends Connector with MdcLoggable {
           } yield {
             (transactionId, callContext)
           }
+        case AGENT_CASH_WITHDRAWAL =>
+          for {
+            bodyToAgent <- NewStyle.function.tryons(s"$TransactionRequestDetailsExtractException It can not extract to $TransactionRequestBodyAgentJsonV400", 400, callContext) {
+              body.to_agent.get
+            }
+            (agent, callContext) <- NewStyle.function.getAgentByAgentNumber(BankId(bodyToAgent.bank_id), bodyToAgent.agent_number, callContext)
+            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(agent.agentId, callContext)
+            customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              customerAccountLinks.head
+            }
+            (toAccount, callContext) <- NewStyle.function.getBankAccount(BankId(customerAccountLink.bankId), AccountId(customerAccountLink.accountId), callContext)
+
+            agentRequestJsonBody = TransactionRequestBodyAgentJsonV400(
+              to = AgentCashWithdrawalJson(bodyToAgent.bank_id, bodyToAgent.agent_number),
+              value = AmountOfMoneyJsonV121(body.value.currency, body.value.amount),
+              description = body.description,
+              charge_policy = transactionRequest.charge_policy,
+              future_date = transactionRequest.future_date
+            )
+
+            (transactionId, callContext) <- NewStyle.function.makePaymentv210(
+              fromAccount,
+              toAccount,
+              transactionRequest.id,
+              transactionRequestCommonBody = agentRequestJsonBody,
+              BigDecimal(agentRequestJsonBody.value.amount),
+              agentRequestJsonBody.description,
+              TransactionRequestType(transactionRequestType),
+              transactionRequest.charge_policy,
+              callContext
+            )
+          } yield {
+            (transactionId, callContext)
+          }
         case SIMPLE =>
           for {
             bodyToSimple <- NewStyle.function.tryons(s"$TransactionRequestDetailsExtractException It can not extract to $TransactionRequestBodyCounterpartyJSON", 400, callContext) {
@@ -4844,11 +4950,11 @@ object LocalMappedConnector extends Connector with MdcLoggable {
         case transactionRequestType => Future((throw new Exception(s"${InvalidTransactionRequestType}: '${transactionRequestType}'. Not supported in this version.")), callContext)
       }
 
-      _ = saveTransactionRequestTransaction(transactionRequestId, transactionId, callContext)
+      didSaveTransId <- saveTransactionRequestTransaction(transactionRequestId, transactionId, callContext)
+
+      didSaveStatus <- NewStyle.function.saveTransactionRequestStatusImpl(transactionRequestId, TransactionRequestStatus.COMPLETED.toString, callContext)
       
-      _ <- NewStyle.function.saveTransactionRequestStatusImpl(transactionRequestId, TransactionRequestStatus.COMPLETED.toString, callContext)
-      
-      //After `makePaymentv200` and update data for request, we get the new requqest from database again.
+      //After `makePaymentv210` and update data for request, we get the new request from database .
       (transactionRequest, callContext) <- NewStyle.function.getTransactionRequestImpl(transactionRequestId, callContext)
 
     } yield {
@@ -4972,6 +5078,11 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     (CustomerAccountLinkX.customerAccountLink.vend.getCustomerAccountLinksByCustomerId(customerId),callContext)
   }
 
+  override def getAgentAccountLinksByAgentId(agentId: String, callContext: Option[CallContext]) = Future{
+    //in OBP, customer and agent share the same customer model. the CustomerAccountLink and AgentAccountLink also share the same model
+    (CustomerAccountLinkX.customerAccountLink.vend.getCustomerAccountLinksByCustomerId(agentId),callContext) 
+  }
+
   override def getCustomerAccountLinkById(customerAccountLinkId: String, callContext: Option[CallContext]) = Future{
     (CustomerAccountLinkX.customerAccountLink.vend.getCustomerAccountLinkById(customerAccountLinkId),callContext)
   }
@@ -4989,6 +5100,19 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
   override def createCustomerAccountLink(customerId: String, bankId: String, accountId: String, relationshipType: String, callContext: Option[CallContext]): OBPReturnType[Box[CustomerAccountLinkTrait]] = Future{
     CustomerAccountLinkX.customerAccountLink.vend.createCustomerAccountLink(customerId: String, bankId, accountId: String, relationshipType: String) map { ( _, callContext) }
+  }
+
+  override def createAgentAccountLink(agentId: String, bankId: String, accountId: String, callContext: Option[CallContext]): OBPReturnType[Box[AgentAccountLinkTrait]] = Future{
+    //in OBP, customer and agent share the same customer model. the CustomerAccountLink and AgentAccountLink also share the same model
+    CustomerAccountLinkX.customerAccountLink.vend.createCustomerAccountLink(agentId: String, bankId, accountId: String, "Owner") map { customer => (
+      AgentAccountLinkTraitCommons(
+        agentAccountLinkId = customer.customerAccountLinkId,
+        agentId = customer.customerId,
+        bankId = customer.bankId,
+        accountId = customer.accountId,
+      ), 
+      callContext) 
+    }
   }
 
   override def getConsentImplicitSCA(user: User, callContext: Option[CallContext]): OBPReturnType[Box[ConsentImplicitSCAT]] = Future {

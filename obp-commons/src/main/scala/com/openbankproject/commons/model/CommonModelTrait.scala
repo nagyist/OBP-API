@@ -648,6 +648,13 @@ trait CustomerAccountLinkTrait {
   def relationshipType: String
 }
 
+trait AgentAccountLinkTrait {
+  def agentAccountLinkId: String
+  def agentId: String
+  def bankId: String
+  def accountId: String
+}
+
 trait CounterpartyLimitTrait extends JsonAble{
   def counterpartyLimitId: String
   def bankId: String

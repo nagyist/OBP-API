@@ -938,7 +938,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
       case _ => null
     }
 
-  //started -- Filtering and Paging revelent methods////////////////////////////
+  //started -- Filtering and Paging relevant methods////////////////////////////
   def parseObpStandardDate(date: String): Box[Date] =
   {
     val parsedDate = tryo{DateWithMsFormat.parse(date)}
@@ -1280,7 +1280,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
     val queryStrings  = urlAndQueryString.split("&").map(_.split("=")).flatten  //Full(from_date, $DateWithMsExampleString, to_date, $DateWithMsExampleString)
     if (queryStrings.contains(name)&& queryStrings.length > queryStrings.indexOf(name)+1) queryStrings(queryStrings.indexOf(name)+1) else ""//Full($DateWithMsExampleString)
   }
-  //ended -- Filtering and Paging revelent methods  ////////////////////////////
+  //ended -- Filtering and Paging relevant methods  ////////////////////////////
 
 
   /** Import this object's methods to add signing operators to dispatch.Request */
@@ -2117,7 +2117,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
          |eg1:?limit=100&offset=0
          |""". stripMargin
 
-    val sortDirectionParameters =
+    val sortDirectionParameters = if (containsSortDirection) {
       s"""
          |
          |* sort_direction=ASC/DESC ==> default value: DESC.
@@ -2125,6 +2125,9 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
          |eg2:?limit=100&offset=0&sort_direction=ASC
          |
          |""". stripMargin
+    }else{
+      ""
+    }
 
     val dateParameter = if(containsDate){
       s"""

@@ -3,6 +3,7 @@ package code.transactionrequests
 import code.api.util.APIUtil.DateWithMsFormat
 import code.api.util.CustomJsonFormats
 import code.api.util.ErrorMessages._
+import code.api.v4_0_0.TransactionRequestBodyAgentJsonV400
 import code.bankconnectors.LocalMappedConnectorInternal
 import code.model._
 import code.util.{AccountIdString, UUIDString}
@@ -365,6 +366,29 @@ class MappedTransactionRequest extends LongKeyedMapper[MappedTransactionRequest]
       Some(parsedDetails.extract[TransactionRequestTransferToAccount])
     else
       None
+    
+    val t_to_agent = if (TransactionRequestTypes.withName(transactionType) == TransactionRequestTypes.AGENT_CASH_WITHDRAWAL && details.nonEmpty) {
+      val agentNumberList: List[String] = for {
+        JObject(child) <- parsedDetails
+        JField("agent_number", JString(agentNumber)) <- child
+      } yield
+        agentNumber
+     val bankIdList: List[String] = for {
+        JObject(child) <- parsedDetails
+        JField("bank_id", JString(agentNumber)) <- child
+      } yield
+        agentNumber
+      val agentNumberValue = if (agentNumberList.isEmpty) "" else agentNumberList.head
+      val bankIdValue = if (bankIdList.isEmpty) "" else bankIdList.head
+      Some(transactionRequestAgentCashWithdrawal(
+        bank_id = bankIdValue,
+        agent_number = agentNumberValue
+      ))
+    }
+    else
+      None
+      
+    
     //This is Berlin Group Types:
     val t_to_sepa_credit_transfers = if (TransactionRequestTypes.withName(transactionType) == TransactionRequestTypes.SEPA_CREDIT_TRANSFERS && details.nonEmpty)
       Some(parsedDetails.extract[SepaCreditTransfers]) //TODO, here may need a internal case class, but for now, we used it from request json body.
@@ -380,6 +404,7 @@ class MappedTransactionRequest extends LongKeyedMapper[MappedTransactionRequest]
       to_transfer_to_atm = t_to_transfer_to_atm,
       to_transfer_to_account = t_to_transfer_to_account,
       to_sepa_credit_transfers = t_to_sepa_credit_transfers,
+      to_agent = t_to_agent,
       value = t_amount,
       description = mBody_Description.get
     )

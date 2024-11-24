@@ -168,11 +168,13 @@ jwt.use.ssl=false
 
 ## Enable mTLS for Redis, if set to true must set paths for the keystore and truststore locations
 # redis.use.ssl=false
-# Client
-# keystore.path.redis = client-keystore.p12
+## Client
+## PKCS#12 Format: combine private keys and certificates into .p12 files for easier transport
+# keystore.path.redis = path/to/client-keystore.p12
 # keystore.password.redis = keystore-password
-# Server
-# truststore.path.redis = path/to/ca.jks
+## Trust stores is a list of trusted CA certificates
+## Public certificate for the CA (used by clients and servers to validate signatures)
+# truststore.path.redis = path/to/ca.p12
 # truststore.password.redis = truststore-password
 
 

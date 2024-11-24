@@ -56,7 +56,7 @@ object Redis extends MdcLoggable {
   private def configureSslContext(): SSLContext = {
 
     // Load the CA certificate
-    val trustStore = KeyStore.getInstance("JKS")
+    val trustStore = KeyStore.getInstance("PKCS12")
     val trustStorePassword = APIUtil.getPropsValue("keystore.password.redis")
       .getOrElse(APIUtil.initPasswd).toCharArray
     val truststorePath = APIUtil.getPropsValue("truststore.path.redis").getOrElse("")

@@ -12,7 +12,7 @@
 
 * Alternatively you can do File -> New -> Project from VCS and checkout the project directly from github.
 
-* When / if prompted for SDK, choose Java 1.8 (and Scala 2.12) otherwise keep the defaults. Use the Maven options. Do not change the project name etc.
+* When / if prompted for SDK, choose Java 11 (and Scala 2.12) otherwise keep the defaults. Use the Maven options. Do not change the project name etc.
 
 * If you see a message about an unmanaged pom.xml, click the option to let Maven manage it.
 

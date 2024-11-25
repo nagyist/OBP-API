@@ -42,10 +42,10 @@ object MappedAgentProvider extends AgentProvider with MdcLoggable {
   }
 
 
-  override def checkAgentNumberAvailable(bankId: BankId, customerNumber: String): Boolean = {
+  override def checkAgentNumberAvailable(bankId: BankId, agentNumber: String): Boolean = {
     val customers = MappedCustomer.findAll(
       By(MappedCustomer.mBank, bankId.value),
-      By(MappedCustomer.mNumber, customerNumber)
+      By(MappedCustomer.mNumber, agentNumber)
     )
 
     val available: Boolean = customers.size match {
@@ -87,7 +87,7 @@ object MappedAgentProvider extends AgentProvider with MdcLoggable {
     bankId: String,
     legalName: String,
     mobileNumber: String,
-    number: String,
+    agentNumber: String,
     callContext: Option[CallContext]
   ): Future[Box[Agent]] = Future {
     tryo {
@@ -96,7 +96,7 @@ object MappedAgentProvider extends AgentProvider with MdcLoggable {
         .mBank(bankId)
         .mLegalName(legalName)
         .mMobileNumber(mobileNumber)
-        .mNumber(number)
+        .mNumber(agentNumber)
         .mIsPendingAgent(true) //default value
         .mIsConfirmedAgent(false) // default value
         .saveMe()

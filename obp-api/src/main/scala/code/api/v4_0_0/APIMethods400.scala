@@ -12632,11 +12632,15 @@ object APIMethods400 extends RestHelper with APIMethods400 {
               json.extract[TransactionRequestBodyAgentJsonV400]
             }
             (agent, callContext) <- NewStyle.function.getAgentByAgentNumber(BankId(transactionRequestBodyAgent.to.bank_id),transactionRequestBodyAgent.to.agent_number, callContext)
-            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(agent.agentId, callContext)
-            customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
-              customerAccountLinks.head
+            (agentAccountLinks, callContext) <-  NewStyle.function.getAgentAccountLinksByAgentId(agent.agentId, callContext)
+            agentAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              agentAccountLinks.head
             }
-            (toAccount, callContext) <- NewStyle.function.getBankAccount(BankId(customerAccountLink.bankId), AccountId(customerAccountLink.accountId), callContext)
+            // Check we can send money to it.
+            _ <- Helper.booleanToFuture(s"$AgentBeneficiaryPermit", cc=callContext) {
+              !agent.isPendingAgent && agent.isConfirmedAgent
+            }
+            (toAccount, callContext) <- NewStyle.function.getBankAccount(BankId(agentAccountLink.bankId), AccountId(agentAccountLink.accountId), callContext)
             chargePolicy = transactionRequestBodyAgent.charge_policy
             _ <- Helper.booleanToFuture(s"$InvalidChargePolicy", cc=callContext) {
               ChargePolicy.values.contains(ChargePolicy.withName(chargePolicy))

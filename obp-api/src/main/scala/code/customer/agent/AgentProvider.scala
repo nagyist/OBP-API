@@ -41,7 +41,7 @@ trait AgentProvider {
     bankId: String,
     legalName : String,
     mobileNumber : String,
-    number : String,
+    agentNumber : String,
     callContext: Option[CallContext]
   ): Future[Box[Agent]]
 

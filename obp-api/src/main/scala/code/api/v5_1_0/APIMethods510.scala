@@ -19,9 +19,8 @@ import code.api.util.newstyle.RegulatedEntityNewStyle.{createRegulatedEntityNewS
 import code.api.v2_1_0.ConsumerRedirectUrlJSON
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_0_0.JSONFactory300.createAggregateMetricJson
-import code.api.v3_1_0.{ConsentJsonV310, JSONFactory310}
+import code.api.v3_1_0.ConsentJsonV310
 import code.api.v3_1_0.JSONFactory310.createBadLoginStatusJson
-import code.api.v4_0_0.APIMethods400.{createTransactionRequest, transactionRequestGeneralText}
 import code.api.v4_0_0.JSONFactory400.{createAccountBalancesJson, createBalancesJson, createNewCoreBankAccountJson}
 import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, RevokedJsonV400}
 import code.api.v5_0_0.JSONFactory500
@@ -381,7 +380,7 @@ trait APIMethods510 {
               bankId = bankId.value,
               legalName = putData.legal_name,
               mobileNumber = putData.mobile_phone_number,
-              number = putData.agent_number,
+              agentNumber = putData.agent_number,
               callContext,
             )
             (bankAccount, callContext) <- NewStyle.function.createBankAccount(

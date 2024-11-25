@@ -1150,7 +1150,7 @@ trait Connector extends MdcLoggable {
     bankId: String,
     legalName : String,
     mobileNumber : String,
-    number : String,
+    agentNumber : String,
     callContext: Option[CallContext]
   ): OBPReturnType[Box[Agent]] = Future{(Failure(setUnimplementedError(nameOf(createAgent _))), callContext)}
 

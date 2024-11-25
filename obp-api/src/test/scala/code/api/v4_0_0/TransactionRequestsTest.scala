@@ -1,6 +1,7 @@
 package code.api.v4_0_0
 
 import code.api.Constant
+
 import java.util.{Date, UUID}
 import code.api.ChargePolicy
 import code.api.Constant._
@@ -8,7 +9,7 @@ import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON.{createPhysicalCardJsonV500, postAgentJsonV510}
 import code.api.util.APIUtil.OAuth._
 import code.api.util.APIUtil.extractErrorMessageCode
-import code.api.util.ApiRole.{CanCreateAnyTransactionRequest, CanCreateCardsForBank}
+import code.api.util.ApiRole.{CanCreateAnyTransactionRequest, CanCreateCardsForBank, canUpdateAgentStatusAtAnyBank}
 import code.api.util.ErrorMessages._
 import code.api.util.{APIUtil, ErrorMessages}
 import code.api.v1_4_0.JSONFactory1_4_0.{ChallengeAnswerJSON, TransactionRequestAccountJsonV140}
@@ -16,7 +17,7 @@ import code.api.v2_0_0.TransactionRequestBodyJsonV200
 import code.api.v2_1_0._
 import code.api.v4_0_0.APIMethods400.Implementations4_0_0
 import code.api.v5_0_0.PhysicalCardJsonV500
-import code.api.v5_1_0.AgentJsonV510
+import code.api.v5_1_0.{AgentJsonV510, PutAgentJsonV510}
 import code.bankconnectors.Connector
 import code.entitlement.Entitlement
 import code.fx.fx
@@ -134,6 +135,19 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
       val request = (v5_1_0_Request / "banks" / bankId.value / "agents").POST  <@ (user1)
       val response = makePostRequest(request, write(postAgentJsonV510.copy(currency=fromAccount.currency)))
       val agentCashWithdrawalAgent = response.body.extract[AgentJsonV510]
+
+    {
+      val putAgentJsonV510  = PutAgentJsonV510(
+        is_pending_agent = false,
+        is_confirmed_agent = true
+      )
+      Entitlement.entitlement.vend.addEntitlement("", resourceUser1.userId, canUpdateAgentStatusAtAnyBank.toString)
+      val request = (v5_1_0_Request / "banks" / bankId.value / "agents"/ agentCashWithdrawalAgent.agent_id).PUT <@ user1
+      val response = makePutRequest(request, write(putAgentJsonV510))
+      response.code should equal(200)
+      response.body.extract[AgentJsonV510].is_pending_agent should equal(putAgentJsonV510.is_pending_agent)
+      response.body.extract[AgentJsonV510].is_confirmed_agent should equal(putAgentJsonV510.is_confirmed_agent)
+    }
     
       var transactionRequestBodySEPA = TransactionRequestBodySEPAJSON(bodyValue, IbanJson(counterpartySEPA.otherAccountSecondaryRoutingAddress), description, sharedChargePolicy)
 

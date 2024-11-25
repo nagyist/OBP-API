@@ -2844,14 +2844,14 @@ object NewStyle extends MdcLoggable{
       bankId: String,
       legalName : String,
       mobileNumber : String,
-      number : String,
+      agentNumber : String,
       callContext: Option[CallContext]
     ): OBPReturnType[Agent] =
       Connector.connector.vend.createAgent(
         bankId: String,
         legalName : String,
         mobileNumber : String,
-        number : String,
+        agentNumber : String,
         callContext: Option[CallContext]
       ) map {
         i => (unboxFullOrFail(i._1, callContext, CreateAgentError), i._2)

@@ -1629,14 +1629,14 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     bankId: String,
     legalName : String,
     mobileNumber : String,
-    number : String,
+    agentNumber : String,
     callContext: Option[CallContext]
   ): OBPReturnType[Box[Agent]] = {
     AgentX.agentProvider.vend.createAgent(
       bankId: String,
       legalName : String,
       mobileNumber : String,
-      number : String,
+      agentNumber : String,
       callContext: Option[CallContext]
     ).map((_, callContext))
   }
@@ -4757,11 +4757,11 @@ object LocalMappedConnector extends Connector with MdcLoggable {
               body.to_agent.get
             }
             (agent, callContext) <- NewStyle.function.getAgentByAgentNumber(BankId(bodyToAgent.bank_id), bodyToAgent.agent_number, callContext)
-            (customerAccountLinks, callContext) <-  NewStyle.function.getCustomerAccountLinksByCustomerId(agent.agentId, callContext)
-            customerAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
-              customerAccountLinks.head
+            (agentAccountLinks, callContext) <- NewStyle.function.getAgentAccountLinksByAgentId(agent.agentId, callContext)
+            agentAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              agentAccountLinks.head
             }
-            (toAccount, callContext) <- NewStyle.function.getBankAccount(BankId(customerAccountLink.bankId), AccountId(customerAccountLink.accountId), callContext)
+            (toAccount, callContext) <- NewStyle.function.getBankAccount(BankId(agentAccountLink.bankId), AccountId(agentAccountLink.accountId), callContext)
 
             agentRequestJsonBody = TransactionRequestBodyAgentJsonV400(
               to = AgentCashWithdrawalJson(bodyToAgent.bank_id, bodyToAgent.agent_number),

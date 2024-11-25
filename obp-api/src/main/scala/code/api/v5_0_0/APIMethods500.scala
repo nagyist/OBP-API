@@ -1,13 +1,12 @@
 package code.api.v5_0_0
 
-import java.util.concurrent.ThreadLocalRandom
 import code.accountattribute.AccountAttributeX
-import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON._
 import code.api.util.APIUtil._
 import code.api.util.ApiRole._
 import code.api.util.ApiTag._
 import code.api.util.ErrorMessages._
+import code.api.util.FutureUtil.EndpointContext
 import code.api.util.NewStyle.HttpCode
 import code.api.util.NewStyle.function.extractQueryParams
 import code.api.util._
@@ -15,26 +14,25 @@ import code.api.v2_1_0.JSONFactory210
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_1_0._
 import code.api.v4_0_0.JSONFactory400.createCustomersMinimalJson
-import code.api.v4_0_0.{JSONFactory400, OBPAPI4_0_0, PostCounterpartyJson400, PutProductJsonV400}
+import code.api.v4_0_0.{JSONFactory400, PostCounterpartyJson400}
 import code.api.v5_0_0.JSONFactory500.{createPhysicalCardJson, createViewJsonV500, createViewsIdsJsonV500, createViewsJsonV500}
+import code.api.v5_1_0.{CreateCustomViewJson, PostCounterpartyLimitV510, PostVRPConsentRequestJsonV510}
 import code.bankconnectors.Connector
-import code.consent.{ConsentRequest, ConsentRequests, Consents}
+import code.consent.{ConsentRequests, Consents}
+import code.consumer.Consumers
 import code.entitlement.Entitlement
+import code.metadata.counterparties.MappedCounterparty
 import code.metrics.APIMetrics
-import code.model._
 import code.model.dataAccess.BankAccountCreation
-import com.openbankproject.commons.model.enums.TransactionRequestTypes._
-import com.openbankproject.commons.model.enums.TransactionRequestTypes
 import code.util.Helper
 import code.util.Helper.{SILENCE_IS_GOLDEN, booleanToFuture}
 import code.views.Views
+import code.views.system.ViewDefinition
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.ExecutionContext.Implicits.global
-import com.openbankproject.commons.model.enums.StrongCustomerAuthentication
 import com.openbankproject.commons.model._
+import com.openbankproject.commons.model.enums.StrongCustomerAuthentication
 import com.openbankproject.commons.util.ApiVersion
-import com.openbankproject.commons.model.enums.TransactionRequestTypes._
-import com.openbankproject.commons.model.enums.PaymentServiceTypes._
 import net.liftweb.common.{Empty, Full}
 import net.liftweb.http.Req
 import net.liftweb.http.rest.RestHelper
@@ -42,18 +40,9 @@ import net.liftweb.json
 import net.liftweb.json.{Extraction, compactRender, prettyRender}
 import net.liftweb.util.Helpers.tryo
 import net.liftweb.util.{Helpers, Props, StringHelpers}
-import java.util.concurrent.ThreadLocalRandom
-
-import code.accountattribute.AccountAttributeX
-import code.api.Constant.SYSTEM_OWNER_VIEW_ID
-import code.api.util.FutureUtil.EndpointContext
-import code.api.v5_1_0.{CreateCustomViewJson, PostVRPConsentRequestJsonV510, PostCounterpartyLimitV510}
-import code.consumer.Consumers
-import code.metadata.counterparties.MappedCounterparty
-import code.util.Helper.booleanToFuture
-import code.views.system.{AccountAccess, ViewDefinition}
 
 import java.util.UUID
+import java.util.concurrent.ThreadLocalRandom
 import scala.collection.immutable.{List, Nil}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future

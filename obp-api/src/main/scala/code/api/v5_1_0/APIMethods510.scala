@@ -2161,7 +2161,7 @@ trait APIMethods510 {
          |     "developer_email": "marko@tesobe.com",
          |     "redirect_url": "http://localhost:8082"
          |    }
-         | Please note that JWT must be signed with the counterpart private kew of the public key used to establish mTLS
+         | Please note that JWT must be signed with the counterpart private key of the public key used to establish mTLS
          |
          |""",
       ConsumerJwtPostJsonV510("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXNjcmlwdGlvbiI6IlRQUCBkZXNjcmlwdGlvbiJ9.c5gPPsyUmnVW774y7h2xyLXg0wdtu25nbU2AvOmyzcWa7JTdCKuuy3CblxueGwqYkQDDQIya1Qny4blyAvh_a1Q28LgzEKBcH7Em9FZXerhkvR9v4FWbCC5AgNLdQ7sR8-rUQdShmJcGDKdVmsZjuO4XhY2Zx0nFnkcvYfsU9bccoAvkKpVJATXzwBqdoEOuFlplnbxsMH1wWbAd3hbcPPWTdvO43xavNZTB5ybgrXVDEYjw8D-98_ZkqxS0vfvhJ4cGefHViaFzp6zXm7msdBpcE__O9rFbdl9Gvup_bsMbrHJioIrmc2d15Yc-tTNTF9J4qjD_lNxMRlx5o2TZEw"),
@@ -3298,11 +3298,13 @@ trait APIMethods510 {
          |It is used when applications request an access token to access their own resources, not on behalf of a user.
          |
          |The client needs to authenticate themselves for this request.
-         |In case of public client we use client_id and private kew to obtain access token, otherwise we use client_id and client_secret.
+         |In case of public client we use client_id and private key to obtain access token, otherwise we use client_id and client_secret.
          |The obtained access token is used in the HTTP Bearer auth header of our request.
          |
          |Example:
          |Authorization: Bearer eXtneO-THbQtn3zvK_kQtXXfvOZyZFdBCItlPDbR2Bk.dOWqtXCtFX-tqGTVR0YrIjvAolPIVg7GZ-jz83y6nA0
+         |
+         |After successfully creating the VRP consent request, you need to call the `Create Consent By CONSENT_REQUEST_ID` endpoint to finalize the consent.
          |
          |""".stripMargin,
       postVRPConsentRequestJsonV510,

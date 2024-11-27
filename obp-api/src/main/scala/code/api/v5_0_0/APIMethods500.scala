@@ -782,8 +782,13 @@ trait APIMethods500 {
       "Create Consent By CONSENT_REQUEST_ID (EMAIL)",
       s"""
          |
-         |This endpoint continues the process of creating a Consent. It starts the SCA flow which changes the status of the consent from INITIATED to ACCEPTED or REJECTED.
-         |Please note that the Consent cannot elevate the privileges logged in user already have.|Please note that the Consent you are using cannot exceed the personal use.
+         |This endpoint continues the process of creating a Consent.
+         |
+         |It starts the SCA flow which changes the status of the consent from INITIATED to ACCEPTED or REJECTED.
+         |
+         |Please note that the Consent cannot elevate the privileges of the logged in user.
+         |
+         |""",
       EmptyBody,
       consentJsonV500,
       List(
@@ -798,7 +803,8 @@ trait APIMethods500 {
         InvalidConnectorResponse,
         UnknownError
         ),
-      apiTagConsent :: apiTagPSD2AIS :: apiTagPsd2  :: apiTagVrp, Nil
+      apiTagConsent :: apiTagPSD2AIS :: apiTagPsd2  :: apiTagVrp :: Nil)
+
     staticResourceDocs += ResourceDoc(
       createConsentByConsentRequestIdSms,
       implementedInApiVersion,
@@ -810,7 +816,7 @@ trait APIMethods500 {
          |
          |This endpoint continues the process of creating a Consent. It starts the SCA flow which changes the status of the consent from INITIATED to ACCEPTED or REJECTED.
          |
-         |Please note that the Consent you are using cannot exceed the personal use.
+         |Please note that the Consent you are creating cannot exceed the entitlements that the User creating this consents already has.
          |
          |
          |""",
@@ -832,6 +838,7 @@ trait APIMethods500 {
         UnknownError
         ),
       apiTagConsent :: apiTagPSD2AIS :: apiTagPsd2  :: Nil)
+
     staticResourceDocs += ResourceDoc(
       createConsentByConsentRequestIdImplicit,
       implementedInApiVersion,

@@ -630,13 +630,13 @@ trait APIMethods510 {
       implementedInApiVersion,
       nameOf(getAccountsHeldByUserAtBank),
       "GET",
-      "/banks/BANK_ID/users/USER_ID/accounts-held",
+      "/users/USER_ID/banks/BANK_ID/accounts-held",
       "Get Accounts Held By User",
       s"""Get Accounts held by the User if even the User has not been assigned the owner View yet.
          |
          |Can be used to onboard the account to the API - since all other account and transaction endpoints require views to be assigned.
          |
-         |${accountTypeFilterText("/banks/BANK_ID/users/USER_ID/accounts-held")}
+         |${accountTypeFilterText("/users/USER_ID/banks/BANK_ID/accounts-held")}
          |
          |
          |
@@ -654,7 +654,7 @@ trait APIMethods510 {
     )
 
     lazy val getAccountsHeldByUserAtBank: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "users" :: userId :: "accounts-held" :: Nil JsonGet req => {
+      case "users" :: userId :: "banks" :: BankId(bankId) :: "accounts-held" :: Nil JsonGet req => {
         cc =>
           implicit val ec = EndpointContext(Some(cc))
           for {

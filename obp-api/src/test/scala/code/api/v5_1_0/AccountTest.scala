@@ -38,7 +38,7 @@ class AccountTest extends V510ServerSetup {
 
   feature(s"test ${GetAccountsHeldByUser.name}") {
     scenario(s"We will test ${GetAccountsHeldByUser.name}", GetAccountsHeldByUser, VersionOfApi) {
-      val requestGet = (v5_1_0_Request / "banks" / bankId / "users" / resourceUser2.userId / "accounts-held").GET
+      val requestGet = (v5_1_0_Request / "users" / resourceUser2.userId / "banks" / bankId / "accounts-held").GET
       // Anonymous call fails
       val anonymousResponseGet = makeGetRequest(requestGet)
       anonymousResponseGet.code should equal(401)
@@ -46,7 +46,7 @@ class AccountTest extends V510ServerSetup {
     }
     scenario("We will call the endpoint with user credentials", GetAccountsHeldByUser, VersionOfApi) {
       When(s"We make a request $GetAccountsHeldByUser")
-      val requestGet = (v5_1_0_Request / "banks" / bankId / "users" / resourceUser2.userId / "accounts-held").GET <@(user1)
+      val requestGet = (v5_1_0_Request / "users" / resourceUser2.userId / "banks" / bankId / "accounts-held").GET <@(user1)
       val response = makeGetRequest(requestGet)
       Then("We should get a 403")
       response.code should equal(403)

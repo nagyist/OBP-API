@@ -1508,8 +1508,8 @@ object SwaggerDefinitionsJSON {
   )
 
   val branchRoutingJsonV141 = BranchRoutingJsonV141(
-    scheme = "BranchNumber",
-    address = "678"
+    scheme = schemeExample.value,
+    address = branchIdExample.value
   )
 
   val branchJson = BranchJson(

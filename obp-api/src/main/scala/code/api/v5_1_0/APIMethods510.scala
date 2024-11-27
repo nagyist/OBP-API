@@ -3327,12 +3327,12 @@ trait APIMethods510 {
             (_, callContext) <- applicationAccess(cc)
             _ <- passesPsd2Aisp(callContext)
             failMsg = s"$InvalidJsonFormat The Json body should be the $PostVRPConsentRequestJsonV510 "
-            consentRequestJson: PostVRPConsentRequestJsonV510 <- NewStyle.function.tryons(failMsg, 400, callContext) {
+            postConsentRequestJsonV510: PostVRPConsentRequestJsonV510 <- NewStyle.function.tryons(failMsg, 400, callContext) {
               postJson.extract[PostVRPConsentRequestJsonV510]
             }
             maxTimeToLive = APIUtil.getPropsAsIntValue(nameOfProperty = "consents.max_time_to_live", defaultValue = 3600)
             _ <- Helper.booleanToFuture(s"$ConsentMaxTTL ($maxTimeToLive)", cc = callContext) {
-              consentRequestJson.time_to_live match {
+              postConsentRequestJsonV510.time_to_live match {
                 case Some(ttl) => ttl <= maxTimeToLive
                 case _ => true
               }
@@ -3340,7 +3340,13 @@ trait APIMethods510 {
 
             // we need to add the consent_type internally, the user does not need to know it.
             consentType = json.parse(s"""{"consent_type": "${ConsentType.VRP}"}""")
-
+            
+            (_, callContext) <- NewStyle.function.checkBankAccountExists(
+              BankId(postConsentRequestJsonV510.from_account.bank_routing.address),
+              AccountId(postConsentRequestJsonV510.from_account.account_routing.address), 
+              callContext
+            )
+            
             createdConsentRequest <- Future(ConsentRequests.consentRequestProvider.vend.createConsentRequest(
               callContext.flatMap(_.consumer),
               Some(compactRender(postJson merge consentType))

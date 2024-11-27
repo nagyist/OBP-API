@@ -737,8 +737,8 @@ object SwaggerDefinitionsJSON {
   )
 
   val accountRoutingJsonV121 = AccountRoutingJsonV121(
-    scheme = "AccountNumber",
-    address = "4930396"
+    scheme = schemeExample.value,
+    address = accountIdExample.value
   )
 
   val bankAccountRoutingJson = BankAccountRoutingJson(
@@ -1007,11 +1007,11 @@ object SwaggerDefinitionsJSON {
 
   val bankRoutingJsonV121 = BankRoutingJsonV121(
     scheme = schemeExample.value,
-    address = addressExample.value
+    address = bankIdExample.value
   )
 
   val bankJSON = BankJSON(
-    id = "gh.29.uk",
+    id = bankIdExample.value,
     short_name = "short_name ",
     full_name = "full_name",
     logo = "logo",
@@ -1032,7 +1032,7 @@ object SwaggerDefinitionsJSON {
   )
   
   val postBankJson400 = PostBankJson400(
-    id = "gh.29.uk",
+    id = bankIdExample.value,
     short_name = "short_name ",
     full_name = "full_name",
     logo = "logo",
@@ -1040,7 +1040,7 @@ object SwaggerDefinitionsJSON {
     bank_routings = List(bankRoutingJsonV121)
   )
   val bankJson400 = BankJson400(
-    id = "gh.29.uk",
+    id = bankIdExample.value,
     short_name = "short_name ",
     full_name = "full_name",
     logo = "logo",
@@ -1508,8 +1508,8 @@ object SwaggerDefinitionsJSON {
   )
 
   val branchRoutingJsonV141 = BranchRoutingJsonV141(
-    scheme = "BranchNumber",
-    address = "678"
+    scheme = schemeExample.value,
+    address = branchIdExample.value
   )
 
   val branchJson = BranchJson(

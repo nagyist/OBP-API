@@ -101,12 +101,12 @@ class AccountTest extends V310ServerSetup with DefaultUsers {
       val responsePut1 = makePutRequest(requestPut, write(testPutJsonWithIban))
       Then("We should get 200 and updated account routings in the updateAccount response")
       responsePut1.code should equal(200)
-      responsePut1.body.extract[UpdateAccountResponseJsonV310].account_routings should be (testPutJsonWithIban.account_routings)
+      responsePut1.body.extract[UpdateAccountResponseJsonV310].account_routings.sortBy(_.scheme) should be (testPutJsonWithIban.account_routings.sortBy(_.scheme))
 
       val responseGet1 = makeGetRequest(requestGet)
       And("We should get 200 and updated account routings in the getAccount response")
       responseGet1.code should equal(200)
-      responseGet1.body.extract[ModeratedCoreAccountJsonV300].account_routings should be (testPutJsonWithIban.account_routings)
+      responseGet1.body.extract[ModeratedCoreAccountJsonV300].account_routings.sortBy(_.scheme) should be (testPutJsonWithIban.account_routings.sortBy(_.scheme))
 
 
       When("We want to remove an account routing scheme (AccountNumber)")
@@ -115,13 +115,13 @@ class AccountTest extends V310ServerSetup with DefaultUsers {
       val responsePut2 = makePutRequest(requestPut, write(testPutJsonWithoutAccountNumber))
       Then("We should get 200 and updated account routings in the updateAccount response")
       responsePut2.code should equal(200)
-      responsePut2.body.extract[UpdateAccountResponseJsonV310].account_routings should be (testPutJsonWithoutAccountNumber.account_routings)
+      responsePut2.body.extract[UpdateAccountResponseJsonV310].account_routings.sortBy(_.scheme) should be (testPutJsonWithoutAccountNumber.account_routings.sortBy(_.scheme))
 
       
       val responseGet2 = makeGetRequest(requestGet)
       And("We should get 200 and updated account routings in the getAccount response")
       responseGet2.code should equal(200)
-      responseGet2.body.extract[ModeratedCoreAccountJsonV300].account_routings should be (testPutJsonWithoutAccountNumber.account_routings)
+      responseGet2.body.extract[ModeratedCoreAccountJsonV300].account_routings.sortBy(_.scheme) should be (testPutJsonWithoutAccountNumber.account_routings.sortBy(_.scheme))
 
 
       When("We want to update an account routing scheme (IBAN)")
@@ -131,12 +131,12 @@ class AccountTest extends V310ServerSetup with DefaultUsers {
       val responsePut3 = makePutRequest(requestPut, write(testPutJsonWithUpdatedIban))
       Then("We should get 200 and updated account routings in the updateAccount response")
       responsePut3.code should equal(200)
-      responsePut3.body.extract[UpdateAccountResponseJsonV310].account_routings should be (testPutJsonWithUpdatedIban.account_routings)
+      responsePut3.body.extract[UpdateAccountResponseJsonV310].account_routings.sortBy(_.scheme) should be (testPutJsonWithUpdatedIban.account_routings.sortBy(_.scheme))
 
       val responseGet3 = makeGetRequest(requestGet)
       And("We should get 200 and updated account routings in the getAccount response")
       responseGet3.code should equal(200)
-      responseGet3.body.extract[ModeratedCoreAccountJsonV300].account_routings should be (testPutJsonWithUpdatedIban.account_routings)
+      responseGet3.body.extract[ModeratedCoreAccountJsonV300].account_routings.sortBy(_.scheme) should be (testPutJsonWithUpdatedIban.account_routings.sortBy(_.scheme))
 
 
       When("We want to update an account with a routing scheme duplication")
@@ -152,7 +152,7 @@ class AccountTest extends V310ServerSetup with DefaultUsers {
       val responseGet4 = makeGetRequest(requestGet)
       And("We should get 200 and non-updated account routings on the getAccount response")
       responseGet4.code should equal(200)
-      responseGet4.body.extract[ModeratedCoreAccountJsonV300].account_routings should be (testPutJsonWithUpdatedIban.account_routings)
+      responseGet4.body.extract[ModeratedCoreAccountJsonV300].account_routings.sortBy(_.scheme) should be (testPutJsonWithUpdatedIban.account_routings.sortBy(_.scheme))
 
 
       When("We want to add an account routing scheme (IBAN) with an already existing routing scheme (IBAN)")
@@ -175,7 +175,7 @@ class AccountTest extends V310ServerSetup with DefaultUsers {
       val responseGetOtherAccount_2 = makeGetRequest(requestGetOtherAccount)
       And("We should get 200 and non-updated account routings on the second getAccount response")
       responseGetOtherAccount_2.code should equal(200)
-      responseGetOtherAccount_2.body.extract[ModeratedCoreAccountJsonV300].account_routings should be (originalAccountRoutings)
+      responseGetOtherAccount_2.body.extract[ModeratedCoreAccountJsonV300].account_routings.sortBy(_.scheme) should be (originalAccountRoutings.sortBy(_.scheme))
     }
   }
 

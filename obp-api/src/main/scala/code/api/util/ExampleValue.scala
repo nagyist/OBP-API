@@ -1512,8 +1512,8 @@ object ExampleValue {
       |  "account_access": [
       |    {
       |      "account_routing": {
-      |        "scheme": "AccountNumber",
-      |        "address": "4930396"
+      |        "scheme": "${schemeExample.value}",
+      |        "address": "${accountIdExample.value}"
       |      },
       |      "view_id": "${Constant.SYSTEM_OWNER_VIEW_ID}"
       |    }
@@ -1529,30 +1529,30 @@ object ExampleValue {
     s"""{
        |    "from_account": {
        |        "bank_routing": {
-       |            "scheme": "BIC",
-       |            "address": "ABCDED"
+       |            "scheme": "${schemeExample.value}",
+       |            "address": "${bankIdExample.value}"
        |        },
        |        "account_routing": {
-       |            "scheme": "AccountNumber",
-       |            "address": "4930396"
+       |            "scheme": "${schemeExample.value}",
+       |            "address": "${accountIdExample.value}"
        |        },
        |        "branch_routing": {
-       |            "scheme": "",
-       |            "address": ""
+       |            "scheme": "${schemeExample.value}",
+       |            "address": "${branchIdExample.value}"
        |        }
        |    },
        |    "to_account": {
        |        "bank_routing": {
-       |            "scheme": "BIC",
-       |            "address": "DDFFFF"
+       |            "scheme": "${schemeExample.value}",
+       |            "address": "${bankIdExample.value}"
        |        },
        |        "account_routing": {
-       |            "scheme": "AccountNumber",
-       |            "address": "123567"
+       |            "scheme": "${schemeExample.value}",
+       |            "address": "${accountIdExample.value}"
        |        },
        |        "branch_routing": {
-       |            "scheme": "",
-       |            "address": ""
+       |            "scheme": "${schemeExample.value}",
+       |            "address": "${branchIdExample.value}"
        |        },
        |        "limit": {
        |            "currency": "EUR",
@@ -1664,7 +1664,7 @@ object ExampleValue {
   lazy val dateInsertedExample = ConnectorField(NoExampleProvided,NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("date_inserted", dateInsertedExample)
 
-  lazy val schemeExample = ConnectorField("scheme value",NoDescriptionProvided)
+  lazy val schemeExample = ConnectorField("OBP",NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("scheme", schemeExample)
 
   lazy val customerAddressIdExample = ConnectorField(NoExampleProvided,NoDescriptionProvided)

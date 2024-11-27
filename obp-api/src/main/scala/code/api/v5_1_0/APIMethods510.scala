@@ -2161,7 +2161,7 @@ trait APIMethods510 {
          |     "developer_email": "marko@tesobe.com",
          |     "redirect_url": "http://localhost:8082"
          |    }
-         | Please note that JWT must be signed with the counterpart private kew of the public key used to establish mTLS
+         | Please note that JWT must be signed with the counterpart private key of the public key used to establish mTLS
          |
          |""",
       ConsumerJwtPostJsonV510("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXNjcmlwdGlvbiI6IlRQUCBkZXNjcmlwdGlvbiJ9.c5gPPsyUmnVW774y7h2xyLXg0wdtu25nbU2AvOmyzcWa7JTdCKuuy3CblxueGwqYkQDDQIya1Qny4blyAvh_a1Q28LgzEKBcH7Em9FZXerhkvR9v4FWbCC5AgNLdQ7sR8-rUQdShmJcGDKdVmsZjuO4XhY2Zx0nFnkcvYfsU9bccoAvkKpVJATXzwBqdoEOuFlplnbxsMH1wWbAd3hbcPPWTdvO43xavNZTB5ybgrXVDEYjw8D-98_ZkqxS0vfvhJ4cGefHViaFzp6zXm7msdBpcE__O9rFbdl9Gvup_bsMbrHJioIrmc2d15Yc-tTNTF9J4qjD_lNxMRlx5o2TZEw"),
@@ -3298,11 +3298,13 @@ trait APIMethods510 {
          |It is used when applications request an access token to access their own resources, not on behalf of a user.
          |
          |The client needs to authenticate themselves for this request.
-         |In case of public client we use client_id and private kew to obtain access token, otherwise we use client_id and client_secret.
+         |In case of public client we use client_id and private key to obtain access token, otherwise we use client_id and client_secret.
          |The obtained access token is used in the HTTP Bearer auth header of our request.
          |
          |Example:
          |Authorization: Bearer eXtneO-THbQtn3zvK_kQtXXfvOZyZFdBCItlPDbR2Bk.dOWqtXCtFX-tqGTVR0YrIjvAolPIVg7GZ-jz83y6nA0
+         |
+         |After successfully creating the VRP consent request, you need to call the `Create Consent By CONSENT_REQUEST_ID` endpoint to finalize the consent.
          |
          |""".stripMargin,
       postVRPConsentRequestJsonV510,
@@ -3325,12 +3327,12 @@ trait APIMethods510 {
             (_, callContext) <- applicationAccess(cc)
             _ <- passesPsd2Aisp(callContext)
             failMsg = s"$InvalidJsonFormat The Json body should be the $PostVRPConsentRequestJsonV510 "
-            consentRequestJson: PostVRPConsentRequestJsonV510 <- NewStyle.function.tryons(failMsg, 400, callContext) {
+            postConsentRequestJsonV510: PostVRPConsentRequestJsonV510 <- NewStyle.function.tryons(failMsg, 400, callContext) {
               postJson.extract[PostVRPConsentRequestJsonV510]
             }
             maxTimeToLive = APIUtil.getPropsAsIntValue(nameOfProperty = "consents.max_time_to_live", defaultValue = 3600)
             _ <- Helper.booleanToFuture(s"$ConsentMaxTTL ($maxTimeToLive)", cc = callContext) {
-              consentRequestJson.time_to_live match {
+              postConsentRequestJsonV510.time_to_live match {
                 case Some(ttl) => ttl <= maxTimeToLive
                 case _ => true
               }
@@ -3338,7 +3340,13 @@ trait APIMethods510 {
 
             // we need to add the consent_type internally, the user does not need to know it.
             consentType = json.parse(s"""{"consent_type": "${ConsentType.VRP}"}""")
-
+            
+            (_, callContext) <- NewStyle.function.checkBankAccountExists(
+              BankId(postConsentRequestJsonV510.from_account.bank_routing.address),
+              AccountId(postConsentRequestJsonV510.from_account.account_routing.address), 
+              callContext
+            )
+            
             createdConsentRequest <- Future(ConsentRequests.consentRequestProvider.vend.createConsentRequest(
               callContext.flatMap(_.consumer),
               Some(compactRender(postJson merge consentType))

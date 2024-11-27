@@ -637,11 +637,13 @@ trait APIMethods500 {
          |It is used when applications request an access token to access their own resources, not on behalf of a user.
          |
          |The client needs to authenticate themselves for this request.
-         |In case of public client we use client_id and private kew to obtain access token, otherwise we use client_id and client_secret.
+         |In case of public client we use client_id and private key to obtain access token, otherwise we use client_id and client_secret.
          |The obtained access token is used in the HTTP Bearer auth header of our request.
          |
          |Example:
          |Authorization: Bearer eXtneO-THbQtn3zvK_kQtXXfvOZyZFdBCItlPDbR2Bk.dOWqtXCtFX-tqGTVR0YrIjvAolPIVg7GZ-jz83y6nA0
+         |
+         |After successfully creating the VRP consent request, you need to call the `Create Consent By CONSENT_REQUEST_ID` endpoint to finalize the consent.
          |
          |""".stripMargin,
       postConsentRequestJsonV500,

@@ -783,9 +783,7 @@ trait APIMethods500 {
       s"""
          |
          |This endpoint continues the process of creating a Consent. It starts the SCA flow which changes the status of the consent from INITIATED to ACCEPTED or REJECTED.
-         |Please note that the Consent cannot elevate the privileges logged in user already have.
-         |
-         |""",
+         |Please note that the Consent cannot elevate the privileges logged in user already have.|Please note that the Consent you are using cannot exceed the personal use.
       EmptyBody,
       consentJsonV500,
       List(
@@ -800,7 +798,7 @@ trait APIMethods500 {
         InvalidConnectorResponse,
         UnknownError
         ),
-      apiTagConsent :: apiTagPSD2AIS :: apiTagPsd2  :: Nil)
+      apiTagConsent :: apiTagPSD2AIS :: apiTagPsd2  :: apiTagVrp, Nil
     staticResourceDocs += ResourceDoc(
       createConsentByConsentRequestIdSms,
       implementedInApiVersion,
@@ -811,7 +809,9 @@ trait APIMethods500 {
       s"""
          |
          |This endpoint continues the process of creating a Consent. It starts the SCA flow which changes the status of the consent from INITIATED to ACCEPTED or REJECTED.
-         |Please note that the Consent cannot elevate the privileges logged in user already have. 
+         |
+         |Please note that the Consent you are using cannot exceed the personal use.
+         |
          |
          |""",
       EmptyBody,

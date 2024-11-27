@@ -3293,18 +3293,32 @@ trait APIMethods510 {
       "/consumer/vrp-consent-requests",
       "Create Consent Request VRP",
       s"""
-         |Client Authentication (mandatory)
+         |This endpoint is used to begin the process of creating a consent that may be used for Variable Recurring Payments (VRPs).
          |
-         |It is used when applications request an access token to access their own resources, not on behalf of a user.
+         |VRPs are useful in situations when a beneficiary needs to be paid different amounts on a regular basis.
          |
-         |The client needs to authenticate themselves for this request.
-         |In case of public client we use client_id and private key to obtain access token, otherwise we use client_id and client_secret.
-         |The obtained access token is used in the HTTP Bearer auth header of our request.
+         |Once granted, the consent allows its holder to initiate multiple Transaction Requests to the Counterparty defined in this endpoint as long as the
+         |Counterparty Limits are respected.
+         |
+         |Client, Consumer or Application Authentication is mandatory for this endpoint.
+         |
+         |i.e. the caller of this endpoint is the API Client, Consumer or Application rather than a specific User.
+         |
+         |At the end of the process the following objects are created in OBP or connected backend systems:
+         | - An automatically generated View which controls access.
+         | - A Counterparty that is the Beneficiary of the Variable Recurring Payments. The Counterparty specifies the Bank Account number or other routing address.
+         | - Limits for the Counterparty which constrain the amount of money that can be sent to it in various periods (yearly, monthly, weekly).
+         |
+         |The Account holder may modify the Counterparty or Limits e.g. to increase or decrease the maximum possible payment amounts or the frequencey of the payments.
+         |
+         |
+         |In the case of a public client we use the client_id and private key to obtain an access token, otherwise we use the client_id and client_secret.
+         |The obtained access token is used in the HTTP Authorization header of the request as follows:
          |
          |Example:
          |Authorization: Bearer eXtneO-THbQtn3zvK_kQtXXfvOZyZFdBCItlPDbR2Bk.dOWqtXCtFX-tqGTVR0YrIjvAolPIVg7GZ-jz83y6nA0
          |
-         |After successfully creating the VRP consent request, you need to call the `Create Consent By CONSENT_REQUEST_ID` endpoint to finalize the consent.
+         |After successfully creating the VRP consent request, you need to call the `Create Consent By CONSENT_REQUEST_ID` endpoint to finalize the consent using the CONSENT_REQUEST_ID returned by this endpoint.
          |
          |""".stripMargin,
       postVRPConsentRequestJsonV510,
@@ -3317,7 +3331,7 @@ trait APIMethods510 {
         InvalidConnectorResponse,
         UnknownError
       ),
-      apiTagConsent :: apiTagPSD2AIS :: apiTagPsd2  :: Nil
+      apiTagConsent :: apiTagVrp :: apiTagTransactionRequest  :: Nil
     )
 
     lazy val createVRPConsentRequest : OBPEndpoint = {

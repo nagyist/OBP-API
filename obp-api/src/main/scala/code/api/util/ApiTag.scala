@@ -15,6 +15,7 @@ object ApiTag {
   // When using these tags in resource docs, as we now have many APIs, it's best not to have too use too many tags per endpoint.
   val apiTagOldStyle = ResourceDocTag("Old-Style")
   val apiTagTransactionRequest = ResourceDocTag("Transaction-Request")
+  val apiTagVrp = ResourceDocTag("VRP")
   val apiTagApi = ResourceDocTag("API")
   val apiTagBank = ResourceDocTag("Bank")
   val apiTagAccount = ResourceDocTag("Account")

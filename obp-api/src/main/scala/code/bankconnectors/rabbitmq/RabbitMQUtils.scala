@@ -93,7 +93,7 @@ object RabbitMQUtils extends MdcLoggable{
     )
 
     val replyQueueName:String = channel.queueDeclare(
-      "amq.gen-"+UUID.randomUUID.toString,  // Queue name, it will be a unique name for each queue
+      "obp.gen-"+UUID.randomUUID.toString,  // Queue name, it will be a unique name for each queue
       true,            // durable: non-persis, here set durable = true
       false,           // exclusive: non-excl4, here set exclusive = false
       false,           // autoDelete: delete, here set autoDelete = false 

@@ -8,7 +8,7 @@
 
 * git clone https://github.com/OpenBankProject/OBP-API.git
 
-* In IntelliJ IDEA do File -> New -> Project from existing sources, navigate to the folder and select pom.xml
+* In IntelliJ IDEA do File -> New -> Project from existing sources, navigate to the folder and IMPORTANTLY select pom.xml
 
 * Alternatively you can do File -> New -> Project from VCS and checkout the project directly from github.
 

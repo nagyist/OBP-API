@@ -3100,7 +3100,7 @@ object MockedRabbitMqAdapter extends App with MdcLoggable{
 
     connection = factory.newConnection()
     channel = connection.createChannel()
-    channel.queueDeclare(RPC_QUEUE_NAME, false, false, false, RabbitMQUtils.args)
+
     channel.basicQos(1)
     // stop after one consumed message since this is example code
     val serverCallback = new ServerCallback(channel)

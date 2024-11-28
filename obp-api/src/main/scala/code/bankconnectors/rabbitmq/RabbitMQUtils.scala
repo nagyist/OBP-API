@@ -40,12 +40,13 @@ object RabbitMQUtils extends MdcLoggable{
   // automatically be deleted if it is not used, i.e., if no consumer is connected to it during that time.
   args.put("x-expires", Integer.valueOf(60000))
   args.put("x-message-ttl", Integer.valueOf(60000))
-  args.put("x-queue-type", "quorum")
+  //args.put("x-queue-type", "quorum") // use the classic first.
   
   
   private implicit val formats = code.api.util.CustomJsonFormats.nullTolerateFormats
   
   val RPC_QUEUE_NAME: String = "obp_rpc_queue"
+  val RPC_REPLY_TO_QUEUE_NAME_PREFIX: String = "obp_reply_queue"
 
   class ResponseCallback(val rabbitCorrelationId: String, channel: Channel) extends DeliverCallback {
 
@@ -93,10 +94,10 @@ object RabbitMQUtils extends MdcLoggable{
     )
 
     val replyQueueName:String = channel.queueDeclare(
-      "obp.gen-"+UUID.randomUUID.toString,  // Queue name, it will be a unique name for each queue
-      true,            // durable: non-persis, here set durable = true
-      false,           // exclusive: non-excl4, here set exclusive = false
-      false,           // autoDelete: delete, here set autoDelete = false 
+      s"${RPC_REPLY_TO_QUEUE_NAME_PREFIX}_${messageId.replace("obp_","")}_${UUID.randomUUID.toString}",  // Queue name, it will be a unique name for each queue
+      false,            // durable: non-persis, here set durable = false
+      true,           // exclusive: non-excl4, here set exclusive = true
+      true,           // autoDelete: delete, here set autoDelete = true 
       args             // extra arguments,
     ).getQueue
 

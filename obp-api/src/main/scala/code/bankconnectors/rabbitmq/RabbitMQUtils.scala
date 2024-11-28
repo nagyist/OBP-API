@@ -86,18 +86,18 @@ object RabbitMQUtils extends MdcLoggable{
     val channel = connection.createChannel() // channel is not thread safe, so we always create new channel for each message.
     channel.queueDeclare(
       RPC_QUEUE_NAME,  // Queue name
-      true,            // durable: non-persis
-      false,           // exclusive: non-excl4
-      false,           // autoDelete: delete 
-      args             //  extra arguments                                                          
+      true,            // durable: non-persis, here set durable = true
+      false,           // exclusive: non-excl4, here set exclusive = false
+      false,           // autoDelete: delete, here set autoDelete = false 
+      args             // extra arguments,
     )
 
     val replyQueueName:String = channel.queueDeclare(
-      "amq.gen-"+UUID.randomUUID.toString,  // Queue name, rabbitMq will create a unique name for this queue, eg: 
-      true,      // durable: non-persistent
-      false,     // exclusive: non-exclusive
-      false,     // autoDelete: delete when no consumers
-      args       //  extra arguments
+      "amq.gen-"+UUID.randomUUID.toString,  // Queue name, it will be a unique name for each queue
+      true,            // durable: non-persis, here set durable = true
+      false,           // exclusive: non-excl4, here set exclusive = false
+      false,           // autoDelete: delete, here set autoDelete = false 
+      args             // extra arguments,
     ).getQueue
 
     val rabbitResponseJsonFuture  = {

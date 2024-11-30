@@ -344,7 +344,9 @@ trait APIMethods220 {
       "GET",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties",
       "Get Counterparties (Explicit)",
-      s"""Get the Counterparties (Explicit) for the account / view.
+      s"""This endpoints gets the explicit Counterparties on an Account / View.
+          |
+          |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
           |
           |${authenticationRequiredMessage(true)}
           |""".stripMargin,

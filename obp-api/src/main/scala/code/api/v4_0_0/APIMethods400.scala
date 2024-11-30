@@ -7456,84 +7456,9 @@ trait APIMethods400 extends MdcLoggable {
       "POST",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties",
       "Create Counterparty (Explicit)",
-      s"""Create Counterparty (Explicit) for an Account.
+      s"""This endpoing creates an (Explicit) Counterparty for an Account.
          |
-         |In OBP, there are two types of Counterparty.
-         |
-         |* Explicit Counterparties (those here) which we create explicitly and are used in COUNTERPARTY Transaction Requests
-         |
-         |* Implicit Counterparties (AKA Other Accounts) which are generated automatically from the other sides of Transactions.
-         |
-         |Explicit Counterparties are created for the account / view
-         |They are how the user of the view (e.g. account owner) refers to the other side of the transaction
-         |
-         |name : the human readable name (e.g. Piano teacher, Miss Nipa)
-         |
-         |description : the human readable name (e.g. Piano teacher, Miss Nipa)
-         |
-         |currency : counterparty account currency (e.g. EUR, GBP, USD, ...)
-         |
-         |bank_routing_scheme : eg: bankId or bankCode or any other strings
-         |
-         |bank_routing_address : eg: `gh.29.uk`, must be valid sandbox bankIds
-         |
-         |account_routing_scheme : eg: AccountId or AccountNumber or any other strings
-         |
-         |account_routing_address : eg: `1d65db7c-a7b2-4839-af41-95`, must be valid accountIds
-         |
-         |other_account_secondary_routing_scheme : eg: IBAN or any other strings
-         |
-         |other_account_secondary_routing_address : if it is an IBAN, it should be unique for each counterparty.
-         |
-         |other_branch_routing_scheme : eg: branchId or any other strings or you can leave it empty, not useful in sandbox mode.
-         |
-         |other_branch_routing_address : eg: `branch-id-123` or you can leave it empty, not useful in sandbox mode.
-         |
-         |is_beneficiary : must be set to `true` in order to send payments to this counterparty
-         |
-         |bespoke: It supports a list of key-value, you can add it to the counterparty.
-         |
-         |bespoke.key : any info-key you want to add to this counterparty
-         |
-         |bespoke.value : any info-value you want to add to this counterparty
-         |
-         |The view specified by VIEW_ID must have the canAddCounterparty permission
-         |
-         |A minimal example for TransactionRequestType == COUNTERPARTY
-         | {
-         |  "name": "Tesobe1",
-         |  "description": "Good Company",
-         |  "currency": "EUR",
-         |  "other_bank_routing_scheme": "OBP",
-         |  "other_bank_routing_address": "gh.29.uk",
-         |  "other_account_routing_scheme": "OBP",
-         |  "other_account_routing_address": "8ca8a7e4-6d02-48e3-a029-0b2bf89de9f0",
-         |  "is_beneficiary": true,
-         |  "other_account_secondary_routing_scheme": "",
-         |  "other_account_secondary_routing_address": "",
-         |  "other_branch_routing_scheme": "",
-         |  "other_branch_routing_address": "",
-         |  "bespoke": []
-         |}
-         |
-         |
-         |A minimal example for TransactionRequestType == SEPA
-         |
-         | {
-         |  "name": "Tesobe2",
-         |  "description": "Good Company",
-         |  "currency": "EUR",
-         |  "other_bank_routing_scheme": "OBP",
-         |  "other_bank_routing_address": "gh.29.uk",
-         |  "other_account_routing_scheme": "OBP",
-         |  "other_account_routing_address": "8ca8a7e4-6d02-48e3-a029-0b2bf89de9f0",
-         |  "other_account_secondary_routing_scheme": "IBAN",
-         |  "other_account_secondary_routing_address": "DE89 3704 0044 0532 0130 00",
-         |  "is_beneficiary": true,
-         |  "other_branch_routing_scheme": "",
-         |  "other_branch_routing_address": "",
-         |  "bespoke": []
-         |}
+         |For an introduction to Counterparties in OBP see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
          |${authenticationRequiredMessage(true)}
          |
@@ -7640,10 +7565,13 @@ trait APIMethods400 extends MdcLoggable {
       "POST",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties/COUNTERPARTY_ID",
       "Delete Counterparty (Explicit)",
-      s"""Delete Counterparty (Explicit) for an Account.
-         |and also delete the Metadata for its counterparty.
+      s"""This endpoint deletes the Counterparty on the Account / View specified by the COUNTERPARTY_ID.
+         |It also deletes any related Counterparty Metadata.
          |
-         |need the view permission `can_delete_counterparty`
+         |The User calling this endpoint must have access to the View specified in the URL and that View must have the permission `can_delete_counterparty`.
+         |
+         |For a general introduction to Counterparties in OBP see ${Glossary.getGlossaryItemLink("Counterparties")}
+         |         |
          |${authenticationRequiredMessage(true)}
          |""".stripMargin,
       EmptyBody,
@@ -7689,8 +7617,9 @@ trait APIMethods400 extends MdcLoggable {
       "DELETE",
       "/management/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties/COUNTERPARTY_ID",
       "Delete Counterparty for any account (Explicit)",
-      s"""Delete Counterparty (Explicit) for any account 
-         |and also delete the Metadata for its counterparty.
+      s"""This is a management endpoint that enables the deletion of any specified Counterparty along with any related Metadata of that Counterparty.
+         |
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
          |${authenticationRequiredMessage(true)}
          |""".stripMargin,
@@ -7735,84 +7664,9 @@ trait APIMethods400 extends MdcLoggable {
       "POST",
       "/management/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties",
       "Create Counterparty for any account (Explicit)",
-      s"""Create Counterparty for any Account. (Explicit)
+      s"""This is a management endpoint that allows the creation of a Counterparty on any Account.
          |
-         |In OBP, there are two types of Counterparty.
-         |
-         |* Explicit Counterparties (those here) which we create explicitly and are used in COUNTERPARTY Transaction Requests
-         |
-         |* Implicit Counterparties (AKA Other Accounts) which are generated automatically from the other sides of Transactions.
-         |
-         |Explicit Counterparties are created for the account / view
-         |They are how the user of the view (e.g. account owner) refers to the other side of the transaction
-         |
-         |name : the human readable name (e.g. Piano teacher, Miss Nipa)
-         |
-         |description : the human readable name (e.g. Piano teacher, Miss Nipa)
-         |
-         |currency : counterparty account currency (e.g. EUR, GBP, USD, ...)
-         |
-         |bank_routing_scheme : eg: bankId or bankCode or any other strings
-         |
-         |bank_routing_address : eg: `gh.29.uk`, must be valid sandbox bankIds
-         |
-         |account_routing_scheme : eg: AccountId or AccountNumber or any other strings
-         |
-         |account_routing_address : eg: `1d65db7c-a7b2-4839-af41-95`, must be valid accountIds
-         |
-         |other_account_secondary_routing_scheme : eg: IBAN or any other strings
-         |
-         |other_account_secondary_routing_address : if it is an IBAN, it should be unique for each counterparty.
-         |
-         |other_branch_routing_scheme : eg: branchId or any other strings or you can leave it empty, not useful in sandbox mode.
-         |
-         |other_branch_routing_address : eg: `branch-id-123` or you can leave it empty, not useful in sandbox mode.
-         |
-         |is_beneficiary : must be set to `true` in order to send payments to this counterparty
-         |
-         |bespoke: It supports a list of key-value, you can add it to the counterparty.
-         |
-         |bespoke.key : any info-key you want to add to this counterparty
-         |
-         |bespoke.value : any info-value you want to add to this counterparty
-         |
-         |The view specified by VIEW_ID must have the canAddCounterparty permission
-         |
-         |A minimal example for TransactionRequestType == COUNTERPARTY
-         | {
-         |  "name": "Tesobe1",
-         |  "description": "Good Company",
-         |  "currency": "EUR",
-         |  "other_bank_routing_scheme": "OBP",
-         |  "other_bank_routing_address": "gh.29.uk",
-         |  "other_account_routing_scheme": "OBP",
-         |  "other_account_routing_address": "8ca8a7e4-6d02-48e3-a029-0b2bf89de9f0",
-         |  "is_beneficiary": true,
-         |  "other_account_secondary_routing_scheme": "",
-         |  "other_account_secondary_routing_address": "",
-         |  "other_branch_routing_scheme": "",
-         |  "other_branch_routing_address": "",
-         |  "bespoke": []
-         |}
-         |
-         |
-         |A minimal example for TransactionRequestType == SEPA
-         |
-         | {
-         |  "name": "Tesobe2",
-         |  "description": "Good Company",
-         |  "currency": "EUR",
-         |  "other_bank_routing_scheme": "OBP",
-         |  "other_bank_routing_address": "gh.29.uk",
-         |  "other_account_routing_scheme": "OBP",
-         |  "other_account_routing_address": "8ca8a7e4-6d02-48e3-a029-0b2bf89de9f0",
-         |  "other_account_secondary_routing_scheme": "IBAN",
-         |  "other_account_secondary_routing_address": "DE89 3704 0044 0532 0130 00",
-         |  "is_beneficiary": true,
-         |  "other_branch_routing_scheme": "",
-         |  "other_branch_routing_address": "",
-         |  "bespoke": []
-         |}
+         |For an introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
          |${authenticationRequiredMessage(true)}
          |
@@ -7914,7 +7768,9 @@ trait APIMethods400 extends MdcLoggable {
       "GET",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties",
       "Get Counterparties (Explicit)",
-      s"""Get the Counterparties (Explicit) for the account / view.
+      s"""Get the Counterparties that have been explicitly created on the specified Account / View.
+         |
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
          |${authenticationRequiredMessage(true)}
          |""".stripMargin,
@@ -7967,7 +7823,9 @@ trait APIMethods400 extends MdcLoggable {
       "GET",
       "/management/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties",
       "Get Counterparties for any account (Explicit)",
-      s"""Get the Counterparties (Explicit) for any account .
+      s"""This is a management endpoint that gets the Counterparties that have been explicitly created for an Account / View.
+         |
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
          |${authenticationRequiredMessage(true)}
          |""".stripMargin,
@@ -8017,7 +7875,9 @@ trait APIMethods400 extends MdcLoggable {
       "GET",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties/COUNTERPARTY_ID",
       "Get Counterparty by Id (Explicit)",
-      s"""Information returned about the Counterparty specified by COUNTERPARTY_ID:
+      s"""This endpoint returns a single Counterparty on an Account View specified by its COUNTERPARTY_ID:
+         |
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
          |${authenticationRequiredMessage(true)}
          |""".stripMargin,
@@ -8051,7 +7911,9 @@ trait APIMethods400 extends MdcLoggable {
       "GET",
       "/management/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparty-names/COUNTERPARTY_NAME",
       "Get Counterparty by name for any account (Explicit) ",
-      s"""
+      s"""This is a management endpoint that allows the retrieval of any Counterparty on an Account / View by its Name.
+         |
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
          |${authenticationRequiredMessage(true)}
          |
@@ -8099,8 +7961,11 @@ trait APIMethods400 extends MdcLoggable {
       nameOf(getCounterpartyByIdForAnyAccount),
       "GET",
       "/management/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties/COUNTERPARTY_ID",
-      "Get Counterparty by Id for any account (Explicit) ",
-      s"""
+      "Get Counterparty by Id for any account (Explicit)",
+      s"""This is a management endpoint that gets information about any single explicitly created Counterparty on an Account / View specified by its COUNTERPARTY_ID",
+         |
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
+         |
          |
          |${authenticationRequiredMessage(true)}
          |

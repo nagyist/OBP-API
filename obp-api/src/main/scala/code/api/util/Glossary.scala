@@ -58,6 +58,19 @@ object Glossary extends MdcLoggable  {
 		something
 	}
 
+	def getGlossaryItemLink(title: String): String = {
+		// This function just returns a link to the Glossary Item in question.
+		// Can reduce bandwith and maybe make things semantically clearer if we use links instead of includes.
+
+		val something = glossaryItems.find(_.title.toLowerCase == title.toLowerCase) match {
+			case Some(foundItem) =>
+				// We use the title because anchors are case sensitive, but we find it so we can log / display not found.
+				s"""[here](/glossary#${title})"""
+			case None => "glossary-item-link-not-found"
+		}
+		something
+	}
+
 
 	// reason of description is function: because we want make description is dynamic, so description can read
 	// webui_ props dynamic instead of a constant string.
@@ -175,7 +188,6 @@ object Glossary extends MdcLoggable  {
 				 				 |
 				 |[API Tester](https://github.com/OpenBankProject/API-Tester/blob/master/README.md)
 				 				 |
-
 				 				 |
 """)
 
@@ -810,7 +822,7 @@ object Glossary extends MdcLoggable  {
 |Account: A
 |Currency: EUR
 |Amount: -5
-|Counterparty: Account B
+|CounterpartyCounterpartyCounterparty: Account B
 |
 |Transaction 2.
 |
@@ -3372,6 +3384,66 @@ object Glossary extends MdcLoggable  {
 					 |* <a href="https://openid.net/specs/fapi-2_0-baseline-01.html">FAPI 2</a>
 					 |* <a href="https://bitbucket.org/openid/fapi/src/master/FAPI_2_0_Advanced_Profile.md">FAPI 2 Message Signing:</a>
 					 |""".stripMargin)
+
+	glossaryItems += GlossaryItem(
+		title = "Counterparties",
+		description =
+			s"""
+|
+|In OBP, there are two types of Counterparty:
+|
+|* Explicit Counterparties are created by calling an OBP endpoint - mainly for the purpose of creating a payment or variable recurring payments (VRPs) via Transaction Requests.
+|
+|* Implicit Counterparties (or "Other Accounts") are generated automatically from transactions - mainly for the purpose of tagging or adding other metadata.
+|
+|Counterparties always bound to a "View" on an Account. In this way, different managers of an account can use different sets of beneficiaries.
+|
+|Counterparties can be thought of the other side of of a transaction i.e. the other account or other party.
+|
+|Common fields in a Counterparty are:
+|
+|- id : A UUID which references it.
+|
+|- name : the human readable name (e.g. Piano teacher)
+|
+|- description : the human readable name (e.g. Piano teacher)
+|
+|- currency : account currency (e.g. EUR, GBP, USD, ...)
+|
+|- other_bank_routing_scheme : eg: 'OBP', 'BIC', 'bankCode' etc
+|
+|- other_bank_routing_address : eg: `gh.29.uk` - it must be a valid example of the scheme and may be validated for existance.
+|
+|- other_account_routing_scheme : eg: 'OBP', 'IBAN', 'AccountNumber' etc.
+|
+|- other_account_routing_address : eg: `1d65db7c-a7b2-4839-af41-95` -  a valid example of the scheme which may be validated for existance.
+|
+|The above fields describe how the backend can route payments to the counterparty.
+|
+|Alternative routings might be useful as well:
+|
+|- other_account_secondary_routing_scheme : An alternative routing scheme
+|
+|- other_account_secondary_routing_address : If it is an IBAN value, it should be unique for each counterparty.
+|
+|- other_branch_routing_scheme : eg: OBP or other branch scheme
+|
+|- other_branch_routing_address : eg: `branch-id-123. Unlikely to be used in sandbox mode.
+|
+|In order to send payments to a counterparty:
+|
+|- is_beneficiary : must be set to `true`
+|
+|If the backend wants to transmit other information we can use:
+|
+| - bespoke: A list of key-value pairs can be added to the counterparty.
+|
+|Note: In order to add a Counterparty to a View, the view must have the canAddCounterparty permission
+|
+|Counterparties may have Limits have setup for them which constrain payments made to them through Variable Recurring Payments (VRP).
+					 |
+					 |""".stripMargin)
+
 
 
 	private def getContentFromMarkdownFile(path: String): String = {

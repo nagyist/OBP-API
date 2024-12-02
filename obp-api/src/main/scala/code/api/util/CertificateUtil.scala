@@ -1,10 +1,6 @@
 package code.api.util
 
-import java.io.{FileInputStream, IOException}
-import java.security.cert.{Certificate, CertificateException, X509Certificate}
-import java.security.interfaces.{RSAPrivateKey, RSAPublicKey}
-import java.security.{PublicKey, _}
-
+import code.api.CertificateConstants
 import code.api.util.CryptoSystem.CryptoSystem
 import code.api.util.SelfSignedCertificateUtil.generateSelfSignedCert
 import code.util.Helper.MdcLoggable
@@ -13,7 +9,11 @@ import com.nimbusds.jose.crypto.{MACSigner, RSAEncrypter, RSASSASigner}
 import com.nimbusds.jose.util.X509CertUtils
 import com.nimbusds.jwt.{EncryptedJWT, JWTClaimsSet}
 import net.liftweb.util.Props
-import org.bouncycastle.operator.OperatorCreationException
+
+import java.io.{FileInputStream, IOException}
+import java.security.cert.{Certificate, CertificateException, X509Certificate}
+import java.security.interfaces.{RSAPrivateKey, RSAPublicKey}
+import java.security._
 
 
 object CryptoSystem extends Enumeration {
@@ -227,8 +227,8 @@ object CertificateUtil extends MdcLoggable {
 
   // Remove all whitespace characters including spaces, tabs, newlines, and carriage returns
   def normalizePemX509Certificate(pem: String): String = {
-    val pemHeader = "-----BEGIN CERTIFICATE-----"
-    val pemFooter = "-----END CERTIFICATE-----"
+    val pemHeader = CertificateConstants.BEGIN_CERT
+    val pemFooter = CertificateConstants.END_CERT
 
     def extractContent(pem: String): Option[String] = {
       val start = pem.indexOf(pemHeader)

@@ -119,7 +119,10 @@ object Constant extends MdcLoggable {
 }
 
 
-
+object CertificateConstants {
+  final val BEGIN_CERT: String = "-----BEGIN CERTIFICATE-----"
+  final val END_CERT: String = "-----END CERTIFICATE-----"
+}
 
 object JedisMethod extends Enumeration {
   type JedisMethod = Value

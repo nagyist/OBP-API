@@ -2537,6 +2537,11 @@ object NewStyle extends MdcLoggable{
         i => (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse Cannot ${nameOf(getAccountsHeld(bankId, user, callContext))} in the backend. ", 400), i._2)
       }
     }
+    def getAccountsHeldByUser(user: User, callContext: Option[CallContext]): OBPReturnType[List[BankIdAccountId]] = {
+      Connector.connector.vend.getAccountsHeldByUser(user, callContext) map {
+        i => (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse Cannot ${nameOf(getAccountsHeldByUser(user, callContext))} in the backend. ", 400), i._2)
+      }
+    }
 
     def createOrUpdateKycCheck(bankId: String,
                                 customerId: String,

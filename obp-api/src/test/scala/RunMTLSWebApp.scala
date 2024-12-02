@@ -27,9 +27,8 @@ TESOBE (http://www.tesobe.com/)
 
 import java.lang.reflect.{Proxy => JProxy}
 import java.security.cert.X509Certificate
-
 import bootstrap.liftweb.Boot
-import code.api.{Constant, RequestHeader}
+import code.api.{CertificateConstants, Constant, RequestHeader}
 import code.api.util.APIUtil
 import code.setup.PropsProgrammatically
 import net.liftweb.http.LiftRules
@@ -38,7 +37,6 @@ import org.apache.commons.codec.binary.Base64
 import org.eclipse.jetty.server._
 import org.eclipse.jetty.util.ssl.SslContextFactory
 import org.eclipse.jetty.webapp.WebAppContext
-import sun.security.provider.X509Factory
 
 object RunMTLSWebApp extends App with PropsProgrammatically {
   val servletContextPath = "/"
@@ -76,9 +74,9 @@ object RunMTLSWebApp extends App with PropsProgrammatically {
         )
       ).trim
       val certificate =
-        s"""${X509Factory.BEGIN_CERT}
+        s"""${CertificateConstants.BEGIN_CERT}
            |$content
-           |${X509Factory.END_CERT}
+           |${CertificateConstants.END_CERT}
            |""".stripMargin
       httpFields.add(RequestHeader.`PSD2-CERT`, certificate)
     }

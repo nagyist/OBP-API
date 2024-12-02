@@ -1,11 +1,9 @@
 package code.api.v5_1_0
 
 import code.api.util.APIUtil.OAuth._
-import code.api.util.ApiRole.CanSeeAccountAccessForAnyUser
+import code.api.util.ApiRole.{CanGetAccountsHeldAtAnyBank, CanGetAccountsHeldAtOneBank}
 import code.api.util.ErrorMessages.{UserHasMissingRoles, UserNotLoggedIn}
-import code.api.v4_0_0.AccountsMinimalJson400
 import code.api.v5_1_0.OBPAPI5_1_0.Implementations5_1_0
-import code.entitlement.Entitlement
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.model.ErrorMessage
 import com.openbankproject.commons.util.ApiVersion
@@ -21,6 +19,10 @@ class AccountTest extends V510ServerSetup {
     */
   object VersionOfApi extends Tag(ApiVersion.v5_1_0.toString)
   object GetCoreAccountByIdThroughView extends Tag(nameOf(Implementations5_1_0.getCoreAccountByIdThroughView))
+  object getAccountsHeldByUserAtBank extends Tag(nameOf(Implementations5_1_0.getAccountsHeldByUserAtBank))
+  object GetAccountsHeldByUser extends Tag(nameOf(Implementations5_1_0.getAccountsHeldByUser))
+
+  lazy val bankId = randomBankId
 
   feature(s"test ${GetCoreAccountByIdThroughView.name}") {
     scenario(s"We will test ${GetCoreAccountByIdThroughView.name}", GetCoreAccountByIdThroughView, VersionOfApi) {
@@ -32,6 +34,44 @@ class AccountTest extends V510ServerSetup {
       anonymousResponseGet.code should equal(401)
       anonymousResponseGet.body.extract[ErrorMessage].message should equal(UserNotLoggedIn)
       
+    }
+  }
+
+  feature(s"test ${getAccountsHeldByUserAtBank.name}") {
+    scenario(s"We will test ${getAccountsHeldByUserAtBank.name}", getAccountsHeldByUserAtBank, VersionOfApi) {
+      val requestGet = (v5_1_0_Request / "users" / resourceUser2.userId / "banks" / bankId / "accounts-held").GET
+      // Anonymous call fails
+      val anonymousResponseGet = makeGetRequest(requestGet)
+      anonymousResponseGet.code should equal(401)
+      anonymousResponseGet.body.extract[ErrorMessage].message should equal(UserNotLoggedIn)
+    }
+    scenario("We will call the endpoint with user credentials", getAccountsHeldByUserAtBank, VersionOfApi) {
+      When(s"We make a request $getAccountsHeldByUserAtBank")
+      val requestGet = (v5_1_0_Request / "users" / resourceUser2.userId / "banks" / bankId / "accounts-held").GET <@(user1)
+      val response = makeGetRequest(requestGet)
+      Then("We should get a 403")
+      response.code should equal(403)
+      val errorMessage = UserHasMissingRoles + s"${CanGetAccountsHeldAtOneBank} or $CanGetAccountsHeldAtAnyBank"
+      response.body.extract[ErrorMessage].message contains errorMessage should be(true)
+    }
+  }
+
+  feature(s"test ${GetAccountsHeldByUser.name}") {
+    scenario(s"We will test ${GetAccountsHeldByUser.name}", GetAccountsHeldByUser, VersionOfApi) {
+      val requestGet = (v5_1_0_Request / "users" / resourceUser2.userId / "accounts-held").GET
+      // Anonymous call fails
+      val anonymousResponseGet = makeGetRequest(requestGet)
+      anonymousResponseGet.code should equal(401)
+      anonymousResponseGet.body.extract[ErrorMessage].message should equal(UserNotLoggedIn)
+    }
+    scenario("We will call the endpoint with user credentials", GetAccountsHeldByUser, VersionOfApi) {
+      When(s"We make a request $GetAccountsHeldByUser")
+      val requestGet = (v5_1_0_Request / "users" / resourceUser2.userId / "accounts-held").GET <@(user1)
+      val response = makeGetRequest(requestGet)
+      Then("We should get a 403")
+      response.code should equal(403)
+      val errorMessage = UserHasMissingRoles + s"$CanGetAccountsHeldAtAnyBank"
+      response.body.extract[ErrorMessage].message contains errorMessage should be(true)
     }
   }
   

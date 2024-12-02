@@ -16,6 +16,7 @@ import code.api.util._
 import code.api.util.newstyle.BalanceNewStyle
 import code.api.util.newstyle.Consumer.createConsumerNewStyle
 import code.api.util.newstyle.RegulatedEntityNewStyle.{createRegulatedEntityNewStyle, deleteRegulatedEntityNewStyle, getRegulatedEntitiesNewStyle, getRegulatedEntityByEntityIdNewStyle}
+import code.api.v2_0_0.AccountsHelper.{accountTypeFilterText, getFilteredCoreAccounts}
 import code.api.v2_1_0.ConsumerRedirectUrlJSON
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_0_0.JSONFactory300.createAggregateMetricJson
@@ -619,6 +620,101 @@ trait APIMethods510 {
             ) 
           } yield {
             (JSONFactory510.createUserAttributesJson(userAttributes), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
+      getAccountsHeldByUserAtBank,
+      implementedInApiVersion,
+      nameOf(getAccountsHeldByUserAtBank),
+      "GET",
+      "/users/USER_ID/banks/BANK_ID/accounts-held",
+      "Get Accounts Held By User",
+      s"""Get Accounts held by the User if even the User has not been assigned the owner View yet.
+         |
+         |Can be used to onboard the account to the API - since all other account and transaction endpoints require views to be assigned.
+         |
+         |${accountTypeFilterText("/users/USER_ID/banks/BANK_ID/accounts-held")}
+         |
+         |
+         |
+        """.stripMargin,
+      EmptyBody,
+      coreAccountsHeldJsonV300,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        UserNotFoundByUserId,
+        UnknownError
+      ),
+      List(apiTagAccount),
+      Some(List(canGetAccountsHeldAtOneBank, canGetAccountsHeldAtAnyBank))
+    )
+
+    lazy val getAccountsHeldByUserAtBank: OBPEndpoint = {
+      case "users" :: userId :: "banks" :: BankId(bankId) :: "accounts-held" :: Nil JsonGet req => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (u, callContext) <- NewStyle.function.getUserByUserId(userId, cc.callContext)
+            (availableAccounts, callContext) <- NewStyle.function.getAccountsHeld(bankId, u, callContext)
+            (accounts, callContext) <- NewStyle.function.getBankAccountsHeldFuture(availableAccounts.toList, callContext)
+
+            accountHelds <- getFilteredCoreAccounts(availableAccounts, req, callContext).map { it =>
+              val coreAccountIds: List[String] = it._1.map(_.id)
+              accounts.filter(accountHeld => coreAccountIds.contains(accountHeld.id))
+            }
+          } yield {
+            (JSONFactory300.createCoreAccountsByCoreAccountsJSON(accountHelds), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      getAccountsHeldByUser,
+      implementedInApiVersion,
+      nameOf(getAccountsHeldByUser),
+      "GET",
+      "/users/USER_ID/accounts-held",
+      "Get Accounts Held By User",
+      s"""Get Accounts held by the User if even the User has not been assigned the owner View yet.
+         |
+         |Can be used to onboard the account to the API - since all other account and transaction endpoints require views to be assigned.
+         |
+         |${accountTypeFilterText("/users/USER_ID/accounts-held")}
+         |
+         |
+         |
+        """.stripMargin,
+      EmptyBody,
+      coreAccountsHeldJsonV300,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        UserNotFoundByUserId,
+        UnknownError
+      ),
+      List(apiTagAccount),
+      Some(List(canGetAccountsHeldAtAnyBank))
+    )
+
+    lazy val getAccountsHeldByUser: OBPEndpoint = {
+      case "users" :: userId :: "accounts-held" :: Nil JsonGet req => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (u, callContext) <- NewStyle.function.getUserByUserId(userId, cc.callContext)
+            (availableAccounts, callContext) <- NewStyle.function.getAccountsHeldByUser(u, callContext)
+            (accounts, callContext) <- NewStyle.function.getBankAccountsHeldFuture(availableAccounts, callContext)
+
+            accountHelds <- getFilteredCoreAccounts(availableAccounts, req, callContext).map { it =>
+              val coreAccountIds: List[String] = it._1.map(_.id)
+              accounts.filter(accountHeld => coreAccountIds.contains(accountHeld.id))
+            }
+          } yield {
+            (JSONFactory300.createCoreAccountsByCoreAccountsJSON(accountHelds), HttpCode.`200`(callContext))
           }
       }
     }

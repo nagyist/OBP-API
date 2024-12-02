@@ -475,8 +475,11 @@ object OAuth2Login extends RestHelper with MdcLoggable {
         case "ID" => super.applyIdTokenRules(token, cc)
         case "Bearer" =>
           val result = super.applyAccessTokenRules(token, cc)
-          val consumerPrimaryKey: Long = result._2.flatMap(_.consumer.map(_.id.get)).getOrElse(0)
-          addScopesToConsumer(token, consumerPrimaryKey)
+          result._2.flatMap(_.consumer.map(_.id.get)) match {
+            case Some(consumerPrimaryKey) =>
+              addScopesToConsumer(token, consumerPrimaryKey)
+            case None => // Do nothing
+          }
           result
         case "" => super.applyAccessTokenRules(token, cc)
       }

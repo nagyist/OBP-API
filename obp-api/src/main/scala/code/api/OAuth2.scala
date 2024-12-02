@@ -475,13 +475,14 @@ object OAuth2Login extends RestHelper with MdcLoggable {
         case "ID" => super.applyIdTokenRules(token, cc)
         case "Bearer" =>
           val result = super.applyAccessTokenRules(token, cc)
-          addScopesToConsumer(token)
+          val consumerPrimaryKey: Long = result._2.flatMap(_.consumer.map(_.id.get)).getOrElse(0)
+          addScopesToConsumer(token, consumerPrimaryKey)
           result
         case "" => super.applyAccessTokenRules(token, cc)
       }
     }
 
-    private def addScopesToConsumer(token: String): Unit = {
+    private def addScopesToConsumer(token: String,  consumerPrimaryKey: Long): Unit = {
       val sourceOfTruth = APIUtil.getPropsAsBoolValue(nameOfProperty = "oauth2.keycloak.source-of-truth", defaultValue = false)
       val consumerId = getClaim(name = "azp", idToken = token).getOrElse("")
       if(sourceOfTruth) {
@@ -493,13 +494,13 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           (json \ "resource_access" \ consumerId \ "roles").extract[List[String]]
             .filter(role => tryo(ApiRole.valueOf(role)).isDefined) // Keep only the roles OBP-API can recognise
         }
-        val scopes = Scope.scope.vend.getScopesByConsumerId(consumerId).getOrElse(Nil)
+        val scopes = Scope.scope.vend.getScopesByConsumerId(consumerPrimaryKey.toString).getOrElse(Nil)
         val databaseState = scopes.map(_.roleName)
         // Already exist at DB
         val existingRoles = openBankRoles.intersect(databaseState)
         // Roles to add into DB
         val rolesToAdd = openBankRoles.toSet diff databaseState.toSet
-        rolesToAdd.foreach(roleName => Scope.scope.vend.addScope("", consumerId, roleName))
+        rolesToAdd.foreach(roleName => Scope.scope.vend.addScope("", consumerPrimaryKey.toString, roleName))
         // Roles to delete from DB
         val rolesToDelete = databaseState.toSet diff openBankRoles.toSet
         rolesToDelete.foreach( roleName =>

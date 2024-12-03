@@ -36,12 +36,12 @@ object RabbitMQUtils extends MdcLoggable{
   val truststorePassword = APIUtil.getPropsValue("keystore.password").getOrElse(APIUtil.initPasswd)
 
   val rpcQueueArgs = new util.HashMap[String, AnyRef]()
-  //60s  It sets the time (in milliseconds) after which the queue will 
-  // automatically be deleted if it is not used, i.e., if no consumer is connected to it during that time.
-  rpcQueueArgs.put("x-expires", Integer.valueOf(60000))
   rpcQueueArgs.put("x-message-ttl", Integer.valueOf(60000))
   
   val rpcReplyToQueueArgs = new util.HashMap[String, AnyRef]()
+  //60s  It sets the time (in milliseconds) after which the queue will 
+  // automatically be deleted if it is not used, i.e., if no consumer is connected to it during that time.
+  rpcReplyToQueueArgs.put("x-expires", Integer.valueOf(60000))
   rpcReplyToQueueArgs.put("x-message-ttl", Integer.valueOf(60000))
   
   

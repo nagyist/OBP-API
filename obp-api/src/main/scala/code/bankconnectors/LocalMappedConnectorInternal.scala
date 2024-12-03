@@ -92,7 +92,7 @@ object LocalMappedConnectorInternal extends MdcLoggable {
       }
 
       // Prevent default value for transaction request type (at least).
-      _ <- Helper.booleanToFuture(s"From Account Currency is ${fromAccount.currency}, but Requested instructedAmount.currency is: ${transactionRequestBody.instructedAmount.currency}", cc = callContext) {
+      _ <- Helper.booleanToFuture(s"$InvalidTransactionRequestCurrency From Account Currency is ${fromAccount.currency}, but Requested instructedAmount.currency is: ${transactionRequestBody.instructedAmount.currency}", cc = callContext) {
         transactionRequestBody.instructedAmount.currency == fromAccount.currency
       }
 

@@ -581,6 +581,10 @@ trait Connector extends MdcLoggable {
   
   def getTransactionsCore(bankId: BankId, accountId: AccountId, queryParams:  List[OBPQueryParam] = Nil, callContext: Option[CallContext]): OBPReturnType[Box[List[TransactionCore]]] = Future{(Failure(setUnimplementedError(nameOf(getTransactionsCore _))), callContext)}
 
+  def getCountOfTransactionsFromAccountToCounterparty(bankId: BankId, counterpartyId: CounterpartyId, fromDate: Date, toDate:Date, callContext: Option[CallContext]) :OBPReturnType[Box[Int]] = Future{(Failure(setUnimplementedError(nameOf(getCountOfTransactionsFromAccountToCounterparty _))), callContext: Option[CallContext])}
+
+  def getSumOfTransactionsFromAccountToCounterparty(bankId: BankId, counterpartyId: CounterpartyId,fromDate: Date, toDate:Date, callContext: Option[CallContext]):OBPReturnType[Box[AmountOfMoney]] = Future{(Failure(setUnimplementedError(nameOf(getSumOfTransactionsFromAccountToCounterparty _))), callContext: Option[CallContext])}
+
   def getTransactionLegacy(bankId: BankId, accountId : AccountId, transactionId : TransactionId, callContext: Option[CallContext] = None): Box[(Transaction, Option[CallContext])] = Failure(setUnimplementedError(nameOf(getTransactionLegacy _)))
 
   def getTransaction(bankId: BankId, accountId : AccountId, transactionId : TransactionId, callContext: Option[CallContext] = None): OBPReturnType[Box[Transaction]] = Future{(Failure(setUnimplementedError(nameOf(getTransaction _))), callContext)}

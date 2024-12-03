@@ -180,6 +180,11 @@ trait ConsentTrait {
    * Specified end date and time for the transaction query period. If the field does not contain information or if it is not sent in the request, the end date will be 90 calendar days prior to the creation of the consent.
    */
   def transactionToDateTime: Date
+
+  /**
+   * this will be a UUID later. now only use the primacyKey.toString for it.  
+   */
+  def consentReferenceId: String
 }
 
 object ConsentStatus extends Enumeration {

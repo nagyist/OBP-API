@@ -321,6 +321,7 @@ class MappedConsent extends ConsentTrait with LongKeyedMapper[MappedConsent] wit
   override def transactionToDateTime= mTransactionToDateTime.get    
   override def creationDateTime= createdAt.get    
   override def statusUpdateDateTime= mStatusUpdateDateTime.get    
+  override def consentReferenceId = id.get.toString  
 
 }
 

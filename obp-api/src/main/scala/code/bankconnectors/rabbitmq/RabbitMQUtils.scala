@@ -35,12 +35,14 @@ object RabbitMQUtils extends MdcLoggable{
   val truststorePath = APIUtil.getPropsValue("truststore.path").getOrElse("")
   val truststorePassword = APIUtil.getPropsValue("keystore.password").getOrElse(APIUtil.initPasswd)
 
-  val args = new util.HashMap[String, AnyRef]()
+  val rpcQueueArgs = new util.HashMap[String, AnyRef]()
+  rpcQueueArgs.put("x-message-ttl", Integer.valueOf(60000))
+  
+  val rpcReplyToQueueArgs = new util.HashMap[String, AnyRef]()
   //60s  It sets the time (in milliseconds) after which the queue will 
   // automatically be deleted if it is not used, i.e., if no consumer is connected to it during that time.
-  args.put("x-expires", Integer.valueOf(60000))
-  args.put("x-message-ttl", Integer.valueOf(60000))
-  //args.put("x-queue-type", "quorum") // use the classic first.
+  rpcReplyToQueueArgs.put("x-expires", Integer.valueOf(60000))
+  rpcReplyToQueueArgs.put("x-message-ttl", Integer.valueOf(60000))
   
   
   private implicit val formats = code.api.util.CustomJsonFormats.nullTolerateFormats
@@ -90,7 +92,7 @@ object RabbitMQUtils extends MdcLoggable{
       true,            // durable: non-persis, here set durable = true
       false,           // exclusive: non-excl4, here set exclusive = false
       false,           // autoDelete: delete, here set autoDelete = false 
-      args             // extra arguments,
+      rpcQueueArgs     // extra arguments,
     )
 
     val replyQueueName:String = channel.queueDeclare(
@@ -98,7 +100,7 @@ object RabbitMQUtils extends MdcLoggable{
       false,            // durable: non-persis, here set durable = false
       true,           // exclusive: non-excl4, here set exclusive = true
       true,           // autoDelete: delete, here set autoDelete = true 
-      args             // extra arguments,
+      rpcReplyToQueueArgs // extra arguments,
     ).getQueue
 
     val rabbitResponseJsonFuture  = {

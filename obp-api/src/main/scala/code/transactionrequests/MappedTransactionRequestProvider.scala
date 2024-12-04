@@ -3,13 +3,14 @@ package code.transactionrequests
 import code.api.util.APIUtil.DateWithMsFormat
 import code.api.util.CustomJsonFormats
 import code.api.util.ErrorMessages._
-import code.api.v4_0_0.TransactionRequestBodyAgentJsonV400
+import code.api.v2_1_0.TransactionRequestBodyCounterpartyJSON
 import code.bankconnectors.LocalMappedConnectorInternal
 import code.model._
 import code.util.{AccountIdString, UUIDString}
 import com.openbankproject.commons.model._
 import com.openbankproject.commons.model.enums.{AccountRoutingScheme, TransactionRequestStatus}
 import com.openbankproject.commons.model.enums.TransactionRequestTypes
+import com.openbankproject.commons.model.enums.TransactionRequestTypes.{COUNTERPARTY, SEPA}
 import net.liftweb.common.{Box, Failure, Full, Logger}
 import net.liftweb.json
 import net.liftweb.json.JsonAST.{JField, JObject, JString}
@@ -92,11 +93,16 @@ object MappedTransactionRequestProvider extends TransactionRequestProvider {
                                                paymentService: Option[String],
                                                berlinGroupPayments: Option[BerlinGroupTransactionRequestCommonBodyJson]): Box[TransactionRequest] = {
 
-    val toAccountRouting = transactionRequestType.value match {
-      case "SEPA" =>
+    val toAccountRouting = TransactionRequestTypes.withName(transactionRequestType.value) match {
+      case SEPA =>
         toAccount.accountRoutings.find(_.scheme == AccountRoutingScheme.IBAN.toString)
           .orElse(toAccount.accountRoutings.headOption)
       case _ => toAccount.accountRoutings.headOption
+    }
+    
+    val counterpartyId = TransactionRequestTypes.withName(transactionRequestType.value) match {
+      case COUNTERPARTY  => Some(transactionRequestCommonBody.asInstanceOf[TransactionRequestBodyCounterpartyJSON].to.counterparty_id)
+      case _ => None
     }
 
     val (paymentStartDate, paymentEndDate, executionRule, frequency, dayOfExecution) = if(paymentService == Some("periodic-payments")){
@@ -150,7 +156,7 @@ object MappedTransactionRequestProvider extends TransactionRequestProvider {
       //.mThisBankId(toAccount.bankId.value) 
       //.mThisAccountId(toAccount.accountId.value)
       //.mThisViewId(toAccount.v) 
-      //.mCounterpartyId(toAccount.branchId)
+      .mCounterpartyId(counterpartyId.getOrElse(null))
       //.mIsBeneficiary(toAccount.isBeneficiary)
 
       //Body from http request: SANDBOX_TAN, FREE_FORM, SEPA and COUNTERPARTY should have the same following fields:

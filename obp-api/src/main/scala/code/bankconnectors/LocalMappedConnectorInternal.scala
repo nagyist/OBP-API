@@ -22,7 +22,7 @@ import com.openbankproject.commons.model.enums.{AccountRoutingScheme, PaymentSer
 import net.liftweb.common._
 import net.liftweb.json.Serialization.write
 import net.liftweb.json.{NoTypeHints, Serialization}
-import net.liftweb.mapper.By
+import net.liftweb.mapper.{Ascending, By, By_<=, By_>=, Descending, OrderBy, QueryParam}
 import net.liftweb.util.Helpers.{now, tryo}
 
 import java.util.Date
@@ -631,6 +631,32 @@ object LocalMappedConnectorInternal extends MdcLoggable {
     }
   }
 
-  def getTransactionRequestStatuses() : Box[TransactionRequestStatus] = Failure(NotImplemented + nameOf(getTransactionRequestStatuses _) )
+  def getTransactionRequestsInternal(fromBankId: BankId, fromAccountId: AccountId, counterpartyId: CounterpartyId, queryParams: List[OBPQueryParam], callContext: Option[CallContext]): OBPReturnType[Box[List[MappedTransactionRequest]]] = {
+
+    val fromDate = queryParams.collect { case OBPFromDate(date) => By_>=(MappedTransactionRequest.updatedAt, date) }.headOption
+    val toDate = queryParams.collect { case OBPToDate(date) => By_<=(MappedTransactionRequest.updatedAt, date) }.headOption
+    val ordering = queryParams.collect {
+      //we don't care about the intended sort field and only sort on finish date for now
+      case OBPOrdering(_, direction) =>
+        direction match {
+          case OBPAscending => OrderBy(MappedTransactionRequest.updatedAt, Ascending)
+          case OBPDescending => OrderBy(MappedTransactionRequest.updatedAt, Descending)
+        }
+    }
+
+    val optionalParams: Seq[QueryParam[MappedTransactionRequest]] = Seq(fromDate.toSeq, toDate.toSeq, ordering.toSeq).flatten
+    val mapperParams = Seq(
+      By(MappedTransactionRequest.mFrom_BankId, fromBankId.value), 
+      By(MappedTransactionRequest.mFrom_AccountId, fromAccountId.value),
+      By(MappedTransactionRequest.mCounterpartyId, counterpartyId.value),
+      By(MappedTransactionRequest.mStatus, TransactionRequestStatus.COMPLETED.toString)
+    ) ++ optionalParams
+
+    Future {
+      (Full(MappedTransactionRequest.findAll(mapperParams: _*)), callContext)
+    }
+  }
   
+  def getTransactionRequestStatuses() : Box[TransactionRequestStatus] = Failure(NotImplemented + nameOf(getTransactionRequestStatuses _))
+
 }

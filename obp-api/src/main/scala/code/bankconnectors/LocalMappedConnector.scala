@@ -774,48 +774,41 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     }
   }
 
-  override def getCountOfTransactionsFromAccountToCounterparty(bankId: BankId, counterpartyId: CounterpartyId, fromDate: Date, toDate:Date, callContext: Option[CallContext]) :OBPReturnType[Box[Int]] =
+  override def getCountOfTransactionsFromAccountToCounterparty(fromBankId: BankId, fromAccountId: AccountId, counterpartyId: CounterpartyId, fromDate: Date, toDate:Date, callContext: Option[CallContext]) :OBPReturnType[Box[Int]] = {
+    val queryParams = List(OBPFromDate(fromDate),OBPToDate(toDate), OBPOrdering(None,OBPAscending))
     for{
-      (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(counterpartyId, callContext)
-      // Check we can send money to it.
-      _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
-        toCounterparty.isBeneficiary
-      }
-      toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
-      queryParams = List(OBPFromDate(fromDate),OBPToDate(toDate))
-      (transactions,callContext)<-getTransactionsCore(toAccount.bankId, toAccount.accountId, queryParams, callContext)
-    } yield {
-      (transactions.map(_.length), callContext)
+      (transactionRequestsBox,callContext) <- LocalMappedConnectorInternal.getTransactionRequestsInternal(fromBankId: BankId, fromAccountId: AccountId, counterpartyId: CounterpartyId, queryParams, callContext: Option[CallContext])
+    }yield{
+      (transactionRequestsBox.map(_.length), callContext)
     }
-
-  override def getSumOfTransactionsFromAccountToCounterparty(bankId: BankId, counterpartyId: CounterpartyId, fromDate: Date, toDate:Date, callContext: Option[CallContext]):OBPReturnType[Box[AmountOfMoney]] =
+  }
+  
+  override def getSumOfTransactionsFromAccountToCounterparty(fromBankId: BankId, fromAccountId: AccountId, counterpartyId: CounterpartyId, fromDate: Date, toDate:Date, callContext: Option[CallContext]):OBPReturnType[Box[AmountOfMoney]] = {
+    
+    val queryParams = List(OBPFromDate(fromDate),OBPToDate(toDate), OBPOrdering(None,OBPAscending))
     for{
-      (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(counterpartyId, callContext)
-      // Check we can send money to it.
-      _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
-        toCounterparty.isBeneficiary
-      }
-      toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
-      queryParams = List(OBPFromDate(fromDate),OBPToDate(toDate), OBPOrdering(None,OBPAscending))
-      (transactions,callContext) <- getTransactionsCore(toAccount.bankId, toAccount.accountId, queryParams, callContext)
+      (fromBankAccount, callContext) <- NewStyle.function.getBankAccount(fromBankId, fromAccountId, callContext)
+      (transactionRequestsBox,callContext) <- LocalMappedConnectorInternal.getTransactionRequestsInternal(fromBankId: BankId, fromAccountId: AccountId, counterpartyId: CounterpartyId, queryParams, callContext: Option[CallContext])
       // Check the input JSON format, here is just check the common parts of all four types
-      (transactionSum,currency) <- NewStyle.function.tryons(s"$UnknownError can not get the sum of transactions", 400, callContext) {
-        val trans = transactions.head
+      (amountSum,currency) <- NewStyle.function.tryons(s"$UnknownError can not get the sum of transactions", 400, callContext) {
+        val transactionRequests = transactionRequestsBox.getOrElse(Nil)
+        val fromAccountCurrency = fromBankAccount.currency // eg: the fromAccount currency is EUR, and the 1 GBP  = 1.16278 Euro.
         val allAmounts = for{
-          transaction <- trans
-          currency= transaction.currency
-          transferAmount= transaction.amount
-          debitRate = fx.exchangeRate(currency, toAccount.currency, Some(bankId.value), callContext)
-          fromTransAmt = fx.convert(transferAmount, debitRate)
+          transactionRequest <- transactionRequests
+          transferCurrency = transactionRequest.mBody_Value_Currency.get //eg: if the payment json body currency is GBP.
+          transferAmount= BigDecimal(transactionRequest.mBody_Value_Amount.get) //eg: if the payment json body amount is 1.
+          debitRate = fx.exchangeRate(transferCurrency, fromAccountCurrency, Some(fromBankId.value), callContext) //eg: the rate here is 1.16278.
+          transactionAmount = fx.convert(transferAmount, debitRate) // 1.16278 Euro
         }yield{
-          fromTransAmt
+          transactionAmount // 1.16278 Euro
         }
-        (allAmounts.sum, toAccount.currency)
-      }      
+        (allAmounts.sum, fromAccountCurrency) // Here we just sum all the transfer amounts.
+      }
     } yield {
-      (Full(AmountOfMoney(currency, transactionSum.toString())), callContext)
+      (Full(AmountOfMoney(currency, amountSum.toString())), callContext)
     }
-
+  }
+  
   /**
     *
     * refreshes transactions via hbci if the transaction info is sourced from hbci

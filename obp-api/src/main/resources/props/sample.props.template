@@ -771,6 +771,28 @@ display_internal_errors=false
 # oauth2.keycloak.source-of-truth = false
 # ------------------------------------------------------------------------------ OAuth 2 ------
 
+# -- PSU Authentication methods --------------------------------------------------------------
+# The EBA notes that there would appear to currently be three main ways or methods
+# of carrying out the authentication procedure of the PSU through a dedicated interface,
+# and APIs in particular, namely:
+# - redirection,
+# - embedded approaches and
+# - decoupled approaches (or a combination thereof).
+# In the cases of redirection and decoupled approaches,
+# PSU’s authentication data is exchanged directly between PSUs and ASPSPs,
+# as opposed to embedded approaches, in which PSU’s authentication data
+# is exchanged between TPPs and ASPSPs through the interface.
+####
+# psu_authentication_method = redirection_with_dedicated_start_of_authorization
+# Possible values:
+# - redirection
+# - redirection_with_dedicated_start_of_authorization
+# - embedded
+# - decoupled
+# In case that "psu_authentication_method = redirection" you must define
+# psu_authentication_method_sca_redirect_url = redirect_url_value
+# -------------------------------------------------------------- Authentication methods --
+
 ## This property is used for documenting at Resource Doc. It may include the port also (but not /obp)
 ## (this needs to be a URL)
 documented_server_url=https://apisandbox.openbankproject.com

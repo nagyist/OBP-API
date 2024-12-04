@@ -1,10 +1,11 @@
 package code.transactionrequests
 
-import code.api.util.APIUtil.DateWithMsFormat
-import code.api.util.CustomJsonFormats
+import code.api.util.APIUtil.{DateWithMsFormat}
+import code.api.util.{APIUtil, CallContext, CustomJsonFormats}
 import code.api.util.ErrorMessages._
 import code.api.v2_1_0.TransactionRequestBodyCounterpartyJSON
 import code.bankconnectors.LocalMappedConnectorInternal
+import code.consent.Consents
 import code.model._
 import code.util.{AccountIdString, UUIDString}
 import com.openbankproject.commons.model._
@@ -91,7 +92,8 @@ object MappedTransactionRequestProvider extends TransactionRequestProvider {
                                                charge: TransactionRequestCharge,
                                                chargePolicy: String,
                                                paymentService: Option[String],
-                                               berlinGroupPayments: Option[BerlinGroupTransactionRequestCommonBodyJson]): Box[TransactionRequest] = {
+                                               berlinGroupPayments: Option[BerlinGroupTransactionRequestCommonBodyJson],
+                                               callContext: Option[CallContext]): Box[TransactionRequest] = {
 
     val toAccountRouting = TransactionRequestTypes.withName(transactionRequestType.value) match {
       case SEPA =>
@@ -100,7 +102,7 @@ object MappedTransactionRequestProvider extends TransactionRequestProvider {
       case _ => toAccount.accountRoutings.headOption
     }
     
-    val counterpartyId = TransactionRequestTypes.withName(transactionRequestType.value) match {
+    val counterpartyIdOption = TransactionRequestTypes.withName(transactionRequestType.value) match {
       case COUNTERPARTY  => Some(transactionRequestCommonBody.asInstanceOf[TransactionRequestBodyCounterpartyJSON].to.counterparty_id)
       case _ => None
     }
@@ -120,6 +122,9 @@ object MappedTransactionRequestProvider extends TransactionRequestProvider {
       (null, null, null, null, null)
     }
 
+    val consentIdOption = callContext.map(_.requestHeaders).map(APIUtil.getConsentIdRequestHeaderValue).flatten
+    val consentOption = consentIdOption.map(consentId =>Consents.consentProvider.vend.getConsentByConsentId(consentId).toOption).flatten
+    val consentReferenceIdOption = consentOption.map(_.consentReferenceId)
     
     // Note: We don't save transaction_ids, status and challenge here.
     val mappedTransactionRequest = MappedTransactionRequest.create
@@ -156,7 +161,7 @@ object MappedTransactionRequestProvider extends TransactionRequestProvider {
       //.mThisBankId(toAccount.bankId.value) 
       //.mThisAccountId(toAccount.accountId.value)
       //.mThisViewId(toAccount.v) 
-      .mCounterpartyId(counterpartyId.getOrElse(null))
+      .mCounterpartyId(counterpartyIdOption.getOrElse(null))
       //.mIsBeneficiary(toAccount.isBeneficiary)
 
       //Body from http request: SANDBOX_TAN, FREE_FORM, SEPA and COUNTERPARTY should have the same following fields:
@@ -172,6 +177,7 @@ object MappedTransactionRequestProvider extends TransactionRequestProvider {
       .mPaymentExecutionRule(executionRule)
       .mPaymentFrequency(frequency)
       .mPaymentDayOfExecution(dayOfExecution)
+      .mConsentReferenceId(consentReferenceIdOption.getOrElse(null))
 
       .saveMe
     Full(mappedTransactionRequest).flatMap(_.toTransactionRequest)
@@ -277,6 +283,8 @@ class MappedTransactionRequest extends LongKeyedMapper[MappedTransactionRequest]
   object mPaymentExecutionRule extends MappedString(this, 64) //BGv1.3 Open API Document example value: "executionRule":"preceding" 
   object mPaymentFrequency extends MappedString(this, 64)     //BGv1.3 Open API Document example value: "frequency":"Monthly", 
   object mPaymentDayOfExecution extends MappedString(this, 64)//BGv1.3 Open API Document example value: "dayOfExecution":"01" 
+  
+  object mConsentReferenceId extends MappedString(this, 64)
   
   def updateStatus(newStatus: String) = {
     mStatus.set(newStatus)

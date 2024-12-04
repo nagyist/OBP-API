@@ -4381,7 +4381,9 @@ object LocalMappedConnector extends Connector with MdcLoggable {
           charge,
           chargePolicy,
           None, 
-          None)
+          None,
+          callContext
+        )
       } map {
         unboxFullOrFail(_, callContext, s"$InvalidConnectorResponseForCreateTransactionRequestImpl210")
       }
@@ -4535,7 +4537,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
           charge,
           chargePolicy,
           None,
-          None
+          None,
+          callContext
         )
         saveTransactionRequestReasons(reasons, transactionRequest)
         transactionRequest

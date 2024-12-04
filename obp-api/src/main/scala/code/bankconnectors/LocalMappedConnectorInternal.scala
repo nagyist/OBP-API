@@ -157,7 +157,8 @@ object LocalMappedConnectorInternal extends MdcLoggable {
           charge,
           "", // chargePolicy is not used in BG so far.
           Some(paymentServiceType.toString),
-          Some(transactionRequestBody)
+          Some(transactionRequestBody),
+          callContext
         )
         transactionRequest
       } map {

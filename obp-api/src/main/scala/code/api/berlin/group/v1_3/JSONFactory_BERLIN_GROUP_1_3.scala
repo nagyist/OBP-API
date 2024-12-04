@@ -525,7 +525,7 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
           consentId = consent.consentId,
           consentStatus = consent.status.toLowerCase(),
           _links = ConsentLinksV13(
-            scaRedirect = Some(Href(s"$scaRedirectUrl")),
+            scaRedirect = Some(Href(s"$scaRedirectUrl/${consent.consentId}")),
             status = Some(Href(s"/v1.3/consents/${consent.consentId}/status")),
             scaStatus = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations/AUTHORISATIONID")),
           )

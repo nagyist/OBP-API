@@ -4267,6 +4267,46 @@ object NewStyle extends MdcLoggable{
       i => (unboxFullOrFail(i._1, callContext, s"$GetCounterpartyLimitError Current BANK_ID($bankId), " +
         s"ACCOUNT_ID($accountId), VIEW_ID($viewId),COUNTERPARTY_ID($counterpartyId)"), i._2)
     }
+
+    def getCountOfTransactionsFromAccountToCounterparty(
+      fromBankId: BankId, 
+      fromAccountId: AccountId, 
+      counterpartyId: CounterpartyId, 
+      fromDate: Date, 
+      toDate: Date, 
+      callContext: Option[CallContext]
+    ): OBPReturnType[Int] =
+      Connector.connector.vend.getCountOfTransactionsFromAccountToCounterparty(
+        fromBankId: BankId,
+        fromAccountId: AccountId,
+        counterpartyId: CounterpartyId,
+        fromDate: Date,
+        toDate: Date,
+        callContext: Option[CallContext]
+      ) map {
+        i =>
+          (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse ${nameOf(getCountOfTransactionsFromAccountToCounterparty _)}"), i._2)
+      }
+
+    def getSumOfTransactionsFromAccountToCounterparty(
+      fromBankId: BankId, 
+      fromAccountId: AccountId, 
+      counterpartyId: CounterpartyId, 
+      fromDate: Date, 
+      toDate:Date, 
+      callContext: Option[CallContext]
+    ):OBPReturnType[AmountOfMoney] =
+      Connector.connector.vend.getSumOfTransactionsFromAccountToCounterparty(
+        fromBankId: BankId,
+        fromAccountId: AccountId, 
+        counterpartyId: CounterpartyId, 
+        fromDate: Date,
+        toDate:Date, 
+        callContext: Option[CallContext]
+      ) map {
+        i =>
+          (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse ${nameOf(getCountOfTransactionsFromAccountToCounterparty _)}"), i._2)
+      }
     
     def deleteCounterpartyLimit(
       bankId: String,

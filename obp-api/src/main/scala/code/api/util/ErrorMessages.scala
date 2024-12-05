@@ -510,6 +510,7 @@ object ErrorMessages {
   val DeleteCounterpartyLimitError = "OBP-30265: Could not delete the counterparty limit."
   val CustomViewAlreadyExistsError = "OBP-30266: The custom view is already exists."
   val UserDoesNotHavePermission = "OBP-30267: The user does not have the permission:"
+  val CounterpartyLimitValidationError = "OBP-30268: Counterparty Limit Validation Error."
 
   val TaxResidenceNotFound = "OBP-30300: Tax Residence not found by TAX_RESIDENCE_ID. "
   val CustomerAddressNotFound = "OBP-30310: Customer's Address not found by CUSTOMER_ADDRESS_ID. "

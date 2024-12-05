@@ -943,7 +943,7 @@ trait APIMethods500 {
               // TODO Add routing scheme as well. In case IBAN is provided this will not work.
               val fromBankIdAccountId = BankIdAccountId(BankId(postConsentRequestJsonV510.from_account.bank_routing.address), AccountId(postConsentRequestJsonV510.from_account.account_routing.address))
 
-              val vrpViewId = s"_VRP-${UUID.randomUUID.toString}".dropRight(5)// to make sure the length of the viewId is 36.
+              val vrpViewId = s"_vrp-${UUID.randomUUID.toString}".dropRight(5)// to make sure the length of the viewId is 36.
               val targetPermissions = List(//may need getTransactionRequest .. so far only this payments.
                 "can_add_transaction_request_to_beneficiary",
                 "can_get_counterparty"

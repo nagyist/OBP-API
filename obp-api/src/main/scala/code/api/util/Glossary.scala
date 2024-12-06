@@ -5,6 +5,7 @@ import code.api.Constant
 import code.api.Constant.{PARAM_LOCALE, directLoginHeaderName}
 import code.api.util.APIUtil.{getObpApiRoot, getServerUrl}
 import code.api.util.ExampleValue.{accountIdExample, bankIdExample, customerIdExample, userIdExample}
+
 import code.util.Helper.MdcLoggable
 import code.util.HydraUtil
 import code.webuiprops.MappedWebUiPropsProvider.getWebUiPropsValue
@@ -3363,7 +3364,82 @@ object Glossary extends MdcLoggable  {
    |These parts are intended to be used with <a href="https://tools.ietf.org/html/rfc6749" target="_blank">RFC6749</a>, <a href="https://tools.ietf.org/html/rfc6750" target="_blank">RFC6750</a>, <a href="https://tools.ietf.org/html/rfc7636" target="_blank">RFC7636</a>, and <a href="https://openid.net/specs/openid-connect-core-1_0.html" target="_blank">OIDC</a>.
 	 |""".stripMargin)
 
-		glossaryItems += GlossaryItem(
+	glossaryItems += GlossaryItem(
+		title = "Transaction-Request-Introduction",
+		description =
+			s"""
+   |In OBP we initiate a Payment by creating a Transaction Request.
+   |
+	 |An OBP `transaction request` may or may not result in a `transaction`. However, a `transaction` only has one possible state: completed.
+	 |
+	 |A `Transaction Request` can have one of several states: INITIATED, NEXT_CHALLENGE_PENDING etc.
+	 |
+	 |`Transactions` are modeled on items in a bank statement that represent the movement of money.
+	 |
+	 |`Transaction Requests` are requests to move money which may or may not succeed and thus result in a `Transaction`.
+	 |
+	 |A `Transaction Request` might create a security challenge that needs to be answered before the `Transaction Request` proceeds.
+	 |In case 1 person needs to answer security challenge we have next flow of state of an `transaction request`:
+	 |  INITIATED => COMPLETED
+	 |In case n persons needs to answer security challenge we have next flow of state of an `transaction request`:
+	 |  INITIATED => NEXT_CHALLENGE_PENDING => ... => NEXT_CHALLENGE_PENDING => COMPLETED
+	 |
+	 |The security challenge is bound to a user i.e. in case of right answer and the user is different than expected one the challenge will fail.
+	 |
+	 |Rule for calculating number of security challenges:
+	 |If product Account attribute REQUIRED_CHALLENGE_ANSWERS=N then create N challenges
+	 |(one for every user that has a View where permission "can_add_transaction_request_to_any_account"=true)
+	 |In case REQUIRED_CHALLENGE_ANSWERS is not defined as an account attribute default value is 1.
+	 |
+	 |Transaction Requests contain charge information giving the client the opportunity to proceed or not (as long as the challenge level is appropriate).
+	 |
+	 |Transaction Requests can have one of several Transaction Request Types which expect different bodies. The escaped body is returned in the details key of the GET response.
+	 |This provides some commonality and one URL for many different payment or transfer types with enough flexibility to validate them differently.
+	 |
+	 |The payer is set in the URL. Money comes out of the BANK_ID and ACCOUNT_ID specified in the URL.
+	 |
+	 |In sandbox mode, TRANSACTION_REQUEST_TYPE is commonly set to ACCOUNT. See getTransactionRequestTypesSupportedByBank for all supported types.
+	 |
+	 |In sandbox mode, if the amount is less than 1000 EUR (any currency, unless it is set differently on this server), the transaction request will create a transaction without a challenge, else the Transaction Request will be set to INITIALISED and a challenge will need to be answered.
+	 |
+	 |If a challenge is created you must answer it using Answer Transaction Request Challenge before the Transaction is created.
+	 |
+	 |You can transfer between different currency accounts. (new in 2.0.0). The currency in body must match the sending account.
+	 |
+	 |For exchange rates in this sandbox see here: ${Glossary.getGlossaryItemLink("FX-Rates")}
+	 |
+	 |Transaction Requests satisfy PSD2 requirements thus:
+	 |
+	 |1) A transaction can be initiated by a third party application.
+	 |
+	 |2) The customer is informed of the charge that will incurred.
+	 |
+	 |3) The call supports delegated authentication (OAuth)
+	 |
+	 |See [this python code](https://github.com/OpenBankProject/Hello-OBP-DirectLogin-Python/blob/master/hello_payments.py) for a complete example of this flow.
+	 |
+	 |There is further documentation [here](https://github.com/OpenBankProject/OBP-API/wiki/Transaction-Requests)
+	 |
+	 |
+   |
+	 |""".stripMargin)
+
+	val exchangeRates =
+		APIUtil.getPropsValue("webui_api_explorer_url", "") +
+			"/more?version=OBPv4.0.0&list-all-banks=false&core=&psd2=&obwg=#OBPv2_2_0-getCurrentFxRate"
+
+	glossaryItems += GlossaryItem(
+		title = "FX-Rates",
+		description =
+			s"""The following static FX rates are available in sandbox mode:
+				 |
+				 |${exchangeRates}
+|
+|""".stripMargin)
+
+
+
+	glossaryItems += GlossaryItem(
 			title = "FAPI 2.0",
 			description =
 				s"""FAPI 2.0 has a broader scope than FAPI 1.0.

@@ -129,18 +129,6 @@ object Glossary extends MdcLoggable  {
 	// NOTE! Some glossary items are defined in ExampleValue.scala
 
 
-	//implicit val formats = CustomJsonFormats.formats
-	//val prettyJson: String = extraction(decompose(authInfoExample))
-
-
-	/*
-
-
-
-
-	 */
-
-
 	val latestKafkaConnector : String = "kafka_vSept2018"
 
 	def messageDocLink(process: String) : String = {
@@ -152,8 +140,12 @@ object Glossary extends MdcLoggable  {
 		s"""<a href="/message-docs?connector=$latestAkkaConnector#$process">$process</a>"""
 	}
 
-
-
+	// Note: this doesn't get / use an OBP version
+	def getApiExplorerLink(title: String, operationId: String) : String = {
+		val apiExplorerPrefix = APIUtil.getPropsValue("webui_api_explorer_url", "")
+		// Note: This is hardcoded for API Explorer II
+		s"""<a href="$apiExplorerPrefix/operationid/$operationId">$title</a>"""
+	}
 
 	glossaryItems += GlossaryItem(
 		title = "Cheat Sheet",
@@ -3424,16 +3416,14 @@ object Glossary extends MdcLoggable  {
    |
 	 |""".stripMargin)
 
-	val exchangeRates =
-		APIUtil.getPropsValue("webui_api_explorer_url", "") +
-			"/more?version=OBPv4.0.0&list-all-banks=false&core=&psd2=&obwg=#OBPv2_2_0-getCurrentFxRate"
+//	val exchangeRates =
+//		APIUtil.getPropsValue("webui_api_explorer_url", "") +
+//			"/more?version=OBPv4.0.0&list-all-banks=false&core=&psd2=&obwg=#OBPv2_2_0-getCurrentFxRate"
 
 	glossaryItems += GlossaryItem(
 		title = "FX-Rates",
 		description =
-			s"""The following static FX rates are available in sandbox mode:
-				 |
-				 |${exchangeRates}
+			s"""You can use the following endpoint to get the FX Rates available on this OBP instance: ${getApiExplorerLink("Get FX Rates", "OBPv2.2.0-getCurrentFxRate")}
 |
 |""".stripMargin)
 

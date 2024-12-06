@@ -677,12 +677,12 @@ trait APIMethods400 extends MdcLoggable {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-request-types/COUNTERPARTY/transaction-requests",
       "Create Transaction Request (COUNTERPARTY)",
       s"""
-         |Special instructions for COUNTERPARTY:
+         |$transactionRequestGeneralText
          |
          |When using a COUNTERPARTY to create a Transaction Request, specify the counterparty_id in the body of the request.
-         |The routing details of the counterparty will be forwarded for the transfer.
+         |The routing details of the counterparty will be forwarded to the Core Banking System (CBS) for the transfer.
          |
-         |$transactionRequestGeneralText
+         |COUNTERPARTY Transaction Requests are used for Variable Recurring Payments (VRP). Use the following ${Glossary.getApiExplorerLink("endpoint", "OBPv5.1.0-createVRPConsentRequest")} to create a consent for VRPs.
          |
          |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |

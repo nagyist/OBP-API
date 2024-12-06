@@ -582,6 +582,10 @@ trait Connector extends MdcLoggable {
   
   def getTransactionsCore(bankId: BankId, accountId: AccountId, queryParams:  List[OBPQueryParam] = Nil, callContext: Option[CallContext]): OBPReturnType[Box[List[TransactionCore]]] = Future{(Failure(setUnimplementedError(nameOf(getTransactionsCore _))), callContext)}
 
+  def getCountOfTransactionsFromAccountToCounterparty(fromBankId: BankId, fromAccountId: AccountId, counterpartyId: CounterpartyId, fromDate: Date, toDate:Date, callContext: Option[CallContext]) :OBPReturnType[Box[Int]] = Future{(Failure(setUnimplementedError(nameOf(getCountOfTransactionsFromAccountToCounterparty _))), callContext: Option[CallContext])}
+
+  def getSumOfTransactionsFromAccountToCounterparty(fromBankId: BankId, fromAccountId: AccountId, counterpartyId: CounterpartyId, fromDate: Date, toDate:Date, callContext: Option[CallContext]):OBPReturnType[Box[AmountOfMoney]] = Future{(Failure(setUnimplementedError(nameOf(getSumOfTransactionsFromAccountToCounterparty _))), callContext: Option[CallContext])}
+
   def getTransactionLegacy(bankId: BankId, accountId : AccountId, transactionId : TransactionId, callContext: Option[CallContext] = None): Box[(Transaction, Option[CallContext])] = Failure(setUnimplementedError(nameOf(getTransactionLegacy _)))
 
   def getTransaction(bankId: BankId, accountId : AccountId, transactionId : TransactionId, callContext: Option[CallContext] = None): OBPReturnType[Box[Transaction]] = Future{(Failure(setUnimplementedError(nameOf(getTransaction _))), callContext)}
@@ -979,7 +983,10 @@ trait Connector extends MdcLoggable {
   def getCurrentCurrencies(bankId: BankId, callContext: Option[CallContext]): OBPReturnType[Box[List[String]]] = Future{Failure(setUnimplementedError(nameOf(getCurrentCurrencies _)))}
   
   def getCurrentFxRate(bankId: BankId, fromCurrencyCode: String, toCurrencyCode: String, callContext: Option[CallContext]): Box[FXRate] = Failure(setUnimplementedError(nameOf(getCurrentFxRate _)))
-  
+
+  /**
+   * There is no mapped implimetaion . it is only use for CBS mode at the moment.
+   */
   def createTransactionAfterChallengev300(
                                            initiator: User,
                                            fromAccount: BankAccount,
@@ -1829,11 +1836,14 @@ trait Connector extends MdcLoggable {
     viewId: String,
     counterpartyId: String,
     currency: String,
-    maxSingleAmount: Int,
-    maxMonthlyAmount: Int,
+    maxSingleAmount: BigDecimal,
+    maxMonthlyAmount: BigDecimal,
     maxNumberOfMonthlyTransactions: Int,
-    maxYearlyAmount: Int,
-    maxNumberOfYearlyTransactions: Int, callContext: Option[CallContext]
+    maxYearlyAmount: BigDecimal,
+    maxNumberOfYearlyTransactions: Int,
+    maxTotalAmount: BigDecimal,
+    maxNumberOfTransactions: Int, 
+    callContext: Option[CallContext]
   ): OBPReturnType[Box[CounterpartyLimitTrait]] = Future{(Failure(setUnimplementedError(nameOf(createOrUpdateCounterpartyLimit _))), callContext)}
   
   def getCounterpartyLimit(

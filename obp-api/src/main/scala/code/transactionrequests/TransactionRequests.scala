@@ -1,7 +1,7 @@
 package code.transactionrequests
 
 
-import code.api.util.APIUtil
+import code.api.util.{APIUtil, CallContext}
 import com.openbankproject.commons.model.{TransactionRequest, TransactionRequestChallenge, TransactionRequestCharge, _}
 import net.liftweb.common.{Box, Logger}
 import net.liftweb.util.SimpleInjector
@@ -76,7 +76,8 @@ trait TransactionRequestProvider {
                                       charge: TransactionRequestCharge,
                                       chargePolicy: String,
                                       paymentService: Option[String],
-                                      berlinGroupPayments: Option[BerlinGroupTransactionRequestCommonBodyJson]): Box[TransactionRequest]
+                                      berlinGroupPayments: Option[BerlinGroupTransactionRequestCommonBodyJson],
+                                      callContext: Option[CallContext]): Box[TransactionRequest]
   
   def saveTransactionRequestTransactionImpl(transactionRequestId: TransactionRequestId, transactionId: TransactionId): Box[Boolean]
   def saveTransactionRequestChallengeImpl(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge): Box[Boolean]

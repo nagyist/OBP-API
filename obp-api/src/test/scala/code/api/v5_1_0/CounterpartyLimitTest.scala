@@ -31,11 +31,13 @@ class CounterpartyLimitTest extends V510ServerSetup {
   val postCounterpartyLimitV510 = code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON.postCounterpartyLimitV510
   val putCounterpartyLimitV510 = PostCounterpartyLimitV510(
     currency = "EUR",
-    max_single_amount = 1,
-    max_monthly_amount = 2,
+    max_single_amount = "1.1",
+    max_monthly_amount = "2.1",
     max_number_of_monthly_transactions = 3,
-    max_yearly_amount = 4,
-    max_number_of_yearly_transactions = 5
+    max_yearly_amount = "4.1",
+    max_number_of_yearly_transactions = 5,
+    max_total_amount="6.1",
+    max_number_of_transactions=7,
   )
   
 
@@ -116,6 +118,8 @@ class CounterpartyLimitTest extends V510ServerSetup {
         response510.body.extract[CounterpartyLimitV510].max_number_of_yearly_transactions should equal(putCounterpartyLimitV510.max_number_of_yearly_transactions)
         response510.body.extract[CounterpartyLimitV510].max_single_amount should equal(putCounterpartyLimitV510.max_single_amount)
         response510.body.extract[CounterpartyLimitV510].max_yearly_amount should equal(putCounterpartyLimitV510.max_yearly_amount)
+        response510.body.extract[CounterpartyLimitV510].max_total_amount should equal(putCounterpartyLimitV510.max_total_amount)
+        response510.body.extract[CounterpartyLimitV510].max_number_of_transactions should equal(putCounterpartyLimitV510.max_number_of_transactions)
       }
       
       {
@@ -128,6 +132,8 @@ class CounterpartyLimitTest extends V510ServerSetup {
         response510.body.extract[CounterpartyLimitV510].max_number_of_yearly_transactions should equal(putCounterpartyLimitV510.max_number_of_yearly_transactions)
         response510.body.extract[CounterpartyLimitV510].max_single_amount should equal(putCounterpartyLimitV510.max_single_amount)
         response510.body.extract[CounterpartyLimitV510].max_yearly_amount should equal(putCounterpartyLimitV510.max_yearly_amount)
+        response510.body.extract[CounterpartyLimitV510].max_total_amount should equal(putCounterpartyLimitV510.max_total_amount)
+        response510.body.extract[CounterpartyLimitV510].max_number_of_transactions should equal(putCounterpartyLimitV510.max_number_of_transactions)
       }
       
       {

@@ -33,22 +33,11 @@ import com.openbankproject.commons.model.enums._
 import com.openbankproject.commons.util.{ReflectUtils, optional}
 import net.liftweb.json.JsonAST.{JObject, JValue}
 import net.liftweb.json.{Formats, JInt, JString}
+import net.liftweb.json.JsonDSL._
 
 import java.lang
-import scala.collection.immutable.List
 import scala.reflect.runtime.universe._
-//import code.customeraddress.CustomerAddress
-//import code.bankconnectors.InboundAccountCommon
-//import code.branches.Branches.BranchT
-//import code.context.UserAuthContext
-//import code.meetings.Meeting
-//import code.taxresidence.TaxResidence
-//import code.productcollectionitem.ProductCollectionItem
-//import code.productcollection.ProductCollection
-//import code.atms.Atms.AtmT
-//import code.productattribute.ProductAttribute.ProductAttribute
-//import code.accountattribute.AccountAttribute.AccountAttribute
-//import code.accountapplication.AccountApplication
+
 
 abstract class Converter[T, D <% T: TypeTag]{
   //this method declared as common method to avoid conflict with Predf#$confirms
@@ -621,13 +610,29 @@ case class CounterpartyLimitTraitCommons(
   viewId: String,
   counterpartyId: String,
   currency: String,
-  maxSingleAmount: Int,
-  maxMonthlyAmount: Int,
+  maxSingleAmount: BigDecimal,
+  maxMonthlyAmount: BigDecimal,
   maxNumberOfMonthlyTransactions: Int,
-  maxYearlyAmount: Int,
-  maxNumberOfYearlyTransactions: Int
+  maxYearlyAmount: BigDecimal,
+  maxNumberOfYearlyTransactions: Int,
+  maxTotalAmount: BigDecimal,
+  maxNumberOfTransactions: Int,
 ) extends CounterpartyLimitTrait {
-  override def toJValue(implicit format: Formats): JValue = ???
+  override def toJValue(implicit format: Formats): JValue = {
+    ("counterparty_limit_id", counterpartyLimitId) ~
+      ("bank_id", bankId) ~
+      ("account_id",accountId) ~
+      ("view_id",viewId) ~
+      ("counterparty_id",counterpartyId) ~
+      ("currency",currency) ~
+      ("max_single_amount", maxSingleAmount) ~
+      ("max_monthly_amount", maxMonthlyAmount) ~
+      ("max_number_of_monthly_transactions", maxNumberOfMonthlyTransactions) ~
+      ("max_yearly_amount", maxYearlyAmount) ~
+      ("max_number_of_yearly_transactions", maxNumberOfYearlyTransactions) ~
+      ("max_total_amount", maxTotalAmount) ~
+      ("max_number_of_transactions", maxNumberOfTransactions)
+  }
 }
 
 object CounterpartyLimitTraitCommons extends Converter[CounterpartyLimitTrait, CounterpartyLimitTraitCommons]

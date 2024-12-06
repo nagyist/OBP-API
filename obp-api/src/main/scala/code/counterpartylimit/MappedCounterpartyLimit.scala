@@ -7,10 +7,13 @@ import net.liftweb.util.Helpers.tryo
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import net.liftweb.json
 import net.liftweb.json.Formats
-import net.liftweb.json.JsonAST.{JValue,JString}
+import net.liftweb.json.JsonAST.{JString, JValue}
 import net.liftweb.json.JsonDSL._
+
 import scala.concurrent.Future
 import com.openbankproject.commons.model.CounterpartyLimitTrait
+
+import java.math.MathContext
 
 object MappedCounterpartyLimitProvider extends CounterpartyLimitProviderTrait {
   
@@ -48,11 +51,13 @@ object MappedCounterpartyLimitProvider extends CounterpartyLimitProviderTrait {
     viewId: String,
     counterpartyId: String,
     currency: String,
-    maxSingleAmount: Int,
-    maxMonthlyAmount: Int,
+    maxSingleAmount: BigDecimal,
+    maxMonthlyAmount: BigDecimal,
     maxNumberOfMonthlyTransactions: Int,
-    maxYearlyAmount: Int,
-    maxNumberOfYearlyTransactions: Int)= Future {
+    maxYearlyAmount: BigDecimal,
+    maxNumberOfYearlyTransactions: Int,
+    maxTotalAmount: BigDecimal,
+    maxNumberOfTransactions: Int)= Future {
 
     def createCounterpartyLimit(counterpartyLimit: CounterpartyLimit)= {
       tryo {
@@ -66,6 +71,8 @@ object MappedCounterpartyLimitProvider extends CounterpartyLimitProviderTrait {
         counterpartyLimit.MaxNumberOfMonthlyTransactions(maxNumberOfMonthlyTransactions)
         counterpartyLimit.MaxYearlyAmount(maxYearlyAmount)
         counterpartyLimit.MaxNumberOfYearlyTransactions(maxNumberOfYearlyTransactions)
+        counterpartyLimit.MaxTotalAmount(maxTotalAmount)
+        counterpartyLimit.MaxNumberOfTransactions(maxNumberOfTransactions)
         counterpartyLimit.saveMe()
       }
     }
@@ -105,22 +112,34 @@ class CounterpartyLimit extends CounterpartyLimitTrait with LongKeyedMapper[Coun
   
   object Currency extends MappedString(this, 255)
   
-  object MaxSingleAmount extends MappedInt(this) {
-    override def defaultValue = -1
+  object MaxSingleAmount extends MappedDecimal(this, MathContext.DECIMAL64, 10){
+    override def defaultValue = BigDecimal(0) // Default value for Amount
   }
-  object MaxMonthlyAmount extends MappedInt(this) {
-    override def defaultValue = -1
+  
+  object MaxMonthlyAmount extends MappedDecimal(this, MathContext.DECIMAL64, 10){
+    override def defaultValue = BigDecimal(0) // Default value for Amount
   }
+  
   object MaxNumberOfMonthlyTransactions extends MappedInt(this) {
     override def defaultValue = -1
   }
-  object MaxYearlyAmount extends MappedInt(this) {
-    override def defaultValue = -1
+  
+  object MaxYearlyAmount extends MappedDecimal(this, MathContext.DECIMAL64, 10){
+    override def defaultValue = BigDecimal(0) // Default value for Amount
   }
   object MaxNumberOfYearlyTransactions extends MappedInt(this) {
     override def defaultValue = -1
   }
 
+
+  object MaxTotalAmount extends MappedDecimal(this, MathContext.DECIMAL64, 10){
+    override def defaultValue = BigDecimal(0) // Default value for Amount
+  }
+  
+  object MaxNumberOfTransactions extends MappedInt(this) {
+    override def defaultValue = -1
+  }
+  
   def counterpartyLimitId: String = CounterpartyLimitId.get
 
   def bankId: String = BankId.get
@@ -129,13 +148,15 @@ class CounterpartyLimit extends CounterpartyLimitTrait with LongKeyedMapper[Coun
   def counterpartyId: String = CounterpartyId.get
   def currency: String = Currency.get
 
-  def maxSingleAmount: Int = MaxSingleAmount.get
-  def maxMonthlyAmount: Int = MaxMonthlyAmount.get
+  def maxSingleAmount: BigDecimal = MaxSingleAmount.get
+  def maxMonthlyAmount: BigDecimal = MaxMonthlyAmount.get
   def maxNumberOfMonthlyTransactions: Int = MaxNumberOfMonthlyTransactions.get
-  def maxYearlyAmount: Int = MaxYearlyAmount.get
+  def maxYearlyAmount: BigDecimal = MaxYearlyAmount.get
   def maxNumberOfYearlyTransactions: Int = MaxNumberOfYearlyTransactions.get
+  def maxTotalAmount: BigDecimal = MaxTotalAmount.get
+  def maxNumberOfTransactions: Int = MaxNumberOfTransactions.get
 
-  override def toJValue(implicit format: Formats): JValue ={
+  override def toJValue(implicit format: Formats): JValue = {
     ("counterparty_limit_id", counterpartyLimitId) ~ 
       ("bank_id", bankId) ~ 
       ("account_id",accountId) ~ 
@@ -146,7 +167,9 @@ class CounterpartyLimit extends CounterpartyLimitTrait with LongKeyedMapper[Coun
       ("max_monthly_amount", maxMonthlyAmount) ~ 
       ("max_number_of_monthly_transactions", maxNumberOfMonthlyTransactions) ~ 
       ("max_yearly_amount", maxYearlyAmount) ~ 
-      ("max_number_of_yearly_transactions", maxNumberOfYearlyTransactions)
+      ("max_number_of_yearly_transactions", maxNumberOfYearlyTransactions) ~
+      ("max_total_amount", maxTotalAmount) ~
+      ("max_number_of_transactions", maxNumberOfTransactions)
   }
 }
 

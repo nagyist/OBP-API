@@ -774,6 +774,41 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     }
   }
 
+  override def getCountOfTransactionsFromAccountToCounterparty(fromBankId: BankId, fromAccountId: AccountId, counterpartyId: CounterpartyId, fromDate: Date, toDate:Date, callContext: Option[CallContext]) :OBPReturnType[Box[Int]] = {
+    val queryParams = List(OBPFromDate(fromDate),OBPToDate(toDate), OBPOrdering(None,OBPAscending))
+    for{
+      (transactionRequestsBox,callContext) <- LocalMappedConnectorInternal.getTransactionRequestsInternal(fromBankId: BankId, fromAccountId: AccountId, counterpartyId: CounterpartyId, queryParams, callContext: Option[CallContext])
+    }yield{
+      (transactionRequestsBox.map(_.length), callContext)
+    }
+  }
+  
+  override def getSumOfTransactionsFromAccountToCounterparty(fromBankId: BankId, fromAccountId: AccountId, counterpartyId: CounterpartyId, fromDate: Date, toDate:Date, callContext: Option[CallContext]):OBPReturnType[Box[AmountOfMoney]] = {
+    
+    val queryParams = List(OBPFromDate(fromDate),OBPToDate(toDate), OBPOrdering(None,OBPAscending))
+    for{
+      (fromBankAccount, callContext) <- NewStyle.function.getBankAccount(fromBankId, fromAccountId, callContext)
+      (transactionRequestsBox,callContext) <- LocalMappedConnectorInternal.getTransactionRequestsInternal(fromBankId: BankId, fromAccountId: AccountId, counterpartyId: CounterpartyId, queryParams, callContext: Option[CallContext])
+      // Check the input JSON format, here is just check the common parts of all four types
+      (amountSum,currency) <- NewStyle.function.tryons(s"$UnknownError can not get the sum of transactions", 400, callContext) {
+        val transactionRequests = transactionRequestsBox.getOrElse(Nil)
+        val fromAccountCurrency = fromBankAccount.currency // eg: the fromAccount currency is EUR, and the 1 GBP  = 1.16278 Euro.
+        val allAmounts = for{
+          transactionRequest <- transactionRequests
+          transferCurrency = transactionRequest.mBody_Value_Currency.get //eg: if the payment json body currency is GBP.
+          transferAmount= BigDecimal(transactionRequest.mBody_Value_Amount.get) //eg: if the payment json body amount is 1.
+          debitRate = fx.exchangeRate(transferCurrency, fromAccountCurrency, Some(fromBankId.value), callContext) //eg: the rate here is 1.16278.
+          transactionAmount = fx.convert(transferAmount, debitRate) // 1.16278 Euro
+        }yield{
+          transactionAmount // 1.16278 Euro
+        }
+        (allAmounts.sum, fromAccountCurrency) // Here we just sum all the transfer amounts.
+      }
+    } yield {
+      (Full(AmountOfMoney(currency, amountSum.toString())), callContext)
+    }
+  }
+  
   /**
     *
     * refreshes transactions via hbci if the transaction info is sourced from hbci
@@ -4351,7 +4386,9 @@ object LocalMappedConnector extends Connector with MdcLoggable {
           charge,
           chargePolicy,
           None, 
-          None)
+          None,
+          callContext
+        )
       } map {
         unboxFullOrFail(_, callContext, s"$InvalidConnectorResponseForCreateTransactionRequestImpl210")
       }
@@ -4505,7 +4542,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
           charge,
           chargePolicy,
           None,
-          None
+          None,
+          callContext
         )
         saveTransactionRequestReasons(reasons, transactionRequest)
         transactionRequest
@@ -5134,22 +5172,28 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     viewId: String,
     counterpartyId: String,
     currency: String,
-    maxSingleAmount: Int,
-    maxMonthlyAmount: Int,
+    maxSingleAmount: BigDecimal,
+    maxMonthlyAmount: BigDecimal,
     maxNumberOfMonthlyTransactions: Int,
-    maxYearlyAmount: Int,
-    maxNumberOfYearlyTransactions: Int, callContext: Option[CallContext]) =
+    maxYearlyAmount: BigDecimal,
+    maxNumberOfYearlyTransactions: Int,
+    maxTotalAmount: BigDecimal,
+    maxNumberOfTransactions: Int, 
+    callContext: Option[CallContext]) =
     CounterpartyLimitProvider.counterpartyLimit.vend.createOrUpdateCounterpartyLimit(
       bankId: String,
       accountId: String,
       viewId: String,
       counterpartyId: String,
       currency: String,
-      maxSingleAmount: Int,
-      maxMonthlyAmount: Int,
+      maxSingleAmount: BigDecimal,
+      maxMonthlyAmount: BigDecimal,
       maxNumberOfMonthlyTransactions: Int,
-      maxYearlyAmount: Int,
-      maxNumberOfYearlyTransactions: Int) map {
+      maxYearlyAmount: BigDecimal,
+      maxNumberOfYearlyTransactions: Int,
+      maxTotalAmount: BigDecimal,
+      maxNumberOfTransactions: Int
+    ) map {
       (_, callContext)
     }
     

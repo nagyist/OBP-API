@@ -102,6 +102,7 @@ object Migration extends MdcLoggable {
       dropMappedBadLoginAttemptIndex()
       alterMetricColumnUrlLength()
       populateViewDefinitionCanAddTransactionRequestToBeneficiary()
+      alterCounterpartyLimitFieldType()
     }
     
     private def dummyScript(): Boolean = {
@@ -476,6 +477,13 @@ object Migration extends MdcLoggable {
       val name = nameOf(dropMappedBadLoginAttemptIndex)
       runOnce(name) {
         MigrationOfMappedBadLoginAttemptDropIndex.dropUniqueIndex(name)
+      }
+    }
+
+    private def alterCounterpartyLimitFieldType(): Boolean = {
+      val name = nameOf(alterCounterpartyLimitFieldType)
+      runOnce(name) {
+        MigrationOfCounterpartyLimitFieldType.alterCounterpartyLimitFieldType(name)
       }
     }
   }

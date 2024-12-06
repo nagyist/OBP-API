@@ -31,10 +31,13 @@ trait CounterpartyLimitProviderTrait {
     viewId: String,
     counterpartyId: String,
     currency: String,
-    maxSingleAmount: Int,
-    maxMonthlyAmount: Int,
+    maxSingleAmount: BigDecimal,
+    maxMonthlyAmount: BigDecimal,
     maxNumberOfMonthlyTransactions: Int,
-    maxYearlyAmount: Int,
-    maxNumberOfYearlyTransactions: Int): Future[Box[CounterpartyLimitTrait]]
+    maxYearlyAmount: BigDecimal,
+    maxNumberOfYearlyTransactions: Int,
+    maxTotalAmount: BigDecimal,
+    maxNumberOfTransactions: Int
+  ): Future[Box[CounterpartyLimitTrait]]
 }
 

@@ -950,8 +950,8 @@ trait APIMethods500 {
               // TODO Add routing scheme as well. In case IBAN is provided this will not work.
               val fromBankIdAccountId = BankIdAccountId(BankId(postConsentRequestJsonV510.from_account.bank_routing.address), AccountId(postConsentRequestJsonV510.from_account.account_routing.address))
 
-              val vrpViewId = s"_VRP-${UUID.randomUUID.toString}".dropRight(5)// to make sure the length of the viewId is 36.
-              val targetPermissions = List(//may need getTransactionRequest .. so far only this payments.
+              val vrpViewId = s"_vrp-${UUID.randomUUID.toString}".dropRight(5)// to make sure the length of the viewId is 36.
+              val targetPermissions = List(//may need getTransactionRequest . so far only these payments.
                 "can_add_transaction_request_to_beneficiary",
                 "can_get_counterparty"
               )
@@ -967,7 +967,7 @@ trait APIMethods500 {
               )
 
               for {
-                //1st: create the Custom View for the from account.
+                //1st: create the Custom View for the fromAccount.
                 (fromAccount, callContext) <- NewStyle.function.checkBankAccountExists(fromBankIdAccountId.bankId, fromBankIdAccountId.accountId, callContext)
                 //we do not need sourceViewId so far, we need to get all the view access for the login user, and
 
@@ -988,7 +988,7 @@ trait APIMethods500 {
 
                 _ <-NewStyle.function.grantAccessToCustomView(vrpView, user, callContext)
 
-                //2st: Create a new counterparty on that view (_VRP-9d429899-24f5-42c8-8565-943ffa6a7945)
+                //2rd: Create a new counterparty on that view (_VRP-9d429899-24f5-42c8-8565-943ffa6a7945)
                 postJson = PostCounterpartyJson400(
                   name = postConsentRequestJsonV510.to_account.counterparty_name,
                   description = postConsentRequestJsonV510.to_account.counterparty_name,
@@ -1041,15 +1041,17 @@ trait APIMethods500 {
                   callContext
                 )
 
-
                 postCounterpartyLimitV510 = PostCounterpartyLimitV510(
                   currency = postConsentRequestJsonV510.to_account.limit.currency,
                   max_single_amount = postConsentRequestJsonV510.to_account.limit.max_single_amount,
                   max_monthly_amount = postConsentRequestJsonV510.to_account.limit.max_monthly_amount,
                   max_number_of_monthly_transactions = postConsentRequestJsonV510.to_account.limit.max_number_of_monthly_transactions,
                   max_yearly_amount = postConsentRequestJsonV510.to_account.limit.max_yearly_amount,
-                  max_number_of_yearly_transactions = postConsentRequestJsonV510.to_account.limit.max_number_of_yearly_transactions
+                  max_number_of_yearly_transactions = postConsentRequestJsonV510.to_account.limit.max_number_of_yearly_transactions,                   
+                  max_total_amount = postConsentRequestJsonV510.to_account.limit.max_total_amount,
+                  max_number_of_transactions = postConsentRequestJsonV510.to_account.limit.max_number_of_transactions
                 )
+                
                 //3rd: create the counterparty limit
                 (counterpartyLimitBox, callContext) <- Connector.connector.vend.getCounterpartyLimit(
                   fromBankIdAccountId.bankId.value,
@@ -1058,7 +1060,8 @@ trait APIMethods500 {
                   counterparty.counterpartyId,
                   cc.callContext
                 )
-                failMsg = s"$CounterpartyLimitAlreadyExists Current BANK_ID(${fromBankIdAccountId.bankId.value}), ACCOUNT_ID(${fromBankIdAccountId.accountId.value}), VIEW_ID($vrpViewId),COUNTERPARTY_ID(${counterparty.counterpartyId})"
+                failMsg = s"$CounterpartyLimitAlreadyExists Current BANK_ID(${fromBankIdAccountId.bankId.value}), " +
+                  s"ACCOUNT_ID(${fromBankIdAccountId.accountId.value}), VIEW_ID($vrpViewId),COUNTERPARTY_ID(${counterparty.counterpartyId})"
                 _ <- Helper.booleanToFuture(failMsg, cc = callContext) {
                   counterpartyLimitBox.isEmpty
                 }
@@ -1068,11 +1071,13 @@ trait APIMethods500 {
                   viewId = counterparty.thisViewId,
                   counterpartyId = counterparty.counterpartyId,
                   postCounterpartyLimitV510.currency,
-                  postCounterpartyLimitV510.max_single_amount,
-                  postCounterpartyLimitV510.max_monthly_amount,
+                  BigDecimal(postCounterpartyLimitV510.max_single_amount),
+                  BigDecimal(postCounterpartyLimitV510.max_monthly_amount),
                   postCounterpartyLimitV510.max_number_of_monthly_transactions,
-                  postCounterpartyLimitV510.max_yearly_amount,
+                  BigDecimal(postCounterpartyLimitV510.max_yearly_amount),
                   postCounterpartyLimitV510.max_number_of_yearly_transactions,
+                  BigDecimal(postCounterpartyLimitV510.max_total_amount),
+                  postCounterpartyLimitV510.max_number_of_transactions,
                   cc.callContext
                 )
 

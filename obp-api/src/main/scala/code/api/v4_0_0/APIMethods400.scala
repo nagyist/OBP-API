@@ -40,6 +40,7 @@ import code.api.v2_1_0._
 import code.api.v3_0_0.{CreateScopeJson, JSONFactory300}
 import code.api.v3_1_0._
 import code.api.v4_0_0.JSONFactory400._
+import code.fx.{MappedFXRate, fx}
 import code.api.dynamic.endpoint.helper._
 import code.api.dynamic.endpoint.helper.practise.PractiseEndpoint
 import code.api.dynamic.entity.helper.{DynamicEntityHelper, DynamicEntityInfo}
@@ -58,6 +59,7 @@ import code.dynamicMessageDoc.JsonDynamicMessageDoc
 import code.dynamicResourceDoc.JsonDynamicResourceDoc
 import code.endpointMapping.EndpointMappingCommons
 import code.entitlement.Entitlement
+import code.fx.fx
 import code.loginattempts.LoginAttempt
 import code.metadata.counterparties.{Counterparties, MappedCounterparty}
 import code.metadata.tags.Tags
@@ -103,6 +105,8 @@ import net.liftweb.util.Mailer.{From, PlainMailBodyType, Subject, To, XHTMLMailB
 import net.liftweb.util.{Helpers, Mailer, StringHelpers}
 import org.apache.commons.lang3.StringUtils
 
+import java.time.{LocalDate, ZoneId, ZonedDateTime}
+import java.util.Date
 import scala.collection.immutable.{List, Nil}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
@@ -677,12 +681,12 @@ trait APIMethods400 extends MdcLoggable {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-request-types/COUNTERPARTY/transaction-requests",
       "Create Transaction Request (COUNTERPARTY)",
       s"""
-         |Special instructions for COUNTERPARTY:
+         |$transactionRequestGeneralText
          |
          |When using a COUNTERPARTY to create a Transaction Request, specify the counterparty_id in the body of the request.
-         |The routing details of the counterparty will be forwarded for the transfer.
+         |The routing details of the counterparty will be forwarded to the Core Banking System (CBS) for the transfer.
          |
-         |$transactionRequestGeneralText
+         |COUNTERPARTY Transaction Requests are used for Variable Recurring Payments (VRP). Use the following ${Glossary.getApiExplorerLink("endpoint", "OBPv5.1.0-createVRPConsentRequest")} to create a consent for VRPs.
          |
          |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
@@ -1102,7 +1106,7 @@ trait APIMethods400 extends MdcLoggable {
             }
 
             account = BankIdAccountId(fromAccount.bankId, fromAccount.accountId)
-            _ <- NewStyle.function.checkAuthorisationToCreateTransactionRequest(viewId, account, u, callContext)
+//            _ <- NewStyle.function.checkAuthorisationToCreateTransactionRequest(viewId, account, u, callContext)
 
             // Check transReqId is valid
             (existingTransactionRequest, callContext) <- NewStyle.function.getTransactionRequestImpl(transReqId, callContext)
@@ -12241,11 +12245,6 @@ object APIMethods400 extends RestHelper with APIMethods400 {
         isValidCurrencyISOCode(transDetailsJson.value.currency)
       }
 
-      // Prevent default value for transaction request type (at least).
-      _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${transDetailsJson.value.currency}'", cc=callContext) {
-        isValidCurrencyISOCode(transDetailsJson.value.currency)
-      }
-
       (createdTransactionRequest, callContext) <- transactionRequestTypeValue match {
         case REFUND => {
           for {
@@ -12413,6 +12412,146 @@ object APIMethods400 extends RestHelper with APIMethods400 {
             }
             toCounterpartyId = transactionRequestBodyCounterparty.to.counterparty_id
             (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(CounterpartyId(toCounterpartyId), callContext)
+
+            (counterpartyLimitBox, callContext) <- Connector.connector.vend.getCounterpartyLimit(
+              bankId.value,
+              accountId.value,
+              viewId.value,
+              toCounterpartyId,
+              callContext
+            )
+           _<- if(counterpartyLimitBox.isDefined){
+              for{
+
+                counterpartyLimit <- Future.successful(counterpartyLimitBox.head)
+                maxSingleAmount = counterpartyLimit.maxSingleAmount
+                maxMonthlyAmount = counterpartyLimit.maxMonthlyAmount
+                maxNumberOfMonthlyTransactions = counterpartyLimit.maxNumberOfMonthlyTransactions
+                maxYearlyAmount = counterpartyLimit.maxYearlyAmount
+                maxNumberOfYearlyTransactions = counterpartyLimit.maxNumberOfYearlyTransactions
+                maxTotalAmount = counterpartyLimit.maxTotalAmount
+                maxNumberOfTransactions = counterpartyLimit.maxNumberOfTransactions
+
+                // Get the first day of the current month
+                firstDayOfMonth: LocalDate = LocalDate.now().withDayOfMonth(1)
+
+                // Get the last day of the current month
+                lastDayOfMonth: LocalDate = LocalDate.now().withDayOfMonth(
+                  LocalDate.now().lengthOfMonth()
+                )
+                // Get the first day of the current year
+                firstDayOfYear: LocalDate = LocalDate.now().withDayOfYear(1)
+
+                // Get the last day of the current year
+                lastDayOfYear: LocalDate = LocalDate.now().withDayOfYear(
+                  LocalDate.now().lengthOfYear()
+                )
+
+                // Convert LocalDate to Date
+                zoneId: ZoneId = ZoneId.systemDefault()
+                firstCurrentMonthDate: Date = Date.from(firstDayOfMonth.atStartOfDay(zoneId).toInstant)
+                lastCurrentMonthDate: Date = Date.from(lastDayOfMonth.atStartOfDay(zoneId).toInstant)
+
+                firstCurrentYearDate: Date = Date.from(firstDayOfYear.atStartOfDay(zoneId).toInstant)
+                lastCurrentYearDate: Date = Date.from(lastDayOfYear.atStartOfDay(zoneId).toInstant)
+
+                defaultFromDate: Date = theEpochTime
+                defaultToDate: Date = APIUtil.ToDateInFuture
+
+                (sumOfTransactionsFromAccountToCounterpartyMonthly, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  firstCurrentMonthDate: Date,
+                  lastCurrentMonthDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+                (countOfTransactionsFromAccountToCounterpartyMonthly, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  firstCurrentMonthDate: Date,
+                  lastCurrentMonthDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+                (sumOfTransactionsFromAccountToCounterpartyYearly, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  firstCurrentYearDate: Date,
+                  lastCurrentYearDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+                (countOfTransactionsFromAccountToCounterpartyYearly, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  firstCurrentYearDate: Date,
+                  lastCurrentYearDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+                (sumOfAllTransactionsFromAccountToCounterparty, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  defaultFromDate: Date,
+                  defaultToDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+                (countOfAllTransactionsFromAccountToCounterparty, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  defaultFromDate: Date,
+                  defaultToDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+
+                currentTransactionAmountWithFxApplied <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $COUNTERPARTY json format", 400, callContext) {
+                  val fromAccountCurrency = fromAccount.currency //eg: if from account currency is EUR
+                  val transferCurrency = transactionRequestBodyCounterparty.value.currency //eg: if the payment json body currency is GBP.
+                  val transferAmount = BigDecimal(transactionRequestBodyCounterparty.value.amount) //eg: if the payment json body amount is 1.
+                  val debitRate = fx.exchangeRate(transferCurrency, fromAccountCurrency, Some(fromAccount.bankId.value), callContext) //eg: the rate here is 1.16278.
+                  fx.convert(transferAmount, debitRate) // 1.16278 Euro
+                }
+
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_single_amount is $maxSingleAmount ${fromAccount.currency}, " +
+                  s"but current transaction body amount is ${transactionRequestBodyCounterparty.value.amount} ${transactionRequestBodyCounterparty.value.currency}, " +
+                  s"which is $currentTransactionAmountWithFxApplied ${fromAccount.currency}. ", cc = callContext) {
+                    maxSingleAmount >= currentTransactionAmountWithFxApplied
+                }
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_monthly_amount is $maxSingleAmount, but current monthly amount is ${sumOfTransactionsFromAccountToCounterpartyMonthly.amount}", cc = callContext) {
+                  maxMonthlyAmount >= BigDecimal(sumOfTransactionsFromAccountToCounterpartyMonthly.amount)
+                }
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_number_of_monthly_transactions is $maxSingleAmount, but current count of monthly transactions is  ${countOfTransactionsFromAccountToCounterpartyMonthly}", cc = callContext) {
+                  maxNumberOfMonthlyTransactions >= countOfTransactionsFromAccountToCounterpartyMonthly
+                }
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_yearly_amount is $maxYearlyAmount, but current yearly amount is ${sumOfTransactionsFromAccountToCounterpartyYearly.amount}", cc = callContext) {
+                  maxYearlyAmount >= BigDecimal(sumOfTransactionsFromAccountToCounterpartyYearly.amount)
+                }
+                result <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_number_of_yearly_transactions is $maxNumberOfYearlyTransactions, but current count of yearly transaction is  ${countOfTransactionsFromAccountToCounterpartyYearly}", cc = callContext) {
+                  maxNumberOfYearlyTransactions >= countOfTransactionsFromAccountToCounterpartyYearly
+                }
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_total_amount is $maxTotalAmount, but current amount is ${sumOfAllTransactionsFromAccountToCounterparty.amount}", cc = callContext) {
+                  maxTotalAmount >= BigDecimal(sumOfAllTransactionsFromAccountToCounterparty.amount)
+                }
+                result <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_number_of_transactions is $maxNumberOfTransactions, but current count of all transactions is  ${countOfAllTransactionsFromAccountToCounterparty}", cc = callContext) {
+                  maxNumberOfTransactions >= countOfAllTransactionsFromAccountToCounterparty
+                }
+               }yield{
+                result
+              }
+            }
+            else {
+              Future.successful(true)
+            }
+            
             toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
             // Check we can send money to it.
             _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {

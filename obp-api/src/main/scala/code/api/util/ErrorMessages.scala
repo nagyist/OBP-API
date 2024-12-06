@@ -506,7 +506,7 @@ object ErrorMessages {
   val CreateCounterpartyLimitError = "OBP-30261: Could not create the counterparty limit."
   val UpdateCounterpartyLimitError = "OBP-30262: Could not update the counterparty limit."
   val GetCounterpartyLimitError = "OBP-30263: Counterparty limit not found. Please specify a valid value for BANK_ID, ACCOUNT_ID, VIEW_ID or COUNTERPARTY_ID."
-  val CounterpartyLimitAlreadyExists = "OBP-30264: Counterparty limit already exists. Please specify a different value for  BANK_ID, ACCOUNT_ID, VIEW_ID or COUNTERPARTY_ID."
+  val CounterpartyLimitAlreadyExists = "OBP-30264: Counterparty limit already exists. Please specify a different value for BANK_ID, ACCOUNT_ID, VIEW_ID or COUNTERPARTY_ID."
   val DeleteCounterpartyLimitError = "OBP-30265: Could not delete the counterparty limit."
   val CustomViewAlreadyExistsError = "OBP-30266: The custom view is already exists."
   val UserDoesNotHavePermission = "OBP-30267: The user does not have the permission:"

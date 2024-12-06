@@ -12431,11 +12431,6 @@ object APIMethods400 extends RestHelper with APIMethods400 {
         isValidCurrencyISOCode(transDetailsJson.value.currency)
       }
 
-      // Prevent default value for transaction request type (at least).
-      _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${transDetailsJson.value.currency}'", cc=callContext) {
-        isValidCurrencyISOCode(transDetailsJson.value.currency)
-      }
-
       (createdTransactionRequest, callContext) <- transactionRequestTypeValue match {
         case REFUND => {
           for {
@@ -12692,16 +12687,16 @@ object APIMethods400 extends RestHelper with APIMethods400 {
                 _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError maxSingleAmount is $maxSingleAmount ${fromAccount.currency}, " +
                   s"but current transaction body amount is ${transactionRequestBodyCounterparty.value.amount} ${transactionRequestBodyCounterparty.value.currency}, " +
                   s"which is $currentTransactionAmountWithFxApplied ${fromAccount.currency}. ", cc = callContext) {
-                  BigDecimal(maxSingleAmount) >= currentTransactionAmountWithFxApplied
+                    maxSingleAmount >= currentTransactionAmountWithFxApplied
                 }
                 _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError maxMonthlyAmount is $maxSingleAmount, but current monthly amount is ${sumOfTransactionsFromAccountToCounterpartyMonthly.amount}", cc = callContext) {
-                  BigDecimal(maxMonthlyAmount) >= BigDecimal(sumOfTransactionsFromAccountToCounterpartyMonthly.amount)
+                  maxMonthlyAmount >= BigDecimal(sumOfTransactionsFromAccountToCounterpartyMonthly.amount)
                 }
                 _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError maxNumberOfMonthlyTransactions is $maxSingleAmount, but current count of monthly transactions is  ${countOfTransactionsFromAccountToCounterpartyMonthly}", cc = callContext) {
                   maxNumberOfMonthlyTransactions >= countOfTransactionsFromAccountToCounterpartyMonthly
                 }
                 _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError maxYearlyAmount is $maxYearlyAmount, but current yearly amount is ${sumOfTransactionsFromAccountToCounterpartyYearly.amount}", cc = callContext) {
-                  BigDecimal(maxYearlyAmount) >= BigDecimal(sumOfTransactionsFromAccountToCounterpartyYearly.amount)
+                  maxYearlyAmount >= BigDecimal(sumOfTransactionsFromAccountToCounterpartyYearly.amount)
                 }
                 result <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError maxNumberOfYearlyTransactions is $maxNumberOfYearlyTransactions, but current count of yearly transaction is  ${countOfTransactionsFromAccountToCounterpartyYearly}", cc = callContext) {
                   maxNumberOfYearlyTransactions >= countOfTransactionsFromAccountToCounterpartyYearly

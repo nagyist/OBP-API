@@ -2893,8 +2893,11 @@ trait APIMethods510 {
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limits" :: Nil JsonPost json -> _ => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            postCounterpartyLimitV510 <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[AtmJsonV510]}", 400, cc.callContext) {
+            postCounterpartyLimitV510 <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[PostCounterpartyLimitV510]}", 400, cc.callContext) {
               json.extract[PostCounterpartyLimitV510]
+            }
+            _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${postCounterpartyLimitV510.currency}'", cc=cc.callContext) {
+              isValidCurrencyISOCode(postCounterpartyLimitV510.currency)
             }
             (counterpartyLimitBox, callContext) <- Connector.connector.vend.getCounterpartyLimit(
               bankId.value,
@@ -2921,7 +2924,6 @@ trait APIMethods510 {
               cc.callContext
             )
           } yield {
-             
             (counterpartyLimit.toJValue, HttpCode.`201`(callContext))
           }
       }
@@ -2952,8 +2954,11 @@ trait APIMethods510 {
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limits" :: Nil JsonPut json -> _ => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            postCounterpartyLimitV510 <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[AtmJsonV510]}", 400, cc.callContext) {
+            postCounterpartyLimitV510 <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[PostCounterpartyLimitV510]}", 400, cc.callContext) {
               json.extract[PostCounterpartyLimitV510]
+            }
+            _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${postCounterpartyLimitV510.currency}'", cc=cc.callContext) {
+              isValidCurrencyISOCode(postCounterpartyLimitV510.currency)
             }
             (counterpartyLimit,callContext) <- NewStyle.function.createOrUpdateCounterpartyLimit(
               bankId.value,

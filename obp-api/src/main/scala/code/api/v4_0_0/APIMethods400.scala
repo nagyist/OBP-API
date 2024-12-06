@@ -12615,6 +12615,8 @@ object APIMethods400 extends RestHelper with APIMethods400 {
                 maxNumberOfMonthlyTransactions = counterpartyLimit.maxNumberOfMonthlyTransactions
                 maxYearlyAmount = counterpartyLimit.maxYearlyAmount
                 maxNumberOfYearlyTransactions = counterpartyLimit.maxNumberOfYearlyTransactions
+                maxTotalAmount = counterpartyLimit.maxTotalAmount
+                maxNumberOfTransactions = counterpartyLimit.maxNumberOfTransactions
 
                 // Get the first day of the current month
                 firstDayOfMonth: LocalDate = LocalDate.now().withDayOfMonth(1)
@@ -12638,6 +12640,9 @@ object APIMethods400 extends RestHelper with APIMethods400 {
 
                 firstCurrentYearDate: Date = Date.from(firstDayOfYear.atStartOfDay(zoneId).toInstant)
                 lastCurrentYearDate: Date = Date.from(lastDayOfYear.atStartOfDay(zoneId).toInstant)
+
+                defaultFromDate: Date = theEpochTime
+                defaultToDate: Date = APIUtil.ToDateInFuture
 
                 (sumOfTransactionsFromAccountToCounterpartyMonthly, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
                   fromAccount.bankId: BankId,
@@ -12675,6 +12680,24 @@ object APIMethods400 extends RestHelper with APIMethods400 {
                   callContext: Option[CallContext]
                 )
 
+                (sumOfAllTransactionsFromAccountToCounterparty, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  defaultFromDate: Date,
+                  defaultToDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+                (countOfAllTransactionsFromAccountToCounterparty, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  defaultFromDate: Date,
+                  defaultToDate: Date,
+                  callContext: Option[CallContext]
+                )
+
 
                 currentTransactionAmountWithFxApplied <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $COUNTERPARTY json format", 400, callContext) {
                   val fromAccountCurrency = fromAccount.currency //eg: if from account currency is EUR
@@ -12684,23 +12707,29 @@ object APIMethods400 extends RestHelper with APIMethods400 {
                   fx.convert(transferAmount, debitRate) // 1.16278 Euro
                 }
 
-                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError maxSingleAmount is $maxSingleAmount ${fromAccount.currency}, " +
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_single_amount is $maxSingleAmount ${fromAccount.currency}, " +
                   s"but current transaction body amount is ${transactionRequestBodyCounterparty.value.amount} ${transactionRequestBodyCounterparty.value.currency}, " +
                   s"which is $currentTransactionAmountWithFxApplied ${fromAccount.currency}. ", cc = callContext) {
                     maxSingleAmount >= currentTransactionAmountWithFxApplied
                 }
-                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError maxMonthlyAmount is $maxSingleAmount, but current monthly amount is ${sumOfTransactionsFromAccountToCounterpartyMonthly.amount}", cc = callContext) {
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_monthly_amount is $maxSingleAmount, but current monthly amount is ${sumOfTransactionsFromAccountToCounterpartyMonthly.amount}", cc = callContext) {
                   maxMonthlyAmount >= BigDecimal(sumOfTransactionsFromAccountToCounterpartyMonthly.amount)
                 }
-                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError maxNumberOfMonthlyTransactions is $maxSingleAmount, but current count of monthly transactions is  ${countOfTransactionsFromAccountToCounterpartyMonthly}", cc = callContext) {
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_number_of_monthly_transactions is $maxSingleAmount, but current count of monthly transactions is  ${countOfTransactionsFromAccountToCounterpartyMonthly}", cc = callContext) {
                   maxNumberOfMonthlyTransactions >= countOfTransactionsFromAccountToCounterpartyMonthly
                 }
-                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError maxYearlyAmount is $maxYearlyAmount, but current yearly amount is ${sumOfTransactionsFromAccountToCounterpartyYearly.amount}", cc = callContext) {
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_yearly_amount is $maxYearlyAmount, but current yearly amount is ${sumOfTransactionsFromAccountToCounterpartyYearly.amount}", cc = callContext) {
                   maxYearlyAmount >= BigDecimal(sumOfTransactionsFromAccountToCounterpartyYearly.amount)
                 }
-                result <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError maxNumberOfYearlyTransactions is $maxNumberOfYearlyTransactions, but current count of yearly transaction is  ${countOfTransactionsFromAccountToCounterpartyYearly}", cc = callContext) {
+                result <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_number_of_yearly_transactions is $maxNumberOfYearlyTransactions, but current count of yearly transaction is  ${countOfTransactionsFromAccountToCounterpartyYearly}", cc = callContext) {
                   maxNumberOfYearlyTransactions >= countOfTransactionsFromAccountToCounterpartyYearly
-                } 
+                }
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_total_amount is $maxTotalAmount, but current amount is ${sumOfAllTransactionsFromAccountToCounterparty.amount}", cc = callContext) {
+                  maxTotalAmount >= BigDecimal(sumOfAllTransactionsFromAccountToCounterparty.amount)
+                }
+                result <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_number_of_transactions is $maxNumberOfTransactions, but current count of all transactions is  ${countOfAllTransactionsFromAccountToCounterparty}", cc = callContext) {
+                  maxNumberOfTransactions >= countOfAllTransactionsFromAccountToCounterparty
+                }
                }yield{
                 result
               }

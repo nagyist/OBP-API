@@ -10,6 +10,13 @@ import scalacache.{Flags, ScalaCache}
 import scalacache.redis.RedisCache
 import scalacache.serialization.Codec
 
+import redis.clients.jedis.{Jedis, JedisPool, JedisPoolConfig}
+import java.net.URI
+import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
+import java.io.FileInputStream
+import java.security.KeyStore
+import com.typesafe.config.{Config, ConfigFactory}
+
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.language.postfixOps
@@ -18,6 +25,9 @@ object Redis extends MdcLoggable {
 
   val url = APIUtil.getPropsValue("cache.redis.url", "127.0.0.1")
   val port = APIUtil.getPropsAsIntValue("cache.redis.port", 6379)
+  val timeout = 4000
+  val password: String = null // Replace with password if authentication is needed
+  val useSsl = APIUtil.getPropsAsBoolValue("redis.use.ssl", false)
 
   final val poolConfig = new JedisPoolConfig()
   poolConfig.setMaxTotal(128)
@@ -31,8 +41,50 @@ object Redis extends MdcLoggable {
   poolConfig.setNumTestsPerEvictionRun(3)
   poolConfig.setBlockWhenExhausted(true)
 
+  val jedisPool =
+    if (useSsl) {
+      // SSL connection: Use SSLContext with JedisPool
+      val sslContext = configureSslContext()
+      new JedisPool(poolConfig, url, port, timeout, password, true, sslContext.getSocketFactory, null, null)
+    } else {
+      // Non-SSL connection
+      new JedisPool(poolConfig, url, port, timeout, password)
+    }
+
   def jedisPoolDestroy: Unit = jedisPool.destroy()
-  val jedisPool = new JedisPool(poolConfig,url, port, 4000)
+
+  private def configureSslContext(): SSLContext = {
+
+    // Load the CA certificate
+    val trustStore = KeyStore.getInstance("PKCS12")
+    val trustStorePassword = APIUtil.getPropsValue("keystore.password.redis")
+      .getOrElse(APIUtil.initPasswd).toCharArray
+    val truststorePath = APIUtil.getPropsValue("truststore.path.redis").getOrElse("")
+    val trustStoreStream = new FileInputStream(truststorePath)
+    trustStore.load(trustStoreStream, trustStorePassword)
+    trustStoreStream.close()
+
+    // Load the client certificate and private key
+    val keyStore = KeyStore.getInstance("PKCS12")
+    val keyStorePassword = APIUtil.getPropsValue("keystore.password.redis")
+      .getOrElse(APIUtil.initPasswd).toCharArray
+    val keystorePath = APIUtil.getPropsValue("keystore.path.redis").getOrElse("")
+    val keyStoreStream = new FileInputStream(keystorePath)
+    keyStore.load(keyStoreStream, keyStorePassword)
+    keyStoreStream.close()
+
+    // Initialize KeyManager and TrustManager
+    val keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
+    keyManagerFactory.init(keyStore, keyStorePassword)
+
+    val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm)
+    trustManagerFactory.init(trustStore)
+
+    // Configure and return the SSLContext
+    val sslContext = SSLContext.getInstance("TLS")
+    sslContext.init(keyManagerFactory.getKeyManagers, trustManagerFactory.getTrustManagers, null)
+    sslContext
+  }
 
   /**
    * this is the help method, which can be used to auto close all the jedisConnection

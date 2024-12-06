@@ -26,28 +26,29 @@ TESOBE (http://www.tesobe.com/)
  */
 package code.api
 
-import java.net.URI
-import java.util
 import code.api.util.ErrorMessages._
-import code.api.util.{APIUtil, CallContext, CertificateUtil, JwtUtil}
+import code.api.util._
 import code.consumer.Consumers
 import code.consumer.Consumers.consumers
 import code.loginattempts.LoginAttempt
 import code.model.{AppType, Consumer}
-import code.util.HydraUtil._
+import code.scope.Scope
 import code.users.Users
 import code.util.Helper.MdcLoggable
 import code.util.HydraUtil
+import code.util.HydraUtil._
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.model.User
+import net.liftweb.common.Box.tryo
 import net.liftweb.common._
 import net.liftweb.http.rest.RestHelper
 import net.liftweb.util.Helpers
 import org.apache.commons.lang3.StringUtils
 import sh.ory.hydra.model.OAuth2TokenIntrospection
 
+import java.net.URI
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters.mapAsJavaMapConverter
 
@@ -226,7 +227,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       }
     }
 
-    private def getClaim(name: String, idToken: String): Option[String] = {
+    def getClaim(name: String, idToken: String): Option[String] = {
       val claim = JwtUtil.getClaim(name = name, jwtToken = idToken)
       claim match {
         case null => None
@@ -373,6 +374,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
         redirectURL = None,
         createdByUserId = userId.toOption
       )
+
     }
 
     def applyIdTokenRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
@@ -471,10 +473,48 @@ object OAuth2Login extends RestHelper with MdcLoggable {
     def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
       JwtUtil.getClaim("typ", token) match {
         case "ID" => super.applyIdTokenRules(token, cc)
-        case "Bearer" => super.applyAccessTokenRules(token, cc)
+        case "Bearer" =>
+          val result = super.applyAccessTokenRules(token, cc)
+          result._2.flatMap(_.consumer.map(_.id.get)) match {
+            case Some(consumerPrimaryKey) =>
+              addScopesToConsumer(token, consumerPrimaryKey)
+            case None => // Do nothing
+          }
+          result
         case "" => super.applyAccessTokenRules(token, cc)
       }
     }
+
+    private def addScopesToConsumer(token: String,  consumerPrimaryKey: Long): Unit = {
+      val sourceOfTruth = APIUtil.getPropsAsBoolValue(nameOfProperty = "oauth2.keycloak.source-of-truth", defaultValue = false)
+      val consumerId = getClaim(name = "azp", idToken = token).getOrElse("")
+      if(sourceOfTruth) {
+        logger.debug("Extracting roles from Access Token")
+        import net.liftweb.json._
+        val jsonString = JwtUtil.getSignedPayloadAsJson(token)
+        val json = parse(jsonString.getOrElse(""))
+        val openBankRoles: List[String] = {
+          (json \ "resource_access" \ consumerId \ "roles").extract[List[String]]
+            .filter(role => tryo(ApiRole.valueOf(role)).isDefined) // Keep only the roles OBP-API can recognise
+        }
+        val scopes = Scope.scope.vend.getScopesByConsumerId(consumerPrimaryKey.toString).getOrElse(Nil)
+        val databaseState = scopes.map(_.roleName)
+        // Already exist at DB
+        val existingRoles = openBankRoles.intersect(databaseState)
+        // Roles to add into DB
+        val rolesToAdd = openBankRoles.toSet diff databaseState.toSet
+        rolesToAdd.foreach(roleName => Scope.scope.vend.addScope("", consumerPrimaryKey.toString, roleName))
+        // Roles to delete from DB
+        val rolesToDelete = databaseState.toSet diff openBankRoles.toSet
+        rolesToDelete.foreach( roleName =>
+          Scope.scope.vend.deleteScope(scopes.find(s => s.roleName == roleName || s.consumerId == consumerId))
+        )
+        logger.debug(s"Consumer ID: $consumerId # Existing roles: ${existingRoles.mkString} # Added roles: ${rolesToAdd.mkString} # Deleted roles: ${rolesToDelete.mkString}")
+      } else {
+        logger.debug(s"Adding scopes omitted due to oauth2.keycloak.source-of-truth = $sourceOfTruth # Consumer ID: $consumerId")
+      }
+    }
+
     def applyRulesFuture(value: String, cc: CallContext): Future[(Box[User], Some[CallContext])] = Future {
       applyRules(value, cc)
     }

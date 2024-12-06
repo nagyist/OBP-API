@@ -1196,6 +1196,11 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       (Full(AccountHolders.accountHolders.vend.getAccountsHeld(bankId, user).toList), callContext)
     }
   }
+  override def getAccountsHeldByUser(user: User, callContext: Option[CallContext]): OBPReturnType[Box[List[BankIdAccountId]]] = {
+    Future {
+      (Full(AccountHolders.accountHolders.vend.getAccountsHeldByUser(user).toList), callContext)
+    }
+  }
 
 
   

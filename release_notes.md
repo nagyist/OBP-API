@@ -3,6 +3,18 @@
 ### Most recent changes at top of file
 ```
 Date          Commit        Action
+03/02/2024    7bcb6bc5      Added props oauth2.keycloak.source-of-truth, default is false.
+                            oauth2.keycloak.source-of-truth = true turns sync ON.
+                            It is used to sync IAM of OBP-API and IAM of Keycloak.
+                            In case that access token issued by Keycloak contains roles assiggned to a consumer, for instance:
+                            "open-bank-project": {
+                              "roles": [
+                                "CanGetConsentsAtAnyBank",
+                                "uma_protection"
+                              ]
+                            }
+                            OBP-API add the role CanGetConsentsAtAnyBank to the consumer "open-bank-project" via Scopes feature.
+                            The role "uma_protection" is ignored because there is no such a role at OBP-API side.
 12/11/2024    d2e711b4      Added props rabbitmq_connector.virtual_host, default is /.
                             If you need to set it, please make sure you already add the virtual_host to the rabbitmq and grant the access to the user:
                             eg: run `rabbitmqctl add_vhost /obp/` => create the `/obp/` 

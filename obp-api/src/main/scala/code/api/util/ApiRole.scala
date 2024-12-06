@@ -66,6 +66,11 @@ object RoleCombination {
 
 object ApiRole extends MdcLoggable{
 
+  case class CanGetAccountsHeldAtOneBank(requiresBankId: Boolean = true) extends ApiRole
+  lazy val canGetAccountsHeldAtOneBank: CanGetAccountsHeldAtOneBank = CanGetAccountsHeldAtOneBank()
+  case class CanGetAccountsHeldAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canGetAccountsHeldAtAnyBank: CanGetAccountsHeldAtAnyBank = CanGetAccountsHeldAtAnyBank()
+
   case class CanCreateRegulatedEntity(requiresBankId: Boolean = false) extends ApiRole
   lazy val canCreateRegulatedEntity = CanCreateRegulatedEntity()
   case class CanDeleteRegulatedEntity(requiresBankId: Boolean = false) extends ApiRole

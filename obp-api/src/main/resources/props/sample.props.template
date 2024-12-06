@@ -166,6 +166,18 @@ jwt.use.ssl=false
 #truststore.path=/path/to/api.truststore.jks
 
 
+## Enable mTLS for Redis, if set to true must set paths for the keystore and truststore locations
+# redis.use.ssl=false
+## Client
+## PKCS#12 Format: combine private keys and certificates into .p12 files for easier transport
+# keystore.path.redis = path/to/client-keystore.p12
+# keystore.password.redis = keystore-password
+## Trust stores is a list of trusted CA certificates
+## Public certificate for the CA (used by clients and servers to validate signatures)
+# truststore.path.redis = path/to/ca.p12
+# truststore.password.redis = truststore-password
+
+
 ## Enable writing API metrics (which APIs are called) to RDBMS
 write_metrics=true
 ## Enable writing connector metrics (which methods are called)to RDBMS 
@@ -755,6 +767,8 @@ display_internal_errors=false
 # Keycloak Identity Provider Host
 # oauth2.keycloak.host=http://localhost:7070
 # oauth2.keycloak.well-known=http://localhost:7070/realms/master/.well-known/openid-configuration
+# Used to sync IAM of OBP-API and IAM of Keycloak
+# oauth2.keycloak.source-of-truth = false
 # ------------------------------------------------------------------------------ OAuth 2 ------
 
 ## This property is used for documenting at Resource Doc. It may include the port also (but not /obp)

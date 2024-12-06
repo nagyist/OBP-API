@@ -4,8 +4,7 @@ import java.security.interfaces.RSAPublicKey
 import java.time.format.DateTimeFormatter
 import java.time.{Duration, ZoneOffset, ZonedDateTime}
 import java.util
-
-import code.api.Constant
+import code.api.{CertificateConstants, Constant}
 import code.util.Helper.MdcLoggable
 import com.nimbusds.jose.crypto.RSASSAVerifier
 import com.nimbusds.jose.jwk.JWK
@@ -16,7 +15,6 @@ import net.liftweb.common.{Box, Failure, Full}
 import net.liftweb.http.provider.HTTPParam
 import net.liftweb.json
 import net.liftweb.util.SecurityHelpers
-import sun.security.provider.X509Factory
 
 import scala.collection.immutable.{HashMap, List}
 import scala.jdk.CollectionConverters.seqAsJavaListConverter
@@ -164,9 +162,9 @@ object JwsUtil extends MdcLoggable {
         header.x5c.map(_.headOption.getOrElse("None")).getOrElse("None")
       case None => "None"
     }
-    s"""${X509Factory.BEGIN_CERT}
+    s"""${CertificateConstants.BEGIN_CERT}
        |$x5c
-       |${X509Factory.END_CERT}
+       |${CertificateConstants.END_CERT}
        |""".stripMargin
   }
 

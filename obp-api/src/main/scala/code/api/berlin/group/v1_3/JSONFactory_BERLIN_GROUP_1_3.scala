@@ -517,6 +517,16 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
   }
   
   def createPostConsentResponseJson(consent: ConsentTrait) : PostConsentResponseJson = {
+    def redirectionWithDedicatedStartOfAuthorization = {
+      PostConsentResponseJson(
+        consentId = consent.consentId,
+        consentStatus = consent.status.toLowerCase(),
+        _links = ConsentLinksV13(
+          startAuthorisation = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations"))
+        )
+      )
+    }
+
     getPropsValue("psu_authentication_method") match {
       case Full("redirection") =>
         val scaRedirectUrl = getPropsValue("psu_authentication_method_sca_redirect_url")
@@ -531,13 +541,7 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
           )
         )
       case Full("redirection_with_dedicated_start_of_authorization") =>
-        PostConsentResponseJson(
-          consentId = consent.consentId,
-          consentStatus = consent.status.toLowerCase(),
-          _links = ConsentLinksV13(
-            startAuthorisation = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations"))
-          )
-        )
+        redirectionWithDedicatedStartOfAuthorization
       case Full("embedded") =>
         PostConsentResponseJson(
           consentId = consent.consentId,
@@ -555,13 +559,7 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
           )
         )
       case _ =>
-        PostConsentResponseJson(
-          consentId = consent.consentId,
-          consentStatus = consent.status.toLowerCase(),
-          _links = ConsentLinksV13(
-            startAuthorisation = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations"))
-          )
-        )
+        redirectionWithDedicatedStartOfAuthorization
     }
 
   }

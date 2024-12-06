@@ -1835,11 +1835,14 @@ trait Connector extends MdcLoggable {
     viewId: String,
     counterpartyId: String,
     currency: String,
-    maxSingleAmount: Int,
-    maxMonthlyAmount: Int,
+    maxSingleAmount: BigDecimal,
+    maxMonthlyAmount: BigDecimal,
     maxNumberOfMonthlyTransactions: Int,
-    maxYearlyAmount: Int,
-    maxNumberOfYearlyTransactions: Int, callContext: Option[CallContext]
+    maxYearlyAmount: BigDecimal,
+    maxNumberOfYearlyTransactions: Int,
+    maxTotalAmount: BigDecimal,
+    maxNumberOfTransactions: Int, 
+    callContext: Option[CallContext]
   ): OBPReturnType[Box[CounterpartyLimitTrait]] = Future{(Failure(setUnimplementedError(nameOf(createOrUpdateCounterpartyLimit _))), callContext)}
   
   def getCounterpartyLimit(

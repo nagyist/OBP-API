@@ -2210,20 +2210,26 @@ object ExampleValue {
   lazy val counterpartyLimitIdExample = ConnectorField("abc9a7e4-6d02-40e3-a129-0b2bf89de9b1","A string that MUST uniquely identify the Counterparty Limit on this OBP instance.")
   glossaryItems += makeGlossaryItem("counterparty_limit_id", counterpartyLimitIdExample)
 
-  lazy val maxSingleAmountExample = ConnectorField("1000",NoDescriptionProvided)
+  lazy val maxSingleAmountExample = ConnectorField("1000.11",NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("max_single_amount", maxSingleAmountExample)
 
-  lazy val maxMonthlyAmountExample = ConnectorField("10000",NoDescriptionProvided)
+  lazy val maxMonthlyAmountExample = ConnectorField("10000.11",NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("max_monthly_amount", maxMonthlyAmountExample)
 
   lazy val maxNumberOfMonthlyTransactionsExample = ConnectorField("10",NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("max_number_of_monthly_transactions", maxNumberOfMonthlyTransactionsExample)
 
-  lazy val maxYearlyAmountExample = ConnectorField("12000",NoDescriptionProvided)
+  lazy val maxYearlyAmountExample = ConnectorField("12000.11",NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("max_yearly_amount", maxYearlyAmountExample)
 
   lazy val maxNumberOfYearlyTransactionsExample = ConnectorField("100",NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("max_number_of_yearly_transactions", maxNumberOfYearlyTransactionsExample)
+  
+  lazy val maxNumberOfTransactionsExample = ConnectorField("100",NoDescriptionProvided)
+  glossaryItems += makeGlossaryItem("max_number_of_transactions", maxNumberOfTransactionsExample)
+  
+  lazy val maxTotalAmountExample = ConnectorField("10000.12",NoDescriptionProvided)
+  glossaryItems += makeGlossaryItem("max_total_amount", maxTotalAmountExample)
 
   lazy val canAddImageUrlExample = ConnectorField(booleanFalse,NoDescriptionProvided)
   glossaryItems += makeGlossaryItem("can_add_image_url", canAddImageUrlExample)

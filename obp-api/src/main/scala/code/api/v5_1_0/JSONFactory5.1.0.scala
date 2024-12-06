@@ -191,11 +191,13 @@ case class PostAtmJsonV510 (
 
 case class PostCounterpartyLimitV510(
   currency: String,
-  max_single_amount: Int,
-  max_monthly_amount: Int,
+  max_single_amount: String,
+  max_monthly_amount: String,
   max_number_of_monthly_transactions: Int,
-  max_yearly_amount: Int,
-  max_number_of_yearly_transactions: Int
+  max_yearly_amount: String,
+  max_number_of_yearly_transactions: Int,
+  max_total_amount: String,
+  max_number_of_transactions: Int
 )
 
 case class CounterpartyLimitV510(
@@ -205,11 +207,13 @@ case class CounterpartyLimitV510(
   view_id: String,
   counterparty_id: String,
   currency: String,
-  max_single_amount: Int,
-  max_monthly_amount: Int,
+  max_single_amount: String,
+  max_monthly_amount: String,
   max_number_of_monthly_transactions: Int,
-  max_yearly_amount: Int,
-  max_number_of_yearly_transactions: Int
+  max_yearly_amount: String,
+  max_number_of_yearly_transactions: Int,
+  max_total_amount: String,
+  max_number_of_transactions: Int
 )
 
 case class AtmJsonV510 (

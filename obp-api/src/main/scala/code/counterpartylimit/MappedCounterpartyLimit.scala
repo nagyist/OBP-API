@@ -51,11 +51,13 @@ object MappedCounterpartyLimitProvider extends CounterpartyLimitProviderTrait {
     viewId: String,
     counterpartyId: String,
     currency: String,
-    maxSingleAmount: Int,
-    maxMonthlyAmount: Int,
+    maxSingleAmount: BigDecimal,
+    maxMonthlyAmount: BigDecimal,
     maxNumberOfMonthlyTransactions: Int,
-    maxYearlyAmount: Int,
-    maxNumberOfYearlyTransactions: Int)= Future {
+    maxYearlyAmount: BigDecimal,
+    maxNumberOfYearlyTransactions: Int,
+    maxTotalAmount: BigDecimal,
+    maxNumberOfTransactions: Int)= Future {
 
     def createCounterpartyLimit(counterpartyLimit: CounterpartyLimit)= {
       tryo {
@@ -69,6 +71,8 @@ object MappedCounterpartyLimitProvider extends CounterpartyLimitProviderTrait {
         counterpartyLimit.MaxNumberOfMonthlyTransactions(maxNumberOfMonthlyTransactions)
         counterpartyLimit.MaxYearlyAmount(maxYearlyAmount)
         counterpartyLimit.MaxNumberOfYearlyTransactions(maxNumberOfYearlyTransactions)
+        counterpartyLimit.MaxTotalAmount(maxTotalAmount)
+        counterpartyLimit.MaxNumberOfTransactions(maxNumberOfTransactions)
         counterpartyLimit.saveMe()
       }
     }

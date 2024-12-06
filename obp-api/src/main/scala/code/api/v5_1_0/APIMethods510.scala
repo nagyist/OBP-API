@@ -2916,11 +2916,13 @@ trait APIMethods510 {
               viewId.value,
               counterpartyId.value,
               postCounterpartyLimitV510.currency,
-              postCounterpartyLimitV510.max_single_amount,
-              postCounterpartyLimitV510.max_monthly_amount,
+              BigDecimal(postCounterpartyLimitV510.max_single_amount),
+              BigDecimal(postCounterpartyLimitV510.max_monthly_amount),
               postCounterpartyLimitV510.max_number_of_monthly_transactions,
-              postCounterpartyLimitV510.max_yearly_amount,
+              BigDecimal(postCounterpartyLimitV510.max_yearly_amount),
               postCounterpartyLimitV510.max_number_of_yearly_transactions,
+              BigDecimal(postCounterpartyLimitV510.max_total_amount),
+              postCounterpartyLimitV510.max_number_of_transactions,
               cc.callContext
             )
           } yield {
@@ -2966,15 +2968,17 @@ trait APIMethods510 {
               viewId.value,
               counterpartyId.value,
               postCounterpartyLimitV510.currency,
-              postCounterpartyLimitV510.max_single_amount,
-              postCounterpartyLimitV510.max_monthly_amount,
+              BigDecimal(postCounterpartyLimitV510.max_single_amount),
+              BigDecimal(postCounterpartyLimitV510.max_monthly_amount),
               postCounterpartyLimitV510.max_number_of_monthly_transactions,
-              postCounterpartyLimitV510.max_yearly_amount,
+              BigDecimal(postCounterpartyLimitV510.max_yearly_amount),
               postCounterpartyLimitV510.max_number_of_yearly_transactions,
+              BigDecimal(postCounterpartyLimitV510.max_total_amount),
+              postCounterpartyLimitV510.max_number_of_transactions,
               cc.callContext
             )
           } yield {
-            (counterpartyLimit.toJValue, HttpCode.`200`(cc.callContext))
+            (counterpartyLimit.toJValue, HttpCode.`200`(callContext))
           }
       }
     }

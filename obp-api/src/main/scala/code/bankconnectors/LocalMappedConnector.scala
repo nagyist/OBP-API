@@ -5167,22 +5167,28 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     viewId: String,
     counterpartyId: String,
     currency: String,
-    maxSingleAmount: Int,
-    maxMonthlyAmount: Int,
+    maxSingleAmount: BigDecimal,
+    maxMonthlyAmount: BigDecimal,
     maxNumberOfMonthlyTransactions: Int,
-    maxYearlyAmount: Int,
-    maxNumberOfYearlyTransactions: Int, callContext: Option[CallContext]) =
+    maxYearlyAmount: BigDecimal,
+    maxNumberOfYearlyTransactions: Int,
+    maxTotalAmount: BigDecimal,
+    maxNumberOfTransactions: Int, 
+    callContext: Option[CallContext]) =
     CounterpartyLimitProvider.counterpartyLimit.vend.createOrUpdateCounterpartyLimit(
       bankId: String,
       accountId: String,
       viewId: String,
       counterpartyId: String,
       currency: String,
-      maxSingleAmount: Int,
-      maxMonthlyAmount: Int,
+      maxSingleAmount: BigDecimal,
+      maxMonthlyAmount: BigDecimal,
       maxNumberOfMonthlyTransactions: Int,
-      maxYearlyAmount: Int,
-      maxNumberOfYearlyTransactions: Int) map {
+      maxYearlyAmount: BigDecimal,
+      maxNumberOfYearlyTransactions: Int,
+      maxTotalAmount: BigDecimal,
+      maxNumberOfTransactions: Int
+    ) map {
       (_, callContext)
     }
     

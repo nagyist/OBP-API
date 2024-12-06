@@ -4227,11 +4227,13 @@ object NewStyle extends MdcLoggable{
       viewId: String,
       counterpartyId: String,
       currency: String,
-      maxSingleAmount: Int,
-      maxMonthlyAmount: Int,
+      maxSingleAmount: BigDecimal,
+      maxMonthlyAmount: BigDecimal,
       maxNumberOfMonthlyTransactions: Int,
-      maxYearlyAmount: Int,
+      maxYearlyAmount: BigDecimal,
       maxNumberOfYearlyTransactions: Int,
+      maxTotalAmount: BigDecimal,
+      maxNumberOfTransactions: Int,
       callContext: Option[CallContext]
     ): OBPReturnType[CounterpartyLimitTrait] =
       Connector.connector.vend.createOrUpdateCounterpartyLimit(
@@ -4240,11 +4242,13 @@ object NewStyle extends MdcLoggable{
         viewId: String,
         counterpartyId: String,
         currency: String,
-        maxSingleAmount: Int,
-        maxMonthlyAmount: Int,
+        maxSingleAmount: BigDecimal,
+        maxMonthlyAmount: BigDecimal,
         maxNumberOfMonthlyTransactions: Int,
-        maxYearlyAmount: Int,
+        maxYearlyAmount: BigDecimal,
         maxNumberOfYearlyTransactions: Int,
+        maxTotalAmount: BigDecimal,
+        maxNumberOfTransactions: Int,
         callContext: Option[CallContext]
     ) map {
       i => (unboxFullOrFail(i._1, callContext, CreateCounterpartyLimitError), i._2)

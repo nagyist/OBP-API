@@ -2989,8 +2989,11 @@ trait APIMethods510 {
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limits" :: Nil JsonPost json -> _ => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            postCounterpartyLimitV510 <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[AtmJsonV510]}", 400, cc.callContext) {
+            postCounterpartyLimitV510 <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[PostCounterpartyLimitV510]}", 400, cc.callContext) {
               json.extract[PostCounterpartyLimitV510]
+            }
+            _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${postCounterpartyLimitV510.currency}'", cc=cc.callContext) {
+              isValidCurrencyISOCode(postCounterpartyLimitV510.currency)
             }
             (counterpartyLimitBox, callContext) <- Connector.connector.vend.getCounterpartyLimit(
               bankId.value,
@@ -3009,15 +3012,16 @@ trait APIMethods510 {
               viewId.value,
               counterpartyId.value,
               postCounterpartyLimitV510.currency,
-              postCounterpartyLimitV510.max_single_amount,
-              postCounterpartyLimitV510.max_monthly_amount,
+              BigDecimal(postCounterpartyLimitV510.max_single_amount),
+              BigDecimal(postCounterpartyLimitV510.max_monthly_amount),
               postCounterpartyLimitV510.max_number_of_monthly_transactions,
-              postCounterpartyLimitV510.max_yearly_amount,
+              BigDecimal(postCounterpartyLimitV510.max_yearly_amount),
               postCounterpartyLimitV510.max_number_of_yearly_transactions,
+              BigDecimal(postCounterpartyLimitV510.max_total_amount),
+              postCounterpartyLimitV510.max_number_of_transactions,
               cc.callContext
             )
           } yield {
-             
             (counterpartyLimit.toJValue, HttpCode.`201`(callContext))
           }
       }
@@ -3048,8 +3052,11 @@ trait APIMethods510 {
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limits" :: Nil JsonPut json -> _ => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            postCounterpartyLimitV510 <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[AtmJsonV510]}", 400, cc.callContext) {
+            postCounterpartyLimitV510 <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[PostCounterpartyLimitV510]}", 400, cc.callContext) {
               json.extract[PostCounterpartyLimitV510]
+            }
+            _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${postCounterpartyLimitV510.currency}'", cc=cc.callContext) {
+              isValidCurrencyISOCode(postCounterpartyLimitV510.currency)
             }
             (counterpartyLimit,callContext) <- NewStyle.function.createOrUpdateCounterpartyLimit(
               bankId.value,
@@ -3057,15 +3064,17 @@ trait APIMethods510 {
               viewId.value,
               counterpartyId.value,
               postCounterpartyLimitV510.currency,
-              postCounterpartyLimitV510.max_single_amount,
-              postCounterpartyLimitV510.max_monthly_amount,
+              BigDecimal(postCounterpartyLimitV510.max_single_amount),
+              BigDecimal(postCounterpartyLimitV510.max_monthly_amount),
               postCounterpartyLimitV510.max_number_of_monthly_transactions,
-              postCounterpartyLimitV510.max_yearly_amount,
+              BigDecimal(postCounterpartyLimitV510.max_yearly_amount),
               postCounterpartyLimitV510.max_number_of_yearly_transactions,
+              BigDecimal(postCounterpartyLimitV510.max_total_amount),
+              postCounterpartyLimitV510.max_number_of_transactions,
               cc.callContext
             )
           } yield {
-            (counterpartyLimit.toJValue, HttpCode.`200`(cc.callContext))
+            (counterpartyLimit.toJValue, HttpCode.`200`(callContext))
           }
       }
     }

@@ -5458,11 +5458,13 @@ object SwaggerDefinitionsJSON {
   
   val postCounterpartyLimitV510 = PostCounterpartyLimitV510(
     currency = currencyExample.value,
-    max_single_amount = maxSingleAmountExample.value.toInt,
-    max_monthly_amount = maxMonthlyAmountExample.value.toInt,
+    max_single_amount = maxSingleAmountExample.value,
+    max_monthly_amount = maxMonthlyAmountExample.value,
     max_number_of_monthly_transactions = maxNumberOfMonthlyTransactionsExample.value.toInt,
-    max_yearly_amount = maxYearlyAmountExample.value.toInt,
-    max_number_of_yearly_transactions = maxNumberOfYearlyTransactionsExample.value.toInt
+    max_yearly_amount = maxYearlyAmountExample.value,
+    max_number_of_yearly_transactions = maxNumberOfYearlyTransactionsExample.value.toInt,
+    max_total_amount = maxTotalAmountExample.value,
+    max_number_of_transactions = maxNumberOfTransactionsExample.value.toInt
   )
   
   val counterpartyLimitV510 = CounterpartyLimitV510(
@@ -5472,11 +5474,13 @@ object SwaggerDefinitionsJSON {
     view_id = viewIdExample.value,
     counterparty_id = counterpartyIdExample.value,
     currency = currencyExample.value,
-    max_single_amount = maxSingleAmountExample.value.toInt,
-    max_monthly_amount = maxMonthlyAmountExample.value.toInt,
+    max_single_amount = maxSingleAmountExample.value,
+    max_monthly_amount = maxMonthlyAmountExample.value,
     max_number_of_monthly_transactions = maxNumberOfMonthlyTransactionsExample.value.toInt,
-    max_yearly_amount = maxYearlyAmountExample.value.toInt,
-    max_number_of_yearly_transactions = maxNumberOfYearlyTransactionsExample.value.toInt
+    max_yearly_amount = maxYearlyAmountExample.value,
+    max_number_of_yearly_transactions = maxNumberOfYearlyTransactionsExample.value.toInt,
+    max_total_amount = maxTotalAmountExample.value,
+    max_number_of_transactions = maxNumberOfTransactionsExample.value.toInt
   )
   
   val atmsJsonV510 = AtmsJsonV510(

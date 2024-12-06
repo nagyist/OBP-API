@@ -663,11 +663,13 @@ trait CounterpartyLimitTrait extends JsonAble{
   def counterpartyId: String
 
   def currency: String
-  def maxSingleAmount: Int
-  def maxMonthlyAmount: Int
+  def maxSingleAmount: BigDecimal
+  def maxMonthlyAmount: BigDecimal
   def maxNumberOfMonthlyTransactions: Int
-  def maxYearlyAmount: Int
+  def maxYearlyAmount: BigDecimal
   def maxNumberOfYearlyTransactions: Int
+  def maxTotalAmount: BigDecimal
+  def maxNumberOfTransactions: Int
 }
 
 trait EndpointTagT {

@@ -4232,11 +4232,13 @@ object NewStyle extends MdcLoggable{
       viewId: String,
       counterpartyId: String,
       currency: String,
-      maxSingleAmount: Int,
-      maxMonthlyAmount: Int,
+      maxSingleAmount: BigDecimal,
+      maxMonthlyAmount: BigDecimal,
       maxNumberOfMonthlyTransactions: Int,
-      maxYearlyAmount: Int,
+      maxYearlyAmount: BigDecimal,
       maxNumberOfYearlyTransactions: Int,
+      maxTotalAmount: BigDecimal,
+      maxNumberOfTransactions: Int,
       callContext: Option[CallContext]
     ): OBPReturnType[CounterpartyLimitTrait] =
       Connector.connector.vend.createOrUpdateCounterpartyLimit(
@@ -4245,11 +4247,13 @@ object NewStyle extends MdcLoggable{
         viewId: String,
         counterpartyId: String,
         currency: String,
-        maxSingleAmount: Int,
-        maxMonthlyAmount: Int,
+        maxSingleAmount: BigDecimal,
+        maxMonthlyAmount: BigDecimal,
         maxNumberOfMonthlyTransactions: Int,
-        maxYearlyAmount: Int,
+        maxYearlyAmount: BigDecimal,
         maxNumberOfYearlyTransactions: Int,
+        maxTotalAmount: BigDecimal,
+        maxNumberOfTransactions: Int,
         callContext: Option[CallContext]
     ) map {
       i => (unboxFullOrFail(i._1, callContext, CreateCounterpartyLimitError), i._2)
@@ -4272,6 +4276,46 @@ object NewStyle extends MdcLoggable{
       i => (unboxFullOrFail(i._1, callContext, s"$GetCounterpartyLimitError Current BANK_ID($bankId), " +
         s"ACCOUNT_ID($accountId), VIEW_ID($viewId),COUNTERPARTY_ID($counterpartyId)"), i._2)
     }
+
+    def getCountOfTransactionsFromAccountToCounterparty(
+      fromBankId: BankId, 
+      fromAccountId: AccountId, 
+      counterpartyId: CounterpartyId, 
+      fromDate: Date, 
+      toDate: Date, 
+      callContext: Option[CallContext]
+    ): OBPReturnType[Int] =
+      Connector.connector.vend.getCountOfTransactionsFromAccountToCounterparty(
+        fromBankId: BankId,
+        fromAccountId: AccountId,
+        counterpartyId: CounterpartyId,
+        fromDate: Date,
+        toDate: Date,
+        callContext: Option[CallContext]
+      ) map {
+        i =>
+          (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse ${nameOf(getCountOfTransactionsFromAccountToCounterparty _)}"), i._2)
+      }
+
+    def getSumOfTransactionsFromAccountToCounterparty(
+      fromBankId: BankId, 
+      fromAccountId: AccountId, 
+      counterpartyId: CounterpartyId, 
+      fromDate: Date, 
+      toDate:Date, 
+      callContext: Option[CallContext]
+    ):OBPReturnType[AmountOfMoney] =
+      Connector.connector.vend.getSumOfTransactionsFromAccountToCounterparty(
+        fromBankId: BankId,
+        fromAccountId: AccountId, 
+        counterpartyId: CounterpartyId, 
+        fromDate: Date,
+        toDate:Date, 
+        callContext: Option[CallContext]
+      ) map {
+        i =>
+          (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse ${nameOf(getCountOfTransactionsFromAccountToCounterparty _)}"), i._2)
+      }
     
     def deleteCounterpartyLimit(
       bankId: String,

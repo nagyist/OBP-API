@@ -1,7 +1,7 @@
 package code.consent
 
 import java.util.Date
-import code.api.util.{APIUtil, Consent, ErrorMessages, OBPStatus, OBPOffset, OBPQueryParam, OBPUserId, OBPLimit, OBPConsumerId, SecureRandomUtil}
+import code.api.util.{APIUtil, Consent, ErrorMessages, OBPConsentId, OBPConsumerId, OBPLimit, OBPOffset, OBPQueryParam, OBPStatus, OBPUserId, SecureRandomUtil}
 import code.consent.ConsentStatus.ConsentStatus
 import code.model.Consumer
 import code.util.MappedUUID
@@ -67,8 +67,9 @@ object MappedConsentProvider extends ConsentProvider {
   private def getQueryParams(queryParams: List[OBPQueryParam]) = {
     val limit = queryParams.collect { case OBPLimit(value) => MaxRows[MappedConsent](value) }.headOption
     val offset = queryParams.collect { case OBPOffset(value) => StartAt[MappedConsent](value) }.headOption
-    // he optional variables:
+    // The optional variables:
     val consumerId = queryParams.collect { case OBPConsumerId(value) => By(MappedConsent.mConsumerId, value)}.headOption
+    val consentId = queryParams.collect { case OBPConsentId(value) => By(MappedConsent.mConsentId, value)}.headOption
     val userId = queryParams.collect { case OBPUserId(value) => By(MappedConsent.mUserId, value)}.headOption
     val status = queryParams.collect { case OBPStatus(value) => By(MappedConsent.mStatus, value.toUpperCase())}.headOption
 
@@ -77,6 +78,7 @@ object MappedConsentProvider extends ConsentProvider {
       limit.toSeq,
       status.toSeq,
       userId.toSeq,
+      consentId.toSeq,
       consumerId.toSeq
     ).flatten
   }

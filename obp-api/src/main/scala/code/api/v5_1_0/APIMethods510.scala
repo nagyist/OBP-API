@@ -3124,7 +3124,7 @@ trait APIMethods510 {
       implementedInApiVersion,
       nameOf(getCounterpartyLimitStatus),
       "GET",
-      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/counterparties/COUNTERPARTY_ID/limits-status",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/counterparties/COUNTERPARTY_ID/limit-status",
       "Get Counterparty Limit Status",
       s"""Get Counterparty Limit Status.""",
       EmptyBody,
@@ -3141,7 +3141,7 @@ trait APIMethods510 {
       List(apiTagCounterpartyLimits),
     )
     lazy val getCounterpartyLimitStatus: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limits-status" :: Nil JsonGet _ => {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limit-status" :: Nil JsonGet _ => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
             (counterpartyLimit, callContext) <- NewStyle.function.getCounterpartyLimit(

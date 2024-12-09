@@ -2967,9 +2967,17 @@ trait APIMethods510 {
       "POST",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/counterparties/COUNTERPARTY_ID/limits",
       "Create Counterparty Limit",
-      s"""Create Counterparty Limit.
+      s"""Create limits (for single or recurring payments) for a counterparty specified by the COUNTERPARTY_ID.
          |
-         |$counterPartyLimitIntro
+         |Using this endpoint, we can attach a limit record to a Counterparty referenced by its counterparty_id (a UUID).
+         |
+         |For more information on Counterparty Limits, see ${Glossary.getGlossaryItemLink("Counterparty-Limits")}
+         |
+         |For an introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
+         |
+         |You can automate the process of creating counterparty limits and consents for VRP with this ${Glossary.getApiExplorerLink("endpoint", "OBPv5.1.0-createVRPConsentRequest")}.
+         |
+         |
          |
          |""".stripMargin,
       postCounterpartyLimitV510,

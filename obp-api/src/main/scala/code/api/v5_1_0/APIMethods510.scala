@@ -54,6 +54,7 @@ import net.liftweb.mapper.By
 import net.liftweb.util.Helpers.tryo
 import net.liftweb.util.{Helpers, StringHelpers}
 
+import java.time.{LocalDate, ZoneId}
 import java.util.Date
 import scala.collection.immutable.{List, Nil}
 import scala.collection.mutable.ArrayBuffer
@@ -3113,6 +3114,149 @@ trait APIMethods510 {
             )
           } yield {
             (counterpartyLimit.toJValue, HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
+      getCounterpartyLimitStatus,
+      implementedInApiVersion,
+      nameOf(getCounterpartyLimitStatus),
+      "GET",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/counterparties/COUNTERPARTY_ID/limits-status",
+      "Get Counterparty Limit Status",
+      s"""Get Counterparty Limit Status.""",
+      EmptyBody,
+      counterpartyLimitStatusV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        $UserNoPermissionAccessView,
+        $CounterpartyNotFoundByCounterpartyId,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagCounterpartyLimits),
+    )
+    lazy val getCounterpartyLimitStatus: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limits-status" :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (counterpartyLimit, callContext) <- NewStyle.function.getCounterpartyLimit(
+              bankId.value,
+              accountId.value,
+              viewId.value,
+              counterpartyId.value,
+              cc.callContext
+            )
+            // Get the first day of the current month
+            firstDayOfMonth: LocalDate = LocalDate.now().withDayOfMonth(1)
+
+            // Get the last day of the current month
+            lastDayOfMonth: LocalDate = LocalDate.now().withDayOfMonth(
+              LocalDate.now().lengthOfMonth()
+            )
+            // Get the first day of the current year
+            firstDayOfYear: LocalDate = LocalDate.now().withDayOfYear(1)
+
+            // Get the last day of the current year
+            lastDayOfYear: LocalDate = LocalDate.now().withDayOfYear(
+              LocalDate.now().lengthOfYear()
+            )
+
+            (fromBankAccount, callContext) <- NewStyle.function.getBankAccount(bankId, accountId, callContext)
+            // Convert LocalDate to Date
+            zoneId: ZoneId = ZoneId.systemDefault()
+            firstCurrentMonthDate: Date = Date.from(firstDayOfMonth.atStartOfDay(zoneId).toInstant)
+            lastCurrentMonthDate: Date = Date.from(lastDayOfMonth.atStartOfDay(zoneId).toInstant)
+
+            firstCurrentYearDate: Date = Date.from(firstDayOfYear.atStartOfDay(zoneId).toInstant)
+            lastCurrentYearDate: Date = Date.from(lastDayOfYear.atStartOfDay(zoneId).toInstant)
+
+            defaultFromDate: Date = theEpochTime
+            defaultToDate: Date = APIUtil.ToDateInFuture
+
+            (sumOfTransactionsFromAccountToCounterpartyMonthly, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              firstCurrentMonthDate: Date,
+              lastCurrentMonthDate: Date,
+              callContext: Option[CallContext]
+            )
+
+            (countOfTransactionsFromAccountToCounterpartyMonthly, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              firstCurrentMonthDate: Date,
+              lastCurrentMonthDate: Date,
+              callContext: Option[CallContext]
+            )
+
+            (sumOfTransactionsFromAccountToCounterpartyYearly, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              firstCurrentYearDate: Date,
+              lastCurrentYearDate: Date,
+              callContext: Option[CallContext]
+            )
+
+            (countOfTransactionsFromAccountToCounterpartyYearly, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              firstCurrentYearDate: Date,
+              lastCurrentYearDate: Date,
+              callContext: Option[CallContext]
+            )
+
+            (sumOfAllTransactionsFromAccountToCounterparty, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              defaultFromDate: Date,
+              defaultToDate: Date,
+              callContext: Option[CallContext]
+            )
+
+            (countOfAllTransactionsFromAccountToCounterparty, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              defaultFromDate: Date,
+              defaultToDate: Date,
+              callContext: Option[CallContext]
+            )
+            
+          } yield {
+            (CounterpartyLimitStatusV510(
+              counterparty_limit_id = counterpartyLimit.counterpartyLimitId: String,
+              bank_id = counterpartyLimit.bankId: String,
+              account_id = counterpartyLimit.accountId: String,
+              view_id = counterpartyLimit.viewId: String,
+              counterparty_id = counterpartyLimit.counterpartyId: String,
+              currency = counterpartyLimit.currency: String,
+              max_single_amount = counterpartyLimit.maxSingleAmount.toString(),
+              max_monthly_amount = counterpartyLimit.maxMonthlyAmount.toString(),
+              max_number_of_monthly_transactions = counterpartyLimit.maxNumberOfMonthlyTransactions: Int,
+              max_yearly_amount = counterpartyLimit.maxYearlyAmount.toString(),
+              max_number_of_yearly_transactions = counterpartyLimit.maxNumberOfYearlyTransactions: Int,
+              max_total_amount = counterpartyLimit.maxTotalAmount.toString(),
+              max_number_of_transactions = counterpartyLimit.maxNumberOfTransactions: Int,
+              status = CounterpartyLimitStatus(
+                currency_status = fromBankAccount.currency,
+                max_monthly_amount_status = sumOfTransactionsFromAccountToCounterpartyMonthly.amount,
+                max_number_of_monthly_transactions_status = countOfTransactionsFromAccountToCounterpartyMonthly,
+                max_yearly_amount_status = sumOfTransactionsFromAccountToCounterpartyYearly.amount,
+                max_number_of_yearly_transactions_status = countOfTransactionsFromAccountToCounterpartyYearly,
+                max_total_amount_status = sumOfAllTransactionsFromAccountToCounterparty.amount,
+                max_number_of_transactions_status = countOfAllTransactionsFromAccountToCounterparty
+              )
+            ), HttpCode.`200`(callContext))
           }
       }
     }

@@ -216,6 +216,33 @@ case class CounterpartyLimitV510(
   max_number_of_transactions: Int
 )
 
+case class CounterpartyLimitStatus(
+  currency_status: String,
+  max_monthly_amount_status: String,
+  max_number_of_monthly_transactions_status: Int,
+  max_yearly_amount_status: String,
+  max_number_of_yearly_transactions_status: Int,
+  max_total_amount_status: String,
+  max_number_of_transactions_status: Int
+)
+
+case class CounterpartyLimitStatusV510(
+  counterparty_limit_id: String,
+  bank_id: String,
+  account_id: String,
+  view_id: String,
+  counterparty_id: String,
+  currency: String,
+  max_single_amount: String,
+  max_monthly_amount: String,
+  max_number_of_monthly_transactions: Int,
+  max_yearly_amount: String,
+  max_number_of_yearly_transactions: Int,
+  max_total_amount: String,
+  max_number_of_transactions: Int,
+  status: CounterpartyLimitStatus
+)
+
 case class AtmJsonV510 (
   id : Option[String],
   bank_id : String,

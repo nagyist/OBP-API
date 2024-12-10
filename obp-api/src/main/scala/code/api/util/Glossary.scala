@@ -3427,6 +3427,33 @@ object Glossary extends MdcLoggable  {
 |
 |""".stripMargin)
 
+	glossaryItems += GlossaryItem(
+		title = "Counterparty-Limits",
+		description =
+			s"""Counterparty Limits can be used to restrict payment (Transaction Request) amounts and frequencies (per month, year, total) that can be made to a Counterparty (Beneficiary).
+				 |
+|Counterparty Limits can be used to limit both single or repeated payments (VRPs) to a Counterparty Beneficiary.
+|
+|Counterparty Limits reference a counterparty_id (a UUID) rather an an IBAN or Account Number.
+|This means it is possible to have multiple Counterparties that refer to the same external bank account.
+|In other words, a Counterparty Limit restricts an OBP Counterparty rather than a certain IBAN or other Bank Account Number.
+|
+|Since Counterparties are bound to OBP Views it is possible to create similar Counterparties used by different Views. This is by design i.e. a Two Users called Accountant1 could Accountant2 could create their own Views and Counterparties referencing the same corporation but still have their own limits say for different cost centers.
+|
+|To manually create and use a Counterparty Limit via a Consent for Variable Recurring Payments (VRP) you would:
+				 |1) Create a Custom View named e.g. VRP1.
+				 |2) Place a Beneficiary Counterparty on that view.
+				 |3) Add Counterparty Limits for that Counterparty.
+				 |4) Generate a Consent containing the bank, account and view (e.g. VRP1)
+				 |5) Let the App use the consent to trigger Transaction Requests.
+|
+|However, you can use the following ${Glossary.getApiExplorerLink("endpoint", "OBPv5.1.0-createVRPConsentRequest")} to automate the above steps.
+|
+				 |""".stripMargin)
+
+
+
+
 
 
 	glossaryItems += GlossaryItem(

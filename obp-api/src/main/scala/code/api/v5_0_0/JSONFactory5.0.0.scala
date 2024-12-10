@@ -48,8 +48,6 @@ import com.openbankproject.commons.util.ApiVersion
 import net.liftweb.json.JsonAST.JValue
 import net.liftweb.util.Helpers
 
-import scala.collection.immutable.List
-
 case class PostBankJson500(
     id: Option[String],
     bank_code: String,

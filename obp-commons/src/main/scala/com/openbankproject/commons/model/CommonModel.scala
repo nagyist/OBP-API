@@ -509,6 +509,16 @@ case class TransactionAttributeCommons (
 ) extends TransactionAttribute
 object TransactionAttributeCommons extends Converter[TransactionAttribute, TransactionAttributeCommons]
 
+case class BankAttributeCommons (
+    override val bankId: BankId,
+    override val bankAttributeId: String,
+    override val attributeType: BankAttributeType.Value,
+    override val name: String,
+    override val value: String,
+    override val isActive: Option[Boolean]
+) extends BankAttributeTrait
+object BankAttributeCommons extends Converter[BankAttributeTrait, BankAttributeCommons]
+
 case class FXRateCommons (
   override val bankId : BankId,
   override val fromCurrencyCode: String,

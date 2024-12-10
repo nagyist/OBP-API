@@ -24,15 +24,12 @@ Berlin 13359, Germany
 */
 
 import java.util.Date
-
 import code.api.ResourceDocs1_4_0.MessageDocsSwaggerDefinitions
 import code.api.util.APIUtil.{AdapterImplementation, MessageDoc, OBPReturnType, _}
 import code.api.util.ErrorMessages._
 import code.api.util.ExampleValue._
-import code.api.util.{APIUtil, CallContext, HashUtil, OBPQueryParam}
+import code.api.util.{CallContext, OBPQueryParam}
 import code.bankconnectors._
-import code.customer.internalMapping.MappedCustomerIdMappingProvider
-import code.model.dataAccess.internalMapping.MappedAccountIdMappingProvider
 import code.util.Helper
 import code.util.Helper.MdcLoggable
 import com.openbankproject.commons.ExecutionContext.Implicits.global
@@ -73,7 +70,7 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
   val connectorName = "rabbitmq_vOct2024"
 
 //---------------- dynamic start -------------------please don't modify this line
-// ---------- created on 2024-10-28T12:32:40Z
+// ---------- created on 2024-12-10T10:42:33Z
 
   messageDocs += getAdapterInfoDoc
   def getAdapterInfoDoc = MessageDoc(
@@ -2281,6 +2278,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
       amount=amountExample.value),
       creditorAccount=PaymentAccount("string"),
       creditorName="string")),
+      to_agent=Some( transactionRequestAgentCashWithdrawal(bank_id=bank_idExample.value,
+      agent_number="string")),
       value= AmountOfMoney(currency=currencyExample.value,
       amount=amountExample.value),
       description=descriptionExample.value),
@@ -2444,6 +2443,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
       amount=amountExample.value),
       creditorAccount=PaymentAccount("string"),
       creditorName="string")),
+      to_agent=Some( transactionRequestAgentCashWithdrawal(bank_id=bank_idExample.value,
+      agent_number="string")),
       value= AmountOfMoney(currency=currencyExample.value,
       amount=amountExample.value),
       description=descriptionExample.value),
@@ -2793,6 +2794,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
       amount=amountExample.value),
       creditorAccount=PaymentAccount("string"),
       creditorName="string")),
+      to_agent=Some( transactionRequestAgentCashWithdrawal(bank_id=bank_idExample.value,
+      agent_number="string")),
       value= AmountOfMoney(currency=currencyExample.value,
       amount=amountExample.value),
       description=descriptionExample.value),
@@ -2897,6 +2900,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
       amount=amountExample.value),
       creditorAccount=PaymentAccount("string"),
       creditorName="string")),
+      to_agent=Some( transactionRequestAgentCashWithdrawal(bank_id=bank_idExample.value,
+      agent_number="string")),
       value= AmountOfMoney(currency=currencyExample.value,
       amount=amountExample.value),
       description=descriptionExample.value),
@@ -2977,7 +2982,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
       value=attributeValueExample.value)))))
     ),
     exampleInboundMessage = (
-     InBoundGetTransactionRequestTypes(inboundAdapterCallContext=MessageDocsSwaggerDefinitions.inboundAdapterCallContext, status=MessageDocsSwaggerDefinitions.inboundStatus,
+     InBoundGetTransactionRequestTypes(inboundAdapterCallContext=MessageDocsSwaggerDefinitions.inboundAdapterCallContext,
+      status=MessageDocsSwaggerDefinitions.inboundStatus,
       data=List(TransactionRequestType(transactionRequestTypeExample.value)))
     ),
     adapterImplementation = Some(AdapterImplementation("- Core", 1))
@@ -3066,6 +3072,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
       amount=amountExample.value),
       creditorAccount=PaymentAccount("string"),
       creditorName="string")),
+      to_agent=Some( transactionRequestAgentCashWithdrawal(bank_id=bank_idExample.value,
+      agent_number="string")),
       value= AmountOfMoney(currency=currencyExample.value,
       amount=amountExample.value),
       description=descriptionExample.value),
@@ -3149,6 +3157,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
       amount=amountExample.value),
       creditorAccount=PaymentAccount("string"),
       creditorName="string")),
+      to_agent=Some( transactionRequestAgentCashWithdrawal(bank_id=bank_idExample.value,
+      agent_number="string")),
       value= AmountOfMoney(currency=currencyExample.value,
       amount=amountExample.value),
       description=descriptionExample.value),
@@ -3818,6 +3828,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
       amount=amountExample.value),
       creditorAccount=PaymentAccount("string"),
       creditorName="string")),
+      to_agent=Some( transactionRequestAgentCashWithdrawal(bank_id=bank_idExample.value,
+      agent_number="string")),
       value= AmountOfMoney(currency=currencyExample.value,
       amount=amountExample.value),
       description=descriptionExample.value),
@@ -4088,6 +4100,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
       amount=amountExample.value),
       creditorAccount=PaymentAccount("string"),
       creditorName="string")),
+      to_agent=Some( transactionRequestAgentCashWithdrawal(bank_id=bank_idExample.value,
+      agent_number="string")),
       value= AmountOfMoney(currency=currencyExample.value,
       amount=amountExample.value),
       description=descriptionExample.value),
@@ -4187,6 +4201,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
       amount=amountExample.value),
       creditorAccount=PaymentAccount("string"),
       creditorName="string")),
+      to_agent=Some( transactionRequestAgentCashWithdrawal(bank_id=bank_idExample.value,
+      agent_number="string")),
       value= AmountOfMoney(currency=currencyExample.value,
       amount=amountExample.value),
       description=descriptionExample.value),
@@ -5363,6 +5379,37 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
         val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).orNull, bankId, productCode, productAttributeId, name, productAttributeType, value, isActive)
         val response: Future[Box[InBound]] = sendRequest[InBound]("obp_create_or_update_product_attribute", req, callContext)
         response.map(convertToTuple[ProductAttributeCommons](callContext))        
+  }
+          
+  messageDocs += getBankAttributesByBankDoc
+  def getBankAttributesByBankDoc = MessageDoc(
+    process = "obp.getBankAttributesByBank",
+    messageFormat = messageFormat,
+    description = "Get Bank Attributes By Bank",
+    outboundTopic = None,
+    inboundTopic = None,
+    exampleOutboundMessage = (
+     OutBoundGetBankAttributesByBank(outboundAdapterCallContext=MessageDocsSwaggerDefinitions.outboundAdapterCallContext,
+      bankId=BankId(bankIdExample.value))
+    ),
+    exampleInboundMessage = (
+     InBoundGetBankAttributesByBank(inboundAdapterCallContext=MessageDocsSwaggerDefinitions.inboundAdapterCallContext,
+      status=MessageDocsSwaggerDefinitions.inboundStatus,
+      data=List( BankAttributeCommons(bankId=BankId(bankIdExample.value),
+      bankAttributeId="string",
+      attributeType=com.openbankproject.commons.model.enums.BankAttributeType.example,
+      name=nameExample.value,
+      value=valueExample.value,
+      isActive=Some(isActiveExample.value.toBoolean))))
+    ),
+    adapterImplementation = Some(AdapterImplementation("- Core", 1))
+  )
+
+  override def getBankAttributesByBank(bankId: BankId, callContext: Option[CallContext]): OBPReturnType[Box[List[BankAttributeTrait]]] = {
+        import com.openbankproject.commons.dto.{InBoundGetBankAttributesByBank => InBound, OutBoundGetBankAttributesByBank => OutBound}  
+        val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).orNull, bankId)
+        val response: Future[Box[InBound]] = sendRequest[InBound]("obp_get_bank_attributes_by_bank", req, callContext)
+        response.map(convertToTuple[List[BankAttributeCommons]](callContext))        
   }
           
   messageDocs += getProductAttributeByIdDoc
@@ -6950,8 +6997,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
         response.map(convertToTuple[Boolean](callContext))        
   }
           
-// ---------- created on 2024-10-28T12:32:40Z
-//---------------- dynamic end ---------------------please don't modify this line                                                     
+// ---------- created on 2024-12-10T10:42:33Z
+//---------------- dynamic end ---------------------please don't modify this line                                                        
 
   private val availableOperation = DynamicEntityOperation.values.map(it => s""""$it"""").mkString("[", ", ", "]")
 

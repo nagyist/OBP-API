@@ -383,6 +383,7 @@ object ConnectorBuilderUtil {
     "getCustomerAttributesForCustomers",
     "getTransactionIdsByAttributeNameValues",
     "getTransactionAttributes",
+    "getBankAttributesByBank",
     "getCustomerAttributeById",
     "createDirectDebit",
     "deleteCustomerAttribute",

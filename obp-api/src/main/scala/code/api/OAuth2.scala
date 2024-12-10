@@ -82,6 +82,8 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           Azure.applyIdTokenRules(value, cc)
         } else if (Keycloak.isIssuer(value)) {
           Keycloak.applyRules(value, cc)
+        } else if (UnknownProvider.isIssuer(value)) {
+          UnknownProvider.applyRules(value, cc)
         } else {
           Hydra.applyRules(value, cc)
         }
@@ -104,6 +106,8 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           Azure.applyIdTokenRulesFuture(value, cc)
         } else if (Keycloak.isIssuer(value)) {
           Keycloak.applyRulesFuture(value, cc)
+        }  else if (UnknownProvider.isIssuer(value)) {
+          UnknownProvider.applyRulesFuture(value, cc)
         } else {
           Hydra.applyRulesFuture(value, cc)
         }
@@ -456,6 +460,28 @@ object OAuth2Login extends RestHelper with MdcLoggable {
     def isIssuer(jwt: String): Boolean = isIssuer(jwtToken=jwt, identityProvider = microsoft)
   }
 
+  object UnknownProvider extends OAuth2Util {
+     /**
+      * OpenID Connect Discovery.
+      * Yahoo exposes OpenID Connect discovery documents ( https://YOUR_DOMAIN/.well-known/openid-configuration ).
+      * These can be used to automatically configure applications.
+      */
+    override def wellKnownOpenidConfiguration: URI = new URI("")
+
+    def isIssuer(jwt: String): Boolean = {
+      val url: List[String] = APIUtil.getPropsValue(nameOfProperty = "oauth2.jwk_set.url").toList
+      val jwksUris: List[String] = url.map(_.toLowerCase()).map(_.split(",").toList).flatten
+      jwksUris.exists( url => JwtUtil.validateAccessToken(jwt, url).isDefined)
+    }
+    def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
+      super.applyAccessTokenRules(token, cc)
+    }
+
+    def applyRulesFuture(value: String, cc: CallContext): Future[(Box[User], Some[CallContext])] = Future {
+      applyRules(value, cc)
+    }
+  }
+
   object Keycloak extends OAuth2Util {
     val keycloakHost = APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloak.host", "http://localhost:7070")
     /**
@@ -472,8 +498,8 @@ object OAuth2Login extends RestHelper with MdcLoggable {
 
     def applyRules(token: String, cc: CallContext): (Box[User], Some[CallContext]) = {
       JwtUtil.getClaim("typ", token) match {
-        case "ID" => super.applyIdTokenRules(token, cc)
-        case "Bearer" =>
+        case "ID" => super.applyIdTokenRules(token, cc) // Authentication
+        case "Bearer" => // Authorization
           val result = super.applyAccessTokenRules(token, cc)
           result._2.flatMap(_.consumer.map(_.id.get)) match {
             case Some(consumerPrimaryKey) =>

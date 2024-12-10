@@ -26,6 +26,7 @@ case class OBPFromDate(value: Date) extends OBPQueryParam
 case class OBPToDate(value: Date) extends OBPQueryParam
 case class OBPOrdering(field: Option[String], order: OBPOrder) extends OBPQueryParam
 case class OBPConsumerId(value: String) extends OBPQueryParam
+case class OBPConsentId(value: String) extends OBPQueryParam
 case class OBPUserId(value: String) extends OBPQueryParam
 case class OBPStatus(value: String) extends OBPQueryParam
 case class OBPBankId(value: String) extends OBPQueryParam

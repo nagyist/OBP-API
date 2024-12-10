@@ -2,9 +2,9 @@ package code.api.berlin.group.v1_3
 
 import java.text.SimpleDateFormat
 import java.util.Date
-
 import code.api.berlin.group.v1_3.model._
 import code.api.util.APIUtil._
+import code.api.util.ErrorMessages.MissingPropsValueAtThisInstance
 import code.api.util.{APIUtil, ConsentJWT, CustomJsonFormats, JwtUtil}
 import code.bankconnectors.Connector
 import code.consent.ConsentTrait
@@ -15,6 +15,7 @@ import net.liftweb.common.Box.tryo
 import net.liftweb.common.{Box, Full}
 import net.liftweb.json
 import net.liftweb.json.{JValue, parse}
+
 import scala.collection.immutable.List
 
 case class JvalueCaseClass(jvalueToCaseclass: JValue)
@@ -231,7 +232,12 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
     combinedServiceIndicator: Boolean
   )
   case class ConsentLinksV13(
-    startAuthorisation: String
+    startAuthorisation: Option[Href] = None,
+    scaRedirect: Option[Href] = None,
+    status: Option[Href] = None,
+    scaStatus: Option[Href] = None,
+    startAuthorisationWithPsuIdentification: Option[Href] = None,
+    startAuthorisationWithPsuAuthentication: Option[Href] = None,
   )
 
   case class PostConsentResponseJson(
@@ -239,11 +245,14 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
     consentStatus: String,
     _links: ConsentLinksV13
   )
+  case class Href(href: String)
 
   case class PutConsentResponseJson(
     scaStatus: String,
     _links: ConsentLinksV13
   )
+
+
 
 
   case class GetConsentResponseJson(
@@ -508,11 +517,51 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
   }
   
   def createPostConsentResponseJson(consent: ConsentTrait) : PostConsentResponseJson = {
-    PostConsentResponseJson(
-      consentId = consent.consentId,
-      consentStatus = consent.status.toLowerCase(),
-      _links= ConsentLinksV13(s"/v1.3/consents/${consent.consentId}/authorisations")
-    )
+    def redirectionWithDedicatedStartOfAuthorization = {
+      PostConsentResponseJson(
+        consentId = consent.consentId,
+        consentStatus = consent.status.toLowerCase(),
+        _links = ConsentLinksV13(
+          startAuthorisation = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations"))
+        )
+      )
+    }
+
+    getPropsValue("psu_authentication_method") match {
+      case Full("redirection") =>
+        val scaRedirectUrl = getPropsValue("psu_authentication_method_sca_redirect_url")
+          .openOr(MissingPropsValueAtThisInstance + "psu_authentication_method_sca_redirect_url")
+        PostConsentResponseJson(
+          consentId = consent.consentId,
+          consentStatus = consent.status.toLowerCase(),
+          _links = ConsentLinksV13(
+            scaRedirect = Some(Href(s"$scaRedirectUrl/${consent.consentId}")),
+            status = Some(Href(s"/v1.3/consents/${consent.consentId}/status")),
+            scaStatus = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations/AUTHORISATIONID")),
+          )
+        )
+      case Full("redirection_with_dedicated_start_of_authorization") =>
+        redirectionWithDedicatedStartOfAuthorization
+      case Full("embedded") =>
+        PostConsentResponseJson(
+          consentId = consent.consentId,
+          consentStatus = consent.status.toLowerCase(),
+          _links = ConsentLinksV13(
+            startAuthorisationWithPsuAuthentication = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations"))
+          )
+        )
+      case Full("decoupled") =>
+        PostConsentResponseJson(
+          consentId = consent.consentId,
+          consentStatus = consent.status.toLowerCase(),
+          _links = ConsentLinksV13(
+            startAuthorisationWithPsuIdentification = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations"))
+          )
+        )
+      case _ =>
+        redirectionWithDedicatedStartOfAuthorization
+    }
+
   }
   def createPutConsentResponseJson(consent: ConsentTrait) : ScaStatusResponse = {
     ScaStatusResponse(

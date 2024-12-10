@@ -130,7 +130,7 @@ As a last option, an ASPSP might in addition accept a command with access rights
        PostConsentResponseJson(
          consentId = "1234-wertiq-983",
          consentStatus = "received",
-         _links = ConsentLinksV13("/v1.3/consents/1234-wertiq-983/authorisations")
+         _links = ConsentLinksV13(Some(Href("/v1.3/consents/1234-wertiq-983/authorisations")))
        ),
        List(UserNotLoggedIn, UnknownError),
        ApiTag("Account Information Service (AIS)") :: apiTagBerlinGroupM :: Nil

@@ -37,13 +37,13 @@ import code.api.v1_3_0.JSONFactory1_3_0.{cardActionsToString, createAccountJson,
 import code.api.v1_3_0.{PinResetJSON, ReplacementJSON}
 import code.api.v1_4_0.JSONFactory1_4_0.{CustomerFaceImageJson, MetaJsonV140}
 import code.api.v2_1_0.CustomerCreditRatingJSON
-import code.api.v3_0_0.{AdapterInfoJsonV300, CustomerAttributeResponseJsonV300, JSONFactory300}
-import code.api.v3_1_0.{AccountAttributeResponseJson, AccountBasicV310, CustomerWithAttributesJsonV310, PhysicalCardWithAttributesJsonV310, PostConsentEntitlementJsonV310}
+import code.api.v3_0_0.{CustomerAttributeResponseJsonV300, JSONFactory300}
+import code.api.v3_1_0.{AccountBasicV310,PostConsentEntitlementJsonV310}
 import code.api.v4_0_0.{APIInfoJson400, BankAttributeBankResponseJsonV400, EnergySource400, HostedAt400, HostedBy400}
-import code.bankattribute.BankAttribute
 import code.consent.ConsentRequest
-import com.openbankproject.commons.model.CustomerAccountLinkTrait
-import com.openbankproject.commons.model.{AccountAttribute, AccountRouting, AccountRoutingJsonV121, AmountOfMoneyJsonV121, Bank, BankAccount, CardAttribute, CreateViewJson, Customer, CustomerAttribute, InboundAdapterInfoInternal, InboundStatusMessage, PhysicalCardTrait, UpdateViewJSON, User, UserAuthContext, UserAuthContextUpdate, View, ViewBasic}
+import com.openbankproject.commons.model.{CustomerAccountLinkTrait,BankAttributeTrait}
+import com.openbankproject.commons.model.{AccountAttribute, AccountRoutingJsonV121, AmountOfMoneyJsonV121, Bank, BankAccount, CardAttribute, CreateViewJson, Customer, CustomerAttribute, InboundAdapterInfoInternal, 
+  InboundStatusMessage, PhysicalCardTrait, UpdateViewJSON, User, UserAuthContext, UserAuthContextUpdate, View, ViewBasic}
 import com.openbankproject.commons.util.ApiVersion
 import net.liftweb.json.JsonAST.JValue
 import net.liftweb.util.Helpers
@@ -599,7 +599,7 @@ object JSONFactory500 {
     )
   }
 
-  def createBankJSON500(bank: Bank, attributes: List[BankAttribute] = Nil): BankJson500 = {
+  def createBankJSON500(bank: Bank, attributes: List[BankAttributeTrait] = Nil): BankJson500 = {
     val obp = BankRoutingJsonV121("OBP", bank.bankId.value)
     val bic = BankRoutingJsonV121("BIC", bank.swiftBic)
     val routings = bank.bankRoutingScheme match {

@@ -1146,6 +1146,9 @@ case class InBoundGetTransactionIdsByAttributeNameValues(inboundAdapterCallConte
 case class OutBoundGetTransactionAttributes(outboundAdapterCallContext: OutboundAdapterCallContext, bankId: BankId, transactionId: TransactionId) extends TopicTrait
 case class InBoundGetTransactionAttributes(inboundAdapterCallContext: InboundAdapterCallContext, status: Status, data: List[TransactionAttributeCommons]) extends InBoundTrait[List[TransactionAttributeCommons]]
 
+case class OutBoundGetBankAttributesByBank(outboundAdapterCallContext: OutboundAdapterCallContext, bankId: BankId) extends TopicTrait
+case class InBoundGetBankAttributesByBank(inboundAdapterCallContext: InboundAdapterCallContext, status: Status, data: List[TransactionAttributeCommons]) extends InBoundTrait[List[TransactionAttributeCommons]]
+
 case class OutBoundGetCustomerAttributeById(outboundAdapterCallContext: OutboundAdapterCallContext, customerAttributeId: String) extends TopicTrait
 case class InBoundGetCustomerAttributeById(inboundAdapterCallContext: InboundAdapterCallContext, status: Status, data: CustomerAttributeCommons) extends InBoundTrait[CustomerAttributeCommons]
 

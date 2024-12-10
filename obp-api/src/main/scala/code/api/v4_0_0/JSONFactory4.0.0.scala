@@ -47,7 +47,6 @@ import code.api.v3_1_0.{AccountAttributeResponseJson, CustomerJsonV310, JSONFact
 import code.apicollection.ApiCollectionTrait
 import code.apicollectionendpoint.ApiCollectionEndpointTrait
 import code.atms.Atms.Atm
-import code.bankattribute.BankAttribute
 import code.consent.MappedConsent
 import code.entitlement.Entitlement
 import code.loginattempts.LoginAttempt
@@ -1200,7 +1199,7 @@ object JSONFactory400 {
 
   }
   
-  def createBankJSON400(bank: Bank, attributes: List[BankAttribute] = Nil): BankJson400 = {
+  def createBankJSON400(bank: Bank, attributes: List[BankAttributeTrait] = Nil): BankJson400 = {
     val obp = BankRoutingJsonV121("OBP", bank.bankId.value)
     val bic = BankRoutingJsonV121("BIC", bank.swiftBic)
     val routings = bank.bankRoutingScheme match {
@@ -1814,7 +1813,7 @@ object JSONFactory400 {
       value = productAttribute.value,
       is_active = productAttribute.isActive
     )
-  def createBankAttributeJson(bankAttribute: BankAttribute): BankAttributeResponseJsonV400 =
+  def createBankAttributeJson(bankAttribute: BankAttributeTrait): BankAttributeResponseJsonV400 =
     BankAttributeResponseJsonV400(
       bank_id = bankAttribute.bankId.value,
       bank_attribute_id = bankAttribute.bankAttributeId,
@@ -1823,7 +1822,7 @@ object JSONFactory400 {
       value = bankAttribute.value,
       is_active = bankAttribute.isActive
     )
-  def createBankAttributesJson(bankAttributes: List[BankAttribute]): BankAttributesResponseJsonV400 =
+  def createBankAttributesJson(bankAttributes: List[BankAttributeTrait]): BankAttributesResponseJsonV400 =
     BankAttributesResponseJsonV400(bankAttributes.map(createBankAttributeJson))
   
     

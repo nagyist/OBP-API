@@ -1813,7 +1813,7 @@ object NewStyle extends MdcLoggable{
       }
     }
 
-    def getBankAttributesByBank(bank: BankId,callContext: Option[CallContext]): OBPReturnType[List[BankAttribute]] = {
+    def getBankAttributesByBank(bank: BankId,callContext: Option[CallContext]): OBPReturnType[List[BankAttributeTrait]] = {
       Connector.connector.vend.getBankAttributesByBank(
         bank: BankId,
         callContext: Option[CallContext]

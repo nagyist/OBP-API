@@ -9,7 +9,9 @@ import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils.uncapitalize
 
 import java.io.File
+import java.net.URL
 import java.util.Date
+import scala.jdk.CollectionConverters.enumerationAsScalaIteratorConverter
 import scala.language.postfixOps
 import scala.reflect.runtime.universe._
 import scala.reflect.runtime.{universe => ru}
@@ -18,6 +20,26 @@ import scala.reflect.runtime.{universe => ru}
  * this is util for Connector builders, this should never be called by product code.
  */
 object ConnectorBuilderUtil {
+  
+  def getClassesFromPackage(packageName: String): Seq[Class[_]] = {
+    val classLoader = Thread.currentThread().getContextClassLoader
+    val path = packageName.replace('.', '/')
+    val resources: Seq[URL] = classLoader.getResources(path).asScala.toSeq
+
+    resources.flatMap { resource =>
+      val file = new File(resource.toURI)
+      if (file.isDirectory) {
+        file.listFiles()
+          .filter(_.getName.endsWith(".class"))
+          .map(_.getName.stripSuffix(".class"))
+          .map(className => Class.forName(s"$packageName.$className"))
+      } else {
+        Seq.empty
+      }
+    }
+  }
+  
+  
   // rewrite method code.webuiprops.MappedWebUiPropsProvider#getWebUiPropsValue, avoid access DB cause dataSource not found exception
   {
     import javassist.ClassPool
@@ -34,8 +56,8 @@ object ConnectorBuilderUtil {
    * //def getAdapterInfo(callContext: Option[CallContext]) : Future[Box[(InboundAdapterInfoInternal, Option[CallContext])]] = ??? 
    * //def validateAndCheckIbanNumber(iban: String, callContext: Option[CallContext]): OBPReturnType[Box[IbanChecker]] = ??? 
    *
-   *  This method will only extact the first return class from the method, this is the OBP pattern. 
-   *  so we can use it for gernerate the commons case class.
+   *  This method will only extract the first return class from the method, this is the OBP pattern. 
+   *  so we can use it for generate the commons case class.
    *
    *  eg: getAdapterInfo -->  return InboundAdapterInfoInternal
    *  validateAndCheckIbanNumber -->return IbanChecker

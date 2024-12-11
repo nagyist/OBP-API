@@ -797,7 +797,7 @@ class Boot extends MdcLoggable {
 
       ConnectorEndpoints.registerConnectorEndpoints
     }
-    if(HydraUtil.mirrorConsumerInHydra) {
+    if(HydraUtil.integrateWithHydra && HydraUtil.mirrorConsumerInHydra) {
       createHydraClients()
     }
     

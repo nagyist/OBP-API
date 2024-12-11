@@ -5482,6 +5482,33 @@ object SwaggerDefinitionsJSON {
     max_total_amount = maxTotalAmountExample.value,
     max_number_of_transactions = maxNumberOfTransactionsExample.value.toInt
   )
+
+  val counterpartyLimitStatus =  CounterpartyLimitStatus(
+    currency_status = currencyExample.value,
+    max_monthly_amount_status = maxSingleAmountExample.value,
+    max_number_of_monthly_transactions_status = maxNumberOfMonthlyTransactionsExample.value.toInt,
+    max_yearly_amount_status = maxYearlyAmountExample.value,
+    max_number_of_yearly_transactions_status = maxNumberOfYearlyTransactionsExample.value.toInt,
+    max_total_amount_status = maxTotalAmountExample.value,
+    max_number_of_transactions_status = maxNumberOfTransactionsExample.value.toInt
+  )
+
+  val counterpartyLimitStatusV510 = CounterpartyLimitStatusV510(
+    counterparty_limit_id = counterpartyLimitIdExample.value,
+    bank_id = bankIdExample.value,
+    account_id = accountIdExample.value,
+    view_id = viewIdExample.value,
+    counterparty_id = counterpartyIdExample.value,
+    currency = currencyExample.value,
+    max_single_amount = maxSingleAmountExample.value,
+    max_monthly_amount = maxMonthlyAmountExample.value,
+    max_number_of_monthly_transactions = maxNumberOfMonthlyTransactionsExample.value.toInt,
+    max_yearly_amount = maxYearlyAmountExample.value,
+    max_number_of_yearly_transactions = maxNumberOfYearlyTransactionsExample.value.toInt,
+    max_total_amount = maxTotalAmountExample.value,
+    max_number_of_transactions = maxNumberOfTransactionsExample.value.toInt,
+    status = counterpartyLimitStatus
+  )
   
   val atmsJsonV510 = AtmsJsonV510(
     atms = List(atmJsonV510)

@@ -33,9 +33,12 @@ import code.api.util.ApiRole._
 import code.api.util.Consent
 import code.api.util.ErrorMessages._
 import code.api.util.ExampleValue.counterpartyNameExample
+import code.api.v2_1_0.{CounterpartyIdJson, TransactionRequestBodyCounterpartyJSON}
+import code.api.v3_0_0.CoreAccountsJsonV300
+import code.api.v3_0_0.OBPAPI3_0_0.Implementations3_0_0
 import code.api.v3_1_0.PostConsentChallengeJsonV310
 import code.api.v4_0_0.OBPAPI4_0_0.Implementations4_0_0
-import code.api.v4_0_0.UsersJsonV400
+import code.api.v4_0_0.{TransactionRequestWithChargeJSON400, UsersJsonV400}
 import code.api.v5_0_0.ConsentRequestResponseJson
 import code.api.v5_0_0.OBPAPI5_0_0.Implementations5_0_0
 import code.api.v5_1_0.OBPAPI5_1_0.Implementations5_1_0
@@ -43,7 +46,7 @@ import code.consent.ConsentStatus
 import code.entitlement.Entitlement
 import code.setup.PropsReset
 import com.github.dwickern.macros.NameOf.nameOf
-import com.openbankproject.commons.model.ErrorMessage
+import com.openbankproject.commons.model.{AmountOfMoneyJsonV121, ErrorMessage}
 import com.openbankproject.commons.util.ApiVersion
 import net.liftweb.json.Serialization.write
 import org.scalatest.Tag
@@ -65,8 +68,9 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
   object ApiEndpoint2 extends Tag(nameOf(Implementations5_0_0.getConsentByConsentRequestId))
   object ApiEndpoint3 extends Tag(nameOf(Implementations5_0_0.createConsentByConsentRequestId))
   object ApiEndpoint4 extends Tag(nameOf(Implementations5_0_0.getConsentByConsentRequestId))
-  object ApiEndpoint5 extends Tag(nameOf(Implementations4_0_0.getUsers))
+  object ApiEndpoint5 extends Tag(nameOf(Implementations3_0_0.corePrivateAccountsAllBanks))
   object ApiEndpoint6 extends Tag(nameOf(Implementations5_0_0.getConsentRequest))
+  object ApiEndpoint7 extends Tag(nameOf(Implementations4_0_0.createTransactionRequestCounterparty))
 
 
 
@@ -84,23 +88,64 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
     branch_routing = branchRoutingJsonV141
   )
 
+  val postCounterpartyLimitTestMonthly = PostCounterpartyLimitV510(
+    currency = "EUR",
+    max_single_amount = "10", // if I transfer 11 euros, then we trigger this guard.
+    max_monthly_amount = "11", // if I transfer 10, then transfer 20, --> we trigger this guard.
+    max_number_of_monthly_transactions = 2, //if I transfer 10, then transfer 2, then transfer 3 --> we can trigger this guard. 
+    max_yearly_amount = "30", //
+    max_number_of_yearly_transactions = 5,
+    max_total_amount = "50", //
+    max_number_of_transactions = 6
+  )
+
+  val postCounterpartyLimitTestYearly = PostCounterpartyLimitV510(
+    currency = "EUR",
+    max_single_amount = "100", 
+    max_monthly_amount = "200", 
+    max_number_of_monthly_transactions = 20, 
+    max_yearly_amount = "11", //if I transfer 11 euros, then we trigger this guard.
+    max_number_of_yearly_transactions = 2,//if I transfer 1, then transfer 2, then transfer 3 --> we can trigger this guard. 
+    max_total_amount = "50", 
+    max_number_of_transactions = 20
+  )
+  
+  val postCounterpartyLimitTestTotal = PostCounterpartyLimitV510(
+    currency = "EUR",
+    max_single_amount = "100", 
+    max_monthly_amount = "200", 
+    max_number_of_monthly_transactions = 20, 
+    max_yearly_amount = "100",
+    max_number_of_yearly_transactions = 20,
+    max_total_amount = "11",      //if I transfer 5 euros, then transfer 10  --> we can trigger this guard.
+    max_number_of_transactions = 2//if I transfer 1, then transfer 2, then transfer 3 --> we can trigger this guard. 
+  )
+  
   val toAccountJson = ConsentRequestToAccountJson (
     counterparty_name = counterpartyNameExample.value,
     bank_routing = bankRoutingJsonV121.copy(address = testBankId1.value),
     account_routing = accountRoutingJsonV121.copy(address = testAccountId1.value),
     branch_routing = branchRoutingJsonV141,
-    limit = postCounterpartyLimitV510
+    limit = postCounterpartyLimitTestMonthly
   )
-  lazy val postVRPConsentRequestJson = SwaggerDefinitionsJSON.postVRPConsentRequestJsonV510.copy(
+  lazy val postVRPConsentRequestMonthlyGuardJson = SwaggerDefinitionsJSON.postVRPConsentRequestJsonV510.copy(
     from_account=fromAccountJson,
-    to_account=toAccountJson
+    to_account=toAccountJson.copy(limit= postCounterpartyLimitTestMonthly)
+  )
+  lazy val postVRPConsentRequestYearlyGuardJson = SwaggerDefinitionsJSON.postVRPConsentRequestJsonV510.copy(
+    from_account=fromAccountJson,
+    to_account=toAccountJson.copy(limit= postCounterpartyLimitTestYearly)
+  )
+  lazy val postVRPConsentRequestTotalGuardJson = SwaggerDefinitionsJSON.postVRPConsentRequestJsonV510.copy(
+    from_account=fromAccountJson,
+    to_account=toAccountJson.copy(limit= postCounterpartyLimitTestTotal)
   )
 
 
   feature("Create/Get Consent Request v5.1.0") {
     scenario("We will call the Create endpoint without a user credentials", ApiEndpoint1, VersionOfApi) {
       When("We make a request v5.1.0")
-      val response510 = makePostRequest(createVRPConsentRequestWithoutLoginUrl, write(postVRPConsentRequestJson))
+      val response510 = makePostRequest(createVRPConsentRequestWithoutLoginUrl, write(postVRPConsentRequestMonthlyGuardJson))
       Then("We should get a 401")
       response510.code should equal(401)
       response510.body.extract[ErrorMessage].message should equal (ApplicationNotIdentified)
@@ -108,7 +153,7 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
 
     scenario("We will call the Create, Get and Delete endpoints with user credentials ", ApiEndpoint1, ApiEndpoint2, ApiEndpoint3, ApiEndpoint4, ApiEndpoint5, VersionOfApi) {
       When(s"We try $ApiEndpoint1 v5.1.0")
-      val createConsentResponse = makePostRequest(createVRPConsentRequestUrl, write(postVRPConsentRequestJson))
+      val createConsentResponse = makePostRequest(createVRPConsentRequestUrl, write(postVRPConsentRequestMonthlyGuardJson))
       Then("We should get a 201")
       createConsentResponse.code should equal(201)
       val createConsentRequestResponseJson = createConsentResponse.body.extract[ConsentRequestResponseJson]
@@ -136,7 +181,7 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
       accountAccess.get.view_id contains("_vrp-") shouldBe( true)
       
       setPropsValues("consumer_validation_method_for_consent"->"NONE")
-      val requestWhichFails = (v5_1_0_Request / "users").GET
+      val requestWhichFails = (v5_1_0_Request / "my"/ "accounts").GET
       val responseWhichFails = makeGetRequest(requestWhichFails, List((s"Consent-JWT", consentJwt)))
       Then("We get 401 error")
       responseWhichFails.code should equal(401)
@@ -159,13 +204,36 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
       getConsentByRequestResponseJson.status should be(ConsentStatus.ACCEPTED.toString)
 
 
-      val requestGetUsers = (v5_1_0_Request / "users").GET
+      val requestGetMyAccounts = (v5_1_0_Request / "my"/ "accounts").GET
+      val responseGetMyAccounts = makeGetRequest(requestGetMyAccounts, List((s"Consent-JWT", consentJwt)))
+      Then("We get 200 and proper response")
+      responseGetMyAccounts.code should equal(200)
+      responseGetMyAccounts.body.extract[CoreAccountsJsonV300].accounts.length > 0 shouldBe(true)
 
+      Then("We can test the COUNTERPARTY payment limit")
+
+      val consentRequestBankId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.bank_id
+      val consentRequestAccountId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.account_id
+      val consentRequestViewId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.view_id
+      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.counterparty_id
+      
+      val createTransReqRequest = (v4_0_0_Request / "banks" / consentRequestBankId / "accounts" / consentRequestAccountId /
+        consentRequestViewId / "transaction-request-types" / "COUNTERPARTY" / "transaction-requests").POST
+      val transactionRequestBodyCounterparty = TransactionRequestBodyCounterpartyJSON(
+        to = CounterpartyIdJson(consentRequestCounterpartyId.head),
+        value = AmountOfMoneyJsonV121("EUR","1"),
+        description ="testing the limit",
+        charge_policy = "SHARED",
+        future_date =None
+      )
+      val response = makePostRequest(createTransReqRequest, write(transactionRequestBodyCounterparty), (s"Consent-JWT", consentJwt))
+      response.code shouldBe(201)
+      response.body.extract[TransactionRequestWithChargeJSON400].status shouldBe("COMPLETED")
     }
-
+  
     scenario("We will call the Create (IMPLICIT), Get and Delete endpoints with user credentials ", ApiEndpoint1, ApiEndpoint2, ApiEndpoint3, ApiEndpoint4, ApiEndpoint5, ApiEndpoint6, VersionOfApi) {
       When(s"We try $ApiEndpoint1 v5.1.0")
-      val createConsentResponse = makePostRequest(createVRPConsentRequestUrl, write(postVRPConsentRequestJson))
+      val createConsentResponse = makePostRequest(createVRPConsentRequestUrl, write(postVRPConsentRequestMonthlyGuardJson))
       Then("We should get a 201")
       createConsentResponse.code should equal(201)
       val createConsentRequestResponseJson = createConsentResponse.body.extract[ConsentRequestResponseJson]
@@ -194,7 +262,7 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
 
 
       setPropsValues("consumer_validation_method_for_consent"->"NONE")
-      val requestWhichFails = (v5_1_0_Request / "users").GET
+      val requestWhichFails = (v5_1_0_Request / "my"/ "accounts").GET
       val responseWhichFails = makeGetRequest(requestWhichFails, List((s"Consent-JWT", consentJwt)))
       Then("We get successful response")
       responseWhichFails.code should equal(401)
@@ -216,7 +284,277 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
       getConsentByRequestResponseJson.status should be(ConsentStatus.ACCEPTED.toString)
     }
 
+    scenario("We will create consent properly, and test the counterparty limit - monthly guard", ApiEndpoint1, ApiEndpoint3, ApiEndpoint7, VersionOfApi) {
+      When(s"We try $ApiEndpoint1 v5.1.0")
+      val createConsentResponse = makePostRequest(createVRPConsentRequestUrl, write(postVRPConsentRequestMonthlyGuardJson))
+      Then("We should get a 201")
+      createConsentResponse.code should equal(201)
+      val createConsentRequestResponseJson = createConsentResponse.body.extract[ConsentRequestResponseJson]
+      val consentRequestId = createConsentRequestResponseJson.consent_request_id
 
+      When("We try to make the GET request v5.1.0")
+      val successGetRes = makeGetRequest(getConsentRequestUrl(consentRequestId))
+      Then("We should get a 200")
+      successGetRes.code should equal(200)
+      val getConsentRequestResponseJson = successGetRes.body.extract[ConsentRequestResponseJson]
+      getConsentRequestResponseJson.payload should not be("")
+
+      When("We try to make the GET request v5.1.0")
+      Then("We grant the role and test it again")
+      Entitlement.entitlement.vend.addEntitlement("", resourceUser1.userId, CanGetAnyUser.toString)
+      val createConsentByRequestResponse = makePostRequest(createConsentByConsentRequestIdEmail(consentRequestId), write(""))
+      Then("We should get a 200")
+      createConsentByRequestResponse.code should equal(201)
+      val consentId = createConsentByRequestResponse.body.extract[ConsentJsonV500].consent_id
+      val consentJwt = createConsentByRequestResponse.body.extract[ConsentJsonV500].jwt
+      val accountAccess = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access
+      accountAccess.isDefined should equal(true)
+      accountAccess.get.bank_id should equal(fromAccountJson.bank_routing.address)
+      accountAccess.get.account_id should equal(fromAccountJson.account_routing.address)
+      accountAccess.get.view_id contains("_vrp-") shouldBe( true)
+
+      val answerConsentChallengeRequest = (v5_1_0_Request / "banks" / testBankId1.value / "consents" / consentId / "challenge").POST <@ (user1)
+      val challenge = Consent.challengeAnswerAtTestEnvironment
+      val post = PostConsentChallengeJsonV310(answer = challenge)
+      val answerConsentChallengeResponse = makePostRequest(answerConsentChallengeRequest, write(post))
+      Then("We should get a 201")
+      answerConsentChallengeResponse.code should equal(201)
+      
+      Then("We can test the COUNTERPARTY payment limit")
+
+      val consentRequestBankId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.bank_id
+      val consentRequestAccountId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.account_id
+      val consentRequestViewId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.view_id
+      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.counterparty_id
+
+      val createTransReqRequest = (v4_0_0_Request / "banks" / consentRequestBankId / "accounts" / consentRequestAccountId /
+        consentRequestViewId / "transaction-request-types" / "COUNTERPARTY" / "transaction-requests").POST
+      val transactionRequestBodyCounterparty = TransactionRequestBodyCounterpartyJSON(
+        to = CounterpartyIdJson(consentRequestCounterpartyId.head),
+        value = AmountOfMoneyJsonV121("EUR","11"),
+        description ="testing the limit",
+        charge_policy = "SHARED",
+        future_date =None
+      )
+      setPropsValues("consumer_validation_method_for_consent"->"NONE")
+      val response = makePostRequest(createTransReqRequest, write(transactionRequestBodyCounterparty), (s"Consent-JWT", consentJwt))
+      response.code shouldBe(400)
+      response.body.extract[ErrorMessage].message contains(CounterpartyLimitValidationError) shouldBe (true)
+      response.body.extract[ErrorMessage].message contains("max_single_amount") shouldBe(true)
+      
+      //("we try the max_monthly_amount limit (11 euros) . now we transfer 9 euro first. then 9 euros, we will get the error")
+      val response1 = makePostRequest(
+        createTransReqRequest, 
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","3"))), 
+        (s"Consent-JWT", consentJwt)
+      )
+      response1.code shouldBe(201)
+      val response2 = makePostRequest(
+        createTransReqRequest,
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","9"))),
+        (s"Consent-JWT", consentJwt)
+      )
+
+      response2.body.extract[ErrorMessage].message contains(CounterpartyLimitValidationError) shouldBe (true)
+      response2.body.extract[ErrorMessage].message contains("max_monthly_amount") shouldBe(true)
+      
+      //("we try the max_number_of_monthly_transactions limit (2 times), we try the 3rd request, we will get the error. response2 failed, so does not count in database.")
+      val response3 = makePostRequest(
+        createTransReqRequest,
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","2"))),
+        (s"Consent-JWT", consentJwt)
+      )
+      response3.code shouldBe(201)
+      
+      val response4 = makePostRequest(
+        createTransReqRequest,
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","2"))),
+        (s"Consent-JWT", consentJwt)
+      )
+      response4.code shouldBe(400)
+
+      response4.body.extract[ErrorMessage].message contains(CounterpartyLimitValidationError) shouldBe (true)
+      response4.body.extract[ErrorMessage].message contains("max_number_of_monthly_transactions") shouldBe(true)
+
+    }
+
+    scenario("We will create consent properly, and test the counterparty limit - yearly guard", ApiEndpoint1, ApiEndpoint3, ApiEndpoint7, VersionOfApi) {
+      When(s"We try $ApiEndpoint1 v5.1.0")
+      val createConsentResponse = makePostRequest(createVRPConsentRequestUrl, write(postVRPConsentRequestYearlyGuardJson))
+      Then("We should get a 201")
+      createConsentResponse.code should equal(201)
+      val createConsentRequestResponseJson = createConsentResponse.body.extract[ConsentRequestResponseJson]
+      val consentRequestId = createConsentRequestResponseJson.consent_request_id
+
+      When("We try to make the GET request v5.1.0")
+      val successGetRes = makeGetRequest(getConsentRequestUrl(consentRequestId))
+      Then("We should get a 200")
+      successGetRes.code should equal(200)
+      val getConsentRequestResponseJson = successGetRes.body.extract[ConsentRequestResponseJson]
+      getConsentRequestResponseJson.payload should not be("")
+
+      When("We try to make the GET request v5.1.0")
+      Then("We grant the role and test it again")
+      Entitlement.entitlement.vend.addEntitlement("", resourceUser1.userId, CanGetAnyUser.toString)
+      val createConsentByRequestResponse = makePostRequest(createConsentByConsentRequestIdEmail(consentRequestId), write(""))
+      Then("We should get a 200")
+      createConsentByRequestResponse.code should equal(201)
+      val consentId = createConsentByRequestResponse.body.extract[ConsentJsonV500].consent_id
+      val consentJwt = createConsentByRequestResponse.body.extract[ConsentJsonV500].jwt
+      val accountAccess = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access
+      accountAccess.isDefined should equal(true)
+      accountAccess.get.bank_id should equal(fromAccountJson.bank_routing.address)
+      accountAccess.get.account_id should equal(fromAccountJson.account_routing.address)
+      accountAccess.get.view_id contains("_vrp-") shouldBe( true)
+
+      val answerConsentChallengeRequest = (v5_1_0_Request / "banks" / testBankId1.value / "consents" / consentId / "challenge").POST <@ (user1)
+      val challenge = Consent.challengeAnswerAtTestEnvironment
+      val post = PostConsentChallengeJsonV310(answer = challenge)
+      val answerConsentChallengeResponse = makePostRequest(answerConsentChallengeRequest, write(post))
+      Then("We should get a 201")
+      answerConsentChallengeResponse.code should equal(201)
+
+      Then("We can test the COUNTERPARTY payment limit")
+
+      val consentRequestBankId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.bank_id
+      val consentRequestAccountId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.account_id
+      val consentRequestViewId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.view_id
+      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.counterparty_id
+
+      val createTransReqRequest = (v4_0_0_Request / "banks" / consentRequestBankId / "accounts" / consentRequestAccountId /
+        consentRequestViewId / "transaction-request-types" / "COUNTERPARTY" / "transaction-requests").POST
+      val transactionRequestBodyCounterparty = TransactionRequestBodyCounterpartyJSON(
+        to = CounterpartyIdJson(consentRequestCounterpartyId.head),
+        value = AmountOfMoneyJsonV121("EUR","11"),
+        description ="testing the limit",
+        charge_policy = "SHARED",
+        future_date =None
+      )
+      setPropsValues("consumer_validation_method_for_consent"->"NONE")
+      val response1 = makePostRequest(
+        createTransReqRequest,
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","3"))),
+        (s"Consent-JWT", consentJwt)
+      )
+      response1.code shouldBe(201)
+      val response2 = makePostRequest(
+        createTransReqRequest,
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","9"))),
+        (s"Consent-JWT", consentJwt)
+      )
+      response2.body.extract[ErrorMessage].message contains(CounterpartyLimitValidationError) shouldBe (true)
+      response2.body.extract[ErrorMessage].message contains("max_yearly_amount") shouldBe(true)
+
+      //("we try the max_number_of_monthly_transactions limit (2 times), we try the 3rd request, we will get the error. response2 failed, so does not count in database.")
+      val response3 = makePostRequest(
+        createTransReqRequest,
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","2"))),
+        (s"Consent-JWT", consentJwt)
+      )
+      response3.code shouldBe(201)
+
+      val response4 = makePostRequest(
+        createTransReqRequest,
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","2"))),
+        (s"Consent-JWT", consentJwt)
+      )
+      response4.code shouldBe(400)
+
+      response4.body.extract[ErrorMessage].message contains(CounterpartyLimitValidationError) shouldBe (true)
+      response4.body.extract[ErrorMessage].message contains("max_number_of_yearly_transactions") shouldBe(true)
+
+    }
+
+    scenario("We will create consent properly, and test the counterparty limit - total guard", ApiEndpoint1, ApiEndpoint3, ApiEndpoint7, VersionOfApi) {
+      When(s"We try $ApiEndpoint1 v5.1.0")
+      val createConsentResponse = makePostRequest(createVRPConsentRequestUrl, write(postVRPConsentRequestTotalGuardJson))
+      Then("We should get a 201")
+      createConsentResponse.code should equal(201)
+      val createConsentRequestResponseJson = createConsentResponse.body.extract[ConsentRequestResponseJson]
+      val consentRequestId = createConsentRequestResponseJson.consent_request_id
+
+      When("We try to make the GET request v5.1.0")
+      val successGetRes = makeGetRequest(getConsentRequestUrl(consentRequestId))
+      Then("We should get a 200")
+      successGetRes.code should equal(200)
+      val getConsentRequestResponseJson = successGetRes.body.extract[ConsentRequestResponseJson]
+      getConsentRequestResponseJson.payload should not be("")
+
+      When("We try to make the GET request v5.1.0")
+      Then("We grant the role and test it again")
+      Entitlement.entitlement.vend.addEntitlement("", resourceUser1.userId, CanGetAnyUser.toString)
+      val createConsentByRequestResponse = makePostRequest(createConsentByConsentRequestIdEmail(consentRequestId), write(""))
+      Then("We should get a 200")
+      createConsentByRequestResponse.code should equal(201)
+      val consentId = createConsentByRequestResponse.body.extract[ConsentJsonV500].consent_id
+      val consentJwt = createConsentByRequestResponse.body.extract[ConsentJsonV500].jwt
+      val accountAccess = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access
+      accountAccess.isDefined should equal(true)
+      accountAccess.get.bank_id should equal(fromAccountJson.bank_routing.address)
+      accountAccess.get.account_id should equal(fromAccountJson.account_routing.address)
+      accountAccess.get.view_id contains("_vrp-") shouldBe( true)
+
+      val answerConsentChallengeRequest = (v5_1_0_Request / "banks" / testBankId1.value / "consents" / consentId / "challenge").POST <@ (user1)
+      val challenge = Consent.challengeAnswerAtTestEnvironment
+      val post = PostConsentChallengeJsonV310(answer = challenge)
+      val answerConsentChallengeResponse = makePostRequest(answerConsentChallengeRequest, write(post))
+      Then("We should get a 201")
+      answerConsentChallengeResponse.code should equal(201)
+
+      Then("We can test the COUNTERPARTY payment limit")
+
+      val consentRequestBankId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.bank_id
+      val consentRequestAccountId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.account_id
+      val consentRequestViewId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.view_id
+      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.counterparty_id
+
+      val createTransReqRequest = (v4_0_0_Request / "banks" / consentRequestBankId / "accounts" / consentRequestAccountId /
+        consentRequestViewId / "transaction-request-types" / "COUNTERPARTY" / "transaction-requests").POST
+      val transactionRequestBodyCounterparty = TransactionRequestBodyCounterpartyJSON(
+        to = CounterpartyIdJson(consentRequestCounterpartyId.head),
+        value = AmountOfMoneyJsonV121("EUR","11"),
+        description ="testing the limit",
+        charge_policy = "SHARED",
+        future_date =None
+      )
+      setPropsValues("consumer_validation_method_for_consent"->"NONE")
+      //("we try the max_monthly_amount limit (11 euros) . now we transfer 9 euro first. then 9 euros, we will get the error")
+      val response1 = makePostRequest(
+        createTransReqRequest,
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","3"))),
+        (s"Consent-JWT", consentJwt)
+      )
+      response1.code shouldBe(201)
+      val response2 = makePostRequest(
+        createTransReqRequest,
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","9"))),
+        (s"Consent-JWT", consentJwt)
+      )
+
+      response2.body.extract[ErrorMessage].message contains(CounterpartyLimitValidationError) shouldBe (true)
+      response2.body.extract[ErrorMessage].message contains("max_total_amount") shouldBe(true)
+
+      //("we try the max_number_of_monthly_transactions limit (2 times), we try the 3rd request, we will get the error. response2 failed, so does not count in database.")
+      val response3 = makePostRequest(
+        createTransReqRequest,
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","2"))),
+        (s"Consent-JWT", consentJwt)
+      )
+      response3.code shouldBe(201)
+
+      val response4 = makePostRequest(
+        createTransReqRequest,
+        write(transactionRequestBodyCounterparty.copy(value=AmountOfMoneyJsonV121("EUR","2"))),
+        (s"Consent-JWT", consentJwt)
+      )
+      response4.code shouldBe(400)
+
+      response4.body.extract[ErrorMessage].message contains(CounterpartyLimitValidationError) shouldBe (true)
+      response4.body.extract[ErrorMessage].message contains("max_number_of_transactions") shouldBe(true)
+
+    }
+
+    
   }
 
 }

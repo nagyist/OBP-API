@@ -1302,7 +1302,7 @@ trait Connector extends MdcLoggable {
                                  callContext: Option[CallContext]
                                 ): OBPReturnType[Box[AtmAttribute]] = Future{(Failure(setUnimplementedError(nameOf(createOrUpdateAtmAttribute _))), callContext)}
   
-  def getBankAttributesByBank(bank: BankId, callContext: Option[CallContext]): OBPReturnType[Box[List[BankAttribute]]] =
+  def getBankAttributesByBank(bankId: BankId, callContext: Option[CallContext]): OBPReturnType[Box[List[BankAttributeTrait]]] =
     Future{(Failure(setUnimplementedError(nameOf(getBankAttributesByBank _))), callContext)}
 
   def getAtmAttributesByAtm(bank: BankId, atm: AtmId, callContext: Option[CallContext]): OBPReturnType[Box[List[AtmAttribute]]] =

@@ -491,7 +491,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
       */
     override def wellKnownOpenidConfiguration: URI =
       new URI(
-        APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloak.well-known", "http://localhost:7070/realms/master/.well-known/openid-configuration")
+        APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloak.well_known", "http://localhost:7070/realms/master/.well-known/openid-configuration")
       )
     override def urlOfJwkSets: Box[String] = checkUrlOfJwkSets(identityProvider = keycloakHost)
     def isIssuer(jwt: String): Boolean = isIssuer(jwtToken=jwt, identityProvider = keycloakHost)
@@ -512,7 +512,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
     }
 
     private def addScopesToConsumer(token: String,  consumerPrimaryKey: Long): Unit = {
-      val sourceOfTruth = APIUtil.getPropsAsBoolValue(nameOfProperty = "oauth2.keycloak.source-of-truth", defaultValue = false)
+      val sourceOfTruth = APIUtil.getPropsAsBoolValue(nameOfProperty = "oauth2.keycloak.source_of_truth", defaultValue = false)
       val consumerId = getClaim(name = "azp", idToken = token).getOrElse("")
       if(sourceOfTruth) {
         logger.debug("Extracting roles from Access Token")
@@ -537,7 +537,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
         )
         logger.debug(s"Consumer ID: $consumerId # Existing roles: ${existingRoles.mkString} # Added roles: ${rolesToAdd.mkString} # Deleted roles: ${rolesToDelete.mkString}")
       } else {
-        logger.debug(s"Adding scopes omitted due to oauth2.keycloak.source-of-truth = $sourceOfTruth # Consumer ID: $consumerId")
+        logger.debug(s"Adding scopes omitted due to oauth2.keycloak.source_of_truth = $sourceOfTruth # Consumer ID: $consumerId")
       }
     }
 

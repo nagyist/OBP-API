@@ -3,8 +3,8 @@
 ### Most recent changes at top of file
 ```
 Date          Commit        Action
-03/02/2024    7bcb6bc5      Added props oauth2.keycloak.source-of-truth, default is false.
-                            oauth2.keycloak.source-of-truth = true turns sync ON.
+03/02/2024    7bcb6bc5      Added props oauth2.keycloak.source_of_truth, default is false.
+                            oauth2.keycloak.source_of_truth = true turns sync ON.
                             It is used to sync IAM of OBP-API and IAM of Keycloak.
                             In case that access token issued by Keycloak contains roles assiggned to a consumer, for instance:
                             "open-bank-project": {

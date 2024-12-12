@@ -21,7 +21,7 @@ import code.api.v2_1_0.ConsumerRedirectUrlJSON
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_0_0.JSONFactory300.createAggregateMetricJson
 import code.api.v3_1_0.ConsentJsonV310
-import code.api.v3_1_0.JSONFactory310.createBadLoginStatusJson
+import code.api.v3_1_0.JSONFactory310.{createBadLoginStatusJson, createRefreshUserJson}
 import code.api.v4_0_0.JSONFactory400.{createAccountBalancesJson, createBalancesJson, createNewCoreBankAccountJson}
 import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, RevokedJsonV400}
 import code.api.v5_0_0.JSONFactory500
@@ -32,8 +32,9 @@ import code.consent.{ConsentRequests, Consents}
 import code.consumer.Consumers
 import code.loginattempts.LoginAttempt
 import code.metrics.APIMetrics
+import code.metrics.MappedMetric.userId
 import code.model.AppType
-import code.model.dataAccess.MappedBankAccount
+import code.model.dataAccess.{AuthUser, MappedBankAccount}
 import code.regulatedentities.MappedRegulatedEntityProvider
 import code.userlocks.UserLocksProvider
 import code.users.Users
@@ -624,6 +625,47 @@ trait APIMethods510 {
           }
       }
     }
+
+
+
+    staticResourceDocs += ResourceDoc(
+      syncExternalUser,
+      implementedInApiVersion,
+      nameOf(syncExternalUser),
+      "POST",
+      "/users/PROVIDER/PROVIDER_ID/sync",
+      "Sync User",
+      s"""The endpoint is used to create or sync an OBP User with User from an external identity provider.
+      |PROVIDER is the host of the provider e.g. a Keycloak Host.
+      |PROVIDER_ID is the unique identifier for the User at the PROVIDER.
+      |At the end of the process, a User will exist in OBP with the Account Access records defined by the CBS.
+      |
+      |${authenticationRequiredMessage(true)}
+      |
+      |""",
+      EmptyBody,
+      refresUserJson,
+      List(
+        $UserNotLoggedIn,
+        UserHasMissingRoles,
+        UnknownError
+      ),
+      List(apiTagUser),
+      Some(List(canSyncUser))
+    )
+
+    lazy val syncExternalUser : OBPEndpoint = {
+      case "users" :: provider :: providerId :: "sync" :: Nil JsonPost _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (user: User, callContext) <- NewStyle.function.getOrCreateResourceUser(provider, providerId, cc.callContext)
+            _ <- AuthUser.refreshUser(user, callContext)
+          } yield {
+            (JSONFactory510.getSyncedUser(user), HttpCode.`201`(callContext))
+          }
+      }
+    }
+
 
 
     staticResourceDocs += ResourceDoc(

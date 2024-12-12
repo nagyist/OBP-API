@@ -1,12 +1,13 @@
 package code.api.v5_1_0
 
 import code.api.util.APIUtil.OAuth._
-import code.api.util.ApiRole.{CanGetAccountsHeldAtAnyBank, CanGetAccountsHeldAtOneBank}
+import code.api.util.ApiRole.{CanGetAccountsHeldAtAnyBank, CanGetAccountsHeldAtOneBank, CanSyncUser}
 import code.api.util.ErrorMessages.{UserHasMissingRoles, UserNotLoggedIn}
 import code.api.v5_1_0.OBPAPI5_1_0.Implementations5_1_0
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.model.ErrorMessage
 import com.openbankproject.commons.util.ApiVersion
+import net.liftweb.json.Serialization.write
 import org.scalatest.Tag
 
 class AccountTest extends V510ServerSetup {
@@ -21,6 +22,7 @@ class AccountTest extends V510ServerSetup {
   object GetCoreAccountByIdThroughView extends Tag(nameOf(Implementations5_1_0.getCoreAccountByIdThroughView))
   object getAccountsHeldByUserAtBank extends Tag(nameOf(Implementations5_1_0.getAccountsHeldByUserAtBank))
   object GetAccountsHeldByUser extends Tag(nameOf(Implementations5_1_0.getAccountsHeldByUser))
+  object SyncExternalUser extends Tag(nameOf(Implementations5_1_0.syncExternalUser))
 
   lazy val bankId = randomBankId
 
@@ -71,6 +73,25 @@ class AccountTest extends V510ServerSetup {
       Then("We should get a 403")
       response.code should equal(403)
       val errorMessage = UserHasMissingRoles + s"$CanGetAccountsHeldAtAnyBank"
+      response.body.extract[ErrorMessage].message contains errorMessage should be(true)
+    }
+  }
+
+  feature(s"test ${SyncExternalUser.name}") {
+    scenario(s"We will test ${SyncExternalUser.name}", SyncExternalUser, VersionOfApi) {
+      val request = (v5_1_0_Request / "users" / resourceUser2.provider / resourceUser2.idGivenByProvider / "sync").GET
+      // Anonymous call fails
+      val response = makePostRequest(request, write(""))
+      response.code should equal(401)
+      response.body.extract[ErrorMessage].message should equal(UserNotLoggedIn)
+    }
+    scenario("We will call the endpoint with user credentials", SyncExternalUser, VersionOfApi) {
+      When(s"We make a request $SyncExternalUser")
+      val requestGet = (v5_1_0_Request / "users" / resourceUser2.provider / resourceUser2.idGivenByProvider / "sync").GET <@(user1)
+      val response = makePostRequest(requestGet,  write(""))
+      Then("We should get a 403")
+      response.code should equal(403)
+      val errorMessage = UserHasMissingRoles + s"$CanSyncUser"
       response.body.extract[ErrorMessage].message contains errorMessage should be(true)
     }
   }

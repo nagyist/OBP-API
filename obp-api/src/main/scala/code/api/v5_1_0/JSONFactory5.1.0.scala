@@ -555,6 +555,8 @@ case class ConsumerLogoUrlJson(
   logo_url: String
 )
 
+case class SyncExternalUserJson(user_id: String)
+
 object JSONFactory510 extends CustomJsonFormats {
 
   def createViewJson(view: View): CustomViewJsonV510 = {
@@ -891,6 +893,10 @@ object JSONFactory510 extends CustomJsonFormats {
       insert_date = userAttribute.insertDate,
       is_personal = userAttribute.isPersonal
     )
+  }
+
+  def getSyncedUser(user :  User): SyncExternalUserJson = {
+    SyncExternalUserJson(user.userId)
   }
 
   def createUserAttributesJson(userAttribute: List[UserAttribute]): UserAttributesResponseJsonV510 = {

@@ -4778,7 +4778,8 @@ object LocalMappedConnector extends Connector with MdcLoggable {
               value = AmountOfMoneyJsonV121(body.value.currency, body.value.amount),
               description = body.description,
               charge_policy = transactionRequest.charge_policy,
-              future_date = transactionRequest.future_date)
+              future_date = transactionRequest.future_date,
+              None)//this TransactionRequestAttributeJsonV400 is only in OBP side 
 
             (transactionId, callContext) <- NewStyle.function.makePaymentv210(
               fromAccount,

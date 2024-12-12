@@ -549,12 +549,6 @@ case class TransactionAttributesResponseJson(
   transaction_attributes: List[TransactionAttributeResponseJson]
 )
 
-case class TransactionRequestAttributeJsonV400(
-  name: String,
-  `type`: String,
-  value: String,
-)
-
 case class TransactionRequestAttributeResponseJson(
   transaction_request_attribute_id: String,
   name: String,

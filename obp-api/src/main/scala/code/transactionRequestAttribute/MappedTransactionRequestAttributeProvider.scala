@@ -2,7 +2,7 @@ package code.transactionRequestAttribute
 
 import code.api.attributedefinition.AttributeDefinition
 import com.openbankproject.commons.model.enums.{AttributeCategory, TransactionRequestAttributeType}
-import com.openbankproject.commons.model.{BankId, TransactionRequestAttributeTrait, TransactionRequestId, ViewId}
+import com.openbankproject.commons.model.{BankId, TransactionRequestAttributeJsonV400, TransactionRequestAttributeTrait, TransactionRequestId, ViewId}
 import net.liftweb.common.{Box, Empty, Full}
 import net.liftweb.mapper.{By, BySql, IHaveValidatedThisSQL}
 import net.liftweb.util.Helpers.tryo
@@ -121,7 +121,7 @@ object MappedTransactionRequestAttributeProvider extends TransactionRequestAttri
 
   override def createTransactionRequestAttributes(bankId: BankId,
                                                   transactionRequestId: TransactionRequestId,
-                                                  transactionRequestAttributes: List[TransactionRequestAttributeTrait]): Future[Box[List[TransactionRequestAttributeTrait]]] = {
+                                                  transactionRequestAttributes: List[TransactionRequestAttributeJsonV400]): Future[Box[List[TransactionRequestAttributeTrait]]] = {
     Future {
       tryo {
         for {
@@ -130,7 +130,7 @@ object MappedTransactionRequestAttributeProvider extends TransactionRequestAttri
           TransactionRequestAttribute.create.TransactionRequestId(transactionRequestId.value)
             .BankId(bankId.value)
             .Name(transactionRequestAttribute.name)
-            .Type(transactionRequestAttribute.attributeType.toString())
+            .Type(transactionRequestAttribute.`type`)
             .`Value`(transactionRequestAttribute.value)
             .saveMe()
         }

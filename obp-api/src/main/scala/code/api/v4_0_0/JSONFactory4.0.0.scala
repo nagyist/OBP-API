@@ -1254,7 +1254,7 @@ object JSONFactory400 {
       account_attributes = accountAttributes.map(createAccountAttributeJson)
     )
 
-  def createTransactionRequestWithChargeJSON(tr : TransactionRequest, challenges: List[ChallengeTrait]) : TransactionRequestWithChargeJSON400 = {
+  def createTransactionRequestWithChargeJSON(tr : TransactionRequest, challenges: List[ChallengeTrait],  transactionRequestAttribute: List[TransactionRequestAttributeTrait]) : TransactionRequestWithChargeJSON400 = {
     new TransactionRequestWithChargeJSON400(
       id = stringOrNull(tr.id.value),
       `type` = stringOrNull(tr.`type`),

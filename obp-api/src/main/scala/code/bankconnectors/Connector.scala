@@ -1560,10 +1560,9 @@ trait Connector extends MdcLoggable {
                                                 attributeType: TransactionRequestAttributeType.Value,
                                                 value: String,
                                                 callContext: Option[CallContext]): OBPReturnType[Box[TransactionRequestAttributeTrait]] = Future{(Failure(setUnimplementedError(nameOf(createOrUpdateTransactionRequestAttribute _))), callContext)}
-
   def createTransactionRequestAttributes(bankId: BankId,
                                          transactionRequestId: TransactionRequestId,
-                                         transactionRequestAttributes: List[TransactionRequestAttributeTrait],
+                                         transactionRequestAttributes: List[TransactionRequestAttributeJsonV400],
                                          callContext: Option[CallContext]): OBPReturnType[Box[List[TransactionRequestAttributeTrait]]] = Future{(Failure(setUnimplementedError(nameOf(createTransactionRequestAttributes _))), callContext)}
 
   def deleteTransactionRequestAttribute(transactionRequestAttributeId: String,

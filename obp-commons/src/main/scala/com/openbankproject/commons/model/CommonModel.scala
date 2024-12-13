@@ -839,7 +839,7 @@ case class TransactionRequestAttributeJsonV400(
   name: String,
   `type`: String,
   value: String,
-)
+) 
 
 case class ToAccountTransferToAtmKycDocument(
                                               `type`: String,

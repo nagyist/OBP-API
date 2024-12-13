@@ -1,7 +1,7 @@
 package code.transactionRequestAttribute
 
 import com.openbankproject.commons.model.enums.TransactionRequestAttributeType
-import com.openbankproject.commons.model.{BankId, TransactionRequestAttributeTrait, TransactionRequestId, ViewId}
+import com.openbankproject.commons.model.{BankId, TransactionRequestAttributeJsonV400, TransactionRequestAttributeTrait, TransactionRequestId, ViewId}
 import net.liftweb.common.{Box, Logger}
 
 import scala.collection.immutable.List
@@ -33,7 +33,7 @@ trait TransactionRequestAttributeProvider {
 
   def createTransactionRequestAttributes(bankId: BankId,
                                          transactionRequestId: TransactionRequestId,
-                                         transactionRequestAttributes: List[TransactionRequestAttributeTrait]): Future[Box[List[TransactionRequestAttributeTrait]]]
+                                         transactionRequestAttributes: List[TransactionRequestAttributeJsonV400]): Future[Box[List[TransactionRequestAttributeTrait]]]
 
   def deleteTransactionRequestAttribute(transactionRequestAttributeId: String): Future[Box[Boolean]]
 

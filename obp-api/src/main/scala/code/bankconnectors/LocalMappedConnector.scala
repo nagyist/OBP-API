@@ -1779,12 +1779,12 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
   override def createTransactionRequestAttributes(bankId: BankId,
                                                   transactionRequestId: TransactionRequestId,
-                                                  transactionRequestAttributes: List[TransactionRequestAttributeTrait],
+                                                  transactionRequestAttributes: List[TransactionRequestAttributeJsonV400],
                                                   callContext: Option[CallContext]): OBPReturnType[Box[List[TransactionRequestAttributeTrait]]] = {
     TransactionRequestAttributeX.transactionRequestAttributeProvider.vend.createTransactionRequestAttributes(
       bankId: BankId,
       transactionRequestId: TransactionRequestId,
-      transactionRequestAttributes: List[TransactionRequestAttributeTrait]
+      transactionRequestAttributes: List[TransactionRequestAttributeJsonV400]
     ).map((_, callContext))
   }
 

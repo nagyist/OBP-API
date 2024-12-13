@@ -3207,7 +3207,7 @@ object NewStyle extends MdcLoggable{
 
     def createTransactionRequestAttributes(bankId: BankId,
                                            transactionRequestId: TransactionRequestId,
-                                           transactionRequestAttributes: List[TransactionRequestAttributeTrait],
+                                           transactionRequestAttributes: List[TransactionRequestAttributeJsonV400],
                                            callContext: Option[CallContext]): OBPReturnType[List[TransactionRequestAttributeTrait]] = {
       Connector.connector.vend.createTransactionRequestAttributes(
         bankId: BankId,

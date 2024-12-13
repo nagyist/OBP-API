@@ -1206,9 +1206,11 @@ trait APIMethods400 extends MdcLoggable {
                   }
                 } yield (transactionRequest, callContext)
             }
+
+            (transactionRequestAttribute, callContext) <- NewStyle.function.getTransactionRequestAttributes(bankId, transactionRequest.id, callContext)
           } yield {
 
-            (JSONFactory400.createTransactionRequestWithChargeJSON(transactionRequest, challenges), HttpCode.`202`(callContext))
+            (JSONFactory400.createTransactionRequestWithChargeJSON(transactionRequest, challenges, transactionRequestAttribute), HttpCode.`202`(callContext))
           }
       }
     }
@@ -12413,6 +12415,24 @@ object APIMethods400 extends RestHelper with APIMethods400 {
             toCounterpartyId = transactionRequestBodyCounterparty.to.counterparty_id
             (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(CounterpartyId(toCounterpartyId), callContext)
 
+            transactionRequestAttributes <- if(transactionRequestBodyCounterparty.attributes.isDefined && transactionRequestBodyCounterparty.attributes.head.length > 0 ) {
+
+              val attributes = transactionRequestBodyCounterparty.attributes.head
+              
+              val failMsg = s"$InvalidJsonFormat The attribute `type` field can only accept the following field: " +
+                s"${TransactionRequestAttributeType.DOUBLE}(12.1234)," +
+                s" ${TransactionRequestAttributeType.STRING}(TAX_NUMBER), " +
+                s"${TransactionRequestAttributeType.INTEGER}(123) and " +
+                s"${TransactionRequestAttributeType.DATE_WITH_DAY}(2012-04-23)"
+              
+              NewStyle.function.tryons(failMsg, 400, callContext) {
+                attributes.map(attribute => TransactionRequestAttributeType.withName(attribute.`type`))
+              }
+              Future.successful(attributes)
+            } else {
+              Future.successful(List.empty[TransactionRequestAttributeJsonV400])
+            }
+            
             (counterpartyLimitBox, callContext) <- Connector.connector.vend.getCounterpartyLimit(
               bankId.value,
               accountId.value,
@@ -12422,7 +12442,6 @@ object APIMethods400 extends RestHelper with APIMethods400 {
             )
            _<- if(counterpartyLimitBox.isDefined){
               for{
-
                 counterpartyLimit <- Future.successful(counterpartyLimitBox.head)
                 maxSingleAmount = counterpartyLimit.maxSingleAmount
                 maxMonthlyAmount = counterpartyLimit.maxMonthlyAmount
@@ -12576,6 +12595,13 @@ object APIMethods400 extends RestHelper with APIMethods400 {
               getScaMethodAtInstance(transactionRequestType.value).toOption,
               None,
               callContext)
+
+            _ <- NewStyle.function.createTransactionRequestAttributes(
+              bankId: BankId,
+              createdTransactionRequest.id,
+              transactionRequestAttributes,
+              callContext: Option[CallContext]
+            )
           } yield (createdTransactionRequest, callContext)
         }
         case AGENT_CASH_WITHDRAWAL => {
@@ -12758,8 +12784,13 @@ object APIMethods400 extends RestHelper with APIMethods400 {
         }
       }
       (challenges, callContext) <-  NewStyle.function.getChallengesByTransactionRequestId(createdTransactionRequest.id.value, callContext)
+      (transactionRequestAttributes, callContext) <- NewStyle.function.getTransactionRequestAttributes(
+        bankId,
+        createdTransactionRequest.id,
+        callContext
+      )
     } yield {
-      (JSONFactory400.createTransactionRequestWithChargeJSON(createdTransactionRequest, challenges), HttpCode.`201`(callContext))
+      (JSONFactory400.createTransactionRequestWithChargeJSON(createdTransactionRequest, challenges, transactionRequestAttributes), HttpCode.`201`(callContext))
     }
   }
 

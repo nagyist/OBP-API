@@ -27,6 +27,7 @@
 package code.api.v5_1_0
 
 import code.api.Constant
+import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.ConsentAccessJson
 import code.api.util.APIUtil.{DateWithDay, DateWithSeconds, gitCommit, stringOrNull}
 import code.api.util._
 import code.api.v1_2_1.BankRoutingJsonV121
@@ -133,6 +134,8 @@ case class ConsentInfoJsonV510(consent_id: String,
                                api_version: String,
                               )
 case class ConsentsInfoJsonV510(consents: List[ConsentInfoJsonV510])
+
+case class PutConsentPayloadJsonV510(access: ConsentAccessJson)
 
 case class AllConsentJsonV510(consent_reference_id: String,
                               consumer_id: String,

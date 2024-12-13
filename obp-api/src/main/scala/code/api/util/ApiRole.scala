@@ -992,6 +992,10 @@ object ApiRole extends MdcLoggable{
   lazy val canUpdateConsentStatusAtOneBank = CanUpdateConsentStatusAtOneBank()
   case class CanUpdateConsentStatusAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
   lazy val canUpdateConsentStatusAtAnyBank = CanUpdateConsentStatusAtAnyBank()
+  case class CanUpdateConsentPayloadAtOneBank(requiresBankId: Boolean = true) extends ApiRole
+  lazy val canUpdateConsentPayloadAtOneBank = CanUpdateConsentPayloadAtOneBank()
+  case class CanUpdateConsentPayloadAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canUpdateConsentPayloadAtAnyBank = CanUpdateConsentPayloadAtAnyBank()
   case class CanRevokeConsentAtBank(requiresBankId: Boolean = true) extends ApiRole
   lazy val canRevokeConsentAtBank = CanRevokeConsentAtBank()
   case class CanGetConsentsAtOneBank(requiresBankId: Boolean = true) extends ApiRole

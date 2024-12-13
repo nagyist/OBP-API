@@ -3,6 +3,7 @@ package code.api.v5_1_0
 
 import code.api.Constant
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON._
+import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{ConsentAccessAccountsJson, ConsentAccessJson}
 import code.api.util.APIUtil._
 import code.api.util.ApiRole._
 import code.api.util.ApiTag._
@@ -28,7 +29,7 @@ import code.api.v5_0_0.JSONFactory500
 import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createConsentsJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
 import code.atmattribute.AtmAttribute
 import code.bankconnectors.Connector
-import code.consent.{ConsentRequests, ConsentStatus, Consents}
+import code.consent.{ConsentRequests, ConsentStatus, Consents, MappedConsent}
 import code.consumer.Consumers
 import code.loginattempts.LoginAttempt
 import code.metrics.APIMetrics
@@ -55,6 +56,7 @@ import net.liftweb.mapper.By
 import net.liftweb.util.Helpers.tryo
 import net.liftweb.util.{Helpers, StringHelpers}
 
+import java.text.SimpleDateFormat
 import java.time.{LocalDate, ZoneId}
 import java.util.Date
 import scala.collection.immutable.{List, Nil}
@@ -1343,6 +1345,83 @@ trait APIMethods510 {
             }
           } yield {
             (ConsentJsonV310(consent.consentId, consent.jsonWebToken, consent.status), HttpCode.`200`(cc.callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      updateConsentPayloadByConsentId,
+      implementedInApiVersion,
+      nameOf(updateConsentPayloadByConsentId),
+      "PUT",
+      "/management/banks/BANK_ID/consents/CONSENT_ID/payload",
+      "Update Consent Payload by CONSENT_ID",
+      s"""
+         |
+         |This endpoint is used to update the Payload of Consent.
+         |
+         |${authenticationRequiredMessage(true)}
+         |
+         |""",
+      PutConsentPayloadJsonV510(
+        access = ConsentAccessJson(
+          accounts = Option(List(ConsentAccessAccountsJson(
+            iban = Some(ExampleValue.ibanExample.value),
+            bban = None,
+            pan = None,
+            maskedPan = None,
+            msisdn = None,
+            currency = None,
+          )))
+        )
+      ),
+      ConsentChallengeJsonV310(
+        consent_id = "9d429899-24f5-42c8-8565-943ffa6a7945",
+        jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiJhYjY1MzlhOS1iMTA1LTQ0ODktYTg4My0wYWQ4ZDZjNjE2NTciLCJzdWIiOiIyMWUxYzhjYy1mOTE4LTRlYWMtYjhlMy01ZTVlZWM2YjNiNGIiLCJhdWQiOiJlanpuazUwNWQxMzJyeW9tbmhieDFxbXRvaHVyYnNiYjBraWphanNrIiwibmJmIjoxNTUzNTU0ODk5LCJpc3MiOiJodHRwczpcL1wvd3d3Lm9wZW5iYW5rcHJvamVjdC5jb20iLCJleHAiOjE1NTM1NTg0OTksImlhdCI6MTU1MzU1NDg5OSwianRpIjoiMDlmODhkNWYtZWNlNi00Mzk4LThlOTktNjYxMWZhMWNkYmQ1Iiwidmlld3MiOlt7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAxIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifSx7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAyIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifV19.8cc7cBEf2NyQvJoukBCmDLT7LXYcuzTcSYLqSpbxLp4",
+        status = "AUTHORISED"
+      ),
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        InvalidJsonFormat,
+        ConsentNotFound,
+        InvalidConnectorResponse,
+        UnknownError
+      ),
+      apiTagConsent :: apiTagPSD2AIS :: Nil,
+      Some(List(canUpdateConsentPayloadAtOneBank, canUpdateConsentPayloadAtAnyBank))
+    )
+
+    lazy val updateConsentPayloadByConsentId: OBPEndpoint = {
+      case "management" :: "banks" :: BankId(bankId) :: "consents" :: consentId :: "payload" :: Nil JsonPut json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            consentJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PutConsentPayloadJsonV510 ", 400, cc.callContext) {
+              json.extract[PutConsentPayloadJsonV510]
+            }
+            consent: MappedConsent <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
+              unboxFullOrFail(_, cc.callContext, s"$ConsentNotFound ($consentId)", 404)
+            }
+            consentJWT <- Consent.updateBerlinGroupConsentJWT(
+                consentJson.access,
+                consent,
+                cc.callContext
+              ) map {
+                i => connectorEmptyResponse(i, cc.callContext)
+              }
+            updatedConsent <- Future(Consents.consentProvider.vend.setJsonWebToken(consent.consentId, consentJWT)) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+          } yield {
+            (
+              ConsentJsonV310(
+                updatedConsent.consentId,
+                updatedConsent.jsonWebToken,
+                updatedConsent.status
+              ),
+              HttpCode.`200`(cc.callContext)
+            )
           }
       }
     }

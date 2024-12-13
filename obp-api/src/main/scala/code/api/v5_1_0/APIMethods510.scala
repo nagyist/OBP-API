@@ -1294,12 +1294,12 @@ trait APIMethods510 {
 
 
     staticResourceDocs += ResourceDoc(
-      updateConsentStatusByUser,
+      updateConsentStatusByConsent,
       implementedInApiVersion,
-      nameOf(updateConsentStatusByUser),
+      nameOf(updateConsentStatusByConsent),
       "PUT",
       "/management/banks/BANK_ID/consents/CONSENT_ID",
-      "Update Consent Status by User",
+      "Update Consent Status by CONSENT_ID",
       s"""
          |
          |
@@ -1328,7 +1328,7 @@ trait APIMethods510 {
       Some(List(canUpdateConsentStatusAtOneBank, canUpdateConsentStatusAtAnyBank))
     )
 
-    lazy val updateConsentStatusByUser: OBPEndpoint = {
+    lazy val updateConsentStatusByConsent: OBPEndpoint = {
       case "management" :: "banks" :: BankId(bankId) :: "consents" :: consentId :: Nil JsonPut json -> _ => {
         cc =>
           implicit val ec = EndpointContext(Some(cc))

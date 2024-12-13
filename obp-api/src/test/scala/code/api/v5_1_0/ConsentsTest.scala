@@ -28,12 +28,12 @@ package code.api.v5_1_0
 import code.api.Constant
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
 import code.api.util.APIUtil.OAuth._
-import code.api.util.ApiRole._
+import code.api.util.ApiRole.{canUpdateConsentStatusAtOneBank, _}
 import code.api.util.Consent
 import code.api.util.ErrorMessages._
 import code.api.v3_1_0.{PostConsentChallengeJsonV310, PostConsentEntitlementJsonV310}
 import code.api.v4_0_0.OBPAPI4_0_0.Implementations4_0_0
-import code.api.v4_0_0.UsersJsonV400
+import code.api.v4_0_0.{PutConsentStatusJsonV400, UsersJsonV400}
 import code.api.v5_0_0.OBPAPI5_0_0.Implementations5_0_0
 import code.api.v5_0_0.{AccountAccessV500, ConsentJsonV500, ConsentRequestResponseJson}
 import code.api.v5_1_0.OBPAPI5_1_0.Implementations5_1_0
@@ -67,6 +67,7 @@ class ConsentsTest extends V510ServerSetup with PropsReset{
   object ApiEndpoint7 extends Tag(nameOf(Implementations5_1_0.getConsentByConsentId))
   object ApiEndpoint8 extends Tag(nameOf(Implementations5_1_0.getMyConsents))
   object ApiEndpoint9 extends Tag(nameOf(Implementations5_1_0.getConsentsAtBank))
+  object UpdateConsentStatusByUser extends Tag(nameOf(Implementations5_1_0.updateConsentStatusByUser))
 
   lazy val entitlements = List(PostConsentEntitlementJsonV310("", CanGetAnyUser.toString()))
   lazy val bankId = testBankId1.value
@@ -80,6 +81,8 @@ class ConsentsTest extends V510ServerSetup with PropsReset{
     .copy(bank_id=Some(bankId))
     .copy(account_access=accountAccess)
 
+  lazy val consentStatus = PutConsentStatusJsonV400(status = "AUTHORISED")
+
   val createConsentRequestWithoutLoginUrl = (v5_1_0_Request / "consumer" / "consent-requests")
   val createConsentRequestUrl = (v5_1_0_Request / "consumer"/ "consent-requests").POST<@(user1)
   def getConsentRequestUrl(requestId:String) = (v5_1_0_Request / "consumer"/ "consent-requests"/requestId).GET<@(user1)
@@ -89,6 +92,7 @@ class ConsentsTest extends V510ServerSetup with PropsReset{
   def revokeConsentUrl(consentId: String) = (v5_1_0_Request / "banks" / bankId / "consents" / consentId).DELETE
   def getMyConsents(consentId: String) = (v5_1_0_Request / "banks" / bankId / "my" / "consents").GET
   def getConsentsAtBAnk(consentId: String) = (v5_1_0_Request / "management"/ "consents" / "banks" / bankId).GET
+  def updateConsentStatusByUser(consentId: String) = (v5_1_0_Request / "management" / "banks" / bankId / "consents" / consentId).PUT
 
   feature(s"test $ApiEndpoint6 version $VersionOfApi - Unauthorized access") {
     scenario("We will call the endpoint without user credentials", ApiEndpoint6, VersionOfApi) {
@@ -144,6 +148,36 @@ class ConsentsTest extends V510ServerSetup with PropsReset{
       Then("We should get a 403")
       response510.code should equal(403)
       response510.body.extract[ErrorMessage].message contains (UserHasMissingRoles + s"$CanGetConsentsAtOneBank or $CanGetConsentsAtAnyBank") should be(true)
+    }
+  }
+
+
+  feature(s"test $UpdateConsentStatusByUser version $VersionOfApi - Unauthenticated access") {
+    scenario("We will call the endpoint without user credentials", UpdateConsentStatusByUser, VersionOfApi) {
+      When(s"We make a request $UpdateConsentStatusByUser")
+      val response510 = makeGetRequest(getConsentsAtBAnk("whatever"))
+      Then("We should get a 401")
+      response510.code should equal(401)
+      response510.body.extract[ErrorMessage].message should equal(UserNotLoggedIn)
+    }
+  }
+  feature(s"test $UpdateConsentStatusByUser version $VersionOfApi - Authenticated access") {
+    scenario("We will call the endpoint with user credentials", UpdateConsentStatusByUser, VersionOfApi) {
+      When(s"We make a request $UpdateConsentStatusByUser")
+      val response510 = makePutRequest(updateConsentStatusByUser("whatever") <@ user1, write(consentStatus))
+      Then("We should get a 403")
+      response510.code should equal(403)
+      response510.body.extract[ErrorMessage].message contains (UserHasMissingRoles + s"$CanUpdateConsentStatusAtOneBank or $CanUpdateConsentStatusAtAnyBank") should be(true)
+    }
+  }
+  feature(s"test $UpdateConsentStatusByUser version $VersionOfApi - Authenticated access with Role $CanUpdateConsentStatusAtAnyBank") {
+    scenario("We will call the endpoint with user credentials", UpdateConsentStatusByUser, VersionOfApi) {
+      When(s"We make a request $UpdateConsentStatusByUser")
+      Entitlement.entitlement.vend.addEntitlement("", resourceUser1.userId, CanUpdateConsentStatusAtAnyBank.toString)
+      val response510 = makePutRequest(updateConsentStatusByUser("whatever") <@ user1, write(consentStatus))
+      Then("We should get a 404")
+      response510.code should equal(404)
+      response510.body.extract[ErrorMessage].message should startWith(ConsentNotFound)
     }
   }
   

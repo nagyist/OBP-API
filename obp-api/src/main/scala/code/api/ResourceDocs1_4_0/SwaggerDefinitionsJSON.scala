@@ -4864,7 +4864,8 @@ object SwaggerDefinitionsJSON {
     start_date = DateWithDayExampleObject,
     end_date = DateWithDayExampleObject,
     challenges = List(challengeJsonV400),
-    charge = transactionRequestChargeJsonV200
+    charge = transactionRequestChargeJsonV200,
+    attributes=Some(List(bankAttributeBankResponseJsonV400)),
   )
 
   val postSimpleCounterpartyJson400 = PostSimpleCounterpartyJson400(

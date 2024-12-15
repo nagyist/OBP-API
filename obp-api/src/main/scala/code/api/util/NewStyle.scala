@@ -3212,7 +3212,7 @@ object NewStyle extends MdcLoggable{
       Connector.connector.vend.createTransactionRequestAttributes(
         bankId: BankId,
         transactionRequestId: TransactionRequestId,
-        transactionRequestAttributes: List[TransactionRequestAttributeTrait],
+        transactionRequestAttributes: List[TransactionRequestAttributeJsonV400],
         callContext: Option[CallContext]
       ) map {
         i => (connectorEmptyResponse(i._1, callContext), i._2)

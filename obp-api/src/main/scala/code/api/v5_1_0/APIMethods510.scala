@@ -2753,7 +2753,79 @@ trait APIMethods510 {
       }
     }
 
+    resourceDocs += ResourceDoc(
+      getTransactionRequests,
+      implementedInApiVersion,
+      nameOf(getTransactionRequests),
+      "GET",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-requests",
+      "Get Transaction Requests." ,
+      """Returns transaction requests for account specified by ACCOUNT_ID at bank specified by BANK_ID.
+        |
+        |The VIEW_ID specified must be 'owner' and the user must have access to this view.
+        |
+        |Version 2.0.0 now returns charge information.
+        |
+        |Transaction Requests serve to initiate transactions that may or may not proceed. They contain information including:
+        |
+        |* Transaction Request Id
+        |* Type
+        |* Status (INITIATED, COMPLETED)
+        |* Challenge (in order to confirm the request)
+        |* From Bank / Account
+        |* Details including Currency, Value, Description and other initiation information specific to each type. (Could potentialy include a list of future transactions.)
+        |* Related Transactions
+        |
+        |PSD2 Context: PSD2 requires transparency of charges to the customer.
+        |This endpoint provides the charge that would be applied if the Transaction Request proceeds - and a record of that charge there after.
+        |The customer can proceed with the Transaction by answering the security challenge.
+        |
+      """.stripMargin,
+      EmptyBody,
+      transactionRequestWithChargeJSONs210,
+      List(
+        UserNotLoggedIn,
+        BankNotFound,
+        BankAccountNotFound,
+        UserNoPermissionAccessView,
+        ViewDoesNotPermitAccess,
+        GetTransactionRequestsException,
+        UnknownError
+      ),
+      List(apiTagTransactionRequest, apiTagPSD2PIS))
 
+    lazy val getTransactionRequests: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-requests" :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            _ <- NewStyle.function.isEnabledTransactionRequests(callContext)
+            (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            (fromAccount, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
+            view <- NewStyle.function.checkAccountAccessAndGetView(viewId, BankIdAccountId(bankId, accountId), Full(u), callContext)
+            _ <- Helper.booleanToFuture(
+              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeTransactionRequests_)).dropRight(1)}` permission on the View(${viewId.value})",
+              cc=callContext){
+              view.canSeeTransactionRequests
+            }
+            (transactionRequests, callContext) <- Future(Connector.connector.vend.getTransactionRequests210(u, fromAccount, callContext)) map {
+              unboxFullOrFail(_, callContext, GetTransactionRequestsException)
+            }
+            (transactionRequestIds, callContext) <- if(true) NewStyle.function.getTransactionRequestIdsByAttributeNameValues(bankId, Map("String"->List("String")), callContext) else Future{(Nil,callContext)}
+            
+            transactionRequestsFiltered = if(transactionRequestIds.nonEmpty) transactionRequests.filter(transactionRequest => transactionRequestIds.contains(transactionRequest.id.value)) else transactionRequests 
+            
+            //TODO should be here, prepare the transactionRequests and transactionRequestAttributes pair.
+            
+            
+          } yield {
+            val json = JSONFactory510.createTransactionRequestJSONs(transactionRequestsFiltered)
+            
+            (json, HttpCode.`200`(callContext))
+          }
+      }
+    }
+    
     staticResourceDocs += ResourceDoc(
       getAccountAccessByUserId,
       implementedInApiVersion,

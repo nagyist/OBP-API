@@ -137,7 +137,8 @@ case class TransactionRequestWithChargeJSON400(
                                                 start_date: Date,
                                                 end_date: Date,
                                                 challenges: List[ChallengeJsonV400],
-                                                charge : TransactionRequestChargeJsonV200
+                                                charge : TransactionRequestChargeJsonV200,
+                                                attributes: Option[List[BankAttributeBankResponseJsonV400]]
                                               )
 case class PostHistoricalTransactionAtBankJson(
                                                 from_account_id: String,
@@ -1255,7 +1256,7 @@ object JSONFactory400 {
     )
 
   def createTransactionRequestWithChargeJSON(tr : TransactionRequest, challenges: List[ChallengeTrait],  transactionRequestAttribute: List[TransactionRequestAttributeTrait]) : TransactionRequestWithChargeJSON400 = {
-    new TransactionRequestWithChargeJSON400(
+    TransactionRequestWithChargeJSON400(
       id = stringOrNull(tr.id.value),
       `type` = stringOrNull(tr.`type`),
       from = try{TransactionRequestAccountJsonV140 (
@@ -1316,7 +1317,12 @@ object JSONFactory400 {
       charge = try {TransactionRequestChargeJsonV200 (summary = stringOrNull(tr.charge.summary),
         value = AmountOfMoneyJsonV121(currency = stringOrNull(tr.charge.value.currency),
           amount = stringOrNull(tr.charge.value.amount))
-      )} catch {case _ : Throwable => null}
+      )} catch {case _ : Throwable => null},
+      attributes = if(transactionRequestAttribute.isEmpty) None else Some(transactionRequestAttribute
+        .map(attribute =>BankAttributeBankResponseJsonV400(
+          attribute.name,
+          attribute.value
+        )))
     )
   }
 

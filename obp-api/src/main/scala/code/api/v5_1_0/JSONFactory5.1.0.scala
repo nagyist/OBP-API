@@ -30,7 +30,9 @@ import code.api.Constant
 import code.api.util.APIUtil.{DateWithDay, DateWithSeconds, gitCommit, stringOrNull}
 import code.api.util._
 import code.api.v1_2_1.BankRoutingJsonV121
-import code.api.v1_4_0.JSONFactory1_4_0.{LocationJsonV140, MetaJsonV140, transformToLocationFromV140, transformToMetaFromV140}
+import code.api.v1_4_0.JSONFactory1_4_0.{LocationJsonV140, MetaJsonV140, transformToLocationFromV140, transformToMetaFromV140,
+  TransactionRequestAccountJsonV140,ChallengeJsonV140}
+import code.api.v2_0_0.TransactionRequestChargeJsonV200
 import code.api.v2_1_0.ResourceUserJSON
 import code.api.v3_0_0.JSONFactory300.{createLocationJson, createMetaJson, transformToAddressFromV300}
 import code.api.v3_0_0.{AddressJsonV300, OpeningTimesV300}
@@ -555,8 +557,65 @@ case class ConsumerLogoUrlJson(
   logo_url: String
 )
 
+case class TransactionRequestWithChargeJsonV510(
+  transaction_request_id: String,
+  transaction_request_type: String,
+  from: TransactionRequestAccountJsonV140,
+  details: TransactionRequestBodyAllTypes,
+  transaction_ids: List[String],
+  status: String,
+  start_date: Date,
+  end_date: Date,
+  challenge: ChallengeJsonV140,
+  charge : TransactionRequestChargeJsonV200,
+  attributes: List[TransactionRequestAttributeJsonV400]
+)
+
+case class TransactionRequestsWithChargeJsonV510(
+  transaction_requests_with_charges : List[TransactionRequestWithChargeJsonV510]
+)
+
 object JSONFactory510 extends CustomJsonFormats {
 
+  def createTransactionRequestWithChargeJson(tr : TransactionRequest, transactionRequestAttributes: List[TransactionRequestAttributeTrait] ) : TransactionRequestWithChargeJsonV510 = {
+    TransactionRequestWithChargeJsonV510(
+      transaction_request_id = stringOrNull(tr.id.value),
+      transaction_request_type = stringOrNull(tr.`type`),
+      from = try{TransactionRequestAccountJsonV140 (
+        bank_id = stringOrNull(tr.from.bank_id),
+        account_id = stringOrNull(tr.from.account_id)
+      )} catch {case _ : Throwable => null},
+      details = try{tr.body} catch {case _ : Throwable => null},
+      transaction_ids = tr.transaction_ids::Nil,
+      status = stringOrNull(tr.status),
+      start_date = tr.start_date,
+      end_date = tr.end_date,
+      // Some (mapped) data might not have the challenge. TODO Make this nicer
+      challenge = {
+        try {ChallengeJsonV140 (id = stringOrNull(tr.challenge.id), allowed_attempts = tr.challenge.allowed_attempts, challenge_type = stringOrNull(tr.challenge.challenge_type))}
+          // catch { case _ : Throwable => ChallengeJSON (id = "", allowed_attempts = 0, challenge_type = "")}
+        catch { case _ : Throwable => null}
+      },
+      charge = try {TransactionRequestChargeJsonV200 (summary = stringOrNull(tr.charge.summary),
+        value = AmountOfMoneyJsonV121(currency = stringOrNull(tr.charge.value.currency),
+          amount = stringOrNull(tr.charge.value.amount))
+      )} catch {case _ : Throwable => null},
+      attributes = transactionRequestAttributes.map(transactionRequestAttribute => TransactionRequestAttributeJsonV400(
+        transactionRequestAttribute.name,
+        transactionRequestAttribute.attributeType.toString,
+        transactionRequestAttribute.value
+      ))
+    )
+  }
+
+  def createTransactionRequestJSONs(transactionRequests : List[TransactionRequest]) : TransactionRequestsWithChargeJsonV510 = {
+    TransactionRequestsWithChargeJsonV510(
+      transactionRequests.map(
+        transactionRequest => 
+          createTransactionRequestWithChargeJson(transactionRequest, List.empty[TransactionRequestAttributeTrait])
+      ))
+  }
+  
   def createViewJson(view: View): CustomViewJsonV510 = {
     val alias =
       if (view.usePublicAliasIfOneExists)

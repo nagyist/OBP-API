@@ -12424,11 +12424,15 @@ object APIMethods400 extends RestHelper with APIMethods400 {
                 s" ${TransactionRequestAttributeType.STRING}(TAX_NUMBER), " +
                 s"${TransactionRequestAttributeType.INTEGER}(123) and " +
                 s"${TransactionRequestAttributeType.DATE_WITH_DAY}(2012-04-23)"
-              
-              NewStyle.function.tryons(failMsg, 400, callContext) {
-                attributes.map(attribute => TransactionRequestAttributeType.withName(attribute.`type`))
+
+              for{
+                _ <- NewStyle.function.tryons(failMsg, 400, callContext) {
+                  attributes.map(attribute => TransactionRequestAttributeType.withName(attribute.`type`))
+                }
+              }yield{
+                attributes
               }
-              Future.successful(attributes)
+              
             } else {
               Future.successful(List.empty[TransactionRequestAttributeJsonV400])
             }

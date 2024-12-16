@@ -2816,7 +2816,12 @@ trait APIMethods510 {
             }
             (transactionRequestAttributes, callContext) <- NewStyle.function.getByAttributeNameValues(bankId, req.params, true, callContext) 
             transactionRequestIds = transactionRequestAttributes.map(_.transactionRequestId) 
-            transactionRequestsFiltered = transactionRequests.filter(transactionRequest => transactionRequestIds.contains(transactionRequest.id)) 
+            
+            transactionRequestsFiltered = if(req.params.isEmpty)
+              transactionRequests
+            else
+              transactionRequests.filter(transactionRequest => transactionRequestIds.contains(transactionRequest.id)) 
+              
           } yield {
             val json = JSONFactory510.createTransactionRequestJSONs(transactionRequestsFiltered, transactionRequestAttributes)
             

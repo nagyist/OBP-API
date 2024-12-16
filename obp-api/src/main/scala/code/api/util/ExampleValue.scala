@@ -425,10 +425,10 @@ object ExampleValue {
   lazy val cardAttributeValueExample = ConnectorField("2012-04-23", s"The card attribute values")
   glossaryItems += makeGlossaryItem("Adapter.card_attribute_value", cardAttributeValueExample)
 
-  lazy val providerValueExample = ConnectorField("http://127.0.0.1:8080", s"The Provider authenticating this User")
+  lazy val providerValueExample = ConnectorField("http://127.0.0.1:8080", s"The host name of an Identity Provider authenticating a User. OBP allows the use of multiple simultanious authentication providers. The provider name (host) along with the provider id (a username or id) uniquely identifies a user on OBP.")
   glossaryItems += makeGlossaryItem("Authentication.provider", providerValueExample)
 
-  lazy val providerIdValueExample = ConnectorField("Chris", s"The provider id of the user which is equivalent to the username.")
+  lazy val providerIdValueExample = ConnectorField("Chris", s"The provider id of the user which is equivalent to the username. Used in combination with the provider name (host) to uniquely identify a User on OBP.")
   glossaryItems += makeGlossaryItem("Adapter.provider_id", providerIdValueExample)
   
   lazy val cbsErrorCodeExample = ConnectorField("500-OFFLINE", "An error code returned by the CBS")

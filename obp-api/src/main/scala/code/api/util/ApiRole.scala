@@ -490,6 +490,9 @@ object ApiRole extends MdcLoggable{
   case class CanRefreshUser(requiresBankId: Boolean = false) extends ApiRole
   lazy val canRefreshUser = CanRefreshUser()
 
+  case class CanSyncUser(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canSyncUser = CanSyncUser()
+
   case class CanGetAccountApplications(requiresBankId: Boolean = false) extends ApiRole
   lazy val canGetAccountApplications = CanGetAccountApplications()
 

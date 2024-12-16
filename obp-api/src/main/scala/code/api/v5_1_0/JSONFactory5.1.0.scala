@@ -575,6 +575,8 @@ case class TransactionRequestsJsonV510(
   transaction_requests : List[TransactionRequestJsonV510]
 )
 
+case class SyncExternalUserJson(user_id: String)
+
 object JSONFactory510 extends CustomJsonFormats {
 
   def createTransactionRequestJson(tr : TransactionRequest, transactionRequestAttributes: List[TransactionRequestAttributeTrait] ) : TransactionRequestJsonV510 = {
@@ -950,6 +952,10 @@ object JSONFactory510 extends CustomJsonFormats {
       insert_date = userAttribute.insertDate,
       is_personal = userAttribute.isPersonal
     )
+  }
+
+  def getSyncedUser(user :  User): SyncExternalUserJson = {
+    SyncExternalUserJson(user.userId)
   }
 
   def createUserAttributesJson(userAttribute: List[UserAttribute]): UserAttributesResponseJsonV510 = {

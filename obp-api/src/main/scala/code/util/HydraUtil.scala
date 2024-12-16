@@ -35,17 +35,17 @@ object HydraUtil extends MdcLoggable{
     APIUtil.getPropsValue("hydra_supported_token_endpoint_auth_methods", "client_secret_basic,client_secret_post,private_key_jwt")
 
   lazy val hydraPublicUrl: String = APIUtil.getPropsValue("hydra_public_url")
-    .openOrThrowException(s"If props $INTEGRATE_WITH_HYDRA is true, hydra_public_url value should not be blank")
+    .openOrThrowException(s"The props $INTEGRATE_WITH_HYDRA is $integrateWithHydra, hydra_public_url value should not be blank")
     // This method is a regular expression operation that removes a trailing slash (/) from a string if one is present.
     .replaceFirst("/$", "")
 
   lazy val hydraAdminUrl: String = APIUtil.getPropsValue("hydra_admin_url")
-    .openOrThrowException(s"If props $INTEGRATE_WITH_HYDRA is true, hydra_admin_url value should not be blank")
+    .openOrThrowException(s"The props $INTEGRATE_WITH_HYDRA is $integrateWithHydra, hydra_admin_url value should not be blank")
     // This method is a regular expression operation that removes a trailing slash (/) from a string if one is present.
     .replaceFirst("/$", "")
 
   lazy val hydraConsents = APIUtil.getPropsValue("hydra_consents")
-    .openOrThrowException(s"If props $INTEGRATE_WITH_HYDRA is true, hydra_client_scope value should not be blank")
+    .openOrThrowException(s"The props $INTEGRATE_WITH_HYDRA is $integrateWithHydra, hydra_client_scope value should not be blank")
     .trim.split("""\s*,\s*""").toList
 
   private lazy val allConsents = hydraConsents.mkString("openid offline email profile ", " ","")
@@ -55,7 +55,7 @@ object HydraUtil extends MdcLoggable{
 
   lazy val hydraAdmin = {
     val hydraAdminUrl = APIUtil.getPropsValue("hydra_admin_url")
-      .openOrThrowException(s"If props $INTEGRATE_WITH_HYDRA is true, hydra_admin_url value should not be blank")
+      .openOrThrowException(s"The props $INTEGRATE_WITH_HYDRA is $integrateWithHydra, hydra_admin_url value should not be blank")
     val defaultClient = Configuration.getDefaultApiClient
     defaultClient.setBasePath(hydraAdminUrl)
     new AdminApi(defaultClient)
@@ -63,7 +63,7 @@ object HydraUtil extends MdcLoggable{
 
   lazy val hydraPublic = {
     val hydraPublicUrl = APIUtil.getPropsValue("hydra_public_url")
-      .openOrThrowException(s"If props $INTEGRATE_WITH_HYDRA is true, hydra_public_url value should not be blank")
+      .openOrThrowException(s"The props $INTEGRATE_WITH_HYDRA is $integrateWithHydra, hydra_public_url value should not be blank")
     val apiClient = new ApiClient
     apiClient.setBasePath(hydraPublicUrl)
     new PublicApi(apiClient)

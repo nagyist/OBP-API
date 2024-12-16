@@ -1114,6 +1114,30 @@ object Glossary extends MdcLoggable  {
 """)
 
 
+	glossaryItems += GlossaryItem(
+		title = "Authorization",
+		description =
+			s"""
+|If Authentication involves the process of determining the *identity* of a user or application, Authorization involves the process of determining *what* the user or application can do.
+|
+|In OBP, Endpoints are protected by "Guards".
+|
+|There are two types of permissions which can be granted:
+|
+|1) *Entitlements to Roles* provide course grained access to resources which are related to the OBP system or a bank / space e.g. CanCreateAtm would allow the holder to create an ATM record.
+|
+|2) *Account Access records* provide fine grained permissions to customer bank accounts, their transactions and payments through Views. e.g. the A User with the Balances View on Account No 12345 would be allowed to get the balances on that account.
+|
+|Both types of permissions can be encapsulated in Consents or other authentication mechanisms.
+|
+|When OBP receives a call, after authentication is performed, OBP checks if the caller has sufficient permissions.
+|
+|If an endpoint guard blocks a call due to insufficient permissions / authorization, OBP will return an OBP- error message.
+|
+|If the caller passes the guards, the OBP-API forwards the request to the next step in the process.
+|
+|Note: All OBP- error messages can be found in the OBP-API logs and OBP source code for debugging purposes.
+""")
 
 
 
@@ -1655,7 +1679,7 @@ object Glossary extends MdcLoggable  {
 |
 |### 3) Authentication and Authorisation
 |
-|Depending on the configuration of this OBP instance, the Consumer will need Scopes and / or the User will need Entitlements.
+|Depending on the configuration of this OBP instance, and the endpoints being called, the Consumer / Client may need Scopes and / or the User may need Entitlements and Account Access.
 |To get started, we suggest requesting Entitlements via the API Explorer.
 |
 |### 4) Endpoints
@@ -2199,7 +2223,7 @@ object Glossary extends MdcLoggable  {
         |
         |${APIUtil.getHydraPublicServerUrl}/oauth2/auth?client_id=YOUR-CLIENT-ID&response_type=code&state=GENERATED_BY_YOUR_APP&scope=openid+offline+ReadAccountsBasic+ReadAccountsDetail+ReadBalances+ReadTransactionsBasic+ReadTransactionsDebits+ReadTransactionsDetail&redirect_uri=https%3A%2F%2FYOUR-APP.com%2Fmain.html
         |
-        |### Step 3: Exchange the authorisation code for an access token
+        |### Step 3: Exchange the code for an access token
         |
         |The token endpoint is:
         |
@@ -2210,7 +2234,7 @@ object Glossary extends MdcLoggable  {
         |
         |In this sandbox, this will cause the following flow:
         |
-        |1) The User is authorised using OAuth2 / OpenID Connect against the banks authentication system
+        |1) The User is authenticated using OAuth2 / OpenID Connect against the banks authentication system
         |2) The User grants consent to the App on the bank's Consent page.
         |3) The User grants access to one or more accounts that they own on the bank's Account Selection page
         |4) The User is redirected back to the App where they can now see the Accounts they have selected.

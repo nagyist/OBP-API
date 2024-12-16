@@ -736,14 +736,10 @@ object Consent extends MdcLoggable {
         views = views,
         access = Some(consent.access)
       )
-      if(views.isEmpty) {
-        Empty
-      } else {
-        implicit val formats = CustomJsonFormats.formats
-        val jwtPayloadAsJson = compactRender(Extraction.decompose(json))
-        val jwtClaims: JWTClaimsSet = JWTClaimsSet.parse(jwtPayloadAsJson)
-        Full(CertificateUtil.jwtWithHmacProtection(jwtClaims, secret))
-      }
+      implicit val formats = CustomJsonFormats.formats
+      val jwtPayloadAsJson = compactRender(Extraction.decompose(json))
+      val jwtClaims: JWTClaimsSet = JWTClaimsSet.parse(jwtPayloadAsJson)
+      Full(CertificateUtil.jwtWithHmacProtection(jwtClaims, secret))
     }
   }
   def updateBerlinGroupConsentJWT(access: ConsentAccessJson,
@@ -932,9 +928,12 @@ object Consent extends MdcLoggable {
         val jsonWebTokenAsCaseClass: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken)
           .map(parse(_).extract[ConsentJWT])
         jsonWebTokenAsCaseClass match {
-          case Full(consentJWT) if consentJWT.entitlements.exists(_.bank_id.isEmpty()) => true// System roles
-          case Full(consentJWT) if consentJWT.entitlements.map(_.bank_id).contains(bankId.value) => true // Bank level roles
+          // Views
+          case Full(consentJWT) if consentJWT.views.isEmpty => true // There is no IAM
           case Full(consentJWT) if consentJWT.views.map(_.bank_id).contains(bankId.value) => true
+          // Roles
+          case Full(consentJWT) if consentJWT.entitlements.exists(_.bank_id.isEmpty()) => true // System roles
+          case Full(consentJWT) if consentJWT.entitlements.map(_.bank_id).contains(bankId.value) => true // Bank level roles
           case _ => false
         }
       }

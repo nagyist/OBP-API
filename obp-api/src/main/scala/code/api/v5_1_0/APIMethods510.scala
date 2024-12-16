@@ -2780,6 +2780,9 @@ trait APIMethods510 {
         |This endpoint provides the charge that would be applied if the Transaction Request proceeds - and a record of that charge there after.
         |The customer can proceed with the Transaction by answering the security challenge.
         |
+        |We support query transaction request by attribute 
+        |URL params example:/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-requests?invoiceNumber=123&referenceNumber=456
+        |
       """.stripMargin,
       EmptyBody,
       transactionRequestWithChargeJSONs210,
@@ -2795,7 +2798,7 @@ trait APIMethods510 {
       List(apiTagTransactionRequest, apiTagPSD2PIS))
 
     lazy val getTransactionRequests: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-requests" :: Nil JsonGet _ => {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-requests" :: Nil JsonGet req => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
             (Full(u), callContext) <- authenticatedAccess(cc)
@@ -2811,15 +2814,9 @@ trait APIMethods510 {
             (transactionRequests, callContext) <- Future(Connector.connector.vend.getTransactionRequests210(u, fromAccount, callContext)) map {
               unboxFullOrFail(_, callContext, GetTransactionRequestsException)
             }
-            (transactionRequestAttributes, callContext) <- if(true) 
-              NewStyle.function.getByAttributeNameValues(bankId, Map("String"->List("String")), true, callContext) 
-            else 
-              Future{(Nil,callContext)}
-
-            transactionRequestIds = transactionRequestAttributes.map(_.transactionRequestId)
-            transactionRequestsFiltered = if(transactionRequestIds.nonEmpty) 
-              transactionRequests.filter(transactionRequest => transactionRequestIds.contains(transactionRequest.id)) 
-            else transactionRequests 
+            (transactionRequestAttributes, callContext) <- NewStyle.function.getByAttributeNameValues(bankId, req.params, true, callContext) 
+            transactionRequestIds = transactionRequestAttributes.map(_.transactionRequestId) 
+            transactionRequestsFiltered = transactionRequests.filter(transactionRequest => transactionRequestIds.contains(transactionRequest.id)) 
           } yield {
             val json = JSONFactory510.createTransactionRequestJSONs(transactionRequestsFiltered, transactionRequestAttributes)
             

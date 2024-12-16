@@ -1393,15 +1393,23 @@ trait APIMethods510 {
     )
 
     lazy val updateConsentPayloadByConsentId: OBPEndpoint = {
-      case "management" :: "banks" :: BankId(bankId) :: "consents" :: consentId :: "payload" :: Nil JsonPut json -> _ => {
+      case "management" :: "banks" :: BankId(bankId) :: "consents" :: consentId :: "payload" :: Nil JsonPut json -> _ =>
         cc =>
           implicit val ec = EndpointContext(Some(cc))
           for {
+            consent: MappedConsent <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
+              unboxFullOrFail(_, cc.callContext, s"$ConsentNotFound ($consentId)", 404)
+            }
             consentJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PutConsentPayloadJsonV510 ", 400, cc.callContext) {
               json.extract[PutConsentPayloadJsonV510]
             }
-            consent: MappedConsent <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
-              unboxFullOrFail(_, cc.callContext, s"$ConsentNotFound ($consentId)", 404)
+            _ <- Helper.booleanToFuture(s"$InvalidJsonFormat The Json body should be the $PutConsentPayloadJsonV510 ",400, cc.callContext) {
+              // Add custom validation
+              !{
+                consentJson.access.accounts.isEmpty &&
+                consentJson.access.balances.isEmpty &&
+                consentJson.access.transactions.isEmpty
+              }
             }
             consentJWT <- Consent.updateBerlinGroupConsentJWT(
                 consentJson.access,
@@ -1423,7 +1431,6 @@ trait APIMethods510 {
               HttpCode.`200`(cc.callContext)
             )
           }
-      }
     }
 
 

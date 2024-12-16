@@ -600,7 +600,7 @@ object JSONFactory510 extends CustomJsonFormats {
         value = AmountOfMoneyJsonV121(currency = stringOrNull(tr.charge.value.currency),
           amount = stringOrNull(tr.charge.value.amount))
       )} catch {case _ : Throwable => null},
-      attributes = transactionRequestAttributes.map(transactionRequestAttribute => TransactionRequestAttributeJsonV400(
+      attributes = transactionRequestAttributes.filter(_.transactionRequestId==tr.id).map(transactionRequestAttribute => TransactionRequestAttributeJsonV400(
         transactionRequestAttribute.name,
         transactionRequestAttribute.attributeType.toString,
         transactionRequestAttribute.value
@@ -608,11 +608,11 @@ object JSONFactory510 extends CustomJsonFormats {
     )
   }
 
-  def createTransactionRequestJSONs(transactionRequests : List[TransactionRequest]) : TransactionRequestsWithChargeJsonV510 = {
+  def createTransactionRequestJSONs(transactionRequests : List[TransactionRequest], transactionRequestAttributes: List[TransactionRequestAttributeTrait]) : TransactionRequestsWithChargeJsonV510 = {
     TransactionRequestsWithChargeJsonV510(
       transactionRequests.map(
         transactionRequest => 
-          createTransactionRequestWithChargeJson(transactionRequest, List.empty[TransactionRequestAttributeTrait])
+          createTransactionRequestWithChargeJson(transactionRequest, transactionRequestAttributes)
       ))
   }
   

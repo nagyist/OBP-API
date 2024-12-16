@@ -4,7 +4,7 @@ import code.api.attributedefinition.AttributeDefinition
 import com.openbankproject.commons.model.enums.{AttributeCategory, TransactionRequestAttributeType}
 import com.openbankproject.commons.model.{BankId, TransactionRequestAttributeJsonV400, TransactionRequestAttributeTrait, TransactionRequestId, ViewId}
 import net.liftweb.common.{Box, Empty, Full}
-import net.liftweb.mapper.{By, BySql, IHaveValidatedThisSQL}
+import net.liftweb.mapper.{By, BySql,In, IHaveValidatedThisSQL}
 import net.liftweb.util.Helpers.tryo
 
 import scala.collection.immutable.List
@@ -13,7 +13,7 @@ import scala.concurrent.Future
 
 object MappedTransactionRequestAttributeProvider extends TransactionRequestAttributeProvider {
 
-  override def getTransactionRequestAttributesFromProvider(transactionRequestId: TransactionRequestId): Future[Box[List[TransactionRequestAttribute]]] =
+  override def getTransactionRequestAttributesFromProvider(transactionRequestId: TransactionRequestId): Future[Box[List[TransactionRequestAttributeTrait]]] =
     Future {
       Box !! TransactionRequestAttribute.findAll(
         By(TransactionRequestAttribute.TransactionRequestId, transactionRequestId.value)
@@ -23,7 +23,7 @@ object MappedTransactionRequestAttributeProvider extends TransactionRequestAttri
   override def getTransactionRequestAttributes(
                                                 bankId: BankId,
                                                 transactionRequestId: TransactionRequestId
-                                              ): Future[Box[List[TransactionRequestAttribute]]] = {
+                                              ): Future[Box[List[TransactionRequestAttributeTrait]]] = {
     Future {
       Box !! TransactionRequestAttribute.findAll(
         By(TransactionRequestAttribute.BankId, bankId.value),
@@ -34,7 +34,7 @@ object MappedTransactionRequestAttributeProvider extends TransactionRequestAttri
 
   override def getTransactionRequestAttributesCanBeSeenOnView(bankId: BankId,
                                                               transactionRequestId: TransactionRequestId,
-                                                              viewId: ViewId): Future[Box[List[TransactionRequestAttribute]]] = {
+                                                              viewId: ViewId): Future[Box[List[TransactionRequestAttributeTrait]]] = {
     Future {
       val attributeDefinitions = AttributeDefinition.findAll(
         By(AttributeDefinition.BankId, bankId.value),
@@ -59,27 +59,40 @@ object MappedTransactionRequestAttributeProvider extends TransactionRequestAttri
     TransactionRequestAttribute.find(By(TransactionRequestAttribute.TransactionRequestAttributeId, transactionRequestAttributeId))
   }
 
-  override def getTransactionRequestIdsByAttributeNameValues(bankId: BankId, params: Map[String, List[String]]): Future[Box[List[String]]] =
+  override def getTransactionRequestIdsByAttributeNameValues(bankId: BankId, params: Map[String, List[String]], isPersonal: Boolean): Future[Box[List[String]]] =
+    getByAttributeNameValues(bankId: BankId, params, isPersonal)
+      .map(
+        attributesBox =>attributesBox
+          .map(attributes=>
+            attributes.map(attribute =>
+              attribute.transactionRequestId.value
+          )))
+
+  override def getByAttributeNameValues(bankId: BankId, params: Map[String, List[String]], isPersonal: Boolean): Future[Box[List[TransactionRequestAttributeTrait]]] =
     Future {
       Box !! {
         if (params.isEmpty) {
-          TransactionRequestAttribute.findAll(By(TransactionRequestAttribute.BankId, bankId.value)).map(_.transactionRequestId.value)
+          TransactionRequestAttribute.findAll(
+            By(TransactionRequestAttribute.BankId, bankId.value),
+            By(TransactionRequestAttribute.IsPersonal, true)
+          )
         } else {
           val paramList = params.toList
           val parameters: List[String] = TransactionRequestAttribute.getParameters(paramList)
           val sqlParametersFilter = TransactionRequestAttribute.getSqlParametersFilter(paramList)
-          val transactionRequestIdList = paramList.isEmpty match {
+          paramList.isEmpty match {
             case true =>
               TransactionRequestAttribute.findAll(
-                By(TransactionRequestAttribute.BankId, bankId.value)
-              ).map(_.transactionRequestId.value)
+                By(TransactionRequestAttribute.BankId, bankId.value),
+                By(TransactionRequestAttribute.IsPersonal, true)
+              )
             case false =>
               TransactionRequestAttribute.findAll(
                 By(TransactionRequestAttribute.BankId, bankId.value),
+                By(TransactionRequestAttribute.IsPersonal, true),
                 BySql(sqlParametersFilter, IHaveValidatedThisSQL("developer", "2020-06-28"), parameters: _*)
-              ).map(_.transactionRequestId.value)
+              )
           }
-          transactionRequestIdList
         }
       }
     }
@@ -119,9 +132,12 @@ object MappedTransactionRequestAttributeProvider extends TransactionRequestAttri
     }
   }
 
-  override def createTransactionRequestAttributes(bankId: BankId,
-                                                  transactionRequestId: TransactionRequestId,
-                                                  transactionRequestAttributes: List[TransactionRequestAttributeJsonV400]): Future[Box[List[TransactionRequestAttributeTrait]]] = {
+  override def createTransactionRequestAttributes(
+    bankId: BankId,
+    transactionRequestId: TransactionRequestId,
+    transactionRequestAttributes: List[TransactionRequestAttributeJsonV400],
+    isPersonal: Boolean
+  ): Future[Box[List[TransactionRequestAttributeTrait]]] = {
     Future {
       tryo {
         for {
@@ -132,6 +148,7 @@ object MappedTransactionRequestAttributeProvider extends TransactionRequestAttri
             .Name(transactionRequestAttribute.name)
             .Type(transactionRequestAttribute.`type`)
             .`Value`(transactionRequestAttribute.value)
+            .IsPersonal(isPersonal)
             .saveMe()
         }
       }

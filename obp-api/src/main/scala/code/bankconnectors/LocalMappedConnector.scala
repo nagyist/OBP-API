@@ -1752,11 +1752,30 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     ).map((_, callContext))
   }
 
-  override def getTransactionRequestIdsByAttributeNameValues(bankId: BankId, params: Map[String, List[String]],
-                                                             callContext: Option[CallContext]): OBPReturnType[Box[List[String]]] = {
+  override def getTransactionRequestIdsByAttributeNameValues(
+    bankId: BankId, 
+    params: Map[String, List[String]], 
+    isPersonal: Boolean,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[List[String]]] = {
     TransactionRequestAttributeX.transactionRequestAttributeProvider.vend.getTransactionRequestIdsByAttributeNameValues(
       bankId: BankId,
-      params: Map[String, List[String]]
+      params: Map[String, List[String]],
+      isPersonal
+    ).map((_, callContext))
+  }
+
+
+  override def getByAttributeNameValues(
+    bankId: BankId, 
+    params: Map[String, List[String]],
+    isPersonal: Boolean,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[List[TransactionRequestAttributeTrait]]] = {
+    TransactionRequestAttributeX.transactionRequestAttributeProvider.vend.getByAttributeNameValues(
+      bankId: BankId, 
+      params: Map[String, List[String]],
+      isPersonal: Boolean,
     ).map((_, callContext))
   }
 
@@ -1780,11 +1799,13 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   override def createTransactionRequestAttributes(bankId: BankId,
                                                   transactionRequestId: TransactionRequestId,
                                                   transactionRequestAttributes: List[TransactionRequestAttributeJsonV400],
+                                                  isPersonal: Boolean,
                                                   callContext: Option[CallContext]): OBPReturnType[Box[List[TransactionRequestAttributeTrait]]] = {
     TransactionRequestAttributeX.transactionRequestAttributeProvider.vend.createTransactionRequestAttributes(
       bankId: BankId,
       transactionRequestId: TransactionRequestId,
-      transactionRequestAttributes: List[TransactionRequestAttributeJsonV400]
+      transactionRequestAttributes: List[TransactionRequestAttributeJsonV400],
+      isPersonal: Boolean,
     ).map((_, callContext))
   }
 

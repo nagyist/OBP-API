@@ -3174,12 +3174,34 @@ object NewStyle extends MdcLoggable{
       }
     }
 
-    def getTransactionRequestIdsByAttributeNameValues(bankId: BankId, params: Map[String, List[String]],
-                                                      callContext: Option[CallContext]): OBPReturnType[List[String]] = {
+    def getTransactionRequestIdsByAttributeNameValues(
+      bankId: BankId, 
+      params: Map[String, List[String]],
+      isPersonal: Boolean,
+      callContext: Option[CallContext]
+    ): OBPReturnType[List[String]] = {
       Connector.connector.vend.getTransactionRequestIdsByAttributeNameValues(
         bankId: BankId,
         params: Map[String, List[String]],
+        isPersonal,
         callContext: Option[CallContext]
+      ) map {
+        i => (connectorEmptyResponse(i._1, callContext), i._2)
+      }
+    }
+
+
+    def getByAttributeNameValues(
+      bankId: BankId, 
+      params: Map[String, List[String]],
+      isPersonal: Boolean,
+      callContext: Option[CallContext]
+    ): OBPReturnType[List[TransactionRequestAttributeTrait]] = {
+      Connector.connector.vend.getByAttributeNameValues(
+        bankId: BankId, 
+        params: Map[String, List[String]], 
+        isPersonal, 
+        callContext
       ) map {
         i => (connectorEmptyResponse(i._1, callContext), i._2)
       }
@@ -3208,11 +3230,13 @@ object NewStyle extends MdcLoggable{
     def createTransactionRequestAttributes(bankId: BankId,
                                            transactionRequestId: TransactionRequestId,
                                            transactionRequestAttributes: List[TransactionRequestAttributeJsonV400],
+                                           isPersonal: Boolean,
                                            callContext: Option[CallContext]): OBPReturnType[List[TransactionRequestAttributeTrait]] = {
       Connector.connector.vend.createTransactionRequestAttributes(
         bankId: BankId,
         transactionRequestId: TransactionRequestId,
         transactionRequestAttributes: List[TransactionRequestAttributeJsonV400],
+        isPersonal: Boolean,
         callContext: Option[CallContext]
       ) map {
         i => (connectorEmptyResponse(i._1, callContext), i._2)

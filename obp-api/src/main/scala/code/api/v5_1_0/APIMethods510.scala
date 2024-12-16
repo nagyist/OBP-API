@@ -2811,15 +2811,17 @@ trait APIMethods510 {
             (transactionRequests, callContext) <- Future(Connector.connector.vend.getTransactionRequests210(u, fromAccount, callContext)) map {
               unboxFullOrFail(_, callContext, GetTransactionRequestsException)
             }
-            (transactionRequestIds, callContext) <- if(true) NewStyle.function.getTransactionRequestIdsByAttributeNameValues(bankId, Map("String"->List("String")), callContext) else Future{(Nil,callContext)}
-            
-            transactionRequestsFiltered = if(transactionRequestIds.nonEmpty) transactionRequests.filter(transactionRequest => transactionRequestIds.contains(transactionRequest.id.value)) else transactionRequests 
-            
-            //TODO should be here, prepare the transactionRequests and transactionRequestAttributes pair.
-            
-            
+            (transactionRequestAttributes, callContext) <- if(true) 
+              NewStyle.function.getByAttributeNameValues(bankId, Map("String"->List("String")), true, callContext) 
+            else 
+              Future{(Nil,callContext)}
+
+            transactionRequestIds = transactionRequestAttributes.map(_.transactionRequestId)
+            transactionRequestsFiltered = if(transactionRequestIds.nonEmpty) 
+              transactionRequests.filter(transactionRequest => transactionRequestIds.contains(transactionRequest.id)) 
+            else transactionRequests 
           } yield {
-            val json = JSONFactory510.createTransactionRequestJSONs(transactionRequestsFiltered)
+            val json = JSONFactory510.createTransactionRequestJSONs(transactionRequestsFiltered, transactionRequestAttributes)
             
             (json, HttpCode.`200`(callContext))
           }

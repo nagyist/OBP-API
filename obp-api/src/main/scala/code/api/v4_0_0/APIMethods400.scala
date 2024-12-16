@@ -12600,6 +12600,7 @@ object APIMethods400 extends RestHelper with APIMethods400 {
               bankId: BankId,
               createdTransactionRequest.id,
               transactionRequestAttributes,
+              true,
               callContext: Option[CallContext]
             )
           } yield (createdTransactionRequest, callContext)

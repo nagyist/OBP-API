@@ -39,6 +39,7 @@ case class ConsentJWT(createdByUserId: String,
                       iat: Long, // The "iat" (issued at) claim identifies the time at which the JWT was issued. Represented in Unix time (integer seconds).
                       nbf: Long, // The "nbf" (not before) claim identifies the time before which the JWT MUST NOT be accepted for processing. Represented in Unix time (integer seconds).
                       exp: Long, // The "exp" (expiration time) claim identifies the expiration time on or after which the JWT MUST NOT be accepted for processing. Represented in Unix time (integer seconds).
+                      request_headers: List[HTTPParam],
                       name: Option[String],
                       email: Option[String],
                       entitlements: List[Role],
@@ -54,8 +55,9 @@ case class ConsentJWT(createdByUserId: String,
       issuedAt=this.iat, 
       validFrom=this.nbf, 
       validTo=this.exp,
-      name=this.name, 
-      email=this.email, 
+      request_headers=this.request_headers,
+      name=this.name,
+      email=this.email,
       entitlements=this.entitlements,
       views=this.views,
       access = this.access
@@ -79,6 +81,7 @@ case class Consent(createdByUserId: String,
                    issuedAt: Long,
                    validFrom: Long,
                    validTo: Long,
+                   request_headers: List[HTTPParam],
                    name: Option[String],
                    email: Option[String],
                    entitlements: List[Role],
@@ -95,6 +98,7 @@ case class Consent(createdByUserId: String,
       iat=this.issuedAt,
       nbf=this.validFrom,
       exp=this.validTo,
+      request_headers=this.request_headers,
       name=this.name,
       email=this.email,
       entitlements=this.entitlements,
@@ -649,6 +653,7 @@ object Consent extends MdcLoggable {
       iat=currentTimeInSeconds,
       nbf=timeInSeconds,
       exp=timeInSeconds + timeToLive,
+      request_headers = Nil,
       name=None,
       email=None,
       entitlements=entitlementsToAdd.toList,
@@ -713,7 +718,7 @@ object Consent extends MdcLoggable {
         )
       }
     }
-
+    val tppRedirectUrl: Option[HTTPParam] = callContext.map(_.requestHeaders).getOrElse(Nil).find(_.name == RequestHeader.`TPP-Redirect-URL`)
     Future.sequence(accounts ::: balances ::: transactions) map { views =>
       val json = ConsentJWT(
         createdByUserId = user.map(_.userId).getOrElse(""),
@@ -724,6 +729,7 @@ object Consent extends MdcLoggable {
         iat = currentTimeInSeconds,
         nbf = currentTimeInSeconds,
         exp = validUntilTimeInSeconds,
+        request_headers = tppRedirectUrl.toList,
         name = None,
         email = None,
         entitlements = Nil,
@@ -848,6 +854,7 @@ object Consent extends MdcLoggable {
       iat = currentTimeInSeconds,
       nbf = currentTimeInSeconds,
       exp = validUntilTimeInSeconds,
+      request_headers = Nil,
       name = None,
       email = None,
       entitlements = Nil,

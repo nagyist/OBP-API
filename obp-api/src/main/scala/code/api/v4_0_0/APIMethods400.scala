@@ -1255,7 +1255,7 @@ trait APIMethods400 extends MdcLoggable {
             failMsg = s"$InvalidJsonFormat The `Type` field can only accept the following field: " +
               s"${TransactionRequestAttributeType.DOUBLE}(12.1234), ${TransactionRequestAttributeType.STRING}(TAX_NUMBER), ${TransactionRequestAttributeType.INTEGER}(123) and ${TransactionRequestAttributeType.DATE_WITH_DAY}(2012-04-23)"
             transactionRequestAttributeType <- NewStyle.function.tryons(failMsg, 400,  callContext) {
-              TransactionRequestAttributeType.withName(postedData.`type`)
+              TransactionRequestAttributeType.withName(postedData.attribute_type)
             }
             (transactionRequestAttribute, callContext) <- NewStyle.function.createOrUpdateTransactionRequestAttribute(
               bankId,
@@ -1393,7 +1393,7 @@ trait APIMethods400 extends MdcLoggable {
             failMsg = s"$InvalidJsonFormat The `Type` field can only accept the following field: " +
               s"${TransactionRequestAttributeType.DOUBLE}(12.1234), ${TransactionRequestAttributeType.STRING}(TAX_NUMBER), ${TransactionRequestAttributeType.INTEGER}(123) and ${TransactionRequestAttributeType.DATE_WITH_DAY}(2012-04-23)"
             transactionRequestAttributeType <- NewStyle.function.tryons(failMsg, 400,  callContext) {
-              TransactionRequestAttributeType.withName(postedData.`type`)
+              TransactionRequestAttributeType.withName(postedData.attribute_type)
             }
             (_, callContext) <- NewStyle.function.getTransactionRequestAttributeById(transactionRequestAttributeId, callContext)
             (transactionRequestAttribute, callContext) <- NewStyle.function.createOrUpdateTransactionRequestAttribute(
@@ -12427,7 +12427,7 @@ object APIMethods400 extends RestHelper with APIMethods400 {
 
               for{
                 _ <- NewStyle.function.tryons(failMsg, 400, callContext) {
-                  attributes.map(attribute => TransactionRequestAttributeType.withName(attribute.`type`))
+                  attributes.map(attribute => TransactionRequestAttributeType.withName(attribute.attribute_type))
                 }
               }yield{
                 attributes

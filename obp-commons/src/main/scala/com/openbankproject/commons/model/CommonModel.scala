@@ -837,7 +837,7 @@ case class FromAccountTransfer(
 
 case class TransactionRequestAttributeJsonV400(
   name: String,
-  `type`: String,
+  attribute_type: String,
   value: String,
 ) 
 

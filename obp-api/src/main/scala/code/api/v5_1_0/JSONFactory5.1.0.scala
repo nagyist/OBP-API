@@ -557,7 +557,7 @@ case class ConsumerLogoUrlJson(
   logo_url: String
 )
 
-case class TransactionRequestWithChargeJsonV510(
+case class TransactionRequestJsonV510(
   transaction_request_id: String,
   transaction_request_type: String,
   from: TransactionRequestAccountJsonV140,
@@ -571,14 +571,14 @@ case class TransactionRequestWithChargeJsonV510(
   attributes: List[TransactionRequestAttributeJsonV400]
 )
 
-case class TransactionRequestsWithChargeJsonV510(
-  transaction_requests_with_charges : List[TransactionRequestWithChargeJsonV510]
+case class TransactionRequestsJsonV510(
+  transaction_requests : List[TransactionRequestJsonV510]
 )
 
 object JSONFactory510 extends CustomJsonFormats {
 
-  def createTransactionRequestWithChargeJson(tr : TransactionRequest, transactionRequestAttributes: List[TransactionRequestAttributeTrait] ) : TransactionRequestWithChargeJsonV510 = {
-    TransactionRequestWithChargeJsonV510(
+  def createTransactionRequestJson(tr : TransactionRequest, transactionRequestAttributes: List[TransactionRequestAttributeTrait] ) : TransactionRequestJsonV510 = {
+    TransactionRequestJsonV510(
       transaction_request_id = stringOrNull(tr.id.value),
       transaction_request_type = stringOrNull(tr.`type`),
       from = try{TransactionRequestAccountJsonV140 (
@@ -608,11 +608,11 @@ object JSONFactory510 extends CustomJsonFormats {
     )
   }
 
-  def createTransactionRequestJSONs(transactionRequests : List[TransactionRequest], transactionRequestAttributes: List[TransactionRequestAttributeTrait]) : TransactionRequestsWithChargeJsonV510 = {
-    TransactionRequestsWithChargeJsonV510(
+  def createTransactionRequestJSONs(transactionRequests : List[TransactionRequest], transactionRequestAttributes: List[TransactionRequestAttributeTrait]) : TransactionRequestsJsonV510 = {
+    TransactionRequestsJsonV510(
       transactionRequests.map(
         transactionRequest => 
-          createTransactionRequestWithChargeJson(transactionRequest, transactionRequestAttributes)
+          createTransactionRequestJson(transactionRequest, transactionRequestAttributes)
       ))
   }
   

@@ -2295,7 +2295,7 @@ object SwaggerDefinitionsJSON {
 
   val transactionRequestAttributeJsonV400 = TransactionRequestAttributeJsonV400(
     name = transactionRequestAttributeNameExample.value,
-    `type` = transactionRequestAttributeTypeExample.value,
+    attribute_type = transactionRequestAttributeTypeExample.value,
     value = transactionRequestAttributeValueExample.value
   )
   

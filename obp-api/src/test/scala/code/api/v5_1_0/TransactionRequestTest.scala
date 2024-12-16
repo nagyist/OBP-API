@@ -69,7 +69,7 @@ class TransactionRequestTest extends V510ServerSetup {
       val response510 = makeGetRequest(request510)
       Then("We should get a 200")
       response510.code should equal(200)
-      response510.body.extract[TransactionRequestsWithChargeJsonV510]
+      response510.body.extract[TransactionRequestsJsonV510]
     }
     scenario("We will try to Get Transaction Requests for someone else account - user is logged in", ApiEndpoint1, VersionOfApi) {
       When("We make a request v5.1.0")
@@ -101,11 +101,11 @@ class TransactionRequestTest extends V510ServerSetup {
         attributes = Some(List(
           TransactionRequestAttributeJsonV400( 
            name = "Invoice_Number",
-          `type` ="STRING" ,
+          attribute_type ="STRING" ,
           value = "1"),
           TransactionRequestAttributeJsonV400( 
            name = "Reference_Number",
-          `type` ="STRING" ,
+          attribute_type ="STRING" ,
           value = "2"),
         )))
       
@@ -115,7 +115,7 @@ class TransactionRequestTest extends V510ServerSetup {
       val response2 = makePostRequest(createTransReqRequest, write(transactionRequestBodyCounterparty.copy(attributes = Some(List(
         TransactionRequestAttributeJsonV400(
           name = "Invoice_Number",
-          `type` = "STRING",
+          attribute_type = "STRING",
           value = "1")
       )))))
       response2.code should equal(201)
@@ -129,9 +129,9 @@ class TransactionRequestTest extends V510ServerSetup {
         val response510 = makeGetRequest(request510)
         Then("We should get a 200")
         response510.code should equal(200)
-        response510.body.extract[TransactionRequestsWithChargeJsonV510].transaction_requests_with_charges.length > 3 shouldBe (true)
-        response510.body.extract[TransactionRequestsWithChargeJsonV510].transaction_requests_with_charges.map(_.attributes).toString().contains("Invoice_Number") shouldBe (true)
-        response510.body.extract[TransactionRequestsWithChargeJsonV510].transaction_requests_with_charges.map(_.attributes).toString().contains("Reference_Number") shouldBe (true)
+        response510.body.extract[TransactionRequestsJsonV510].transaction_requests.length > 3 shouldBe (true)
+        response510.body.extract[TransactionRequestsJsonV510].transaction_requests.map(_.attributes).toString().contains("Invoice_Number") shouldBe (true)
+        response510.body.extract[TransactionRequestsJsonV510].transaction_requests.map(_.attributes).toString().contains("Reference_Number") shouldBe (true)
       }
       
       {
@@ -140,9 +140,9 @@ class TransactionRequestTest extends V510ServerSetup {
         val response510 = makeGetRequest(request510)
         Then("We should get a 200")
         response510.code should equal(200)
-        response510.body.extract[TransactionRequestsWithChargeJsonV510].transaction_requests_with_charges.length == 1 shouldBe (true)
-        response510.body.extract[TransactionRequestsWithChargeJsonV510].transaction_requests_with_charges.map(_.attributes).toString().contains("Invoice_Number") shouldBe (false)
-        response510.body.extract[TransactionRequestsWithChargeJsonV510].transaction_requests_with_charges.map(_.attributes).toString().contains("Reference_Number") shouldBe (true)
+        response510.body.extract[TransactionRequestsJsonV510].transaction_requests.length == 1 shouldBe (true)
+        response510.body.extract[TransactionRequestsJsonV510].transaction_requests.map(_.attributes).toString().contains("Invoice_Number") shouldBe (false)
+        response510.body.extract[TransactionRequestsJsonV510].transaction_requests.map(_.attributes).toString().contains("Reference_Number") shouldBe (true)
       }
       
       {
@@ -151,7 +151,7 @@ class TransactionRequestTest extends V510ServerSetup {
         val response510 = makeGetRequest(request510)
         Then("We should get a 200")
         response510.code should equal(200)
-        response510.body.extract[TransactionRequestsWithChargeJsonV510].transaction_requests_with_charges.length == 0 shouldBe (true)
+        response510.body.extract[TransactionRequestsJsonV510].transaction_requests.length == 0 shouldBe (true)
       }
       
       {
@@ -160,7 +160,7 @@ class TransactionRequestTest extends V510ServerSetup {
         val response510 = makeGetRequest(request510)
         Then("We should get a 200")
         response510.code should equal(200)
-        response510.body.extract[TransactionRequestsWithChargeJsonV510].transaction_requests_with_charges.length == 0 shouldBe (true)
+        response510.body.extract[TransactionRequestsJsonV510].transaction_requests.length == 0 shouldBe (true)
       }
       
     }

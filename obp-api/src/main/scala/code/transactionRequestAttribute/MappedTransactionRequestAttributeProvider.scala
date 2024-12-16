@@ -146,7 +146,7 @@ object MappedTransactionRequestAttributeProvider extends TransactionRequestAttri
           TransactionRequestAttribute.create.TransactionRequestId(transactionRequestId.value)
             .BankId(bankId.value)
             .Name(transactionRequestAttribute.name)
-            .Type(transactionRequestAttribute.`type`)
+            .Type(transactionRequestAttribute.attribute_type)
             .`Value`(transactionRequestAttribute.value)
             .IsPersonal(isPersonal)
             .saveMe()

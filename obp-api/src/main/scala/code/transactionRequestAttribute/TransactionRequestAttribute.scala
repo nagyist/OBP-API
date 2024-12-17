@@ -22,6 +22,8 @@ class TransactionRequestAttribute extends TransactionRequestAttributeTrait with 
   override def attributeType: TransactionRequestAttributeType.Value = TransactionRequestAttributeType.withName(Type.get)
 
   override def value: String = `Value`.get
+  
+  override def isPersonal: Boolean = IsPersonal.get
 
   object BankId extends UUIDString(this) // combination of this
 
@@ -34,6 +36,8 @@ class TransactionRequestAttribute extends TransactionRequestAttributeTrait with 
   object Type extends MappedString(this, 50)
 
   object `Value` extends MappedString(this, 255)
+  
+  object IsPersonal extends MappedBoolean(this)
 
 }
 

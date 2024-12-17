@@ -152,7 +152,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
       var transactionRequestBodySEPA = TransactionRequestBodySEPAJSON(bodyValue, IbanJson(counterpartySEPA.otherAccountSecondaryRoutingAddress), description, sharedChargePolicy)
 
       var transactionRequestBodyAgentCashWithdrawal = TransactionRequestBodyAgentJsonV400(AgentCashWithdrawalJson(agentCashWithdrawalAgent.bank_id,agentCashWithdrawalAgent.agent_number), bodyValue, description, sharedChargePolicy)
-      var transactionRequestBodyCounterparty = TransactionRequestBodyCounterpartyJSON(CounterpartyIdJson(counterpartyCounterparty.counterpartyId), bodyValue, description, sharedChargePolicy)
+      var transactionRequestBodyCounterparty = TransactionRequestBodyCounterpartyJSON(CounterpartyIdJson(counterpartyCounterparty.counterpartyId), bodyValue, description,sharedChargePolicy)
       var transactionRequestBodySimple = TransactionRequestBodySimpleJsonV400(SwaggerDefinitionsJSON.postSimpleCounterpartyJson400.copy(
         other_account_routing_address = counterpartyCounterparty.otherAccountRoutingAddress,
         other_bank_routing_address= counterpartyCounterparty.otherBankRoutingAddress,

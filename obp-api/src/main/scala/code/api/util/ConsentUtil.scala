@@ -786,7 +786,7 @@ object Consent extends MdcLoggable {
       if(views.isEmpty) {
         Empty
       } else {
-        val updatedPayload = payloadToUpdate.map(i => i.copy(views = views))
+        val updatedPayload = payloadToUpdate.map(i => i.copy(views = views)) // Update only the field "views"
         val jwtPayloadAsJson = compactRender(Extraction.decompose(updatedPayload))
         val jwtClaims: JWTClaimsSet = JWTClaimsSet.parse(jwtPayloadAsJson)
         Full(CertificateUtil.jwtWithHmacProtection(jwtClaims, consent.secret))

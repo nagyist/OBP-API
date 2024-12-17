@@ -1350,15 +1350,15 @@ trait APIMethods510 {
     }
 
     staticResourceDocs += ResourceDoc(
-      updateConsentPayloadByConsentId,
+      updateConsentAccountAccessByConsentId,
       implementedInApiVersion,
-      nameOf(updateConsentPayloadByConsentId),
+      nameOf(updateConsentAccountAccessByConsentId),
       "PUT",
-      "/management/banks/BANK_ID/consents/CONSENT_ID/payload",
-      "Update Consent Payload by CONSENT_ID",
+      "/management/banks/BANK_ID/consents/CONSENT_ID/account-access",
+      "Update Consent Account Access by CONSENT_ID",
       s"""
          |
-         |This endpoint is used to update the Payload of Consent.
+         |This endpoint is used to update the Account Access of Consent.
          |
          |${authenticationRequiredMessage(true)}
          |
@@ -1389,11 +1389,11 @@ trait APIMethods510 {
         UnknownError
       ),
       apiTagConsent :: apiTagPSD2AIS :: Nil,
-      Some(List(canUpdateConsentPayloadAtOneBank, canUpdateConsentPayloadAtAnyBank))
+      Some(List(canUpdateConsentAccountAccessAtOneBank, canUpdateConsentAccountAccessAtAnyBank))
     )
 
-    lazy val updateConsentPayloadByConsentId: OBPEndpoint = {
-      case "management" :: "banks" :: BankId(bankId) :: "consents" :: consentId :: "payload" :: Nil JsonPut json -> _ =>
+    lazy val updateConsentAccountAccessByConsentId: OBPEndpoint = {
+      case "management" :: "banks" :: BankId(bankId) :: "consents" :: consentId :: "account-access" :: Nil JsonPut json -> _ =>
         cc =>
           implicit val ec = EndpointContext(Some(cc))
           for {

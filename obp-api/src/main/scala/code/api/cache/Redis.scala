@@ -9,13 +9,14 @@ import scalacache.memoization.{cacheKeyExclude, memoize, memoizeSync}
 import scalacache.{Flags, ScalaCache}
 import scalacache.redis.RedisCache
 import scalacache.serialization.Codec
-
 import redis.clients.jedis.{Jedis, JedisPool, JedisPoolConfig}
+
 import java.net.URI
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 import java.io.FileInputStream
 import java.security.KeyStore
 import com.typesafe.config.{Config, ConfigFactory}
+import net.liftweb.common.Full
 
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
@@ -26,7 +27,10 @@ object Redis extends MdcLoggable {
   val url = APIUtil.getPropsValue("cache.redis.url", "127.0.0.1")
   val port = APIUtil.getPropsAsIntValue("cache.redis.port", 6379)
   val timeout = 4000
-  val password: String = null // Replace with password if authentication is needed
+  val password: String = APIUtil.getPropsValue("cache.redis.password") match {
+    case Full(password) if password.trim.nonEmpty => password
+    case _ => null
+  }
   val useSsl = APIUtil.getPropsAsBoolValue("redis.use.ssl", false)
 
   final val poolConfig = new JedisPoolConfig()

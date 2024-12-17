@@ -84,8 +84,10 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           Keycloak.applyRules(value, cc)
         } else if (UnknownProvider.isIssuer(value)) {
           UnknownProvider.applyRules(value, cc)
-        } else {
+        } else if (HydraUtil.integrateWithHydra) {
           Hydra.applyRules(value, cc)
+        } else {
+          (Failure(Oauth2IsNotRecognized), Some(cc))
         }
       case false =>
         (Failure(Oauth2IsNotAllowed), Some(cc))
@@ -106,10 +108,12 @@ object OAuth2Login extends RestHelper with MdcLoggable {
           Azure.applyIdTokenRulesFuture(value, cc)
         } else if (Keycloak.isIssuer(value)) {
           Keycloak.applyRulesFuture(value, cc)
-        }  else if (UnknownProvider.isIssuer(value)) {
+        } else if (UnknownProvider.isIssuer(value)) {
+          UnknownProvider.applyRulesFuture(value, cc)
+        } else if (HydraUtil.integrateWithHydra) {
           UnknownProvider.applyRulesFuture(value, cc)
         } else {
-          Hydra.applyRulesFuture(value, cc)
+          Future(Failure(Oauth2IsNotRecognized), Some(cc))
         }
       case false =>
         Future((Failure(Oauth2IsNotAllowed), Some(cc)))

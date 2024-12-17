@@ -242,7 +242,8 @@ class CounterpartyLimitTest extends V510ServerSetup {
         value = AmountOfMoneyJsonV121("EUR","11"),
         description ="testing the limit",
         charge_policy = "SHARED",
-        future_date = None
+        future_date = None,
+        None,
       )
     
       val response = makePostRequest(createTransReqRequest, write(transactionRequestBodyCounterparty))
@@ -303,7 +304,8 @@ class CounterpartyLimitTest extends V510ServerSetup {
         value = AmountOfMoneyJsonV121("EUR","11"),
         description ="testing the limit",
         charge_policy = "SHARED",
-        future_date = None
+        future_date = None,
+        None,
       )
 
       val response1 = makePostRequest(
@@ -356,7 +358,8 @@ class CounterpartyLimitTest extends V510ServerSetup {
         value = AmountOfMoneyJsonV121("EUR","11"),
         description ="testing the limit",
         charge_policy = "SHARED",
-        future_date = None
+        future_date = None,
+        None,
       )
 
       //("we try the max_monthly_amount limit (11 euros) . now we transfer 9 euro first. then 9 euros, we will get the error")

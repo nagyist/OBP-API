@@ -381,8 +381,9 @@ case class ProductCommons(bankId: BankId,
 object ProductCommons extends Converter[Product, ProductCommons]
 
 case class TransactionRequestCommonBodyJSONCommons(
-                        value : AmountOfMoneyJsonV121,
-                        description: String) extends TransactionRequestCommonBodyJSON
+  value: AmountOfMoneyJsonV121,
+  description: String,
+) extends TransactionRequestCommonBodyJSON
 
 object TransactionRequestCommonBodyJSONCommons extends Converter[TransactionRequestCommonBodyJSON, TransactionRequestCommonBodyJSONCommons]
 
@@ -509,7 +510,7 @@ case class TransactionAttributeCommons (
 ) extends TransactionAttribute
 object TransactionAttributeCommons extends Converter[TransactionAttribute, TransactionAttributeCommons]
 
-case class BankAttributeCommons (
+case class BankAttributeTraitCommons (
     override val bankId: BankId,
     override val bankAttributeId: String,
     override val attributeType: BankAttributeType.Value,
@@ -517,7 +518,7 @@ case class BankAttributeCommons (
     override val value: String,
     override val isActive: Option[Boolean]
 ) extends BankAttributeTrait
-object BankAttributeCommons extends Converter[BankAttributeTrait, BankAttributeCommons]
+object BankAttributeTraitCommons extends Converter[BankAttributeTrait, BankAttributeTraitCommons]
 
 case class FXRateCommons (
   override val bankId : BankId,
@@ -699,7 +700,9 @@ case class TransactionRequestAttributeTraitCommons(
   transactionRequestAttributeId: String,
   attributeType: TransactionRequestAttributeType,
   name: String,
-  value: String) extends TransactionRequestAttributeTrait
+  value: String,
+  isPersonal: Boolean
+) extends TransactionRequestAttributeTrait
 
 object TransactionRequestAttributeTraitCommons extends Converter[TransactionRequestAttributeTrait, TransactionRequestAttributeTraitCommons]
 
@@ -814,7 +817,7 @@ case class TransactionRequestAccount (
                                        account_id : String
                                      )
 
-//For SEPA, it need the iban to find the toCounterpaty--> toBankAccount
+//For SEPA, it needs the iban to find the toCounterpaty--> toBankAccount
 case class TransactionRequestIban (iban : String)
 
 case class AmountOfMoneyJsonV121(
@@ -831,6 +834,12 @@ case class FromAccountTransfer(
                                 mobile_phone_number: String,
                                 nickname: String
                               )
+
+case class TransactionRequestAttributeJsonV400(
+  name: String,
+  attribute_type: String,
+  value: String,
+) 
 
 case class ToAccountTransferToAtmKycDocument(
                                               `type`: String,

@@ -5395,7 +5395,7 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
     exampleInboundMessage = (
      InBoundGetBankAttributesByBank(inboundAdapterCallContext=MessageDocsSwaggerDefinitions.inboundAdapterCallContext,
       status=MessageDocsSwaggerDefinitions.inboundStatus,
-      data=List( BankAttributeCommons(bankId=BankId(bankIdExample.value),
+      data=List( BankAttributeTraitCommons(bankId=BankId(bankIdExample.value),
       bankAttributeId="string",
       attributeType=com.openbankproject.commons.model.enums.BankAttributeType.example,
       name=nameExample.value,
@@ -5409,7 +5409,7 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
         import com.openbankproject.commons.dto.{InBoundGetBankAttributesByBank => InBound, OutBoundGetBankAttributesByBank => OutBound}  
         val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).orNull, bankId)
         val response: Future[Box[InBound]] = sendRequest[InBound]("obp_get_bank_attributes_by_bank", req, callContext)
-        response.map(convertToTuple[List[BankAttributeCommons]](callContext))        
+        response.map(convertToTuple[List[BankAttributeTraitCommons]](callContext))        
   }
           
   messageDocs += getProductAttributeByIdDoc

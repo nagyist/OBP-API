@@ -107,7 +107,7 @@ class TransactionRequestAttributesTest extends V400ServerSetup {
         responseWithRole.code should equal(201)
         responseWithRole.body.extract[TransactionRequestAttributeResponseJson].name equals ("test") should be(true)
         responseWithRole.body.extract[TransactionRequestAttributeResponseJson].value equals (postTransactionRequestAttributeJsonV400.value) should be(true)
-        responseWithRole.body.extract[TransactionRequestAttributeResponseJson].`type` equals (postTransactionRequestAttributeJsonV400.`type`) should be(true)
+        responseWithRole.body.extract[TransactionRequestAttributeResponseJson].`type` equals (postTransactionRequestAttributeJsonV400.attribute_type) should be(true)
       }
     }
   }
@@ -168,7 +168,7 @@ class TransactionRequestAttributesTest extends V400ServerSetup {
         responseWithRole.code should equal(201)
         responseWithRole.body.extract[TransactionRequestAttributeResponseJson].name equals ("test") should be(true)
         responseWithRole.body.extract[TransactionRequestAttributeResponseJson].value equals (postTransactionRequestAttributeJsonV400.value) should be(true)
-        responseWithRole.body.extract[TransactionRequestAttributeResponseJson].`type` equals (postTransactionRequestAttributeJsonV400.`type`) should be(true)
+        responseWithRole.body.extract[TransactionRequestAttributeResponseJson].`type` equals (postTransactionRequestAttributeJsonV400.attribute_type) should be(true)
       }
     }
   }
@@ -220,7 +220,7 @@ class TransactionRequestAttributesTest extends V400ServerSetup {
 
         responseWithId.body.extract[TransactionRequestAttributeResponseJson].name equals ("test") should be(true)
         responseWithId.body.extract[TransactionRequestAttributeResponseJson].value equals (putTransactionRequestAttributeJsonV400.value) should be(true)
-        responseWithId.body.extract[TransactionRequestAttributeResponseJson].`type` equals (putTransactionRequestAttributeJsonV400.`type`) should be(true)
+        responseWithId.body.extract[TransactionRequestAttributeResponseJson].`type` equals (putTransactionRequestAttributeJsonV400.attribute_type) should be(true)
       }
     }
   }
@@ -275,7 +275,7 @@ class TransactionRequestAttributesTest extends V400ServerSetup {
 
         responseWithId.body.extract[TransactionRequestAttributeResponseJson].name should equal(postTransactionRequestAttributeJsonV400.name)
         responseWithId.body.extract[TransactionRequestAttributeResponseJson].value should equal(postTransactionRequestAttributeJsonV400.value)
-        responseWithId.body.extract[TransactionRequestAttributeResponseJson].`type` should equal(postTransactionRequestAttributeJsonV400.`type`)
+        responseWithId.body.extract[TransactionRequestAttributeResponseJson].`type` should equal(postTransactionRequestAttributeJsonV400.attribute_type)
       }
     }
   }

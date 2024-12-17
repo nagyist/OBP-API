@@ -767,7 +767,7 @@ object Glossary extends MdcLoggable  {
 	glossaryItems += GlossaryItem(
 		title = "client_id (Client ID)",
 		description =
-			s"""Please take a look at a Consumer.consumer_key""".stripMargin)
+			s"""Please see Consumer.consumer_key""".stripMargin)
 
 	  glossaryItems += GlossaryItem(
 		title = "Customer",
@@ -781,7 +781,7 @@ object Glossary extends MdcLoggable  {
 		title = "Customer.customer_id",
 		description =
 		  s"""
-			|The identifier that MUST NOT leak the customer number or other identifier nomrally used by the customer or bank staff. It SHOULD be a UUID and MUST be unique in combination with BANK_ID.
+			|The identifier that MUST NOT leak the customer number or other identifier normally used by the customer or bank staff. It SHOULD be a UUID and MUST be unique in combination with BANK_ID.
 			|
 			|Example value: ${customerIdExample.value}
 		  """)
@@ -873,14 +873,14 @@ object Glossary extends MdcLoggable  {
 		title = "User.provider",
 		description =
 		  """
-			|The name of the authentication service. e.g. the OBP hostname or kafka if users are authenticated over Kafka.
+			|The host name of the authentication service. e.g. the OBP hostname or OIDC host.
 		  """)
 
 	  glossaryItems += GlossaryItem(
 		title = "User.provider_id",
 		description =
 		  """
-			|The id of the user given by the authentication provider.
+			|The id of the user given by the authentication provider. This is UNIQUE in combination with PROVIDER name.
 		  """)
 
 	  glossaryItems += GlossaryItem(
@@ -1075,7 +1075,73 @@ object Glossary extends MdcLoggable  {
 
 
 
-	  glossaryItems += GlossaryItem(
+	glossaryItems += GlossaryItem(
+		title = "Authentication",
+		description =
+			s"""
+			|Authentication generally refers to a set of processes which result in a resource server (in this case, OBP-API) knowing about the User and/or Application that is making the http request it receives.
+|
+|In most cases when we talk about authentication we are thinking about User authentication, e.g. the user J.Brown is requesting data from the API.
+|However, user authentication is pretty much always accompanied by knowledge of the Client AKA Consumer, TPP or Application.
+|In some cases, we only perform Client authentication which results in knowledge of the Application but not the human that is making the call. This is useful when we want to protect the identity of a user but still want to control access to the API.
+|
+|In most cases, OBP-API server knows about at least two entities involved in the http request / call: The Client and the User - but it will also know about (and trust) the Identity Server (Provider) that authenticated the user and other elements in the chain of trust such as load balancers and certificate authorities.
+|
+|In simple terms, there are two phases of the Authentication process:
+|
+|1) The phase where an authorisation token is obtained.
+|2) The phase where an authorisation token is used.
+|
+|Phase 1 is an exchange of credentials such as a username and password and possibly knowledge of a "second factor" for a token.
+|
+|Phase 2 is the execution of an http call which contains the token in a "header" in exchange for some response data or some resource being created, update or deleted.
+|
+|There are several methods of obtaining and using a token which vary in their ease of use and security.
+|
+|Direct Login and OAuth 1.0a are used for testing purposes / local installations and are built into OBP.
+|
+|OAuth2 / Open ID Connect (OIDC) depend on the configuration of Identity Provider solutions such as Keycloak or Hydra or external services such as Google or Yahoo.
+|
+|Open Bank Project can support multiple identity providers per OBP instance. For example, for a single OBP installation, some Users could authenticate against Google and some could authenticate against a local identity provider.
+|In the cases where multiple identity providers are configured, OBP differentiates between Users by not only their Username but also by their "Identity Provider". i.e. J.Brown logged in via Google is distinct from J.Brown who logged in via a local OBP instance.
+|
+|Phase 1 generally results in a temporary token i.e. a token that is valid for a limited amount of time e.g. 2 hours or 3 minutes.
+|
+|Phase 1 might also result in a token that represents a subset of the User's full permissions. This token is generally called a Consent. i.e. a User might give consent for an application to access one of her accounts but not all of them. A Consent is generally given to a Client and bound to that Client i.e. no other application may use it.
+|
+|Phase 2 results in OBP having identified a User record in the OBP database so that Authorisation can proceed.
+|
+""")
+
+
+	glossaryItems += GlossaryItem(
+		title = "Authorization",
+		description =
+			s"""
+|If Authentication involves the process of determining the *identity* of a user or application, Authorization involves the process of determining *what* the user or application can do.
+|
+|In OBP, Endpoints are protected by "Guards".
+|
+|There are two types of permissions which can be granted:
+|
+|1) *Entitlements to Roles* provide course grained access to resources which are related to the OBP system or a bank / space e.g. CanCreateAtm would allow the holder to create an ATM record.
+|
+|2) *Account Access records* provide fine grained permissions to customer bank accounts, their transactions and payments through Views. e.g. the A User with the Balances View on Account No 12345 would be allowed to get the balances on that account.
+|
+|Both types of permissions can be encapsulated in Consents or other authentication mechanisms.
+|
+|When OBP receives a call, after authentication is performed, OBP checks if the caller has sufficient permissions.
+|
+|If an endpoint guard blocks a call due to insufficient permissions / authorization, OBP will return an OBP- error message.
+|
+|If the caller passes the guards, the OBP-API forwards the request to the next step in the process.
+|
+|Note: All OBP- error messages can be found in the OBP-API logs and OBP source code for debugging purposes.
+""")
+
+
+
+	glossaryItems += GlossaryItem(
 		title = "Direct Login",
 		description =
 		  s"""
@@ -1613,7 +1679,7 @@ object Glossary extends MdcLoggable  {
 |
 |### 3) Authentication and Authorisation
 |
-|Depending on the configuration of this OBP instance, the Consumer will need Scopes and / or the User will need Entitlements.
+|Depending on the configuration of this OBP instance, and the endpoints being called, the Consumer / Client may need Scopes and / or the User may need Entitlements and Account Access.
 |To get started, we suggest requesting Entitlements via the API Explorer.
 |
 |### 4) Endpoints
@@ -2157,7 +2223,7 @@ object Glossary extends MdcLoggable  {
         |
         |${APIUtil.getHydraPublicServerUrl}/oauth2/auth?client_id=YOUR-CLIENT-ID&response_type=code&state=GENERATED_BY_YOUR_APP&scope=openid+offline+ReadAccountsBasic+ReadAccountsDetail+ReadBalances+ReadTransactionsBasic+ReadTransactionsDebits+ReadTransactionsDetail&redirect_uri=https%3A%2F%2FYOUR-APP.com%2Fmain.html
         |
-        |### Step 3: Exchange the authorisation code for an access token
+        |### Step 3: Exchange the code for an access token
         |
         |The token endpoint is:
         |
@@ -2168,7 +2234,7 @@ object Glossary extends MdcLoggable  {
         |
         |In this sandbox, this will cause the following flow:
         |
-        |1) The User is authorised using OAuth2 / OpenID Connect against the banks authentication system
+        |1) The User is authenticated using OAuth2 / OpenID Connect against the banks authentication system
         |2) The User grants consent to the App on the bank's Consent page.
         |3) The User grants access to one or more accounts that they own on the bank's Account Selection page
         |4) The User is redirected back to the App where they can now see the Accounts they have selected.

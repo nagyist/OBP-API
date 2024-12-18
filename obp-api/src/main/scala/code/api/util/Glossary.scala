@@ -604,7 +604,7 @@ object Glossary extends MdcLoggable  {
 |
 |* APIs are enabled in Props. See the README.md
 |
-|* Consumers (Apps) are granted access to Roles and Views via Scopes (WIP)
+|* Consumers (AKA Clients or Apps) are granted access to Roles and Views via Scopes
 |
 |See [here](/index#group-Scope) for related endpoints and documentation.
 |
@@ -893,15 +893,70 @@ object Glossary extends MdcLoggable  {
 	  glossaryItems += GlossaryItem(
 		title = "Consent",
 		description =
-			s"""Consents provide a mechanism by which a third party App or User can access resources on behalf of a User.
-				|${getGlossaryItem("Consent OBP Flow Example")}
-				|${getGlossaryItem("Consent / Account Onboarding")}
+			s"""Consents provide a mechanism through which a resource owner (e.g. a customer) can grant a third party certain access to their resources.
+|
+|The following are important considerations in Consent flows:
+|
+|1) The privacy of the resource owner (the Customer or User) should be preserved.
+|
+|This means that when a TPP first asks a User if they would like to provide their data, the user should not be authenticated.
+|Thus the start of the Consent process authenticates the Client (TPP) but not the User.
+|
+|Authentication of the user comes later.
+|
+|${getApiExplorerLink("This endpoint initiates a consent in OBP", "OBPv5.0.0-createConsentRequest")}
+|
+|2) Consent finalisation often involves SCA.
+|
+|Since a consent gives its holder privileges on the API, we need to make sure it is not created lightly, therefore some second factor of authentication is employed.
+|
+|${getApiExplorerLink("This endpoint finalises an OBP consent", "OBPv5.0.0-createConsentByConsentRequestIdSms")}
+|
+|3) A User should be able to list and revoke their consents.
+|
+|
+|
+|${getApiExplorerLink("This endpoint lists consents for the authenticated user.", "OBPv5.1.0-getMyConsents")}
+|
+|${getApiExplorerLink("This endpoint revokes a consent for the current user.", "OBPv3.1.0-revokeConsent")}
+|
+|This gives the user visibility over the consents they have granted to various apps for various purposes and confidence they can stop the TPP acting for a certain purpose.
+|
+|4) The consent manager should be able to list and revoke consents.
+|
+|${getApiExplorerLink("This is a management endpoint lists consents with various query parameters", "OBPv5.1.0-getConsentsAtBank")}
+|
+|${getApiExplorerLink("This is a management endpoint to revoke a consent", "OBPv5.1.0-revokeConsentAtBank")}
+|
+|The consent manager may want to list the consents by each Client or User and the ability to revoke individual consents (rather than disabling a client completely).
+|
+|This requires that the resource server stores the CONSENT_ID and other information so that it can be disabled or queried.
+|
+|However, the consent manager should not be able to see the CONSENT_ID since this would make it easier to actually use it.
+|
+|5) A consent is bound to the application has created it.
+|
+|The User gave consent to a certain application not any application.
+|
+|6) The consent will have a limited life time.
+|
+|The consent can become valid in the future and need not last forever.
+|
+|7) The consent will be signed using JWT.
+|
+|This increases the security of the claims contained in the consent.
+|
+|
+|
+				|See ${getGlossaryItemLink("Consent_OBP_Flow_Example")} for an example flow.
+				|See ${getGlossaryItemLink("Consent_Account_Onboarding")} for more information about onboarding.
+|
 				|<img width="468" alt="OBP Access Control Image" src="$getServerUrl/media/images/glossary/OBP_Consent_Request__3_.png"></img>
 				|""".stripMargin)
 
 
 	glossaryItems += GlossaryItem(
-		title = "Consent OBP Flow Example",
+		title = "Consent_OBP_Flow_Example",
 		description =
 				s"""
 					|#### 1) Call endpoint Create Consent Request using application access (Client Credentials)
@@ -1032,7 +1087,7 @@ object Glossary extends MdcLoggable  {
 
 
 	glossaryItems += GlossaryItem(
-		title = "Consent / Account Onboarding",
+		title = "Consent_Account_Onboarding",
 		description =
 				"""|*Consent*, or *Account onboarding*, is the process by which the account owner gives permission for their account(s) to be accessible to the API endpoints.
 |

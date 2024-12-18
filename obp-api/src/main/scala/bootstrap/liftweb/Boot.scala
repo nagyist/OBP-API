@@ -116,6 +116,7 @@ import code.standingorders.StandingOrder
 import code.taxresidence.MappedTaxResidence
 import code.token.OpenIDConnectToken
 import code.transaction.MappedTransaction
+import code.transaction.internalMapping.TransactionIdMapping
 import code.transactionChallenge.MappedExpectedChallengeAnswer
 import code.transactionRequestAttribute.TransactionRequestAttribute
 import code.transactionStatusScheduler.TransactionRequestStatusScheduler
@@ -1067,7 +1068,8 @@ object ToSchemify {
     RateLimiting,
     MappedCustomerDependant,
     AttributeDefinition,
-    CustomerAccountLink
+    CustomerAccountLink,
+    TransactionIdMapping
   )
 
   // start grpc server

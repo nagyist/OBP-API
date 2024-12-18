@@ -8,13 +8,14 @@ import code.api.{APIFailureNewStyle, Constant}
 import code.api.util.APIUtil.fullBoxOrException
 import code.customer.internalMapping.MappedCustomerIdMappingProvider
 import code.model.dataAccess.internalMapping.MappedAccountIdMappingProvider
+import code.transaction.internalMapping.MappedTransactionIdMappingProvider
 import net.liftweb.common._
 import net.liftweb.json.Extraction._
 import net.liftweb.json.JsonAST._
 import net.liftweb.json.{DateFormat, Formats}
 import org.apache.commons.lang3.StringUtils
 import com.openbankproject.commons.ExecutionContext.Implicits.global
-import com.openbankproject.commons.model.{AccountBalance, AccountBalances, AccountHeld, AccountId, CoreAccount, Customer, CustomerId}
+import com.openbankproject.commons.model.{AccountBalance, AccountBalances, AccountHeld, AccountId, CoreAccount, Customer, CustomerId, Transaction, TransactionCore, TransactionId}
 import com.openbankproject.commons.util.{ReflectUtils, RequiredFieldValidation, RequiredInfo}
 import com.tesobe.CacheKeyFromArguments
 import net.liftweb.http.S
@@ -398,7 +399,12 @@ object Helper extends Loggable {
    * @tparam T type of instance
    * @return modified instance
    */
-  private def convertId[T](obj: T, customerIdConverter: String=> String, accountIdConverter: String=> String): T = {
+  private def convertId[T](
+    obj: T, 
+    customerIdConverter: String=> String, 
+    accountIdConverter: String=> String,
+    transactionIdConverter: String=> String
+  ): T = {
     //1st: We must not convert when connector == mapped. this will ignore the implicitly_convert_ids props.
     //2rd: if connector != mapped, we still need the `implicitly_convert_ids == true`
 
@@ -416,11 +422,19 @@ object Helper extends Loggable {
         (ownerType <:< typeOf[AccountBalances] && fieldName.equalsIgnoreCase("id") && fieldType =:= typeOf[String])||
         (ownerType <:< typeOf[AccountHeld] && fieldName.equalsIgnoreCase("id") && fieldType =:= typeOf[String])
     }
+    
+    def isTransactionId(fieldName: String, fieldType: Type, fieldValue: Any, ownerType: Type) = {
+      ownerType <:< typeOf[TransactionId] ||
+        (fieldName.equalsIgnoreCase("transactionId") && fieldType =:= typeOf[String])||
+        (ownerType <:< typeOf[TransactionCore] && fieldName.equalsIgnoreCase("id") && fieldType =:= typeOf[String])||
+        (ownerType <:< typeOf[Transaction] && fieldName.equalsIgnoreCase("id") && fieldType =:= typeOf[String])
+    }
 
     if(APIUtil.getPropsValue("connector","mapped") != "mapped" && APIUtil.getPropsAsBoolValue("implicitly_convert_ids",false)){
       ReflectUtils.resetNestedFields(obj){
         case (fieldName, fieldType, fieldValue: String, ownerType) if isCustomerId(fieldName, fieldType, fieldValue, ownerType) => customerIdConverter(fieldValue)
         case (fieldName, fieldType, fieldValue: String, ownerType) if isAccountId(fieldName, fieldType, fieldValue, ownerType) => accountIdConverter(fieldValue)
+        case (fieldName, fieldType, fieldValue: String, ownerType) if isTransactionId(fieldName, fieldType, fieldValue, ownerType) => transactionIdConverter(fieldValue)
       }
       obj
     } else
@@ -441,7 +455,10 @@ object Helper extends Loggable {
     def accountIdConverter(accountId: String): String = MappedAccountIdMappingProvider
       .getAccountPlainTextReference(AccountId(accountId))
       .openOrThrowException(s"$InvalidAccountIdFormat the invalid accountId is $accountId")
-    convertId[T](obj, customerIdConverter, accountIdConverter)
+    def transactionIdConverter(transactionId: String): String = MappedTransactionIdMappingProvider
+      .getTransactionPlainTextReference(TransactionId(transactionId))
+      .openOrThrowException(s"$InvalidAccountIdFormat the invalid transactionId is $transactionId")
+    convertId[T](obj, customerIdConverter, accountIdConverter, transactionIdConverter)
   }
 
   /**
@@ -459,10 +476,13 @@ object Helper extends Loggable {
     def accountIdConverter(accountReference: String): String = MappedAccountIdMappingProvider
       .getOrCreateAccountId(accountReference)
       .map(_.value).openOrThrowException(s"$InvalidAccountIdFormat the invalid accountReference is $accountReference")
+    def transactionIdConverter(transactionReference: String): String = MappedTransactionIdMappingProvider
+      .getOrCreateTransactionId(transactionReference)
+      .map(_.value).openOrThrowException(s"$InvalidAccountIdFormat the invalid transactionReference is $transactionReference")
     if(obj.isInstanceOf[EmptyBox]) {
       obj
     } else {
-      convertId[T](obj, customerIdConverter, accountIdConverter)
+      convertId[T](obj, customerIdConverter, accountIdConverter, transactionIdConverter)
     }
   }
 

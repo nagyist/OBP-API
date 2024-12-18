@@ -2293,12 +2293,19 @@ object SwaggerDefinitionsJSON {
     transaction_request_types = List(transactionRequestTypeJSONV210)
   )
 
+  val transactionRequestAttributeJsonV400 = TransactionRequestAttributeJsonV400(
+    name = transactionRequestAttributeNameExample.value,
+    attribute_type = transactionRequestAttributeTypeExample.value,
+    value = transactionRequestAttributeValueExample.value
+  )
+  
   val transactionRequestBodyCounterpartyJSON = TransactionRequestBodyCounterpartyJSON(
     counterpartyIdJson,
     amountOfMoneyJsonV121,
-    "A description for the transaction to the counterparty",
+    description = "A description for the transaction to the counterparty",
     chargePolicyExample.value,
-    Some(futureDateExample.value)
+    Some(futureDateExample.value),
+    Some(List(transactionRequestAttributeJsonV400))
   )
 
   val transactionRequestBodySEPAJSON = TransactionRequestBodySEPAJSON(
@@ -4752,12 +4759,6 @@ object SwaggerDefinitionsJSON {
     `type` = transactionRequestAttributeTypeExample.value,
     value = transactionRequestAttributeValueExample.value
   )
-  
-  val transactionRequestAttributeJsonV400 = TransactionRequestAttributeJsonV400(
-    name = transactionRequestAttributeNameExample.value,
-    `type` = transactionRequestAttributeTypeExample.value,
-    value = transactionRequestAttributeValueExample.value
-  )
 
   val transactionRequestAttributesResponseJson = TransactionRequestAttributesResponseJson(
     transaction_request_attributes = List(transactionRequestAttributeResponseJson)
@@ -4863,7 +4864,8 @@ object SwaggerDefinitionsJSON {
     start_date = DateWithDayExampleObject,
     end_date = DateWithDayExampleObject,
     challenges = List(challengeJsonV400),
-    charge = transactionRequestChargeJsonV200
+    charge = transactionRequestChargeJsonV200,
+    attributes=Some(List(bankAttributeBankResponseJsonV400)),
   )
 
   val postSimpleCounterpartyJson400 = PostSimpleCounterpartyJson400(

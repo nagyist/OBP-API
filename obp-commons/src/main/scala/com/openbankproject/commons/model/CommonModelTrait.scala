@@ -595,6 +595,7 @@ trait TransactionRequestAttributeTrait {
   def attributeType: TransactionRequestAttributeType.Value
   def name: String
   def value: String
+  def isPersonal: Boolean
 }
 
 trait DirectDebitTrait {

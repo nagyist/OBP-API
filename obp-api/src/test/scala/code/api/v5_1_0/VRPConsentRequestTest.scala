@@ -224,7 +224,8 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
         value = AmountOfMoneyJsonV121("EUR","1"),
         description ="testing the limit",
         charge_policy = "SHARED",
-        future_date =None
+        future_date = None,
+        None,
       )
       val response = makePostRequest(createTransReqRequest, write(transactionRequestBodyCounterparty), (s"Consent-JWT", consentJwt))
       response.code shouldBe(201)
@@ -334,7 +335,8 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
         value = AmountOfMoneyJsonV121("EUR","11"),
         description ="testing the limit",
         charge_policy = "SHARED",
-        future_date =None
+        future_date = None,
+        None,
       )
       setPropsValues("consumer_validation_method_for_consent"->"NONE")
       val response = makePostRequest(createTransReqRequest, write(transactionRequestBodyCounterparty), (s"Consent-JWT", consentJwt))
@@ -428,7 +430,8 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
         value = AmountOfMoneyJsonV121("EUR","11"),
         description ="testing the limit",
         charge_policy = "SHARED",
-        future_date =None
+        future_date = None,
+        None,
       )
       setPropsValues("consumer_validation_method_for_consent"->"NONE")
       val response1 = makePostRequest(
@@ -515,7 +518,8 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
         value = AmountOfMoneyJsonV121("EUR","11"),
         description ="testing the limit",
         charge_policy = "SHARED",
-        future_date =None
+        future_date = None,
+        None
       )
       setPropsValues("consumer_validation_method_for_consent"->"NONE")
       //("we try the max_monthly_amount limit (11 euros) . now we transfer 9 euro first. then 9 euros, we will get the error")

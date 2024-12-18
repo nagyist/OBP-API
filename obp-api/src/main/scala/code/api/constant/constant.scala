@@ -143,6 +143,7 @@ object RequestHeader {
   final lazy val `Consent-JWT` = "Consent-JWT"
   final lazy val `PSD2-CERT` = "PSD2-CERT"
   final lazy val `If-None-Match` = "If-None-Match"
+  final lazy val `TPP-Redirect-URL` = "TPP-Redirect-URL"
   /**
    * The If-Modified-Since request HTTP header makes the request conditional: 
    * the server sends back the requested resource, with a 200 status, 

@@ -2,7 +2,6 @@ package code.api.util
 
 import java.text.SimpleDateFormat
 import java.util.{Date, UUID}
-
 import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{ConsentAccessJson, PostConsentJson}
 import code.api.util.ApiRole.{canCreateEntitlementAtAnyBank, canCreateEntitlementAtOneBank}
 import code.api.v3_1_0.{PostConsentBodyCommonJson, PostConsentEntitlementJsonV310, PostConsentViewJsonV310}
@@ -40,6 +39,7 @@ case class ConsentJWT(createdByUserId: String,
                       iat: Long, // The "iat" (issued at) claim identifies the time at which the JWT was issued. Represented in Unix time (integer seconds).
                       nbf: Long, // The "nbf" (not before) claim identifies the time before which the JWT MUST NOT be accepted for processing. Represented in Unix time (integer seconds).
                       exp: Long, // The "exp" (expiration time) claim identifies the expiration time on or after which the JWT MUST NOT be accepted for processing. Represented in Unix time (integer seconds).
+                      request_headers: List[HTTPParam],
                       name: Option[String],
                       email: Option[String],
                       entitlements: List[Role],
@@ -55,8 +55,9 @@ case class ConsentJWT(createdByUserId: String,
       issuedAt=this.iat, 
       validFrom=this.nbf, 
       validTo=this.exp,
-      name=this.name, 
-      email=this.email, 
+      request_headers=this.request_headers,
+      name=this.name,
+      email=this.email,
       entitlements=this.entitlements,
       views=this.views,
       access = this.access
@@ -80,6 +81,7 @@ case class Consent(createdByUserId: String,
                    issuedAt: Long,
                    validFrom: Long,
                    validTo: Long,
+                   request_headers: List[HTTPParam],
                    name: Option[String],
                    email: Option[String],
                    entitlements: List[Role],
@@ -96,6 +98,7 @@ case class Consent(createdByUserId: String,
       iat=this.issuedAt,
       nbf=this.validFrom,
       exp=this.validTo,
+      request_headers=this.request_headers,
       name=this.name,
       email=this.email,
       entitlements=this.entitlements,
@@ -650,6 +653,7 @@ object Consent extends MdcLoggable {
       iat=currentTimeInSeconds,
       nbf=timeInSeconds,
       exp=timeInSeconds + timeToLive,
+      request_headers = Nil,
       name=None,
       email=None,
       entitlements=entitlementsToAdd.toList,
@@ -714,7 +718,7 @@ object Consent extends MdcLoggable {
         )
       }
     }
-
+    val tppRedirectUrl: Option[HTTPParam] = callContext.map(_.requestHeaders).getOrElse(Nil).find(_.name == RequestHeader.`TPP-Redirect-URL`)
     Future.sequence(accounts ::: balances ::: transactions) map { views =>
       val json = ConsentJWT(
         createdByUserId = user.map(_.userId).getOrElse(""),
@@ -725,19 +729,67 @@ object Consent extends MdcLoggable {
         iat = currentTimeInSeconds,
         nbf = currentTimeInSeconds,
         exp = validUntilTimeInSeconds,
+        request_headers = tppRedirectUrl.toList,
         name = None,
         email = None,
         entitlements = Nil,
         views = views,
         access = Some(consent.access)
       )
+      implicit val formats = CustomJsonFormats.formats
+      val jwtPayloadAsJson = compactRender(Extraction.decompose(json))
+      val jwtClaims: JWTClaimsSet = JWTClaimsSet.parse(jwtPayloadAsJson)
+      Full(CertificateUtil.jwtWithHmacProtection(jwtClaims, secret))
+    }
+  }
+  def updateBerlinGroupConsentJWT(access: ConsentAccessJson,
+                                  consent: MappedConsent,
+                                  callContext: Option[CallContext]): Future[Box[String]] = {
+    implicit val dateFormats = CustomJsonFormats.formats
+    val payloadToUpdate: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken) // Payload as JSON string
+      .map(net.liftweb.json.parse(_).extract[ConsentJWT]) // Extract case class
+
+
+    // 1. Add access
+    val accounts: List[Future[ConsentView]] = access.accounts.getOrElse(Nil) map { account =>
+      Connector.connector.vend.getBankAccountByIban(account.iban.getOrElse(""), callContext) map { bankAccount =>
+        logger.debug(s"createBerlinGroupConsentJWT.accounts.bankAccount: $bankAccount")
+        ConsentView(
+          bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
+          account_id = bankAccount._1.map(_.accountId.value).getOrElse(""),
+          view_id = Constant.SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID
+        )
+      }
+    }
+    val balances: List[Future[ConsentView]] = access.balances.getOrElse(Nil) map { account =>
+      Connector.connector.vend.getBankAccountByIban(account.iban.getOrElse(""), callContext) map { bankAccount =>
+        logger.debug(s"createBerlinGroupConsentJWT.balances.bankAccount: $bankAccount")
+        ConsentView(
+          bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
+          account_id = bankAccount._1.map(_.accountId.value).getOrElse(""),
+          view_id = Constant.SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID
+        )
+      }
+    }
+    val transactions: List[Future[ConsentView]] = access.transactions.getOrElse(Nil) map { account =>
+      Connector.connector.vend.getBankAccountByIban(account.iban.getOrElse(""), callContext) map { bankAccount =>
+        logger.debug(s"createBerlinGroupConsentJWT.transactions.bankAccount: $bankAccount")
+        ConsentView(
+          bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
+          account_id = bankAccount._1.map(_.accountId.value).getOrElse(""),
+          view_id = Constant.SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID
+        )
+      }
+    }
+
+    Future.sequence(accounts ::: balances ::: transactions) map { views =>
       if(views.isEmpty) {
         Empty
       } else {
-        implicit val formats = CustomJsonFormats.formats
-        val jwtPayloadAsJson = compactRender(Extraction.decompose(json))
+        val updatedPayload = payloadToUpdate.map(i => i.copy(views = views)) // Update only the field "views"
+        val jwtPayloadAsJson = compactRender(Extraction.decompose(updatedPayload))
         val jwtClaims: JWTClaimsSet = JWTClaimsSet.parse(jwtPayloadAsJson)
-        Full(CertificateUtil.jwtWithHmacProtection(jwtClaims, secret))
+        Full(CertificateUtil.jwtWithHmacProtection(jwtClaims, consent.secret))
       }
     }
   }
@@ -798,6 +850,7 @@ object Consent extends MdcLoggable {
       iat = currentTimeInSeconds,
       nbf = currentTimeInSeconds,
       exp = validUntilTimeInSeconds,
+      request_headers = Nil,
       name = None,
       email = None,
       entitlements = Nil,
@@ -875,9 +928,12 @@ object Consent extends MdcLoggable {
         val jsonWebTokenAsCaseClass: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken)
           .map(parse(_).extract[ConsentJWT])
         jsonWebTokenAsCaseClass match {
-          case Full(consentJWT) if consentJWT.entitlements.exists(_.bank_id.isEmpty()) => true// System roles
-          case Full(consentJWT) if consentJWT.entitlements.map(_.bank_id).contains(bankId.value) => true // Bank level roles
+          // Views
+          case Full(consentJWT) if consentJWT.views.isEmpty => true // There is no IAM
           case Full(consentJWT) if consentJWT.views.map(_.bank_id).contains(bankId.value) => true
+          // Roles
+          case Full(consentJWT) if consentJWT.entitlements.exists(_.bank_id.isEmpty()) => true // System roles
+          case Full(consentJWT) if consentJWT.entitlements.map(_.bank_id).contains(bankId.value) => true // Bank level roles
           case _ => false
         }
       }

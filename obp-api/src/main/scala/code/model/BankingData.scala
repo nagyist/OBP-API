@@ -454,8 +454,8 @@ object BankAccountX {
     */
   def getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean) : Box[BankAccount] = {
     if (
-      (counterparty.otherBankRoutingScheme =="OBP" || counterparty.otherBankRoutingScheme =="OBP_BANK_ID" )
-      && (counterparty.otherAccountRoutingScheme =="OBP" || counterparty.otherAccountRoutingScheme =="OBP_ACCOUNT_ID")
+      (counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP_BANK_ID" )
+      && (counterparty.otherAccountRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherAccountRoutingScheme.equalsIgnoreCase("OBP_ACCOUNT_ID")))
     )
       for{
         toBankId <- Full(BankId(counterparty.otherBankRoutingAddress))
@@ -465,9 +465,8 @@ object BankAccountX {
         toAccount
       }
     else if (
-      (counterparty.otherBankRoutingScheme =="OBP" || counterparty.otherBankRoutingScheme =="OBP_BANK_ID" ) 
-        && (counterparty.otherAccountSecondaryRoutingScheme == "OBP" || counterparty.otherAccountSecondaryRoutingScheme == "OBP_ACCOUNT_ID")
-    )
+      (counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP_BANK_ID" ) 
+        && (counterparty.otherAccountSecondaryRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherAccountSecondaryRoutingScheme.equalsIgnoreCase("OBP_ACCOUNT_ID"))))
       for{
         toBankId <- Full(BankId(counterparty.otherBankRoutingAddress))
         toAccountId <- Full(AccountId(counterparty.otherAccountSecondaryRoutingAddress))

@@ -30,10 +30,16 @@ object RabbitMQUtils extends MdcLoggable{
   val password = APIUtil.getPropsValue("rabbitmq_connector.password").openOrThrowException("mandatory property rabbitmq_connector.password is missing!")
   val virtualHost = APIUtil.getPropsValue("rabbitmq_connector.virtual_host").openOrThrowException("mandatory property rabbitmq_connector.virtual_host is missing!")
   
-  val keystorePath = APIUtil.getPropsValue("keystore.path").getOrElse("")
-  val keystorePassword = APIUtil.getPropsValue("keystore.password").getOrElse(APIUtil.initPasswd)
-  val truststorePath = APIUtil.getPropsValue("truststore.path").getOrElse("")
-  val truststorePassword = APIUtil.getPropsValue("keystore.password").getOrElse(APIUtil.initPasswd)
+  val (keystorePath, keystorePassword, truststorePath, truststorePassword) = if (APIUtil.getPropsAsBoolValue("rabbitmq.use.ssl", false)) {
+    (
+      APIUtil.getPropsValue("keystore.path").openOrThrowException("mandatory property keystore.path is missing!"), 
+      APIUtil.getPropsValue("keystore.password").getOrElse(APIUtil.initPasswd),
+      APIUtil.getPropsValue("truststore.path").openOrThrowException("mandatory property truststore.path is missing!"),
+      APIUtil.getPropsValue("keystore.password").getOrElse(APIUtil.initPasswd)
+    )
+  }else{
+    ("", APIUtil.initPasswd,"",APIUtil.initPasswd)
+  }
 
   val rpcQueueArgs = new util.HashMap[String, AnyRef]()
   rpcQueueArgs.put("x-message-ttl", Integer.valueOf(60000))
@@ -140,7 +146,7 @@ object RabbitMQUtils extends MdcLoggable{
     truststorePassword: String
   ): SSLContext = {
     // Load client keystore
-    val keyStore = KeyStore.getInstance("jks")
+    val keyStore = KeyStore.getInstance(KeyStore.getDefaultType)
     val keystoreFile = new FileInputStream(keystorePath)
     keyStore.load(keystoreFile, keystorePassword.toCharArray)
     keystoreFile.close()
@@ -149,7 +155,7 @@ object RabbitMQUtils extends MdcLoggable{
     kmf.init(keyStore, keystorePassword.toCharArray)
 
     // Load truststore for CA certificates
-    val trustStore = KeyStore.getInstance("jks")
+    val trustStore = KeyStore.getInstance(KeyStore.getDefaultType)
     val truststoreFile = new FileInputStream(truststorePath)
     trustStore.load(truststoreFile, truststorePassword.toCharArray)
     truststoreFile.close()

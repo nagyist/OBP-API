@@ -9,6 +9,7 @@ import org.apache.commons.pool2.BasePooledObjectFactory
 import org.apache.commons.pool2.PooledObject
 import org.apache.commons.pool2.impl.DefaultPooledObject
 import code.bankconnectors.rabbitmq.RabbitMQUtils._
+import code.api.util.ErrorMessages
 
 class RabbitMQConnectionFactory extends BasePooledObjectFactory[Connection] {
   
@@ -19,12 +20,19 @@ class RabbitMQConnectionFactory extends BasePooledObjectFactory[Connection] {
   factory.setPassword(password)
   factory.setVirtualHost(virtualHost)
   if (APIUtil.getPropsAsBoolValue("rabbitmq.use.ssl", false)){
-    factory.useSslProtocol(RabbitMQUtils.createSSLContext(
-      keystorePath,
-      keystorePassword,
-      truststorePath,
-      truststorePassword
-    ))
+    try {
+      factory.useSslProtocol(RabbitMQUtils.createSSLContext(
+        keystorePath,
+        keystorePassword,
+        truststorePath,
+        truststorePassword
+      ))
+    } catch {
+      case e: Throwable => throw new RuntimeException(s"${ErrorMessages.UnknownError}, " +
+        s"you set `rabbitmq.use.ssl = true`, but do not provide proper props for it, OBP can not set up ssl for rabbitMq. " +
+        s"Please check the rabbitmq ssl settings:`keystore.path`, `keystore.password` and `truststore.path` . Exception details: $e")
+    }
+    
   }
 
   

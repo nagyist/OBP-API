@@ -513,7 +513,7 @@ object ErrorMessages {
   val CounterpartyLimitValidationError = "OBP-30268: Counterparty Limit Validation Error."
   val AccountNumberNotUniqueError = "OBP-30269: Finding an account by the accountNumber is ambiguous."
   val InvalidAccountNumber = "OBP-30270: Account not found. Please specify a valid value for ACCOUNT_NUMBER."
-  val BankAccountNotFoundByRoutings = "OBP-30073: Bank Account not found. Please specify valid values for routing schemes and addresses."
+  val BankAccountNotFoundByRoutings = "OBP-30271: Bank Account not found. Please specify valid values for routing schemes and addresses."
 
   val TaxResidenceNotFound = "OBP-30300: Tax Residence not found by TAX_RESIDENCE_ID. "
   val CustomerAddressNotFound = "OBP-30310: Customer's Address not found by CUSTOMER_ADDRESS_ID. "

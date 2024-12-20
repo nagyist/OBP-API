@@ -517,16 +517,25 @@ object OAuth2Login extends RestHelper with MdcLoggable {
 
     private def addScopesToConsumer(token: String,  consumerPrimaryKey: Long): Unit = {
       val sourceOfTruth = APIUtil.getPropsAsBoolValue(nameOfProperty = "oauth2.keycloak.source_of_truth", defaultValue = false)
+      // Consumers allowed to use the source of truth feature
+      val consumerIds: List[String] =
+        APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloak.client_ids").toList
+        .flatMap(_.split(",").toList)
       val consumerId = getClaim(name = "azp", idToken = token).getOrElse("")
       if(sourceOfTruth) {
         logger.debug("Extracting roles from Access Token")
         import net.liftweb.json._
         val jsonString = JwtUtil.getSignedPayloadAsJson(token)
         val json = parse(jsonString.getOrElse(""))
-        val openBankRoles: List[String] = {
-          (json \ "resource_access" \ consumerId \ "roles").extract[List[String]]
-            .filter(role => tryo(ApiRole.valueOf(role)).isDefined) // Keep only the roles OBP-API can recognise
-        }
+        val openBankRoles: List[String] =
+          if(consumerIds.contains(consumerId)) {
+            // Sync Keycloak's roles
+            (json \ "resource_access" \ consumerId \ "roles").extract[List[String]]
+              .filter(role => tryo(ApiRole.valueOf(role)).isDefined) // Keep only the roles OBP-API can recognise
+          } else {
+            // Clean up roles assigned to "consumerId"
+            List()
+          }
         val scopes = Scope.scope.vend.getScopesByConsumerId(consumerPrimaryKey.toString).getOrElse(Nil)
         val databaseState = scopes.map(_.roleName)
         // Already exist at DB

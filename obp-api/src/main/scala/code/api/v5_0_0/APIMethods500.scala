@@ -947,9 +947,6 @@ trait APIMethods500 {
             (bankId, accountId, viewId, counterpartyId) <- if (isVRPConsentRequest) {
               val postConsentRequestJsonV510 = json.parse(createdConsentRequest.payload).extract[code.api.v5_1_0.PostVRPConsentRequestJsonV510]
               
-              // TODO Add routing scheme as well. In case IBAN is provided this will not work.
-              val fromBankIdAccountId = BankIdAccountId(BankId(postConsentRequestJsonV510.from_account.bank_routing.address), AccountId(postConsentRequestJsonV510.from_account.account_routing.address))
-
               val vrpViewId = s"_vrp-${UUID.randomUUID.toString}".dropRight(5)// to make sure the length of the viewId is 36.
               val targetPermissions = List(//may need getTransactionRequest . so far only these payments.
                 "can_add_transaction_request_to_beneficiary",
@@ -966,14 +963,21 @@ trait APIMethods500 {
                 hide_metadata_if_alias_used = true,
                 allowed_permissions = targetPermissions
               )
+              
+              val fromBankAccountRoutings = BankAccountRoutings(
+                bank = BankRoutingJson(postConsentRequestJsonV510.from_account.bank_routing.scheme, postConsentRequestJsonV510.from_account.bank_routing.address),
+                account = BranchRoutingJsonV141(postConsentRequestJsonV510.from_account.account_routing.scheme, postConsentRequestJsonV510.from_account.account_routing.address),
+                branch = AccountRoutingJsonV121(postConsentRequestJsonV510.from_account.branch_routing.scheme, postConsentRequestJsonV510.from_account.branch_routing.address)
+              )
 
               for {
-                //1st: create the Custom View for the fromAccount.
-                (fromAccount, callContext) <- NewStyle.function.checkBankAccountExists(fromBankIdAccountId.bankId, fromBankIdAccountId.accountId, callContext)
+                //1st: get the fromAccount by routings:
+                (fromAccount, callContext) <- NewStyle.function.getBankAccountByRoutings(fromBankAccountRoutings, callContext)
+                fromBankIdAccountId = BankIdAccountId(fromAccount.bankId, fromAccount.accountId)
+                
+                //2rd: create the Custom View for the fromAccount.
                 //we do not need sourceViewId so far, we need to get all the view access for the login user, and
-
                 permission <- NewStyle.function.permission(fromAccount.bankId, fromAccount.accountId, user, callContext)
-
                 permissionsFromSource = permission.views.map(view =>APIUtil.getViewPermissions(view.asInstanceOf[ViewDefinition]).toList).flatten.toSet
                 permissionsFromTarget = targetCreateCustomViewJson.allowed_permissions
 
@@ -989,7 +993,7 @@ trait APIMethods500 {
 
                 _ <-NewStyle.function.grantAccessToCustomView(vrpView, user, callContext)
 
-                //2rd: Create a new counterparty on that view (_VRP-9d429899-24f5-42c8-8565-943ffa6a7945)
+                //3rd: Create a new counterparty on that view (_VRP-9d429899-24f5-42c8-8565-943ffa6a7945)
                 postJson = PostCounterpartyJson400(
                   name = postConsentRequestJsonV510.to_account.counterparty_name,
                   description = postConsentRequestJsonV510.to_account.counterparty_name,
@@ -1053,7 +1057,7 @@ trait APIMethods500 {
                   max_number_of_transactions = postConsentRequestJsonV510.to_account.limit.max_number_of_transactions
                 )
                 
-                //3rd: create the counterparty limit
+                //4th: create the counterparty limit
                 (counterpartyLimitBox, callContext) <- Connector.connector.vend.getCounterpartyLimit(
                   fromBankIdAccountId.bankId.value,
                   fromBankIdAccountId.accountId.value,

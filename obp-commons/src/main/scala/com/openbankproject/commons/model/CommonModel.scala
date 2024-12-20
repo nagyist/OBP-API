@@ -765,6 +765,10 @@ object CardAttributeCommons extends Converter[CardAttribute, CardAttributeCommon
 
   //----------------obp-api moved to here case classes
 
+case class BankRoutingJson(
+  scheme: String,
+  address: String
+)
 case class BranchRoutingJsonV141(
                                   scheme: String,
                                   address: String
@@ -774,6 +778,12 @@ case class AccountRoutingJsonV121(
                                    scheme: String,
                                    address: String
                                  )
+
+case class BankAccountRoutings(
+  bank:BankRoutingJson,
+  account:BranchRoutingJsonV141,
+  branch:AccountRoutingJsonV121
+)
 
 case class AccountV310Json(
                             bank_id: String ,

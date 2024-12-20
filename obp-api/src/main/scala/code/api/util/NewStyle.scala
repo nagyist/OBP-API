@@ -403,6 +403,24 @@ object NewStyle extends MdcLoggable{
       }
     }
 
+    def getBankAccountByRoutings(
+      bankAccountRoutings: BankAccountRoutings,
+      callContext: Option[CallContext]
+    ): OBPReturnType[BankAccount] = {
+      Connector.connector.vend.getBankAccountByRoutings(
+        bankAccountRoutings: BankAccountRoutings,
+        callContext: Option[CallContext]
+      ) map { i =>
+        (
+          unboxFullOrFail(i._1, callContext,s"$BankAccountNotFoundByRoutings " +
+          s"Current bank scheme is ${bankAccountRoutings.bank.scheme}, current bank address is ${bankAccountRoutings.bank.address}," +
+          s"Current account scheme is ${bankAccountRoutings.account.scheme}, current account address is ${bankAccountRoutings.account.scheme}," +
+          s"Current branch scheme is ${bankAccountRoutings.branch.scheme}, current branch address is ${bankAccountRoutings.branch.scheme}",
+          404 
+        ), i._2)
+      }
+    }
+
     def getAccountRoutingsByScheme(bankId: Option[BankId], scheme: String, callContext: Option[CallContext]) : OBPReturnType[List[BankAccountRouting]] = {
       Connector.connector.vend.getAccountRoutingsByScheme(bankId: Option[BankId], scheme: String, callContext: Option[CallContext]) map { i =>
         (unboxFullOrFail(i._1, callContext,s"$AccountRoutingNotFound Current scheme is $scheme, current bankId is $bankId", 404 ), i._2)
@@ -445,6 +463,11 @@ object NewStyle extends MdcLoggable{
     def checkBankAccountExists(bankId : BankId, accountId : AccountId, callContext: Option[CallContext]) : OBPReturnType[BankAccount] = {
       Connector.connector.vend.checkBankAccountExists(bankId, accountId, callContext) } map { i =>
         (unboxFullOrFail(i._1, callContext, s"$BankAccountNotFound Current BankId is $bankId and Current AccountId is $accountId", 404), i._2)
+      }
+
+    def getBankAccountByNumber(bankId : Option[BankId], accountNumber : String, callContext: Option[CallContext]) : OBPReturnType[(BankAccount)] = {
+      Connector.connector.vend.getBankAccountByNumber(bankId, accountNumber, callContext) } map { i =>
+        (unboxFullOrFail(i._1, callContext, s"$BankAccountNotFound Current BankId is $bankId and Current AccountNumber is $accountNumber", 404), i._2)
       }
 
     def getBankSettlementAccounts(bankId: BankId, callContext: Option[CallContext]): OBPReturnType[List[BankAccount]] = {
@@ -1230,10 +1253,11 @@ object NewStyle extends MdcLoggable{
           i._2)
       }
     }
-    def getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean, callContext: Option[CallContext]) : Future[BankAccount] =
+    def getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean, callContext: Option[CallContext]) : OBPReturnType[BankAccount] =
     {
-      Future{BankAccountX.getBankAccountFromCounterparty(counterparty, isOutgoingAccount)} map {
-        unboxFullOrFail(_, callContext, s"$UnknownError ")
+      Connector.connector.vend.getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean, callContext: Option[CallContext]) map { i =>
+        (unboxFullOrFail(i._1, callContext, s"$InvalidConnectorResponse ${nameOf(getBankAccountFromCounterparty _)}", 400),
+          i._2)
       }
     }
     

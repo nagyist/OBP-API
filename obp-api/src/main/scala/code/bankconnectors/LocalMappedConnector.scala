@@ -1962,7 +1962,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
 
     for {
       (toAccount, callContext) <-
-        Connector.connector.vend.getBankAccountByRoutingLegacy(None, toAccountRoutingScheme, toAccountRoutingAddress, None) match {
+        Connector.connector.vend.getBankAccountByRoutingLegacy(None, toAccountRoutingScheme, toAccountRoutingAddress, callContext) match {
           case Full(bankAccount) => Future.successful(bankAccount)
           case _: EmptyBox =>
             NewStyle.function.getCounterpartyByIban(toAccountRoutingAddress, callContext).flatMap(counterparty =>

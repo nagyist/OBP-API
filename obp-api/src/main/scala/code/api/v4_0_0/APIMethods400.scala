@@ -7534,9 +7534,22 @@ trait APIMethods400 extends MdcLoggable {
               } yield {
                 (account, callContext)
               }
-            }
-            else
+            }else if (postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NO")) {
+              for {
+                bankIdOption <- Future.successful(if (postJson.other_bank_routing_address.isEmpty) None else Some(postJson.other_bank_routing_address))
+                (account, callContext) <- NewStyle.function.getBankAccountByNumber(
+                  bankIdOption.map(BankId(_)),
+                  postJson.other_bank_routing_address,
+                  callContext)
+              } yield {
+                (account, callContext)
+              }
+            }else
               Future{(Full(), Some(cc))}
+
+
+            otherAccountRoutingSchemeOBPFormat = if(postJson.other_account_routing_scheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(postJson.other_account_routing_scheme).toUpperCase
+
 
             (counterparty, callContext) <- NewStyle.function.createCounterparty(
               name=postJson.name,
@@ -7546,7 +7559,7 @@ trait APIMethods400 extends MdcLoggable {
               thisBankId=bankId.value,
               thisAccountId=accountId.value,
               thisViewId = viewId.value,
-              otherAccountRoutingScheme=StringHelpers.snakify(postJson.other_account_routing_scheme).toUpperCase,
+              otherAccountRoutingScheme=otherAccountRoutingSchemeOBPFormat,
               otherAccountRoutingAddress=postJson.other_account_routing_address,
               otherAccountSecondaryRoutingScheme=StringHelpers.snakify(postJson.other_account_secondary_routing_scheme).toUpperCase,
               otherAccountSecondaryRoutingAddress=postJson.other_account_secondary_routing_address,
@@ -7737,9 +7750,22 @@ trait APIMethods400 extends MdcLoggable {
               } yield {
                 (account, callContext)
               }
-            }
-            else
+            }else if (postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NO")) {
+              for {
+                bankIdOption <- Future.successful(if (postJson.other_bank_routing_address.isEmpty) None else Some(postJson.other_bank_routing_address))
+                (account, callContext) <- NewStyle.function.getBankAccountByNumber(
+                  bankIdOption.map(BankId(_)),
+                  postJson.other_bank_routing_address,
+                  callContext)
+              } yield {
+                (account, callContext)
+              }
+            }else
               Future{(Full(), Some(cc))}
+
+
+            otherAccountRoutingSchemeOBPFormat = if(postJson.other_account_routing_scheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(postJson.other_account_routing_scheme).toUpperCase
+
 
             (counterparty, callContext) <- NewStyle.function.createCounterparty(
               name=postJson.name,
@@ -7749,7 +7775,7 @@ trait APIMethods400 extends MdcLoggable {
               thisBankId=bankId.value,
               thisAccountId=accountId.value,
               thisViewId = Constant.SYSTEM_OWNER_VIEW_ID,
-              otherAccountRoutingScheme=StringHelpers.snakify(postJson.other_account_routing_scheme).toUpperCase,
+              otherAccountRoutingScheme=otherAccountRoutingSchemeOBPFormat,
               otherAccountRoutingAddress=postJson.other_account_routing_address,
               otherAccountSecondaryRoutingScheme=StringHelpers.snakify(postJson.other_account_secondary_routing_scheme).toUpperCase,
               otherAccountSecondaryRoutingAddress=postJson.other_account_secondary_routing_address,

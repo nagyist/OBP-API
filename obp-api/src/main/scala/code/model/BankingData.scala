@@ -475,7 +475,7 @@ object BankAccountX {
       } yield{
         (Full(account), callContext)
       }
-    else if (counterparty.otherAccountRoutingScheme.equalsIgnoreCase("ACCOUNT_NUMBER")){
+    else if (counterparty.otherAccountRoutingScheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| counterparty.otherAccountRoutingScheme.equalsIgnoreCase("ACCOUNT_NO")){
       for{
         bankIdOption <- Future.successful(if(counterparty.otherBankRoutingAddress.isEmpty) None else Some(counterparty.otherBankRoutingAddress))
         (account, callContext) <- NewStyle.function.getBankAccountByNumber(

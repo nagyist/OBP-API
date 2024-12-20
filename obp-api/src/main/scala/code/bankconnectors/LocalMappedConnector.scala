@@ -1029,7 +1029,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
         } yield {
           (account, callContext)
         }
-      } else if (bankAccountRoutings.account.scheme.equalsIgnoreCase("ACCOUNT_NUMBER")){
+      } else if (bankAccountRoutings.account.scheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| bankAccountRoutings.account.scheme.equalsIgnoreCase("ACCOUNT_NO")){
         for{
           bankIdOption <- Future.successful(if (bankAccountRoutings.bank.address.isEmpty) None else Some(bankAccountRoutings.bank.address))
           (account, callContext) <- NewStyle.function.getBankAccountByNumber(

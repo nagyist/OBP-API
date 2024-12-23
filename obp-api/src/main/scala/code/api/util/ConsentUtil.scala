@@ -940,4 +940,22 @@ object Consent extends MdcLoggable {
     consentsOfBank
   }
 
+  def filterStrictlyByBank(consents: List[MappedConsent], bankId: String): List[MappedConsent] = {
+    implicit val formats = CustomJsonFormats.formats
+    val consentsOfBank =
+      consents.filter { consent =>
+        val jsonWebTokenAsCaseClass: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken)
+          .map(parse(_).extract[ConsentJWT])
+        jsonWebTokenAsCaseClass match {
+          // There is a View related to Bank ID
+          case Full(consentJWT) if consentJWT.views.map(_.bank_id).contains(bankId) => true
+          // There is a Role related to Bank ID
+          case Full(consentJWT) if consentJWT.entitlements.map(_.bank_id).contains(bankId) => true
+          // Filter out Consent because there is no a View or a Role related to Bank ID
+          case _ => false
+        }
+      }
+    consentsOfBank
+  }
+
 }

@@ -1,7 +1,7 @@
 package code.consent
 
 import java.util.Date
-import code.api.util.{APIUtil, Consent, ErrorMessages, OBPConsentId, OBPConsumerId, OBPLimit, OBPOffset, OBPQueryParam, OBPStatus, OBPUserId, SecureRandomUtil}
+import code.api.util.{APIUtil, Consent, ErrorMessages, OBPBankId, OBPConsentId, OBPConsumerId, OBPLimit, OBPOffset, OBPQueryParam, OBPStatus, OBPUserId, SecureRandomUtil}
 import code.consent.ConsentStatus.ConsentStatus
 import code.model.Consumer
 import code.util.MappedUUID
@@ -85,7 +85,13 @@ object MappedConsentProvider extends ConsentProvider {
 
   override def getConsents(queryParams: List[OBPQueryParam]): List[MappedConsent] = {
     val optionalParams = getQueryParams(queryParams)
-    MappedConsent.findAll(optionalParams: _*)
+    val consents = MappedConsent.findAll(optionalParams: _*)
+    val bankId: Option[String] = queryParams.collectFirst { case OBPBankId(value) => value }
+    if(bankId.isDefined) {
+      Consent.filterStrictlyByBank(consents, bankId.get)
+    } else {
+      consents
+    }
   }
   override def createObpConsent(user: User, challengeAnswer: String, consentRequestId:Option[String], consumer: Option[Consumer]): Box[MappedConsent] = {
     tryo {

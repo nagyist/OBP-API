@@ -1528,6 +1528,63 @@ trait APIMethods510 {
       }
     }
 
+    staticResourceDocs += ResourceDoc(
+      getConsents,
+      implementedInApiVersion,
+      nameOf(getConsents),
+      "GET",
+      "/management/consents",
+      "Get Consents",
+      s"""
+         |
+         |This endpoint gets the Consents.
+         |
+         |${authenticationRequiredMessage(true)}
+         |
+         |1 limit (for pagination: defaults to 50)  eg:limit=200
+         |
+         |2 offset (for pagination: zero index, defaults to 0) eg: offset=10
+         |
+         |3 consumer_id  (ignore if omitted)
+         |
+         |4 consent_id  (ignore if omitted)
+         |
+         |5 user_id  (ignore if omitted)
+         |
+         |6 status  (ignore if omitted)
+         |
+         |7 bank_id  (ignore if omitted)
+         |
+         |eg:/management/consents?consumer_id=78&limit=10&offset=10
+         |
+      """.stripMargin,
+      EmptyBody,
+      consentsJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        UnknownError
+      ),
+      List(apiTagConsent, apiTagPSD2AIS, apiTagPsd2),
+      Some(List(canGetConsentsAtAnyBank)),
+    )
+
+    lazy val getConsents: OBPEndpoint = {
+      case "management" :: "consents" :: Nil JsonGet _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            httpParams <- NewStyle.function.extractHttpParamsFromUrl(cc.url)
+            (obpQueryParams, callContext) <- createQueriesByHttpParamsFuture(httpParams, cc.callContext)
+            consents <- Future {
+              Consents.consentProvider.vend.getConsents(obpQueryParams)
+            }
+          } yield {
+            (createConsentsJsonV510(consents), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
 
     staticResourceDocs += ResourceDoc(
       getConsentByConsentId,

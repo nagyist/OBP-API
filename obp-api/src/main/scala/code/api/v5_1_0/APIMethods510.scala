@@ -51,7 +51,7 @@ import com.openbankproject.commons.util.{ApiVersion, ScannedApiVersion}
 import net.liftweb.common.Full
 import net.liftweb.http.rest.RestHelper
 import net.liftweb.json
-import net.liftweb.json.{compactRender, parse, prettyRender}
+import net.liftweb.json.{Extraction, compactRender, parse, prettyRender}
 import net.liftweb.mapper.By
 import net.liftweb.util.Helpers.tryo
 import net.liftweb.util.{Helpers, StringHelpers}
@@ -3869,19 +3869,37 @@ trait APIMethods510 {
                 case _ => true
               }
             }
+            // we will first transfer AccountNumber or AccountNo to ACCOUNT_NUMBER, we will store ACCOUNT_NUMBER in the database.
+            fromAccountRoutingScheme = postConsentRequestJsonV510.from_account.account_routing.scheme
+            fromAccountRoutingSchemeOBPFormat = if(fromAccountRoutingScheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(fromAccountRoutingScheme).toUpperCase
+            fromAccountRouting = postConsentRequestJsonV510.from_account.account_routing.copy(scheme =fromAccountRoutingSchemeOBPFormat)
+            fromAccountTweaked = postConsentRequestJsonV510.from_account.copy(account_routing = fromAccountRouting)
+              
+            toAccountRoutingScheme = postConsentRequestJsonV510.to_account.account_routing.scheme
+            toAccountRoutingSchemeOBPFormat = if(toAccountRoutingScheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(toAccountRoutingScheme).toUpperCase
+            toAccountRouting = postConsentRequestJsonV510.to_account.account_routing.copy(scheme =toAccountRoutingSchemeOBPFormat)
+            toAccountTweaked = postConsentRequestJsonV510.to_account.copy(account_routing = toAccountRouting)
+
+            
+            
+            fromBankAccountRoutings = BankAccountRoutings(
+              bank = BankRoutingJson(postConsentRequestJsonV510.from_account.bank_routing.scheme, postConsentRequestJsonV510.from_account.bank_routing.address),
+              account = BranchRoutingJsonV141(fromAccountRoutingSchemeOBPFormat, postConsentRequestJsonV510.from_account.account_routing.address),
+              branch = AccountRoutingJsonV121(postConsentRequestJsonV510.from_account.branch_routing.scheme, postConsentRequestJsonV510.from_account.branch_routing.address)
+            )
 
             // we need to add the consent_type internally, the user does not need to know it.
             consentType = json.parse(s"""{"consent_type": "${ConsentType.VRP}"}""")
-            
-            (_, callContext) <- NewStyle.function.checkBankAccountExists(
-              BankId(postConsentRequestJsonV510.from_account.bank_routing.address),
-              AccountId(postConsentRequestJsonV510.from_account.account_routing.address), 
-              callContext
+
+            (_, callContext) <- NewStyle.function.getBankAccountByRoutings(fromBankAccountRoutings, callContext)
+
+            postConsentRequestJsonTweaked = postConsentRequestJsonV510.copy(
+              from_account = fromAccountTweaked, 
+              to_account = toAccountTweaked
             )
-            
             createdConsentRequest <- Future(ConsentRequests.consentRequestProvider.vend.createConsentRequest(
               callContext.flatMap(_.consumer),
-              Some(compactRender(postJson merge consentType))
+              Some(compactRender(Extraction.decompose(postConsentRequestJsonTweaked) merge consentType))
             )) map {
               i => connectorEmptyResponse(i, callContext)
             }

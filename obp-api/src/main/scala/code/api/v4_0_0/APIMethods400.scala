@@ -1106,7 +1106,7 @@ trait APIMethods400 extends MdcLoggable {
             }
 
             account = BankIdAccountId(fromAccount.bankId, fromAccount.accountId)
-//            _ <- NewStyle.function.checkAuthorisationToCreateTransactionRequest(viewId, account, u, callContext)
+            _ <- NewStyle.function.checkAuthorisationToCreateTransactionRequest(viewId, account, u, callContext)
 
             // Check transReqId is valid
             (existingTransactionRequest, callContext) <- NewStyle.function.getTransactionRequestImpl(transReqId, callContext)
@@ -1144,7 +1144,7 @@ trait APIMethods400 extends MdcLoggable {
                       val toCounterpartyIban = transactionRequest.other_account_routing_address
                       for {
                         (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByIbanAndBankAccountId(toCounterpartyIban, fromAccount.bankId, fromAccount.accountId, callContext)
-                        toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+                        (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
                       } yield (fromAccount, toAccount, callContext)
                     } else {
                       // Else, the transaction request debit a counterparty (Iban)
@@ -1153,7 +1153,7 @@ trait APIMethods400 extends MdcLoggable {
                       val toAccount = fromAccount
                       for {
                         (fromCounterparty, callContext) <- NewStyle.function.getCounterpartyByIbanAndBankAccountId(fromCounterpartyIban, toAccount.bankId, toAccount.accountId, callContext)
-                        fromAccount <- NewStyle.function.getBankAccountFromCounterparty(fromCounterparty, false, callContext)
+                        (fromAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(fromCounterparty, false, callContext)
                       } yield (fromAccount, toAccount, callContext)
                     }
                   }
@@ -7534,9 +7534,22 @@ trait APIMethods400 extends MdcLoggable {
               } yield {
                 (account, callContext)
               }
-            }
-            else
+            }else if (postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NO")) {
+              for {
+                bankIdOption <- Future.successful(if (postJson.other_bank_routing_address.isEmpty) None else Some(postJson.other_bank_routing_address))
+                (account, callContext) <- NewStyle.function.getBankAccountByNumber(
+                  bankIdOption.map(BankId(_)),
+                  postJson.other_bank_routing_address,
+                  callContext)
+              } yield {
+                (account, callContext)
+              }
+            }else
               Future{(Full(), Some(cc))}
+
+
+            otherAccountRoutingSchemeOBPFormat = if(postJson.other_account_routing_scheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(postJson.other_account_routing_scheme).toUpperCase
+
 
             (counterparty, callContext) <- NewStyle.function.createCounterparty(
               name=postJson.name,
@@ -7546,13 +7559,13 @@ trait APIMethods400 extends MdcLoggable {
               thisBankId=bankId.value,
               thisAccountId=accountId.value,
               thisViewId = viewId.value,
-              otherAccountRoutingScheme=postJson.other_account_routing_scheme,
+              otherAccountRoutingScheme=otherAccountRoutingSchemeOBPFormat,
               otherAccountRoutingAddress=postJson.other_account_routing_address,
-              otherAccountSecondaryRoutingScheme=postJson.other_account_secondary_routing_scheme,
+              otherAccountSecondaryRoutingScheme=StringHelpers.snakify(postJson.other_account_secondary_routing_scheme).toUpperCase,
               otherAccountSecondaryRoutingAddress=postJson.other_account_secondary_routing_address,
-              otherBankRoutingScheme=postJson.other_bank_routing_scheme,
+              otherBankRoutingScheme=StringHelpers.snakify(postJson.other_bank_routing_scheme).toUpperCase,
               otherBankRoutingAddress=postJson.other_bank_routing_address,
-              otherBranchRoutingScheme=postJson.other_branch_routing_scheme,
+              otherBranchRoutingScheme=StringHelpers.snakify(postJson.other_branch_routing_scheme).toUpperCase,
               otherBranchRoutingAddress=postJson.other_branch_routing_address,
               isBeneficiary=postJson.is_beneficiary,
               bespoke=postJson.bespoke.map(bespoke =>CounterpartyBespoke(bespoke.key,bespoke.value))
@@ -7737,9 +7750,22 @@ trait APIMethods400 extends MdcLoggable {
               } yield {
                 (account, callContext)
               }
-            }
-            else
+            }else if (postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NO")) {
+              for {
+                bankIdOption <- Future.successful(if (postJson.other_bank_routing_address.isEmpty) None else Some(postJson.other_bank_routing_address))
+                (account, callContext) <- NewStyle.function.getBankAccountByNumber(
+                  bankIdOption.map(BankId(_)),
+                  postJson.other_bank_routing_address,
+                  callContext)
+              } yield {
+                (account, callContext)
+              }
+            }else
               Future{(Full(), Some(cc))}
+
+
+            otherAccountRoutingSchemeOBPFormat = if(postJson.other_account_routing_scheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(postJson.other_account_routing_scheme).toUpperCase
+
 
             (counterparty, callContext) <- NewStyle.function.createCounterparty(
               name=postJson.name,
@@ -7749,13 +7775,13 @@ trait APIMethods400 extends MdcLoggable {
               thisBankId=bankId.value,
               thisAccountId=accountId.value,
               thisViewId = Constant.SYSTEM_OWNER_VIEW_ID,
-              otherAccountRoutingScheme=postJson.other_account_routing_scheme,
+              otherAccountRoutingScheme=otherAccountRoutingSchemeOBPFormat,
               otherAccountRoutingAddress=postJson.other_account_routing_address,
-              otherAccountSecondaryRoutingScheme=postJson.other_account_secondary_routing_scheme,
+              otherAccountSecondaryRoutingScheme=StringHelpers.snakify(postJson.other_account_secondary_routing_scheme).toUpperCase,
               otherAccountSecondaryRoutingAddress=postJson.other_account_secondary_routing_address,
-              otherBankRoutingScheme=postJson.other_bank_routing_scheme,
+              otherBankRoutingScheme=StringHelpers.snakify(postJson.other_bank_routing_scheme).toUpperCase,
               otherBankRoutingAddress=postJson.other_bank_routing_address,
-              otherBranchRoutingScheme=postJson.other_branch_routing_scheme,
+              otherBranchRoutingScheme=StringHelpers.snakify(postJson.other_branch_routing_scheme).toUpperCase,
               otherBranchRoutingAddress=postJson.other_branch_routing_address,
               isBeneficiary=postJson.is_beneficiary,
               bespoke=postJson.bespoke.map(bespoke =>CounterpartyBespoke(bespoke.key,bespoke.value))
@@ -12269,7 +12295,7 @@ object APIMethods400 extends RestHelper with APIMethods400 {
                 val toCounterpartyId = CounterpartyId(refundRequestTo.counterparty_id.get)
                 for {
                   (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(toCounterpartyId, callContext)
-                  toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, isOutgoingAccount = true, callContext)
+                  (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, isOutgoingAccount = true, callContext)
                   _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
                     toCounterparty.isBeneficiary
                   }
@@ -12281,7 +12307,7 @@ object APIMethods400 extends RestHelper with APIMethods400 {
                 val toAccount = fromAccount
                 for {
                   (fromCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(fromCounterpartyId, callContext)
-                  fromAccount <- NewStyle.function.getBankAccountFromCounterparty(fromCounterparty, isOutgoingAccount = false, callContext)
+                  (fromAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(fromCounterparty, isOutgoingAccount = false, callContext)
                   _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
                     fromCounterparty.isBeneficiary
                   }
@@ -12575,7 +12601,7 @@ object APIMethods400 extends RestHelper with APIMethods400 {
               Future.successful(true)
             }
             
-            toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+            (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
             // Check we can send money to it.
             _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
               toCounterparty.isBeneficiary
@@ -12654,7 +12680,7 @@ object APIMethods400 extends RestHelper with APIMethods400 {
             }
             toCounterpartyId = transactionRequestBodyCard.to.counterparty_id
             (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(CounterpartyId(toCounterpartyId), callContext)
-            toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+            (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
             // Check we can send money to it.
             _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
               toCounterparty.isBeneficiary
@@ -12692,17 +12718,17 @@ object APIMethods400 extends RestHelper with APIMethods400 {
               thisBankId = bankId.value,
               thisAccountId = accountId.value,
               thisViewId = viewId.value,
-              otherBankRoutingScheme = transactionRequestBodySimple.to.other_bank_routing_scheme,
+              otherBankRoutingScheme = StringHelpers.snakify(transactionRequestBodySimple.to.other_bank_routing_scheme).toUpperCase,
               otherBankRoutingAddress = transactionRequestBodySimple.to.other_bank_routing_address,
-              otherBranchRoutingScheme = transactionRequestBodySimple.to.other_branch_routing_scheme,
+              otherBranchRoutingScheme = StringHelpers.snakify(transactionRequestBodySimple.to.other_branch_routing_scheme).toUpperCase,
               otherBranchRoutingAddress = transactionRequestBodySimple.to.other_branch_routing_address,
-              otherAccountRoutingScheme = transactionRequestBodySimple.to.other_account_routing_scheme,
+              otherAccountRoutingScheme = StringHelpers.snakify(transactionRequestBodySimple.to.other_account_routing_scheme).toUpperCase,
               otherAccountRoutingAddress = transactionRequestBodySimple.to.other_account_routing_address,
-              otherAccountSecondaryRoutingScheme = transactionRequestBodySimple.to.other_account_secondary_routing_scheme,
+              otherAccountSecondaryRoutingScheme = StringHelpers.snakify(transactionRequestBodySimple.to.other_account_secondary_routing_scheme).toUpperCase,
               otherAccountSecondaryRoutingAddress = transactionRequestBodySimple.to.other_account_secondary_routing_address,
               callContext: Option[CallContext],
             )
-            toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+            (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
             // Check we can send money to it.
             _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
               toCounterparty.isBeneficiary
@@ -12737,7 +12763,7 @@ object APIMethods400 extends RestHelper with APIMethods400 {
             }
             toIban = transDetailsSEPAJson.to.iban
             (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByIbanAndBankAccountId(toIban, fromAccount.bankId, fromAccount.accountId, callContext)
-            toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+            (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
             _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
               toCounterparty.isBeneficiary
             }

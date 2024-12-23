@@ -986,6 +986,77 @@ object LocalMappedConnector extends Connector with MdcLoggable {
       (getBankAccountLegacy(bankId: BankId, accountId: AccountId, callContext).map(_._1), callContext)
     }
 
+  override def getBankAccountByNumber(bankId : Option[BankId], accountNumber : String, callContext: Option[CallContext]) : OBPReturnType[Box[(BankAccount)]] = 
+    Future {
+      val bankAccounts: Seq[MappedBankAccount] = if (bankId.isDefined){
+        MappedBankAccount
+          .findAll(
+            By(MappedBankAccount.bank, bankId.head.value),
+            By(MappedBankAccount.accountNumber, accountNumber))
+      }else{
+        MappedBankAccount
+          .findAll(By(MappedBankAccount.accountNumber, accountNumber))
+      }
+
+      val errorMessage =
+        if(bankId.isEmpty)
+          s"$AccountNumberNotUniqueError, current AccountNumber is $accountNumber"
+        else
+          s"$AccountNumberNotUniqueError, current BankId is ${bankId.head.value}, AccountNumber is $accountNumber"
+          
+      if(bankAccounts.length > 1){
+        (Failure(errorMessage), callContext)
+      }else if (bankAccounts.length == 1){
+        (Full(bankAccounts.head), callContext)
+      }else{
+        (Failure(errorMessage), callContext)
+      }
+    }
+
+  override def getBankAccountByRoutings(
+    bankAccountRoutings: BankAccountRoutings,
+    callContext: Option[CallContext]
+  ): OBPReturnType[Box[(BankAccount)]]= { 
+    val res: Future[(BankAccount, Option[CallContext])] = for{
+      (fromAccount, callContext) <- if ((bankAccountRoutings.bank.scheme.equalsIgnoreCase("OBP")|| (bankAccountRoutings.bank.scheme.equalsIgnoreCase("OBP_BANK_ID")))
+        && (bankAccountRoutings.account.scheme.equalsIgnoreCase("OBP") || bankAccountRoutings.account.scheme.equalsIgnoreCase("OBP_ACCOUNT_ID"))){
+        for{
+          (_, callContext) <- NewStyle.function.getBank(BankId(bankAccountRoutings.bank.address), callContext)
+          (account, callContext) <- NewStyle.function.checkBankAccountExists(
+            BankId(bankAccountRoutings.bank.address),
+            AccountId(bankAccountRoutings.account.address), 
+            callContext)
+        } yield {
+          (account, callContext)
+        }
+      } else if (bankAccountRoutings.account.scheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| bankAccountRoutings.account.scheme.equalsIgnoreCase("ACCOUNT_NO")){
+        for{
+          bankIdOption <- Future.successful(if (bankAccountRoutings.bank.address.isEmpty) None else Some(bankAccountRoutings.bank.address))
+          (account, callContext) <- NewStyle.function.getBankAccountByNumber(
+            bankIdOption.map(BankId(_)),
+            bankAccountRoutings.account.address,
+            callContext)
+        } yield {
+          (account, callContext)
+        }
+      }else if (bankAccountRoutings.account.scheme.equalsIgnoreCase("IBAN")){
+        for{
+          (account, callContext) <- NewStyle.function.getBankAccountByIban(
+            bankAccountRoutings.account.address,
+            callContext)
+        } yield {
+          (account, callContext)
+        }
+      } else {
+        throw new RuntimeException(s"$BankAccountNotFoundByRoutings. Only support scheme = OBP or scheme IBAN or scheme = ACCOUNT_NUMBER. Current value is: ${bankAccountRoutings} ")
+      }}yield{
+        (fromAccount, callContext)
+      }
+    res.map(i=>(Full(i._1),i._2))
+    
+  }
+
+
   override def getCoreBankAccountsLegacy(bankIdAccountIds: List[BankIdAccountId], callContext: Option[CallContext]): Box[(List[CoreAccount], Option[CallContext])] = {
     Full(
       bankIdAccountIds
@@ -1890,16 +1961,16 @@ object LocalMappedConnector extends Connector with MdcLoggable {
     val toAccountRoutingAddress = transactionRequest.other_account_routing_address
 
     for {
-      toAccount <-
-        Connector.connector.vend.getBankAccountByRoutingLegacy(None, toAccountRoutingScheme, toAccountRoutingAddress, None) match {
-          case Full(bankAccount) => Future.successful(bankAccount._1)
+      (toAccount, callContext) <-
+        Connector.connector.vend.getBankAccountByRoutingLegacy(None, toAccountRoutingScheme, toAccountRoutingAddress, callContext) match {
+          case Full(bankAccount) => Future.successful(bankAccount)
           case _: EmptyBox =>
             NewStyle.function.getCounterpartyByIban(toAccountRoutingAddress, callContext).flatMap(counterparty =>
               NewStyle.function.getBankAccountFromCounterparty(counterparty._1, isOutgoingAccount = true, callContext)
             )
         }
       (debitTransactionId, callContext) <- savePayment(
-        fromAccount, toAccount, transactionRequest.id, transactionRequestCommonBody, amount, description, transactionRequestType, chargePolicy, callContext)
+        fromAccount,  toAccount, transactionRequest.id, transactionRequestCommonBody, amount, description, transactionRequestType, chargePolicy, callContext)
     } yield (debitTransactionId, callContext)
   }
 
@@ -2177,6 +2248,10 @@ object LocalMappedConnector extends Connector with MdcLoggable {
   override def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String, callContext: Option[CallContext]): OBPReturnType[Box[Boolean]] = 
     Future{(TransactionRequests.transactionRequestProvider.vend.saveTransactionRequestStatusImpl(transactionRequestId, status), callContext)}
   
+  
+  override def getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean, callContext: Option[CallContext]): OBPReturnType[Box[BankAccount]] =
+    BankAccountX.getBankAccountFromCounterparty(counterparty, isOutgoingAccount, callContext)
+    
   override def updateBankAccount(
                                   bankId: BankId,
                                   accountId: AccountId,
@@ -4793,7 +4868,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
             }
             counterpartyId = CounterpartyId(bodyToCounterparty.counterparty_id)
             (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(counterpartyId, callContext)
-            toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+            (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
             counterpartyBody = TransactionRequestBodyCounterpartyJSON(
               to = CounterpartyIdJson(counterpartyId.value),
               value = AmountOfMoneyJsonV121(body.value.currency, body.value.amount),
@@ -4866,7 +4941,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
               bodyToSimple.otherAccountSecondaryRoutingAddress,
               callContext
             )
-            toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+            (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
             counterpartyBody = TransactionRequestBodySimpleJsonV400(
               to = PostSimpleCounterpartyJson400(
                 name = toCounterparty.name,
@@ -4907,7 +4982,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                 val toCounterpartyIban = transactionRequest.other_account_routing_address
                 for {
                   (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByIbanAndBankAccountId(toCounterpartyIban, fromAccount.bankId, fromAccount.accountId, callContext)
-                  toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+                  (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
                 } yield (fromAccount, toAccount, callContext)
               } else {
                 // Warning here, we need to use the accountId here to store the counterparty IBAN.
@@ -4916,7 +4991,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
                 val toAccount = fromAccount
                 for {
                   (fromCounterparty, callContext) <- NewStyle.function.getCounterpartyByIbanAndBankAccountId(fromCounterpartyIban, toAccount.bankId, toAccount.accountId, callContext)
-                  fromAccount <- NewStyle.function.getBankAccountFromCounterparty(fromCounterparty, false, callContext)
+                  (fromAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(fromCounterparty, false, callContext)
                 } yield (fromAccount, toAccount, callContext)
               }
             }
@@ -4945,7 +5020,7 @@ object LocalMappedConnector extends Connector with MdcLoggable {
             }
             toCounterpartyIBan = bodyToCounterpartyIBan.iban
             (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByIban(toCounterpartyIBan, callContext)
-            toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+            (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
             sepaBody = TransactionRequestBodySEPAJSON(
               to = IbanJson(toCounterpartyIBan),
               value = AmountOfMoneyJsonV121(body.value.currency, body.value.amount),

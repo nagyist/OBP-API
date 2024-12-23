@@ -519,6 +519,11 @@ trait Connector extends MdcLoggable {
 
   def checkBankAccountExistsLegacy(bankId : BankId, accountId : AccountId, callContext: Option[CallContext] = None) : Box[(BankAccount, Option[CallContext])]= Failure(setUnimplementedError(nameOf(checkBankAccountExistsLegacy _)))
   def checkBankAccountExists(bankId : BankId, accountId : AccountId, callContext: Option[CallContext] = None) : OBPReturnType[Box[(BankAccount)]] = Future {(Failure(setUnimplementedError(nameOf(checkBankAccountExists _))), callContext)}
+  def getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean, callContext: Option[CallContext]) : OBPReturnType[Box[(BankAccount)]] = Future {(Failure(setUnimplementedError(nameOf(getBankAccountFromCounterparty _))), callContext)}
+  
+  def getBankAccountByNumber(bankId : Option[BankId], accountNumber : String, callContext: Option[CallContext]) : OBPReturnType[Box[(BankAccount)]] = Future {(Failure(setUnimplementedError(nameOf(getBankAccountByNumber _))), callContext)}
+
+  def getBankAccountByRoutings(bankAccountRoutings: BankAccountRoutings, callContext: Option[CallContext]) : OBPReturnType[Box[(BankAccount)]] = Future {(Failure(setUnimplementedError(nameOf(getBankAccountByRoutings _))), callContext)}
   
   def getCounterpartyFromTransaction(bankId: BankId, accountId: AccountId, counterpartyId: String, callContext: Option[CallContext]): OBPReturnType[Box[Counterparty]] = Future {(Failure(setUnimplementedError(nameOf(checkBankAccountExists _))), callContext)}
 

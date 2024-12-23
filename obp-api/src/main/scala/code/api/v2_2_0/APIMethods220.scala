@@ -1193,11 +1193,11 @@ trait APIMethods220 {
               json.extract[PostCounterpartyJSON]
             }
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-           
+
             _ <- Helper.booleanToFuture(s"$NoViewPermission can_add_counterparty. Please use a view with that permission or add the permission to this view.", cc=callContext) {view.canAddCounterparty}
 
             (counterparty, callContext) <- Connector.connector.vend.checkCounterpartyExists(postJson.name, bankId.value, accountId.value, viewId.value, callContext)
-              
+
             _ <- Helper.booleanToFuture(CounterpartyAlreadyExists.replace("value for BANK_ID or ACCOUNT_ID or VIEW_ID or NAME.",
               s"COUNTERPARTY_NAME(${postJson.name}) for the BANK_ID(${bankId.value}) and ACCOUNT_ID(${accountId.value}) and VIEW_ID($viewId)"), cc=callContext){
               counterparty.isEmpty
@@ -1223,10 +1223,23 @@ trait APIMethods220 {
               } yield {
                 (account, callContext)
               }
-            }
-            else
+            }else if (postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NO")) {
+              for {
+                bankIdOption <- Future.successful(if (postJson.other_bank_routing_address.isEmpty) None else Some(postJson.other_bank_routing_address))
+                (account, callContext) <- NewStyle.function.getBankAccountByNumber(
+                  bankIdOption.map(BankId(_)),
+                  postJson.other_bank_routing_address,
+                  callContext)
+              } yield {
+                (account, callContext)
+              }
+            }else
               Future{(Full(), Some(cc))}
 
+
+            otherAccountRoutingSchemeOBPFormat = if(postJson.other_account_routing_scheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(postJson.other_account_routing_scheme).toUpperCase
+
+            
             (counterparty, callContext) <- NewStyle.function.createCounterparty(
               name=postJson.name,
               description=postJson.description,
@@ -1235,7 +1248,7 @@ trait APIMethods220 {
               thisBankId=bankId.value,
               thisAccountId=accountId.value,
               thisViewId = viewId.value,
-              otherAccountRoutingScheme=postJson.other_account_routing_scheme,
+              otherAccountRoutingScheme=otherAccountRoutingSchemeOBPFormat,
               otherAccountRoutingAddress=postJson.other_account_routing_address,
               otherAccountSecondaryRoutingScheme=postJson.other_account_secondary_routing_scheme,
               otherAccountSecondaryRoutingAddress=postJson.other_account_secondary_routing_address,

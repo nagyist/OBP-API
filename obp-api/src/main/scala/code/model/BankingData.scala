@@ -452,29 +452,48 @@ object BankAccountX {
     *                          incoming: counterparty send money to obp account.
     * @return BankAccount
     */
-  def getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean) : Box[BankAccount] = {
-    if (
-      (counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP_BANK_ID" )
+  def getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean, callContext: Option[CallContext]) : Future[(Box[BankAccount], Option[CallContext])] = {
+    if (counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP_BANK_ID" )
       && (counterparty.otherAccountRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherAccountRoutingScheme.equalsIgnoreCase("OBP_ACCOUNT_ID")))
-    )
       for{
-        toBankId <- Full(BankId(counterparty.otherBankRoutingAddress))
-        toAccountId <- Full(AccountId(counterparty.otherAccountRoutingAddress))
-        toAccount <- BankAccountX(toBankId, toAccountId) ?~! s"${ErrorMessages.BankNotFound} Current Value: BANK_ID(counterparty.otherBankRoutingAddress=$toBankId) and ACCOUNT_ID(counterparty.otherAccountRoutingAddress=$toAccountId), please use correct OBP BankAccount to create the Counterparty.!!!!! "
-      } yield{
-        toAccount
+        (_, callContext) <- NewStyle.function.getBank(BankId(counterparty.otherBankRoutingAddress), callContext)
+        (account, callContext) <- NewStyle.function.checkBankAccountExists(
+          BankId(counterparty.otherBankRoutingAddress),
+          AccountId(counterparty.otherAccountRoutingAddress),
+          callContext)
+      } yield {
+        (Full(account), callContext)
       }
-    else if (
-      (counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP_BANK_ID" ) 
-        && (counterparty.otherAccountSecondaryRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherAccountSecondaryRoutingScheme.equalsIgnoreCase("OBP_ACCOUNT_ID"))))
+    else if (counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP_BANK_ID" ) 
+        && (counterparty.otherAccountSecondaryRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherAccountSecondaryRoutingScheme.equalsIgnoreCase("OBP_ACCOUNT_ID")))
       for{
-        toBankId <- Full(BankId(counterparty.otherBankRoutingAddress))
-        toAccountId <- Full(AccountId(counterparty.otherAccountSecondaryRoutingAddress))
-        toAccount <- BankAccountX(toBankId, toAccountId) ?~! s"${ErrorMessages.BankNotFound} Current Value: BANK_ID(counterparty.otherBankRoutingAddress=$toBankId) and ACCOUNT_ID(counterparty.otherAccountRoutingAddress=$toAccountId), please use correct OBP BankAccount to create the Counterparty.!!!!! "
+        (_, callContext) <- NewStyle.function.getBank(BankId(counterparty.otherBankRoutingAddress), callContext)
+        (account, callContext) <- NewStyle.function.checkBankAccountExists(
+          BankId(counterparty.otherBankRoutingAddress),
+          AccountId(counterparty.otherAccountSecondaryRoutingAddress),
+          callContext)
       } yield{
-        toAccount
+        (Full(account), callContext)
       }
-    else {
+    else if (counterparty.otherAccountRoutingScheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| counterparty.otherAccountRoutingScheme.equalsIgnoreCase("ACCOUNT_NO")){
+      for{
+        bankIdOption <- Future.successful(if(counterparty.otherBankRoutingAddress.isEmpty) None else Some(counterparty.otherBankRoutingAddress))
+        (account, callContext) <- NewStyle.function.getBankAccountByNumber(
+          bankIdOption.map(BankId(_)),
+          counterparty.otherAccountRoutingAddress,
+          callContext)
+      } yield {
+        (Full(account), callContext)
+      }
+    }else if (counterparty.otherAccountRoutingScheme.equalsIgnoreCase("IBAN")){
+      for{
+        (account, callContext) <- NewStyle.function.getBankAccountByIban(
+          counterparty.otherAccountRoutingAddress,
+          callContext)
+      } yield {
+        (Full(account), callContext)
+      }
+    } else {
       //in obp we are creating a fake account with the counterparty information in this case:
       //These are just the obp mapped mode, if connector to the bank, bank will decide it.
 
@@ -488,7 +507,7 @@ object BankAccountX {
       // Due to the new field in the database, old counterparty have void currency, so by default, we set it to EUR
       val counterpartyCurrency = if (counterparty.currency.nonEmpty) counterparty.currency else "EUR"
 
-      Full(BankAccountCommons(
+      Future{(Full(BankAccountCommons(
         AccountId(counterparty.otherAccountSecondaryRoutingAddress), "", 0,
         currency = counterpartyCurrency,
         name = counterparty.name,
@@ -506,7 +525,7 @@ object BankAccountX {
             value = counterparty.otherBankRoutingAddress
           ),
         ))
-      ))
+      )), callContext)}
     }
   }
 

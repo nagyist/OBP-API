@@ -17,6 +17,7 @@ import com.tesobe.CacheKeyFromArguments
 import net.liftweb.common.{Box, Full}
 import net.liftweb.mapper.{By, MappedString, _}
 import net.liftweb.util.Helpers.tryo
+import net.liftweb.util.StringHelpers
 
 import scala.concurrent.duration._
 
@@ -217,12 +218,12 @@ object MapperCounterparties extends Counterparties with MdcLoggable {
       .mThisBankId(thisBankId)
       .mThisAccountId(thisAccountId)
       .mThisViewId(thisViewId)
-      .mOtherAccountRoutingScheme(otherAccountRoutingScheme)
+      .mOtherAccountRoutingScheme(StringHelpers.snakify(otherAccountRoutingScheme).toUpperCase)
       .mOtherAccountRoutingAddress(otherAccountRoutingAddress)
-      .mOtherBankRoutingScheme(otherBankRoutingScheme)
+      .mOtherBankRoutingScheme(StringHelpers.snakify(otherBankRoutingScheme).toUpperCase)
       .mOtherBankRoutingAddress(otherBankRoutingAddress)
       .mOtherBranchRoutingAddress(otherBranchRoutingAddress)
-      .mOtherBranchRoutingScheme(otherBranchRoutingScheme)
+      .mOtherBranchRoutingScheme(StringHelpers.snakify(otherBranchRoutingScheme).toUpperCase)
       .mIsBeneficiary(isBeneficiary)
       .mDescription(description)
       .mCurrency(currency)

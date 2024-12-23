@@ -420,7 +420,6 @@ case class ConsumerPostJsonV510(app_name: Option[String],
                                )
 case class ConsumerJsonV510(consumer_id: String,
                             consumer_key: String,
-                            consumer_secret: String,
                             app_name: String,
                             app_type: String,
                             description: String,
@@ -1025,7 +1024,6 @@ object JSONFactory510 extends CustomJsonFormats {
     ConsumerJsonV510(
       consumer_id = c.consumerId.get,
       consumer_key = c.key.get,
-      consumer_secret = c.secret.get,
       app_name = c.name.get,
       app_type = c.appType.toString(),
       description = c.description.get,

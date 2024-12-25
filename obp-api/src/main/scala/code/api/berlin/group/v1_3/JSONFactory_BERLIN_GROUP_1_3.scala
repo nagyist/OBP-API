@@ -632,6 +632,8 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
 //      Remark: This code may be
     //map OBP transactionRequestId to BerlinGroup PaymentId
     val paymentId = transactionRequest.id.value
+    val scaRedirectUrl = getPropsValue("psu_authentication_method_sca_redirect_url")
+      .openOr(MissingPropsValueAtThisInstance + "psu_authentication_method_sca_redirect_url")
     InitiatePaymentResponseJson(
       transactionStatus = transactionRequest.status match {
         case "COMPLETED" => "ACCP"
@@ -639,7 +641,7 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
       },
       paymentId = paymentId,
       _links = InitiatePaymentResponseLinks(
-        scaRedirect = LinkHrefJson(s"$getServerUrl/otp?flow=payment&paymentService=payments&paymentProduct=sepa_credit_transfers&paymentId=$paymentId"),
+        scaRedirect = LinkHrefJson(s"$scaRedirectUrl/payments/$paymentId"),
         self = LinkHrefJson(s"/v1.3/payments/sepa-credit-transfers/$paymentId"),
         status = LinkHrefJson(s"/v1.3/payments/$paymentId/status"),
         scaStatus = LinkHrefJson(s"/v1.3/payments/$paymentId/authorisations/${paymentId}")

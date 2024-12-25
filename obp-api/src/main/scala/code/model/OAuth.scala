@@ -25,11 +25,9 @@ TESOBE (http://www.tesobe.com/)
 
   */
 package code.model
-import java.util.{Collections, Date}
-
-import code.api.util.{APIUtil, CallContext, OBPAscending, OBPDescending, OBPFromDate, OBPLimit, OBPOffset, OBPOrdering, OBPQueryParam, OBPToDate}
 import code.api.util.CommonFunctions.validUri
 import code.api.util.migration.Migration.DbFunction
+import code.api.util._
 import code.consumer.{Consumers, ConsumersProvider}
 import code.model.AppType.{Confidential, Public, Unknown}
 import code.model.dataAccess.ResourceUser
@@ -37,20 +35,17 @@ import code.nonce.NoncesProvider
 import code.token.TokensProvider
 import code.users.Users
 import code.util.Helper.MdcLoggable
-import code.util.HydraUtil
 import code.util.HydraUtil._
-import code.views.system.{AccountAccess, ViewDefinition}
 import com.github.dwickern.macros.NameOf
 import com.openbankproject.commons.ExecutionContext.Implicits.global
-import com.openbankproject.commons.model.{BankIdAccountId, User, View}
 import net.liftweb.common._
 import net.liftweb.http.S
-import net.liftweb.mapper.{LongKeyedMetaMapper, _}
-import net.liftweb.util.Helpers.{now, _}
+import net.liftweb.mapper._
+import net.liftweb.util.Helpers._
 import net.liftweb.util.{FieldError, Helpers}
 import org.apache.commons.lang3.StringUtils
 
-import scala.collection.immutable.List
+import java.util.Date
 import scala.concurrent.Future
 
 
@@ -128,6 +123,8 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
     val offset = queryParams.collect { case OBPOffset(value) => StartAt[Consumer](value) }.headOption
     val fromDate = queryParams.collect { case OBPFromDate(date) => By_>=(Consumer.createdAt, date) }.headOption
     val toDate = queryParams.collect { case OBPToDate(date) => By_<=(Consumer.createdAt, date) }.headOption
+    val azp = queryParams.collect { case OBPAzp(value) => By(Consumer.azp, value) }.headOption
+    val iss = queryParams.collect { case OBPIss(value) => By(Consumer.iss, value) }.headOption
     val ordering = queryParams.collect {
       case OBPOrdering(_, direction) =>
         direction match {
@@ -136,7 +133,8 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
         }
     }
 
-    val mapperParams: Seq[QueryParam[Consumer]] = Seq(limit.toSeq, offset.toSeq, fromDate.toSeq, toDate.toSeq, ordering.toSeq).flatten
+    val mapperParams: Seq[QueryParam[Consumer]] =
+      Seq(limit.toSeq, offset.toSeq, fromDate.toSeq, toDate.toSeq, ordering, azp.toSeq, iss.toSeq).flatten
     
     Consumer.findAll(mapperParams: _*)
   }
@@ -387,13 +385,15 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
                                    createdByUserId: Option[String]): Box[Consumer] = {
 
     val consumer: Box[Consumer] =
-      // 1st try represent GatewayLogin usage of this function
-      Consumer.find(By(Consumer.consumerId, consumerId.getOrElse("None"))) or {
-        // 2nd try represent OAuth2 usage of this function
-        Consumer.find(By(Consumer.azp, azp.getOrElse("None")), By(Consumer.sub, sub.getOrElse("None")))
-      } or {
-        aud.flatMap(consumerKey => Consumer.find(By(Consumer.key, consumerKey)))
-      }
+      // 1st try to find via UUID issued by OBP-API back end
+      Consumer.find(By(Consumer.consumerId, consumerId.getOrElse("None"))) or
+        // 2nd try to find via the pair (azp, iss) issued by External Identity Provider
+        {
+          // The azp field in the payload of a JWT (JSON Web Token) represents the Authorized Party.
+          // It is typically used in the context of OAuth 2.0 and OpenID Connect to identify the client application that the token is issued for.
+          // The pair (azp, iss) is a unique key in case of Client of an Identity Provider
+          Consumer.find(By(Consumer.azp, azp.getOrElse("None")), By(Consumer.iss, iss.getOrElse("None")))
+        }
     consumer match {
       case Full(c) => Full(c)
       case Failure(msg, t, c) => Failure(msg, t, c)

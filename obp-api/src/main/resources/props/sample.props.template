@@ -769,7 +769,7 @@ display_internal_errors=false
 # oauth2.keycloak.well_known=http://localhost:7070/realms/master/.well-known/openid-configuration
 # Used to sync IAM of OBP-API and IAM of Keycloak
 # oauth2.keycloak.source_of_truth = false
-# LIst of resource access objects allowed to sync IAM of OBP-API and IAM of Keycloak
+# Resource access object allowed to sync IAM of OBP-API and IAM of Keycloak
 # oauth2.keycloak.resource_access_name = SOME_NAME
 # ------------------------------------------------------------------------------ OAuth 2 ------
 

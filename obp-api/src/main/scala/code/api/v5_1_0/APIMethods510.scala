@@ -2732,10 +2732,6 @@ trait APIMethods510 {
               json.extract[ConsumerLogoUrlJson]
             }
             consumer <- NewStyle.function.getConsumerByConsumerId(consumerId, callContext)
-            //only the developer that created the Consumer should be able to edit it
-            _ <- Helper.booleanToFuture(UserNoPermissionUpdateConsumer, 400, callContext) {
-              consumer.createdByUserId.equals(u.userId)
-            }
             updatedConsumer <- NewStyle.function.updateConsumer(
               id = consumer.id.get,
               logoURL = Some(postJson.logo_url),

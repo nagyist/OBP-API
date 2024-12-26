@@ -726,16 +726,16 @@ object NewStyle extends MdcLoggable{
     }
 
     def updateConsumer(id: Long, 
-                       key: Option[String], 
-                       secret: Option[String], 
-                       isActive: Option[Boolean], 
-                       name: Option[String], 
-                       appType: Option[AppType], 
-                       description: Option[String], 
-                       developerEmail: Option[String], 
-                       redirectURL: Option[String],
-                       createdByUserId: Option[String], 
-                       logoURL: Option[String], 
+                       key: Option[String] = None,
+                       secret: Option[String] = None,
+                       isActive: Option[Boolean] = None,
+                       name: Option[String] = None,
+                       appType: Option[AppType] = None,
+                       description: Option[String] = None,
+                       developerEmail: Option[String] = None,
+                       redirectURL: Option[String] = None,
+                       createdByUserId: Option[String] = None,
+                       logoURL: Option[String] = None,
                        callContext: Option[CallContext]): Future[Consumer] = {
       Future(Consumers.consumers.vend.updateConsumer(id, key, secret, isActive, name, appType, description, developerEmail, redirectURL, createdByUserId, logoURL)) map {
         unboxFullOrFail(_, callContext, UpdateConsumerError, 404)

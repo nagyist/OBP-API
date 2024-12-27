@@ -4,6 +4,7 @@ import java.text.SimpleDateFormat
 import java.util.{Date, UUID}
 import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{ConsentAccessJson, PostConsentJson}
 import code.api.util.ApiRole.{canCreateEntitlementAtAnyBank, canCreateEntitlementAtOneBank}
+import code.api.util.ErrorMessages.InvalidConnectorResponse
 import code.api.v3_1_0.{PostConsentBodyCommonJson, PostConsentEntitlementJsonV310, PostConsentViewJsonV310}
 import code.api.{Constant, RequestHeader}
 import code.bankconnectors.Connector
@@ -20,7 +21,7 @@ import code.views.Views
 import com.nimbusds.jwt.JWTClaimsSet
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.model._
-import net.liftweb.common.{Box, Empty, Failure, Full}
+import net.liftweb.common.{Box, Empty, Failure, Full, ParamFailure}
 import net.liftweb.http.provider.HTTPParam
 import net.liftweb.json.JsonParser.ParseException
 import net.liftweb.json.{Extraction, MappingException, compactRender, parse}
@@ -754,9 +755,10 @@ object Consent extends MdcLoggable {
     val accounts: List[Future[ConsentView]] = access.accounts.getOrElse(Nil) map { account =>
       Connector.connector.vend.getBankAccountByIban(account.iban.getOrElse(""), callContext) map { bankAccount =>
         logger.debug(s"createBerlinGroupConsentJWT.accounts.bankAccount: $bankAccount")
+        val error = s"${InvalidConnectorResponse} IBAN: ${account.iban.getOrElse("")} ${handleBox(bankAccount._1)}"
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
-          account_id = bankAccount._1.map(_.accountId.value).getOrElse(""),
+          account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
           view_id = Constant.SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID
         )
       }
@@ -764,9 +766,10 @@ object Consent extends MdcLoggable {
     val balances: List[Future[ConsentView]] = access.balances.getOrElse(Nil) map { account =>
       Connector.connector.vend.getBankAccountByIban(account.iban.getOrElse(""), callContext) map { bankAccount =>
         logger.debug(s"createBerlinGroupConsentJWT.balances.bankAccount: $bankAccount")
+        val error = s"${InvalidConnectorResponse} IBAN: ${account.iban.getOrElse("")} ${handleBox(bankAccount._1)}"
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
-          account_id = bankAccount._1.map(_.accountId.value).getOrElse(""),
+          account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
           view_id = Constant.SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID
         )
       }
@@ -774,9 +777,10 @@ object Consent extends MdcLoggable {
     val transactions: List[Future[ConsentView]] = access.transactions.getOrElse(Nil) map { account =>
       Connector.connector.vend.getBankAccountByIban(account.iban.getOrElse(""), callContext) map { bankAccount =>
         logger.debug(s"createBerlinGroupConsentJWT.transactions.bankAccount: $bankAccount")
+        val error = s"${InvalidConnectorResponse} IBAN: ${account.iban.getOrElse("")} ${handleBox(bankAccount._1)}"
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
-          account_id = bankAccount._1.map(_.accountId.value).getOrElse(""),
+          account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
           view_id = Constant.SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID
         )
       }
@@ -957,5 +961,29 @@ object Consent extends MdcLoggable {
       }
     consentsOfBank
   }
+
+  /*
+    // Example Usage
+    val box1: Box[String] = Full("Hello, World!")
+    val box2: Box[String] = Failure("Something went wrong")
+    val box3: Box[String] = ParamFailure("Invalid parameter", Empty, Empty, "UserID=123")
+
+    println(handleBox(box1)) // Output: "Success: Hello, World!"
+    println(handleBox(box2)) // Output: "Error: Something went wrong"
+    println(handleBox(box3)) // Output: "Error: Invalid parameter (Parameter: UserID=123)"
+ */
+  def handleBox[T](box: Box[T]): String = box match {
+    case Full(value) =>
+      s"Success: $value"
+    case Empty =>
+      "Error: Box is empty"
+    case ParamFailure(msg, _, _, param) =>
+      s"Error: $msg (Parameter: $param)"
+    case Failure(msg, _, _) =>
+      s"Error: $msg"
+  }
+
+
+
 
 }

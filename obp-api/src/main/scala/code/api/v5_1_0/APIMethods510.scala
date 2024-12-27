@@ -22,7 +22,7 @@ import code.api.v2_1_0.ConsumerRedirectUrlJSON
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_0_0.JSONFactory300.createAggregateMetricJson
 import code.api.v3_1_0.{ConsentChallengeJsonV310, ConsentJsonV310}
-import code.api.v3_1_0.JSONFactory310.{createBadLoginStatusJson, createRefreshUserJson}
+import code.api.v3_1_0.JSONFactory310.{createBadLoginStatusJson, createConsumerJSON, createRefreshUserJson}
 import code.api.v4_0_0.JSONFactory400.{createAccountBalancesJson, createBalancesJson, createNewCoreBankAccountJson}
 import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, PutConsentStatusJsonV400, RevokedJsonV400}
 import code.api.v5_0_0.JSONFactory500
@@ -2742,6 +2742,43 @@ trait APIMethods510 {
           }
       }
     }
+
+
+    staticResourceDocs += ResourceDoc(
+      getConsumer,
+      implementedInApiVersion,
+      nameOf(getConsumer),
+      "GET",
+      "/management/consumers/CONSUMER_ID",
+      "Get Consumer",
+      s"""Get the Consumer specified by CONSUMER_ID.
+         |
+         |""",
+      EmptyBody,
+      consumerJSON,
+      List(
+        $UserNotLoggedIn,
+        UserHasMissingRoles,
+        ConsumerNotFoundByConsumerId,
+        UnknownError
+      ),
+      List(apiTagConsumer),
+      Some(List(canGetConsumers)))
+
+
+    lazy val getConsumer: OBPEndpoint = {
+      case "management" :: "consumers" :: consumerId :: Nil JsonGet _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            consumer <- NewStyle.function.getConsumerByConsumerId(consumerId, cc.callContext)
+            user <- Users.users.vend.getUserByUserIdFuture(consumer.createdByUserId.get)
+          } yield {
+            (createConsumerJSON(consumer, user), HttpCode.`200`(cc.callContext))
+          }
+      }
+    }
+
     resourceDocs += ResourceDoc(
       getConsumers,
       implementedInApiVersion,

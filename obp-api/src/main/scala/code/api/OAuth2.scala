@@ -518,7 +518,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
     private def addScopesToConsumer(token: String,  consumerPrimaryKey: Long): Unit = {
       val sourceOfTruth = APIUtil.getPropsAsBoolValue(nameOfProperty = "oauth2.keycloak.source_of_truth", defaultValue = false)
       // Consumers allowed to use the source of truth feature
-      val resourceAccessName = APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloak.resource_access_key_name_to_trust", "")
+      val resourceAccessName = APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloak.resource_access_key_name_to_trust", "open-bank-project")
       val consumerId = getClaim(name = "azp", idToken = token).getOrElse("")
       if(sourceOfTruth) {
         logger.debug("Extracting roles from Access Token")

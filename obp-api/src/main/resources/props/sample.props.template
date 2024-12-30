@@ -770,7 +770,7 @@ display_internal_errors=false
 # Used to sync IAM of OBP-API and IAM of Keycloak
 # oauth2.keycloak.source_of_truth = false
 # Resource access object allowed to sync IAM of OBP-API and IAM of Keycloak
-# oauth2.keycloak.resource_access_key_name_to_trust = SOME_NAME
+# oauth2.keycloak.resource_access_key_name_to_trust = open-bank-project
 # ------------------------------------------------------------------------------ OAuth 2 ------
 
 # -- PSU Authentication methods --------------------------------------------------------------

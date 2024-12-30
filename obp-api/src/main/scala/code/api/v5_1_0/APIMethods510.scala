@@ -1411,7 +1411,7 @@ trait APIMethods510 {
                 consentJson.access.transactions.isEmpty
               }
             }
-            consentJWT <- Consent.updateBerlinGroupConsentJWT(
+            consentJWT <- Consent.updateAccountAccessOfBerlinGroupConsentJWT(
                 consentJson.access,
                 consent,
                 cc.callContext

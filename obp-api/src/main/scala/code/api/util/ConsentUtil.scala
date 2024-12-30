@@ -743,9 +743,9 @@ object Consent extends MdcLoggable {
       Full(CertificateUtil.jwtWithHmacProtection(jwtClaims, secret))
     }
   }
-  def updateBerlinGroupConsentJWT(access: ConsentAccessJson,
-                                  consent: MappedConsent,
-                                  callContext: Option[CallContext]): Future[Box[String]] = {
+  def updateAccountAccessOfBerlinGroupConsentJWT(access: ConsentAccessJson,
+                                                 consent: MappedConsent,
+                                                 callContext: Option[CallContext]): Future[Box[String]] = {
     implicit val dateFormats = CustomJsonFormats.formats
     val payloadToUpdate: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken) // Payload as JSON string
       .map(net.liftweb.json.parse(_).extract[ConsentJWT]) // Extract case class

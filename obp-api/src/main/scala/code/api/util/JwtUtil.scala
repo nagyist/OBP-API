@@ -143,6 +143,24 @@ object JwtUtil extends MdcLoggable {
         ""
     }
   }
+  /**
+    * This fuction gets an arbitrary claim
+    * @param name The name of the claim we want to get
+    * @param jwtToken JSON Web Token (JWT) as a String value
+    * @return The claim we requested
+    */
+  def getOptionalClaim(name: String, jwtToken: String): Option[String] = {
+    try {
+      val signedJWT = SignedJWT.parse(jwtToken)
+      // claims extraction...
+      Some(signedJWT.getJWTClaimsSet.getStringClaim(name))
+    } catch {
+      case e: Exception =>
+        logger.debug(msg = s"code.api.util.JwtUtil.getClaim: $name")
+        logger.debug(e)
+        None
+    }
+  }
 
   /**
     * The Issuer Identifier for the Issuer of the response. 

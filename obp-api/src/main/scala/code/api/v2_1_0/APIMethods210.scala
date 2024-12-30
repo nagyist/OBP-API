@@ -1638,7 +1638,12 @@ trait APIMethods210 {
               consumer.createdByUserId.equals(u.userId)
             }
             //update the redirectURL and isactive (set to false when change redirectUrl) field in consumer table
-            updatedConsumer <- NewStyle.function.updateConsumer(consumer.id.get, None, None, Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false)), None, None, None, None, Some(postJson.redirect_url), None,  None, callContext)
+            updatedConsumer <- NewStyle.function.updateConsumer(
+              id = consumer.id.get,
+              isActive = Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false)),
+              redirectURL = Some(postJson.redirect_url),
+              callContext = callContext
+            )
           } yield {
             val json = JSONFactory210.createConsumerJSON(updatedConsumer)
             (json, HttpCode.`200`(callContext))

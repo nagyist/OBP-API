@@ -125,6 +125,7 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
     val toDate = queryParams.collect { case OBPToDate(date) => By_<=(Consumer.createdAt, date) }.headOption
     val azp = queryParams.collect { case OBPAzp(value) => By(Consumer.azp, value) }.headOption
     val iss = queryParams.collect { case OBPIss(value) => By(Consumer.iss, value) }.headOption
+    val consumerId = queryParams.collect { case OBPConsumerId(value) => By(Consumer.consumerId, value) }.headOption
     val ordering = queryParams.collect {
       case OBPOrdering(_, direction) =>
         direction match {
@@ -134,7 +135,7 @@ object MappedConsumersProvider extends ConsumersProvider with MdcLoggable {
     }
 
     val mapperParams: Seq[QueryParam[Consumer]] =
-      Seq(limit.toSeq, offset.toSeq, fromDate.toSeq, toDate.toSeq, ordering, azp.toSeq, iss.toSeq).flatten
+      Seq(limit.toSeq, offset.toSeq, fromDate.toSeq, toDate.toSeq, ordering, azp.toSeq, iss.toSeq, consumerId.toSeq).flatten
     
     Consumer.findAll(mapperParams: _*)
   }

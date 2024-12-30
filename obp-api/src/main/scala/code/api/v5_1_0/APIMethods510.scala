@@ -1462,7 +1462,7 @@ trait APIMethods510 {
         UnknownError
       ),
       apiTagConsent :: apiTagPSD2AIS :: Nil,
-      Some(List(canUpdateConsentAccountAccessAtOneBank, canUpdateConsentAccountAccessAtAnyBank))
+      Some(List(canUpdateConsentUserAtOneBank, canUpdateConsentUserAtAnyBank))
     )
 
     lazy val updateConsentUserIdByConsentId: OBPEndpoint = {

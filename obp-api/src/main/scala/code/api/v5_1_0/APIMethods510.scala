@@ -1442,7 +1442,12 @@ trait APIMethods510 {
       "Update Consent Created by User by CONSENT_ID",
       s"""
          |
-         |This endpoint is used to update the Created by User of Consent.
+         |This endpoint is used to Update the User bound to a consent.
+         |
+         |In general we would not expect for a management user to set the User bound to a consent, but there may be
+         |some use cases where this workflow is useful.
+         |
+         |If successful, the "Created by User ID" field in the OBP Consent table will be updated.
          |
          |${authenticationRequiredMessage(true)}
          |

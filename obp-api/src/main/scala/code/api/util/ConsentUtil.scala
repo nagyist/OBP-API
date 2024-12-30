@@ -797,6 +797,20 @@ object Consent extends MdcLoggable {
       }
     }
   }
+  def updateUserIdOfBerlinGroupConsentJWT(createdByUserId: String,
+                                          consent: MappedConsent,
+                                          callContext: Option[CallContext]): Future[Box[String]] = {
+    implicit val dateFormats = CustomJsonFormats.formats
+    val payloadToUpdate: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken) // Payload as JSON string
+      .map(net.liftweb.json.parse(_).extract[ConsentJWT]) // Extract case class
+
+    Future {
+      val updatedPayload = payloadToUpdate.map(i => i.copy(createdByUserId = createdByUserId)) // Update only the field "createdByUserId"
+      val jwtPayloadAsJson = compactRender(Extraction.decompose(updatedPayload))
+      val jwtClaims: JWTClaimsSet = JWTClaimsSet.parse(jwtPayloadAsJson)
+      Full(CertificateUtil.jwtWithHmacProtection(jwtClaims, consent.secret))
+    }
+  }
   
   def createUKConsentJWT(
     user: Option[User],

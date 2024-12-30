@@ -24,7 +24,7 @@ import code.api.v3_0_0.JSONFactory300.createAggregateMetricJson
 import code.api.v3_1_0.{ConsentChallengeJsonV310, ConsentJsonV310}
 import code.api.v3_1_0.JSONFactory310.{createBadLoginStatusJson, createConsumerJSON, createRefreshUserJson}
 import code.api.v4_0_0.JSONFactory400.{createAccountBalancesJson, createBalancesJson, createNewCoreBankAccountJson}
-import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, PutConsentStatusJsonV400, RevokedJsonV400}
+import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, PutConsentStatusJsonV400, PutConsentUserJsonV400, RevokedJsonV400}
 import code.api.v5_0_0.JSONFactory500
 import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createConsentsJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
 import code.atmattribute.AtmAttribute
@@ -1409,15 +1409,92 @@ trait APIMethods510 {
                 consentJson.access.accounts.isEmpty &&
                 consentJson.access.balances.isEmpty &&
                 consentJson.access.transactions.isEmpty
-              }
+            }
             }
             consentJWT <- Consent.updateAccountAccessOfBerlinGroupConsentJWT(
                 consentJson.access,
-                consent,
-                cc.callContext
-              ) map {
-                i => connectorEmptyResponse(i, cc.callContext)
-              }
+              consent,
+              cc.callContext
+            ) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+            updatedConsent <- Future(Consents.consentProvider.vend.setJsonWebToken(consent.consentId, consentJWT)) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+          } yield {
+            (
+              ConsentJsonV310(
+                updatedConsent.consentId,
+                updatedConsent.jsonWebToken,
+                updatedConsent.status
+              ),
+              HttpCode.`200`(cc.callContext)
+            )
+          }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      updateConsentUserIdByConsentId,
+      implementedInApiVersion,
+      nameOf(updateConsentUserIdByConsentId),
+      "PUT",
+      "/management/banks/BANK_ID/consents/CONSENT_ID/created-by-user",
+      "Update Consent Created by User by CONSENT_ID",
+      s"""
+         |
+         |This endpoint is used to update the Created by User of Consent.
+         |
+         |${authenticationRequiredMessage(true)}
+         |
+         |""",
+      PutConsentUserJsonV400(user_id = "ed7a7c01-db37-45cc-ba12-0ae8891c195c"),
+      ConsentChallengeJsonV310(
+        consent_id = "9d429899-24f5-42c8-8565-943ffa6a7945",
+        jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiJhYjY1MzlhOS1iMTA1LTQ0ODktYTg4My0wYWQ4ZDZjNjE2NTciLCJzdWIiOiIyMWUxYzhjYy1mOTE4LTRlYWMtYjhlMy01ZTVlZWM2YjNiNGIiLCJhdWQiOiJlanpuazUwNWQxMzJyeW9tbmhieDFxbXRvaHVyYnNiYjBraWphanNrIiwibmJmIjoxNTUzNTU0ODk5LCJpc3MiOiJodHRwczpcL1wvd3d3Lm9wZW5iYW5rcHJvamVjdC5jb20iLCJleHAiOjE1NTM1NTg0OTksImlhdCI6MTU1MzU1NDg5OSwianRpIjoiMDlmODhkNWYtZWNlNi00Mzk4LThlOTktNjYxMWZhMWNkYmQ1Iiwidmlld3MiOlt7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAxIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifSx7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAyIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifV19.8cc7cBEf2NyQvJoukBCmDLT7LXYcuzTcSYLqSpbxLp4",
+        status = "AUTHORISED"
+      ),
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        InvalidJsonFormat,
+        ConsentNotFound,
+        InvalidConnectorResponse,
+        UnknownError
+      ),
+      apiTagConsent :: apiTagPSD2AIS :: Nil,
+      Some(List(canUpdateConsentAccountAccessAtOneBank, canUpdateConsentAccountAccessAtAnyBank))
+    )
+
+    lazy val updateConsentUserIdByConsentId: OBPEndpoint = {
+      case "management" :: "banks" :: BankId(bankId) :: "consents" :: consentId :: "created-by-user" :: Nil JsonPut json -> _ =>
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            consent: MappedConsent <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
+              unboxFullOrFail(_, cc.callContext, s"$ConsentNotFound ($consentId)", 404)
+            }
+            consentJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PutConsentUserJsonV400 ", 400, cc.callContext) {
+              json.extract[PutConsentUserJsonV400]
+            }
+            user <- Users.users.vend.getUserByUserIdFuture(consentJson.user_id) map {
+              x => unboxFullOrFail(x, cc.callContext, s"$UserNotFoundByUserId Current UserId(${consentJson.user_id})")
+            }
+            consent <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+            _ <- Helper.booleanToFuture(ConsentUserAlreadyAdded, cc = cc.callContext) {
+              consent.userId != null
+            }
+            consent <- Future(Consents.consentProvider.vend.updateConsentUser(consentId, user)) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+            consentJWT <- Consent.updateUserIdOfBerlinGroupConsentJWT(
+              consentJson.user_id,
+              consent,
+              cc.callContext
+            ) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
             updatedConsent <- Future(Consents.consentProvider.vend.setJsonWebToken(consent.consentId, consentJWT)) map {
               i => connectorEmptyResponse(i, cc.callContext)
             }

@@ -3601,10 +3601,22 @@ trait APIMethods510 {
             // Convert LocalDate to Date
             zoneId: ZoneId = ZoneId.systemDefault()
             firstCurrentMonthDate: Date = Date.from(firstDayOfMonth.atStartOfDay(zoneId).toInstant)
-            lastCurrentMonthDate: Date = Date.from(lastDayOfMonth.atStartOfDay(zoneId).toInstant)
+            // Adjust to include 23:59:59.999
+            lastCurrentMonthDate: Date = Date.from(
+              lastDayOfMonth
+                .atTime(23, 59, 59, 999000000)
+                .atZone(zoneId)
+                .toInstant
+            )
 
             firstCurrentYearDate: Date = Date.from(firstDayOfYear.atStartOfDay(zoneId).toInstant)
-            lastCurrentYearDate: Date = Date.from(lastDayOfYear.atStartOfDay(zoneId).toInstant)
+            // Adjust to include 23:59:59.999
+            lastCurrentYearDate: Date = Date.from(
+              lastDayOfYear
+                .atTime(23, 59, 59, 999000000)
+                .atZone(zoneId)
+                .toInstant
+            )
 
             defaultFromDate: Date = theEpochTime
             defaultToDate: Date = APIUtil.ToDateInFuture

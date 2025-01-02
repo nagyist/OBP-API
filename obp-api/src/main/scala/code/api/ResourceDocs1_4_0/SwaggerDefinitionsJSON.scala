@@ -4226,7 +4226,6 @@ object SwaggerDefinitionsJSON {
     status = ConsentStatus.INITIATED.toString,
     api_standard = "Berlin Group",
     api_version = "v1.3",
-    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiIiLCJzdWIiOiJmY2YzNDZkMi0xNTNiLTQ0MzAtOWE4Zi1mMzU3Njg1MzM5ODciLCJhdWQiOiIyNjY0NjUwYy04MDkwLTQ4MWUtOGJkOC0wM2E5MmY5Yzg3ZWEiLCJuYmYiOjE3MzAzNzMyNzEsImFjY2VzcyI6eyJhY2NvdW50cyI6W3siaWJhbiI6IlJTMzUyNjAwMDU2MDEwMDE2MTEzNzkifV19LCJpc3MiOiJodHRwczovLzEyNy4wLjAuMTo4MDgwIiwiZXhwIjoxNzMwOTM3NjAwLCJpYXQiOjE3MzAzNzMyNzEsImp0aSI6ImQzM2Y3NDYzLWVlNDktNGU4YS04YTkyLTYxMzhkYzE4M2QxNiIsInZpZXdzIjpbeyJiYW5rX2lkIjoibmxia2IiLCJhY2NvdW50X2lkIjoiOTUzODkyOTctNDVjNC00MGViLTllZmQtMzMxYmExOTQzZGE0Iiwidmlld19pZCI6IlJlYWRBY2NvdW50c0Jlcmxpbkdyb3VwIn1dfQ.SXE4W34596lrSXqZrA8cvQs_fvhjWYilU8VDpXZ3C3Y",
     jwt_payload = SwaggerDefinitionsJsonUtil.jwtPayload,
   )
   val consentsJsonV510 = ConsentsJsonV510(List(allConsentJsonV510))

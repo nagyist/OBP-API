@@ -392,7 +392,7 @@ class CounterpartyLimitTest extends V510ServerSetup {
       response4.body.extract[ErrorMessage].message contains(CounterpartyLimitValidationError) shouldBe (true)
       response4.body.extract[ErrorMessage].message contains("max_number_of_transactions") shouldBe(true)
 
-      val requestLimitStatus = (v5_1_0_Request / "banks" / bankId / "accounts" / accountId / "views" / ownerView /"counterparties" / counterparty.counterpartyId /"limit-status").POST <@ (user1)
+      val requestLimitStatus = (v5_1_0_Request / "banks" / bankId / "accounts" / accountId / "views" / ownerView /"counterparties" / counterparty.counterpartyId /"limit-status").GET <@ (user1)
       val responseLimitStatus = makeGetRequest(requestLimitStatus)
       responseLimitStatus.code shouldBe (200)
       responseLimitStatus.body.extract[CounterpartyLimitStatusV510].status.currency_status shouldBe("EUR")

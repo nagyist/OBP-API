@@ -189,9 +189,9 @@ trait ConsentTrait {
 
 object ConsentStatus extends Enumeration {
   type ConsentStatus = Value
-  val INITIATED, ACCEPTED, REJECTED, REVOKED,
-      //The following are for BelinGroup
-      RECEIVED, VALID, REVOKEDBYPSU, EXPIRED, TERMINATEDBYTPP ,
+  val INITIATED, ACCEPTED, REJECTED, rejected, REVOKED,
+      // The following one only exist in case of BerlinGroup
+      RECEIVED, received, VALID, valid, REVOKEDBYPSU, revokedByPsu, EXPIRED, expired, TERMINATEDBYTPP, terminatedByTpp,
      //these added for UK Open Banking 
      AUTHORISED, AWAITINGAUTHORISATION = Value
 }

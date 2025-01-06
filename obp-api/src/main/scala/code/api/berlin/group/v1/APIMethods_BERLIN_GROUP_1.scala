@@ -40,7 +40,7 @@ object APIMethods_BERLIN_GROUP_1 extends RestHelper{
          |Reads a list of bank accounts, with balances where required.
          |It is assumed that a consent of the PSU to this access is already given and stored on the ASPSP system.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |This endpoint is work in progress. Experimental!
          |""",
@@ -98,7 +98,7 @@ object APIMethods_BERLIN_GROUP_1 extends RestHelper{
       s"""
         |Reads account data from a given account addressed by “account-id”.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |This endpoint is work in progress. Experimental!
         |""",
@@ -138,7 +138,7 @@ object APIMethods_BERLIN_GROUP_1 extends RestHelper{
       "Berlin Group Read Account Transactions",
       s"""
         |Reads account data from a given account addressed by “account-id”. 
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |This endpoint is work in progress. Experimental!
         |""",

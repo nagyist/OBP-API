@@ -245,7 +245,7 @@ trait APIMethods310 {
         |
         |15 exclude_implemented_by_partial_functions (if null ignore).eg: &exclude_implemented_by_partial_functions=getMetrics,getConnectorMetrics,getAggregateMetrics
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
       """.stripMargin,
       EmptyBody,
@@ -332,7 +332,7 @@ trait APIMethods310 {
         |
         |16 limit (for pagination: defaults to 50)  eg:limit=200
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
       """.stripMargin,
       EmptyBody,
@@ -394,7 +394,7 @@ trait APIMethods310 {
          |
          |${urlParametersDocument(true, true)}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -444,7 +444,7 @@ trait APIMethods310 {
       "Get User Lock Status",
       s"""
          |Get User Login Status.
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -483,7 +483,7 @@ trait APIMethods310 {
          |
          |(Perhaps the user was locked due to multiple failed login attempts)
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -531,7 +531,7 @@ trait APIMethods310 {
          |Per Month
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       callLimitPostJson,
@@ -590,7 +590,7 @@ trait APIMethods310 {
       "Get Call Limits for a Consumer",
       s"""
          |Get Calls limits per Consumer.
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -775,7 +775,7 @@ trait APIMethods310 {
       "Get Consumers",
       s"""Get the all Consumers.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |${urlParametersDocument(true, true)}
          |
@@ -1014,7 +1014,7 @@ trait APIMethods310 {
       "Get Adapter Info",
       s"""Get basic information about the Adapter.
          |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1048,7 +1048,7 @@ trait APIMethods310 {
       "Get Transaction by Id",
       s"""Returns one transaction specified by TRANSACTION_ID of the account ACCOUNT_ID and [moderated](#1_2_1-getViewsForBankAccount) by the view (VIEW_ID).
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.
          |
          |
@@ -1160,7 +1160,7 @@ trait APIMethods310 {
          |
          |Note: If you need to set a specific customer number, use the Update Customer Number endpoint after this call.
          |
-          |${authenticationRequiredMessage(true)}
+          |${userAuthenticationMessage(true)}
          |""",
       postCustomerJsonV310,
       customerJsonV310,
@@ -1238,7 +1238,7 @@ trait APIMethods310 {
          |
          |See the consumer rate limits / call limits endpoints.
          |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1272,7 +1272,7 @@ trait APIMethods310 {
       s"""Gets the Customer specified by CUSTOMER_ID.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |""",
       EmptyBody,
@@ -1315,7 +1315,7 @@ trait APIMethods310 {
       s"""Gets the Customer specified by CUSTOMER_NUMBER.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |""",
       postCustomerNumberJsonV310,
@@ -1360,7 +1360,7 @@ trait APIMethods310 {
       "Create User Auth Context",
       s"""Create User Auth Context. These key value pairs will be propagated over connector to adapter. Normally used for mapping OBP user and 
         | Bank User/Customer. 
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |""",
       postUserAuthContextJson,
       userAuthContextJson,
@@ -1401,7 +1401,7 @@ trait APIMethods310 {
       s"""Get User Auth Contexts for a User.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""",
       EmptyBody,
@@ -1440,7 +1440,7 @@ trait APIMethods310 {
       s"""Delete the Auth Contexts of a User specified by USER_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1478,7 +1478,7 @@ trait APIMethods310 {
       s"""Delete a User AuthContext of the User specified by USER_AUTH_CONTEXT_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1515,7 +1515,7 @@ trait APIMethods310 {
       s"""Create a Tax Residence for a Customer specified by CUSTOMER_ID.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""",
       postTaxResidenceJsonV310,
@@ -1559,7 +1559,7 @@ trait APIMethods310 {
       s"""Get the Tax Residences of the Customer specified by CUSTOMER_ID.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |""",
       EmptyBody,
@@ -1597,7 +1597,7 @@ trait APIMethods310 {
       s"""Delete a Tax Residence of the Customer specified by TAX_RESIDENCE_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1675,7 +1675,7 @@ trait APIMethods310 {
       s"""Create an Address for a Customer specified by CUSTOMER_ID.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |""",
       postCustomerAddressJsonV310,
@@ -1732,7 +1732,7 @@ trait APIMethods310 {
       s"""Update an Address of the Customer specified by CUSTOMER_ADDRESS_ID.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |""",
       postCustomerAddressJsonV310,
@@ -1787,7 +1787,7 @@ trait APIMethods310 {
       s"""Get the Addresses of the Customer specified by CUSTOMER_ID.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |""",
       EmptyBody,
@@ -1826,7 +1826,7 @@ trait APIMethods310 {
       s"""Delete an Address of the Customer specified by CUSTOMER_ADDRESS_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1870,7 +1870,7 @@ trait APIMethods310 {
          |In the future, this endpoint may also return information about database connections etc.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1910,7 +1910,7 @@ trait APIMethods310 {
          | As to the Json body, you can leave it as Empty. 
          | This call will get data from backend, no need to prepare the json body in api side.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1979,7 +1979,7 @@ trait APIMethods310 {
          |
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productAttributeJson,
@@ -2038,7 +2038,7 @@ trait APIMethods310 {
          |
          |Get one product attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2080,7 +2080,7 @@ trait APIMethods310 {
          |
          |Update one Product Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productAttributeJson,
@@ -2139,7 +2139,7 @@ trait APIMethods310 {
          |
          |Delete a Product Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2175,7 +2175,7 @@ trait APIMethods310 {
       "Create Account Application",
       s""" Create Account Application
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       accountApplicationJson,
@@ -2236,7 +2236,7 @@ trait APIMethods310 {
       s"""Get the Account Applications.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |""",
       EmptyBody,
@@ -2279,7 +2279,7 @@ trait APIMethods310 {
       s"""Get the Account Application.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2325,7 +2325,7 @@ trait APIMethods310 {
       s"""Update an Account Application status
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       accountApplicationUpdateStatusJson,
@@ -2415,7 +2415,7 @@ trait APIMethods310 {
           |$productHiearchyAndCollectionNote
          |
          |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |
          |
          |""",
@@ -2492,7 +2492,7 @@ trait APIMethods310 {
          |* Terms and Conditions
          |* License the data under this endpoint is released under
          |
-         |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,
       productJsonV310,
       List(
@@ -2547,7 +2547,7 @@ trait APIMethods310 {
          |
          |
          |
-         |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,
       childProductTreeJsonV310,
       List(
@@ -2600,7 +2600,7 @@ trait APIMethods310 {
          |Can filter with attributes name and values.
          |URL params example: /banks/some-bank-id/products?&limit=50&offset=1
          |
-         |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,
       productsJsonV310,
       List(
@@ -2671,7 +2671,7 @@ trait APIMethods310 {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       accountAttributeJson,
@@ -2744,7 +2744,7 @@ trait APIMethods310 {
          |
          |See [FPML](http://www.fpml.org/) for more examples.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       accountAttributeJson,
@@ -2826,7 +2826,7 @@ trait APIMethods310 {
          |
          |$productHiearchyAndCollectionNote
 
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |
          |
          |""",
@@ -2928,7 +2928,7 @@ trait APIMethods310 {
       "Delete Branch",
       s"""Delete Branch from given Bank.
          |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |
          |""",
       EmptyBody,
@@ -3296,7 +3296,7 @@ trait APIMethods310 {
          |
          |$generalObpConsentText
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Example 1: 
          |{
@@ -3375,7 +3375,7 @@ trait APIMethods310 {
          |
          |$generalObpConsentText
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Example 1: 
          |{
@@ -3456,7 +3456,7 @@ trait APIMethods310 {
          |
          |$generalObpConsentText
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Example 1: 
          |{
@@ -3670,7 +3670,7 @@ trait APIMethods310 {
          |
          |The User must supply a code that was sent out of band (OOB) for example via an SMS.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       PostConsentChallengeJsonV310(answer = "12345678"),
@@ -3717,7 +3717,7 @@ trait APIMethods310 {
       s"""
          |This endpoint gets the Consents that the current User created.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
       """.stripMargin,
       EmptyBody,
@@ -3762,7 +3762,7 @@ trait APIMethods310 {
         |OBP as a resource server stores access tokens in a database, then it is relatively easy to revoke some token that belongs to a particular user.
         |The status of the token is changed to "REVOKED" so the next time the revoked client makes a request, their token will fail to validate.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
       """.stripMargin,
       EmptyBody,
@@ -3804,7 +3804,7 @@ trait APIMethods310 {
       "/banks/BANK_ID/users/current/auth-context-updates/SCA_METHOD",
       "Create User Auth Context Update Request",
       s"""Create User Auth Context Update Request.
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |A One Time Password (OTP) (AKA security challenge) is sent Out of Band (OOB) to the User via the transport defined in SCA_METHOD
          |SCA_METHOD is typically "SMS" or "EMAIL". "EMAIL" is used for testing purposes.
@@ -3918,7 +3918,7 @@ trait APIMethods310 {
       "Get System View",
       s"""Get System View
          |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -3955,7 +3955,7 @@ trait APIMethods310 {
       "Create System View",
       s"""Create a system view
         |
-        | ${authenticationRequiredMessage(true)} and the user needs to have access to the $canCreateSystemView entitlement.
+        | ${userAuthenticationMessage(true)} and the user needs to have access to the $canCreateSystemView entitlement.
         | The 'alias' field in the JSON can take one of two values:
         |
         | * _public_: to use the public alias if there is one specified for the other account.
@@ -4050,7 +4050,7 @@ trait APIMethods310 {
       "Update System View",
       s"""Update an existing view on a bank account
          |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
          |
         |The json sent is the same as during view creation (above), with one difference: the 'name' field
          |of a view is not editable (it is only set when a view is created)""",
@@ -4206,7 +4206,7 @@ trait APIMethods310 {
       s"""Create a MethodRouting.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |Explanation of Fields:
         |
@@ -4316,7 +4316,7 @@ trait APIMethods310 {
       s"""Update a MethodRouting.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |Explaination of Fields:
         |
@@ -4421,7 +4421,7 @@ trait APIMethods310 {
       s"""Delete a MethodRouting specified by METHOD_ROUTING_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -4459,7 +4459,7 @@ trait APIMethods310 {
       s"""Update an email of the Customer specified by CUSTOMER_ID.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |""",
       putUpdateCustomerEmailJsonV310,
@@ -4508,7 +4508,7 @@ trait APIMethods310 {
       s"""Update the number of the Customer specified by CUSTOMER_ID.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |""",
       putUpdateCustomerNumberJsonV310,
@@ -4563,7 +4563,7 @@ trait APIMethods310 {
       s"""Update the mobile number of the Customer specified by CUSTOMER_ID.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""",
       putUpdateCustomerMobileNumberJsonV310,
@@ -4612,7 +4612,7 @@ trait APIMethods310 {
       s"""Update the identity data of the Customer specified by CUSTOMER_ID.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""",
       putUpdateCustomerIdentityJsonV310,
@@ -4669,7 +4669,7 @@ trait APIMethods310 {
       s"""Update the credit limit of the Customer specified by CUSTOMER_ID.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""",
       putUpdateCustomerCreditLimitJsonV310,
@@ -4718,7 +4718,7 @@ trait APIMethods310 {
       s"""Update the credit rating and source of the Customer specified by CUSTOMER_ID.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""",
       putUpdateCustomerCreditRatingAndSourceJsonV310,
@@ -4766,7 +4766,7 @@ trait APIMethods310 {
       "Update Account",
       s"""Update the account. 
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
        """.stripMargin,
       updateAccountRequestJsonV310,
@@ -4829,7 +4829,7 @@ trait APIMethods310 {
       "Create Card",
       s"""Create Card at bank specified by BANK_ID .
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       createPhysicalCardJsonV310,
       physicalCardJsonV310,
@@ -4924,7 +4924,7 @@ trait APIMethods310 {
       "/management/banks/BANK_ID/cards/CARD_ID",
       "Update Card",
       s"""Update Card at bank specified by CARD_ID .
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       updatePhysicalCardJsonV310,
       physicalCardJsonV310,
@@ -5011,7 +5011,7 @@ trait APIMethods310 {
         |2 account_id should be valid account_id , otherwise, it will return an empty card list.  
         |
         |
-        |${authenticationRequiredMessage(true)}""".stripMargin,
+        |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       physicalCardsJsonV310,
       List(UserNotLoggedIn,BankNotFound, UnknownError),
@@ -5080,7 +5080,7 @@ trait APIMethods310 {
       "Delete Card",
       s"""Delete a Card at bank specified by CARD_ID .
          |
-          |${authenticationRequiredMessage(true)}
+          |${userAuthenticationMessage(true)}
          |""",
       EmptyBody,
       EmptyBody,
@@ -5121,7 +5121,7 @@ trait APIMethods310 {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       CardAttributeJson(
@@ -5192,7 +5192,7 @@ trait APIMethods310 {
          |
          |Each Card Attribute is linked to its Card by CARD_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       CardAttributeJson(
@@ -5260,7 +5260,7 @@ trait APIMethods310 {
       s"""Update the Branch of the Customer specified by CUSTOMER_ID.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |""",
       putCustomerBranchJsonV310,
@@ -5316,7 +5316,7 @@ trait APIMethods310 {
       s"""Update the other data of the Customer specified by CUSTOMER_ID.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |""",
       putUpdateCustomerDataJsonV310,
@@ -5813,7 +5813,7 @@ trait APIMethods310 {
       s"""Create a WebUiProps.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Explaination of Fields:
          |
@@ -5894,7 +5894,7 @@ trait APIMethods310 {
       s"""Delete a WebUiProps specified by WEB_UI_PROPS_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,

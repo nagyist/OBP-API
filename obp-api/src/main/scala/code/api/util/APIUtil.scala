@@ -1569,8 +1569,8 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
                         ) {
     // this code block will be merged to constructor.
     {
-      val authenticationIsRequired = authenticationRequiredMessage(true)
-      val authenticationIsOptional = authenticationRequiredMessage(false)
+      val authenticationIsRequired = userAuthenticationMessage(true)
+      val authenticationIsOptional = userAuthenticationMessage(false)
 
       val rolesIsEmpty = roles.map(_.isEmpty).getOrElse(true)
       // if required roles not empty, add UserHasMissingRoles to errorResponseBodies
@@ -2158,10 +2158,16 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
 
   }
 
-  def authenticationRequiredMessage(authRequired: Boolean) : String =
-    authRequired match {
-      case true => "Authentication is Mandatory"
-      case false => "Authentication is Optional"
+  def userAuthenticationMessage(userAuthRequired: Boolean) : String =
+    userAuthRequired match {
+      case true => "User Authentication is Required. The User must be logged in. The Application must also be authenticated."
+      case false => "User Authentication is Optional. The User need not be logged in."
+    }
+
+  def applicationAccessMessage(applicationAccessRequired: Boolean) : String =
+    applicationAccessRequired match {
+      case true => "Application Access is Required. The Application must be authenticated."
+      case false => "Application Access is Optional."
     }
 
 

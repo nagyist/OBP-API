@@ -120,7 +120,7 @@ trait APIMethods220 {
         |
         |Returns the list of the views created for account ACCOUNT_ID at BANK_ID.
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
       EmptyBody,
       viewsJSONV220,
       List(
@@ -163,7 +163,7 @@ trait APIMethods220 {
       "Create View",
       s"""#Create a view on bank account
         |
-        | ${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        | ${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         | The 'alias' field in the JSON can take one of three values:
         |
         | * _public_: to use the public alias if there is one specified for the other account.
@@ -230,7 +230,7 @@ trait APIMethods220 {
       "Update View",
       s"""Update an existing view on a bank account
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         |
         |The json sent is the same as during view creation (above), with one difference: the 'name' field
         |of a view is not editable (it is only set when a view is created)""",
@@ -348,7 +348,7 @@ trait APIMethods220 {
           |
           |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
           |
-          |${authenticationRequiredMessage(true)}
+          |${userAuthenticationMessage(true)}
           |""".stripMargin,
       EmptyBody,
       counterpartiesJsonV220,
@@ -404,7 +404,7 @@ trait APIMethods220 {
       "Get Counterparty by Counterparty Id (Explicit)",
       s"""Information returned about the Counterparty specified by COUNTERPARTY_ID:
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       counterpartyWithMetadataJson,
@@ -477,7 +477,7 @@ trait APIMethods220 {
       "/banks",
       "Create Bank",
       s"""Create a new bank (Authenticated access).
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |""",
       bankJSONV220,
       bankJSONV220,
@@ -561,7 +561,7 @@ trait APIMethods220 {
       "Create Branch",
       s"""Create Branch for the Bank.
          |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |
          |""",
       branchJsonV220,
@@ -610,7 +610,7 @@ trait APIMethods220 {
       "Create ATM",
       s"""Create ATM for the Bank.
           |
-          |${authenticationRequiredMessage(true) }
+          |${userAuthenticationMessage(true) }
           |
           |""",
       atmJsonV220,
@@ -661,7 +661,7 @@ trait APIMethods220 {
       "Create Product",
       s"""Create or Update Product for the Bank.
           |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
           |
           |""",
       productJsonV220,
@@ -738,7 +738,7 @@ trait APIMethods220 {
           | 1 US Dollar = 0.8800 Euro
           |
           |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
           |
           |""",
       fxJsonV220,
@@ -1161,7 +1161,7 @@ trait APIMethods220 {
          |  "bespoke": []
          |}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       postCounterpartyJSON,

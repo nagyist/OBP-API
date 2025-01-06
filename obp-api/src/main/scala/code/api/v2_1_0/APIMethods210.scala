@@ -118,7 +118,7 @@ trait APIMethods210 {
           |Note: This is a monolithic call. You could also use a combination of endpoints including create bank, create user, create account and create transaction request to create similar data.
           |
           |An example of an import set of data (json) can be found [here](https://raw.githubusercontent.com/OpenBankProject/OBP-API/develop/obp-api/src/main/scala/code/api/sandbox/example_data/2016-04-28/example_import.json)
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
           |""",
       SandboxData.importJson,
       successMessage,
@@ -167,7 +167,7 @@ trait APIMethods210 {
       "Get Transaction Request Types at Bank",
       s"""Get the list of the Transaction Request Types supported by the bank.
         |
-        |${authenticationRequiredMessage(!getTransactionRequestTypesIsPublic)}
+        |${userAuthenticationMessage(!getTransactionRequestTypesIsPublic)}
         |""",
       EmptyBody,
       transactionRequestTypesJSON,
@@ -250,7 +250,7 @@ trait APIMethods210 {
           |
           |There is further documentation [here](https://github.com/OpenBankProject/OBP-API/wiki/Transaction-Requests)
           |
-          |${authenticationRequiredMessage(true)}
+          |${userAuthenticationMessage(true)}
           |
           |"""
 
@@ -769,7 +769,7 @@ trait APIMethods210 {
       "Get Roles",
       s"""Returns all available roles
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       availableRolesJSON,
@@ -801,7 +801,7 @@ trait APIMethods210 {
         |
         |Get Entitlements specified by BANK_ID and USER_ID
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |
       """.stripMargin,
@@ -975,7 +975,7 @@ trait APIMethods210 {
       "Create Card",
       s"""Create Card at bank specified by BANK_ID .
           |
-          |${authenticationRequiredMessage(true)}
+          |${userAuthenticationMessage(true)}
           |""",
       postPhysicalCardJSON,
       physicalCardJSON,
@@ -1106,7 +1106,7 @@ trait APIMethods210 {
           |  * description : A longer description
           |  * charge : The charge to the customer for each one of these
           |
-          |${authenticationRequiredMessage(getTransactionTypesIsPublic)}""".stripMargin,
+          |${userAuthenticationMessage(getTransactionTypesIsPublic)}""".stripMargin,
       transactionTypeJsonV200,
       transactionType,
       List(
@@ -1155,7 +1155,7 @@ trait APIMethods210 {
           |* Geo Location
           |* License the data under this endpoint is released under
           |
-          |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+          |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmJson,
       List(UserNotLoggedIn, BankNotFound, AtmNotFoundByAtmId, UnknownError),
@@ -1200,7 +1200,7 @@ trait APIMethods210 {
           |* Geo Location
           |* License the data under this endpoint is released under
           |
-        |${authenticationRequiredMessage(!getBranchesIsPublic)}""".stripMargin,
+        |${userAuthenticationMessage(!getBranchesIsPublic)}""".stripMargin,
       EmptyBody,
       branchJson,
       List(
@@ -1251,7 +1251,7 @@ trait APIMethods210 {
           |* Description
           |* Terms and Conditions
           |* License the data under this endpoint is released under
-          |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
+          |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,
       productJsonV210,
       List(
@@ -1298,7 +1298,7 @@ trait APIMethods210 {
           |* Description
           |* Terms and Conditions
           |* License the data under this endpoint is released under
-          |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
+          |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,
       productsJsonV210,
       List(
@@ -1348,7 +1348,7 @@ trait APIMethods210 {
           |The Customer resource stores the customer number, legal name, email, phone number, their date of birth, relationship status, education attained, a url for a profile image, KYC status etc.
           |Dates need to be in the format 2013-01-21T23:08:00Z
           |
-          |${authenticationRequiredMessage(true)}
+          |${userAuthenticationMessage(true)}
           |
           |$createCustomeEntitlementsRequiredText
           |""",
@@ -1461,7 +1461,7 @@ trait APIMethods210 {
       s"""Returns a list of Customers at the Bank that are linked to the currently authenticated User.
         |
         |
-        |${authenticationRequiredMessage(true)}""".stripMargin,
+        |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       customerJSONs,
       List(
@@ -1503,7 +1503,7 @@ trait APIMethods210 {
       "/banks/BANK_ID/branches/BRANCH_ID",
       "Update Branch",
       s"""Update an existing branch for a bank account (Authenticated access).
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       branchJsonPut,
       branchJson,
@@ -1550,7 +1550,7 @@ trait APIMethods210 {
       "/banks/BANK_ID/branches",
       "Create Branch",
       s"""Create branch for the bank (Authenticated access).
-          |${authenticationRequiredMessage(true)}
+          |${userAuthenticationMessage(true)}
           |""",
       branchJsonPost,
       branchJson,

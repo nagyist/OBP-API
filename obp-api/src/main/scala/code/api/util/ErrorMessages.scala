@@ -263,9 +263,9 @@ object ErrorMessages {
   val Oauth2TokenEndpointAuthMethodForbidden = "OBP-20213: The Token Endpoint Auth Method is not supported at this instance: "
   val OneTimePasswordExpired = "OBP-20211: The One Time Password (OTP) has expired. "
   val Oauth2IsNotRecognized = "OBP-20214: OAuth2 Access Token is not recognised at this instance."
-  val Oauth2ValidateAccessTokenError = "OBP-20215: OAuth2 validate access token issue. "
+  val Oauth2ValidateAccessTokenError = "OBP-20215: There was a problem validating the OAuth2 access token. "
 
-  val AuthorizationHeaderAmbiguity = "OBP-20250: Request headers cannot contain more than one authorization value. "
+  val AuthorizationHeaderAmbiguity = "OBP-20250: Request headers used for authorization are ambiguous. "
 
   // X.509
   val X509GeneralError = "OBP-20300: PEM Encoded Certificate issue."

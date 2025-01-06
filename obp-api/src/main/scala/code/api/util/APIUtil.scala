@@ -2164,6 +2164,12 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
       case false => "User Authentication is Optional"
     }
 
+  def applicationAccessMessage(applicationAccessRequired: Boolean) : String =
+    applicationAccessRequired match {
+      case true => "Application Authentication is Mandatory"
+      case false => "Application Authentication is Optional"
+    }
+
 
 
   def fullBaseUrl(callContext: Option[CallContext]) : String = {

@@ -127,7 +127,7 @@ trait APIMethods300 {
         |
         |Returns the list of the views created for account ACCOUNT_ID at BANK_ID.
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
       EmptyBody,
       viewsJsonV300,
       List(
@@ -174,7 +174,7 @@ trait APIMethods300 {
       "Create Custom View",
       s"""Create a custom view on bank account
         |
-        | ${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        | ${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         | The 'alias' field in the JSON can take one of three values:
         |
         | * _public_: to use the public alias if there is one specified for the other account.
@@ -239,7 +239,7 @@ trait APIMethods300 {
       s"""Returns the list of the views at BANK_ID for account ACCOUNT_ID that a user identified by PROVIDER_ID at their provider PROVIDER has access to.
          |All url parameters must be [%-encoded](http://en.wikipedia.org/wiki/Percent-encoding), which is often especially relevant for USER_ID and PROVIDER.
          |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |The user needs to have access to the owner view.""",
       EmptyBody,
@@ -282,7 +282,7 @@ trait APIMethods300 {
       "Update Custom View",
       s"""Update an existing custom view on a bank account
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         |
         |The json sent is the same as during view creation (above), with one difference: the 'name' field
         |of a view is not editable (it is only set when a view is created)""",
@@ -400,7 +400,7 @@ trait APIMethods300 {
         |PSD2 Context: PSD2 requires customers to have access to their account information via third party applications.
         |This call provides balance and other account information via delegated authentication using OAuth.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |
         |""".stripMargin,
       EmptyBody,
@@ -442,7 +442,7 @@ trait APIMethods300 {
         |This call returns the owner view and requires access to that view.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""".stripMargin,
       EmptyBody,
@@ -478,7 +478,7 @@ trait APIMethods300 {
          |
          |${accountTypeFilterText("/my/accounts")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       EmptyBody,
       coreAccountsJsonV300,
@@ -534,7 +534,7 @@ trait APIMethods300 {
          |URL params example:
          |  `/banks/some-bank-id/firehose/accounts/views/owner?&limit=50&offset=1&_timestamp_=1596762180358`
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -623,7 +623,7 @@ trait APIMethods300 {
          |
          |${urlParametersDocument(true, true)}       
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -686,7 +686,7 @@ trait APIMethods300 {
       "Get Transactions for Account (Core)",
       s"""Returns transactions list (Core info) of the account specified by ACCOUNT_ID.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |${urlParametersDocument(true, true)}
         |
@@ -742,7 +742,7 @@ trait APIMethods300 {
       "Get Transactions for Account (Full)",
       s"""Returns transactions list of the account specified by ACCOUNT_ID and [moderated](#1_2_1-getViewsForBankAccount) by the view (VIEW_ID).
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |
         |Authentication is required if the view is not public.
         |
@@ -801,7 +801,7 @@ trait APIMethods300 {
       s"""
         |Search the data warehouse and get row level results.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |CanSearchWarehouse entitlement is required. You can request the Role below.
         |
@@ -883,7 +883,7 @@ trait APIMethods300 {
          |
          |https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-stats-aggregation.html
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |CanSearchWarehouseStats Role is required. You can request this below.
          |
@@ -957,7 +957,7 @@ trait APIMethods300 {
       "Get Users by Email Address",
       s"""Get users by email address
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |CanGetAnyUser entitlement is required,
         |
       """.stripMargin,
@@ -990,7 +990,7 @@ trait APIMethods300 {
       "Get User by USER_ID",
       s"""Get user by USER_ID
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |CanGetAnyUser entitlement is required,
         |
       """.stripMargin,
@@ -1026,7 +1026,7 @@ trait APIMethods300 {
       "Get User by USERNAME",
       s"""Get user by USERNAME
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |CanGetAnyUser entitlement is required,
         |
@@ -1064,7 +1064,7 @@ trait APIMethods300 {
       "Get Adapter Info for a bank",
       s"""Get basic information about the Adapter listening on behalf of this bank.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
       """.stripMargin,
       EmptyBody,
@@ -1105,7 +1105,7 @@ trait APIMethods300 {
       "Create Branch",
       s"""Create Branch for the Bank.
           |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
           |
           |""",
       branchJsonV300,
@@ -1155,7 +1155,7 @@ trait APIMethods300 {
       "Update Branch",
       s"""Update an existing branch for a bank account (Authenticated access).
           |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
           |
           |""",
       postBranchJsonV300,
@@ -1222,7 +1222,7 @@ trait APIMethods300 {
       "Create ATM",
       s"""Create ATM for the Bank.
           |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
           |
           |""",
       atmJsonV300,
@@ -1277,7 +1277,7 @@ trait APIMethods300 {
          |* Geo Location
          |* License the data under this endpoint is released under.
          |
-        |${authenticationRequiredMessage(!getBranchesIsPublic)}""".stripMargin,
+        |${userAuthenticationMessage(!getBranchesIsPublic)}""".stripMargin,
       EmptyBody,
       branchJsonV300,
       List(
@@ -1339,7 +1339,7 @@ trait APIMethods300 {
          |
          |note: withinMetersOf, nearLatitude and nearLongitude either all empty or all have value.
          |
-        |${authenticationRequiredMessage(!getBranchesIsPublic)}""".stripMargin,
+        |${userAuthenticationMessage(!getBranchesIsPublic)}""".stripMargin,
       EmptyBody,
       branchesJsonV300,
       List(
@@ -1456,7 +1456,7 @@ trait APIMethods300 {
          |
          |
          |
-          |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+          |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmJsonV300,
       List(UserNotLoggedIn, BankNotFound, AtmNotFoundByAtmId, UnknownError),
@@ -1497,7 +1497,7 @@ trait APIMethods300 {
           |
           |You can use the url query parameters *limit* and *offset* for pagination
          |
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmJsonV300,
       List(
@@ -1569,7 +1569,7 @@ trait APIMethods300 {
       "Get all Users",
       s"""Get all users
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |CanGetAnyUser entitlement is required,
         |
@@ -1616,7 +1616,7 @@ trait APIMethods300 {
       s"""Gets all Customers that are linked to a User.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""",
       EmptyBody,
@@ -1666,7 +1666,7 @@ trait APIMethods300 {
       "Get User (Current)",
       s"""Get the logged in user
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       userJsonV300,
@@ -1702,7 +1702,7 @@ trait APIMethods300 {
          |
          |${accountTypeFilterText("/banks/BANK_ID/accounts/private")}
          |
-         |${authenticationRequiredMessage(true)}""".stripMargin,
+         |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       coreAccountsJsonV300,
       List(UserNotLoggedIn, BankNotFound, UnknownError),
@@ -1741,7 +1741,7 @@ trait APIMethods300 {
          |
          |${accountTypeFilterText("/banks/BANK_ID/accounts/account_ids/private")}
          |
-         |${authenticationRequiredMessage(true)}""".stripMargin,
+         |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       accountsIdsJsonV300,
       List(UserNotLoggedIn, BankNotFound, UnknownError),
@@ -1774,7 +1774,7 @@ trait APIMethods300 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts",
       "Get Other Accounts of one Account",
       s"""Returns data about all the other accounts that have shared at least one transaction with the ACCOUNT_ID at BANK_ID.
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |Authentication is required if the view VIEW_ID is not public.""",
       EmptyBody,
@@ -1811,7 +1811,7 @@ trait APIMethods300 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID",
       "Get Other Account by Id",
       s"""Returns data about the Other Account that has shared at least one transaction with ACCOUNT_ID at BANK_ID.
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |Authentication is required if the view is not public.""",
       EmptyBody,
@@ -1859,7 +1859,7 @@ trait APIMethods300 {
         |
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         """.stripMargin,
       code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON.createEntitlementJSON,
@@ -1917,7 +1917,7 @@ trait APIMethods300 {
       s"""
         |Get all Entitlement Requests
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       entitlementRequestsJSON,
@@ -1955,7 +1955,7 @@ trait APIMethods300 {
       s"""Get Entitlement Requests for a User.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         """.stripMargin,
       EmptyBody,
@@ -1994,7 +1994,7 @@ trait APIMethods300 {
       s"""Get Entitlement Requests for the current User.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         """.stripMargin,
       EmptyBody,
@@ -2030,7 +2030,7 @@ trait APIMethods300 {
       s"""Delete the Entitlement Request specified by ENTITLEMENT_REQUEST_ID for a user specified by USER_ID
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       EmptyBody,
@@ -2069,7 +2069,7 @@ trait APIMethods300 {
       s"""Get Entitlements for the current User.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         """.stripMargin,
       EmptyBody,
@@ -2222,7 +2222,7 @@ trait APIMethods300 {
         |
         |15 exclude_implemented_by_partial_functions (if null ignore).eg: &exclude_implemented_by_partial_functions=getMetrics,getConnectorMetrics,getAggregateMetrics
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
       """.stripMargin,
       EmptyBody,
@@ -2385,7 +2385,7 @@ trait APIMethods300 {
       "Get Scopes for Consumer",
       s"""Get all the scopes for an consumer specified by CONSUMER_ID
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |
       """.stripMargin,

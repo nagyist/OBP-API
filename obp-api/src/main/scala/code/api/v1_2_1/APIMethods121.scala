@@ -220,7 +220,7 @@ trait APIMethods121 {
       s"""Returns the list of accounts at that the user has access to at all banks.
          |For each account the API returns the account ID and the available views.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       accountJSON,
@@ -316,7 +316,7 @@ trait APIMethods121 {
       s"""Returns the list of accounts at BANK_ID that the user has access to.
         |For each account the API returns the account ID and the available views.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
       """,
       EmptyBody,
@@ -349,7 +349,7 @@ trait APIMethods121 {
       s"""Returns the list of private accounts at BANK_ID that the user has access to.
         |For each account the API returns the ID and the available views.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""".stripMargin,
       EmptyBody,
@@ -422,7 +422,7 @@ trait APIMethods121 {
          |
          |More details about the data moderation by the view [here](#1_2_1-getViewsForBankAccount).
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |Authentication is required if the 'is_public' field in view (VIEW_ID) is not set to `true`.
          |
@@ -460,7 +460,7 @@ trait APIMethods121 {
       s"""Update the label for the account. The label is how the account is known to the account owner e.g. 'My savings account'
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
        """.stripMargin,
       updateAccountJSON,
@@ -527,7 +527,7 @@ trait APIMethods121 {
          |
          |Returns the list of the views created for account ACCOUNT_ID at BANK_ID.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
+         |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
       EmptyBody,
       viewsJSONV121,
       List(UserNotLoggedIn, BankAccountNotFound, UnknownError, "user does not have owner access"),
@@ -563,7 +563,7 @@ trait APIMethods121 {
       "Create View",
       s"""#Create a view on bank account
         |
-        | ${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        | ${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         | The 'alias' field in the JSON can take one of three values:
         |
         | * _public_: to use the public alias if there is one specified for the other account.
@@ -628,7 +628,7 @@ trait APIMethods121 {
       "Update View",
       s"""Update an existing view on a bank account
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         |
         |The json sent is the same as during view creation (above), with one difference: the 'name' field
         |of a view is not editable (it is only set when a view is created)""",
@@ -738,7 +738,7 @@ trait APIMethods121 {
       "Get access",
       s"""Returns the list of the permissions at BANK_ID for account ACCOUNT_ID, with each time a pair composed of the user and the views that he has access to.
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
       EmptyBody,
       permissionsJSON,
       List(UserNotLoggedIn, UnknownError),
@@ -776,7 +776,7 @@ trait APIMethods121 {
       s"""Returns the list of the views at BANK_ID for account ACCOUNT_ID that a USER_ID at their provider PROVIDER_ID has access to.
         |All url parameters must be [%-encoded](http://en.wikipedia.org/wiki/Percent-encoding), which is often especially relevant for USER_ID and PROVIDER_ID.
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
       EmptyBody,
       viewsJSONV121,
       List(
@@ -823,7 +823,7 @@ trait APIMethods121 {
         |
         |All url parameters must be [%-encoded](http://en.wikipedia.org/wiki/Percent-encoding), which is often especially relevant for PROVIDER_ID and PROVIDER.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |The User needs to have access to the owner view.""",
       viewIdsJson,
@@ -872,7 +872,7 @@ trait APIMethods121 {
           |
           |All url parameters must be [%-encoded](http://en.wikipedia.org/wiki/Percent-encoding), which is often especially relevant for PROVIDER and PROVIDER_ID.
           |
-          |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+          |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
           |
           |Granting access to a public view will return an error message, as the user already has access.""",
       EmptyBody, // No Json body required
@@ -935,7 +935,7 @@ trait APIMethods121 {
          |
          |$generalRevokeAccessToViewText
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
       EmptyBody,
       EmptyBody,
       List(
@@ -973,7 +973,7 @@ trait APIMethods121 {
          |
          |$generalRevokeAccessToViewText
          |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
       EmptyBody,
       EmptyBody,
       List(
@@ -1007,7 +1007,7 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts",
       "Get Other Accounts of one Account",
       s"""Returns data about all the other accounts that have shared at least one transaction with the ACCOUNT_ID at BANK_ID.
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |Authentication is required if the view VIEW_ID is not public.""",
       EmptyBody,
       otherAccountsJSON,
@@ -1039,7 +1039,7 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID",
       "Get Other Account by Id",
       s"""Returns data about the Other Account that has shared at least one transaction with ACCOUNT_ID at BANK_ID.
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.""",
       EmptyBody,
       otherAccountJSON,
@@ -1105,8 +1105,8 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID/public_alias",
       "Get public alias of other bank account",
       s"""Returns the public alias of the other account OTHER_ACCOUNT_ID.
-        |${authenticationRequiredMessage(false)}
-        |${authenticationRequiredMessage(true)} if the view is not public.""",
+        |${userAuthenticationMessage(false)}
+        |${userAuthenticationMessage(true)} if the view is not public.""",
       EmptyBody,
       aliasJSON,
       List(
@@ -1148,7 +1148,7 @@ trait APIMethods121 {
       "Add public alias to other bank account",
       s"""Creates the public alias for the other account OTHER_ACCOUNT_ID.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.
          |
          |Note: Public aliases are automatically generated for new 'other accounts / counterparties', so this call should only be used if
@@ -1206,7 +1206,7 @@ trait APIMethods121 {
       "Update public alias of other bank account",
       s"""Updates the public alias of the other account / counterparty OTHER_ACCOUNT_ID.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |Authentication is required if the view is not public.""",
       aliasJSON,
       successMessage,
@@ -1259,7 +1259,7 @@ trait APIMethods121 {
       "Delete Counterparty Public Alias",
       s"""Deletes the public alias of the other account OTHER_ACCOUNT_ID.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.""",
       EmptyBody,
       EmptyBody,
@@ -1307,7 +1307,7 @@ trait APIMethods121 {
       "Get Other Account Private Alias",
       s"""Returns the private alias of the other account OTHER_ACCOUNT_ID.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |Authentication is required if the view is not public.""",
       EmptyBody,
       aliasJSON,
@@ -1351,7 +1351,7 @@ trait APIMethods121 {
       "Create Other Account Private Alias",
       s"""Creates a private alias for the other account OTHER_ACCOUNT_ID.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.""",
       aliasJSON,
       successMessage,
@@ -1403,7 +1403,7 @@ trait APIMethods121 {
       "Update Counterparty Private Alias",
       s"""Updates the private alias of the counterparty (AKA other account) OTHER_ACCOUNT_ID.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |Authentication is required if the view is not public.""",
       aliasJSON,
       successMessage,
@@ -1455,7 +1455,7 @@ trait APIMethods121 {
       "Delete Counterparty Private Alias",
       s"""Deletes the private alias of the other account OTHER_ACCOUNT_ID.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |Authentication is required if the view is not public.""",
       EmptyBody,
       EmptyBody,
@@ -2456,7 +2456,7 @@ trait APIMethods121 {
       "Get Transaction by Id",
       s"""Returns one transaction specified by TRANSACTION_ID of the account ACCOUNT_ID and [moderated](#1_2_1-getViewsForBankAccount) by the view (VIEW_ID).
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.
          |
          |
@@ -2529,7 +2529,7 @@ trait APIMethods121 {
          |Note: Unlike other items of metadata, there is only one "narrative" per transaction accross all views.
          |If you set narrative via a view e.g. view-x it will be seen via view-y (as long as view-y has permission to see the narrative).
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.
          |""",
       transactionNarrativeJSON,
@@ -2803,7 +2803,7 @@ trait APIMethods121 {
       "Add a Transaction Tag",
       s"""Posts a tag about a transaction TRANSACTION_ID on a [view](#1_2_1-getViewsForBankAccount) VIEW_ID.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Authentication is required as the tag is linked with the user.""",
       postTransactionTagJSON,
@@ -2923,7 +2923,7 @@ trait APIMethods121 {
       "Add a Transaction Image",
       s"""Posts an image about a transaction TRANSACTION_ID on a [view](#1_2_1-getViewsForBankAccount) VIEW_ID.
          |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |
          |The image is linked with the user.""",
       postTransactionImageJSON,
@@ -3048,7 +3048,7 @@ trait APIMethods121 {
       "Add a Transaction where Tag",
       s"""Creates a "where" Geo tag on a transaction TRANSACTION_ID in a [view](#1_2_1-getViewsForBankAccount).
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |The geo tag is linked with the user.""",
       postTransactionWhereJSON,
@@ -3094,7 +3094,7 @@ trait APIMethods121 {
       "Update a Transaction where Tag",
       s"""Updates the "where" Geo tag on a transaction TRANSACTION_ID in a [view](#1_2_1-getViewsForBankAccount).
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |The geo tag is linked with the user.""",
       postTransactionWhereJSON,
@@ -3140,7 +3140,7 @@ trait APIMethods121 {
       "Delete a Transaction Tag",
       s"""Deletes the where tag of the transaction TRANSACTION_ID made on [view](#1_2_1-getViewsForBankAccount).
          |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |The user must either have owner privileges for this account, or must be the user that posted the geo tag.""",
       EmptyBody,

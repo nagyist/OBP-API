@@ -41,7 +41,7 @@ import scala.collection.mutable.ArrayBuffer
 // So we can include resource docs from future versions
 //import code.api.v1_4_0.JSONFactory1_4_0._
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON._
-import code.api.util.APIUtil.{ResourceDoc, authenticationRequiredMessage, _}
+import code.api.util.APIUtil._
 import code.api.util.ErrorMessages
 import code.api.util.ErrorMessages._
 import code.crm.CrmEvent
@@ -222,7 +222,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
         |
         |You can use the url query parameters *limit* and *offset* for pagination
         |
-        |${authenticationRequiredMessage(!getBranchesIsPublic)}""".stripMargin,
+        |${userAuthenticationMessage(!getBranchesIsPublic)}""".stripMargin,
       EmptyBody,
       branchesJson,
       List(
@@ -274,7 +274,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
          |
          |${urlParametersDocument(false,false)}         
          |
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmsJson,
       List(
@@ -332,7 +332,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
         |* Description
         |* Terms and Conditions
         |* License the data under this endpoint is released under
-        |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
+        |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,
       productsJson,
       List(
@@ -486,7 +486,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
          |This call may require additional permissions/role in the future.
          |For now the authenticated user can create at most one linked customer.
          |Dates need to be in the format 2013-01-21T23:08:00Z
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |Note: This call is depreciated in favour of v.2.0.0 createCustomer
          |""",
       code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON.createCustomerJson,

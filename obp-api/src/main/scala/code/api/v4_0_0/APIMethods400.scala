@@ -141,7 +141,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Mapper Database Info",
       s"""Get basic information about the Mapper Database.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -171,7 +171,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Logout Link",
       s"""Get the Logout Link
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       logoutLinkV400,
@@ -209,7 +209,7 @@ trait APIMethods400 extends MdcLoggable {
          |Per Month
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       callLimitPostJsonV400,
@@ -370,7 +370,7 @@ trait APIMethods400 extends MdcLoggable {
          |`transaction_request_id` of the transaction request at the origin of the transaction. Please note that if none
          |transaction request is at the origin of the transaction, the `transaction_request` object will be `null`.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -409,7 +409,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Get Balancing Transaction
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1227,7 +1227,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionRequestAttributeJsonV400,
@@ -1282,7 +1282,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Request Attribute By Id",
       s""" Get Transaction Request Attribute By Id
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1323,7 +1323,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Request Attributes",
       s""" Get Transaction Request Attributes
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1365,7 +1365,7 @@ trait APIMethods400 extends MdcLoggable {
       "Update Transaction Request Attribute",
       s""" Update Transaction Request Attribute
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionRequestAttributeJsonV400,
@@ -1425,7 +1425,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of: ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionRequestAttributeDefinitionJsonV400,
@@ -1484,7 +1484,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Request Attribute Definition",
       s""" Get Transaction Request Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1521,7 +1521,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Transaction Request Attribute Definition",
       s""" Delete Transaction Request Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1648,7 +1648,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Create a system level Dynamic Entity.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Create a DynamicEntity. If creation is successful, the corresponding POST, GET, PUT and DELETE (Create, Read, Update, Delete or CRUD for short) endpoints will be generated automatically
          |
@@ -1693,7 +1693,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create Bank Level Dynamic Entity",
       s"""Create a Bank Level DynamicEntity.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Create a DynamicEntity. If creation is successful, the corresponding POST, GET, PUT and DELETE (Create, Read, Update, Delete or CRUD for short) endpoints will be generated automatically
          |
@@ -1759,7 +1759,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Update a System Level Dynamic Entity.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Update one DynamicEntity, after update finished, the corresponding CRUD endpoints will be changed.
          |
@@ -1802,7 +1802,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Update a Bank Level DynamicEntity.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Update one DynamicEntity, after update finished, the corresponding CRUD endpoints will be changed.
          |
@@ -1946,7 +1946,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Update my DynamicEntity.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Update one of my DynamicEntity, after update finished, the corresponding CRUD endpoints will be changed.
          |
@@ -2302,7 +2302,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Update the label for the account. The label is how the account is known to the account owner e.g. 'My savings account'
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
        """.stripMargin,
       updateAccountJsonV400,
@@ -2348,7 +2348,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""
          |Lock a User.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -2542,7 +2542,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create a tag on account",
       s"""Posts a tag about an account ACCOUNT_ID on a [view](#1_2_1-getViewsForBankAccount) VIEW_ID.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Authentication is required as the tag is linked with the user.""",
       postAccountTagJSON,
@@ -2588,7 +2588,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete a tag on account",
       s"""Deletes the tag TAG_ID about the account ACCOUNT_ID made on [view](#1_2_1-getViewsForBankAccount).
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |Authentication is required as the tag is linked with the user.""",
       EmptyBody,
@@ -2629,7 +2629,7 @@ trait APIMethods400 extends MdcLoggable {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/metadata/tags",
       "Get tags on account",
       s"""Returns the account ACCOUNT_ID tags made on a [view](#1_2_1-getViewsForBankAccount) (VIEW_ID).
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Authentication is required as the tag is linked with the user.""",
       EmptyBody,
@@ -2980,7 +2980,7 @@ trait APIMethods400 extends MdcLoggable {
          |URL params example:
          |  `/banks/some-bank-id/firehose/accounts/views/owner?&limit=50&offset=1&_timestamp_=1596762180358`
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -3062,7 +3062,7 @@ trait APIMethods400 extends MdcLoggable {
          |optional pagination parameters for filter with accounts
          |${urlParametersDocument(true, false)}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -3142,7 +3142,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User Id (Current)",
       s"""Get the USER_ID of the logged in user
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       userIdJsonV400,
@@ -3171,7 +3171,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User by USER_ID",
       s"""Get user by USER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |CanGetAnyUser entitlement is required,
          |
       """.stripMargin,
@@ -3210,7 +3210,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User by USERNAME",
       s"""Get user by USERNAME
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |CanGetAnyUser entitlement is required,
          |
@@ -3247,7 +3247,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Users by Email Address",
       s"""Get users by email address
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |CanGetAnyUser entitlement is required,
          |
       """.stripMargin,
@@ -3278,7 +3278,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get all Users",
       s"""Get all users
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |CanGetAnyUser entitlement is required,
          |
@@ -3414,7 +3414,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User Invitation Information",
       s"""Get User Invitation Information.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |""",
       PostUserInvitationAnonymousJsonV400(secret_key = 5819479115482092878L),
       userInvitationJsonV400,
@@ -3461,7 +3461,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User Invitation",
       s""" Get User Invitation
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -3496,7 +3496,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User Invitations",
       s""" Get User Invitations
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -3533,7 +3533,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete a User.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -3927,7 +3927,7 @@ trait APIMethods400 extends MdcLoggable {
       "Grant User access to View",
       s"""Grants the User identified by USER_ID access to the view identified by VIEW_ID.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to be account holder.
+         |${userAuthenticationMessage(true)} and the user needs to be account holder.
          |
          |""",
       postAccountAccessJsonV400,
@@ -3983,7 +3983,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |This endpoint will create the (DAuth) User with username and provider if the User does not already exist.
          |
-         |${authenticationRequiredMessage(true)} and the logged in user needs to be account holder.
+         |${userAuthenticationMessage(true)} and the logged in user needs to be account holder.
          |
          |For information about DAuth see below:
          |
@@ -4040,7 +4040,7 @@ trait APIMethods400 extends MdcLoggable {
       "Revoke User access to View",
       s"""Revoke the User identified by USER_ID access to the view identified by VIEW_ID.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to be account holder.
+         |${userAuthenticationMessage(true)} and the user needs to be account holder.
          |
          |""",
       postAccountAccessJsonV400,
@@ -4097,7 +4097,7 @@ trait APIMethods400 extends MdcLoggable {
       "Revoke/Grant User access to View",
       s"""Revoke/Grant the logged in User access to the views identified by json.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to be an account holder or has owner view access.
+         |${userAuthenticationMessage(true)} and the user needs to be an account holder or has owner view access.
          |
          |""",
       postRevokeGrantAccountAccessJsonV400,
@@ -4153,7 +4153,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       customerAttributeJsonV400,
@@ -4207,7 +4207,7 @@ trait APIMethods400 extends MdcLoggable {
       s""" Update Customer Attribute
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       customerAttributeJsonV400,
@@ -4265,7 +4265,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Customer Attributes",
       s""" Get Customer Attributes
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -4306,7 +4306,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Customer Attribute By Id",
       s""" Get Customer Attribute By Id
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -4402,7 +4402,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionAttributeJsonV400,
@@ -4456,7 +4456,7 @@ trait APIMethods400 extends MdcLoggable {
       s""" Update Transaction Attribute
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionAttributeJsonV400,
@@ -4511,7 +4511,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Attributes",
       s""" Get Transaction Attributes
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -4552,7 +4552,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Attribute By Id",
       s""" Get Transaction Attribute By Id
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -4884,7 +4884,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Get Customers at Any Bank.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -4921,7 +4921,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Get Customers Minimal at Any Bank.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -4958,7 +4958,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Scopes for Consumer",
       s"""Get all the scopes for an consumer specified by CONSUMER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |
       """.stripMargin,
@@ -5068,7 +5068,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Delete a Customer Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -5532,7 +5532,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       templateAttributeDefinitionJsonV400,
@@ -5596,7 +5596,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       accountAttributeDefinitionJsonV400,
@@ -5659,7 +5659,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productAttributeDefinitionJsonV400,
@@ -5747,7 +5747,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productAttributeJsonV400,
@@ -5807,7 +5807,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Update one Product Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productAttributeJsonV400,
@@ -5866,7 +5866,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Get one product attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -5903,7 +5903,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create Product Fee",
       s"""Create Product Fee
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productFeeJsonV400.copy(product_fee_id = None),
@@ -5956,7 +5956,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Update one Product Fee by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productFeeJsonV400.copy(product_fee_id = None),
@@ -6009,7 +6009,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Get one product fee by its id.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |""",
       EmptyBody,
@@ -6045,7 +6045,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Product Fees",
       s"""Get Product Fees
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |""",
       EmptyBody,
@@ -6082,7 +6082,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Delete one product fee by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6121,7 +6121,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       bankAttributeDefinitionJsonV400,
@@ -6197,7 +6197,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       bankAttributeJsonV400,
@@ -6249,7 +6249,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Bank Attributes",
       s""" Get Bank Attributes
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6284,7 +6284,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Bank Attribute By BANK_ATTRIBUTE_ID",
       s""" Get Bank Attribute By BANK_ATTRIBUTE_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6322,7 +6322,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Update one Bak Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       bankAttributeJsonV400,
@@ -6377,7 +6377,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Delete a Bank Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6417,7 +6417,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionAttributeDefinitionJsonV400,
@@ -6481,7 +6481,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       cardAttributeDefinitionJsonV400,
@@ -6541,7 +6541,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Transaction Attribute Definition",
       s""" Delete Transaction Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6579,7 +6579,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Customer Attribute Definition",
       s""" Delete Customer Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6617,7 +6617,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Account Attribute Definition",
       s""" Delete Account Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6655,7 +6655,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Product Attribute Definition",
       s""" Delete Product Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6693,7 +6693,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Card Attribute Definition",
       s""" Delete Card Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6731,7 +6731,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Product Attribute Definition",
       s""" Get Product Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6768,7 +6768,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Customer Attribute Definition",
       s""" Get Customer Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6805,7 +6805,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Account Attribute Definition",
       s""" Get Account Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6842,7 +6842,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Attribute Definition",
       s""" Get Transaction Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6880,7 +6880,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Card Attribute Definition",
       s""" Get Card Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6917,7 +6917,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete User Customer Link",
       s""" Delete User Customer Link by USER_CUSTOMER_LINK_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6955,7 +6955,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User Customer Links by User",
       s""" Get User Customer Links by USER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6991,7 +6991,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create User Customer Link",
       s"""Link a User to a Customer
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       createUserCustomerLinkJson,
@@ -7054,7 +7054,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User Customer Links by Customer",
       s""" Get User Customer Links by CUSTOMER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7087,7 +7087,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Correlated User Info by Customer",
       s"""Get Correlated User Info by CUSTOMER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7123,7 +7123,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Correlated Entities for the current User",
       s"""Correlated Entities are users and customers linked to the currently authenticated user via User-Customer-Links
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7179,7 +7179,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Note: If you need to set a specific customer number, use the Update Customer Number endpoint after this call.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       postCustomerJsonV310,
       customerJsonV310,
@@ -7243,7 +7243,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Accounts Minimal for a Customer",
       s"""Get Accounts Minimal by CUSTOMER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7280,7 +7280,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete a Transaction Cascade specified by TRANSACTION_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7318,7 +7318,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete an Account Cascade specified by ACCOUNT_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7357,7 +7357,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete a Bank Cascade specified by BANK_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7392,7 +7392,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete a Product Cascade specified by PRODUCT_CODE.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7430,7 +7430,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete a Customer Cascade specified by CUSTOMER_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7468,7 +7468,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |For an introduction to Counterparties in OBP see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       postCounterpartyJson400,
@@ -7593,7 +7593,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |For a general introduction to Counterparties in OBP see ${Glossary.getGlossaryItemLink("Counterparties")}
          |         |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       EmptyBody,
@@ -7642,7 +7642,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       EmptyBody,
@@ -7689,7 +7689,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |For an introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       postCounterpartyJson400,
@@ -7806,7 +7806,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       counterpartiesJson400,
@@ -7861,7 +7861,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       counterpartiesJson400,
@@ -7913,7 +7913,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       counterpartyWithMetadataJson400,
@@ -7949,7 +7949,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -8001,7 +8001,7 @@ trait APIMethods400 extends MdcLoggable {
          |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -8047,7 +8047,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Each Consent has one of the following states: ${ConsentStatus.values.toList.sorted.mkString(", ") }.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       PutConsentUserJsonV400(user_id = "ed7a7c01-db37-45cc-ba12-0ae8891c195c"),
@@ -8106,7 +8106,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Each Consent has one of the following states: ${ConsentStatus.values.toList.sorted.mkString(", ") }.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       PutConsentStatusJsonV400(status = "AUTHORISED"),
@@ -8163,7 +8163,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |This endpoint gets the Consents that the current User created.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -8199,7 +8199,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |This endpoint gets the Consents that the current User created.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -8234,7 +8234,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Personal User Attributes",
       s"""Get My Personal User Attributes.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       userAttributesResponseJson,
@@ -8266,7 +8266,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User with Attributes by USER_ID",
       s"""Get User Attributes for the user defined via USER_ID.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       userWithAttributesResponseJson,
@@ -8302,7 +8302,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The `type` field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       userAttributeJsonV400,
@@ -8354,7 +8354,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       userAttributeJsonV400,
@@ -8439,7 +8439,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create My Api Collection",
       s"""Create Api Collection for logged in user.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       postApiCollectionJson400,
       apiCollectionJson400,
@@ -8485,7 +8485,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collection By Name",
       s"""Get Api Collection By API_COLLECTION_NAME.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionJson400,
@@ -8517,7 +8517,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collection By Id",
       s"""Get Api Collection By API_COLLECTION_ID.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionJson400,
@@ -8548,7 +8548,7 @@ trait APIMethods400 extends MdcLoggable {
       "/api-collections/sharable/API_COLLECTION_ID",
       "Get Sharable Api Collection By Id",
       s"""Get Sharable Api Collection By Id.
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionJson400,
@@ -8581,7 +8581,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Api Collections for User",
       s"""Get Api Collections for User.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionsJson400,
@@ -8614,7 +8614,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Featured Api Collections",
       s"""Get Featured Api Collections.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionsJson400,
@@ -8645,7 +8645,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collections",
       s"""Get all the apiCollections for logged in user.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -8679,7 +8679,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |${Glossary.getGlossaryItem("API Collections")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |
          |
@@ -8718,7 +8718,7 @@ trait APIMethods400 extends MdcLoggable {
          |${Glossary.getGlossaryItem("API Collections")}
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       postApiCollectionEndpointJson400,
@@ -8767,7 +8767,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |${Glossary.getGlossaryItem("API Collections")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       postApiCollectionEndpointJson400,
@@ -8815,7 +8815,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collection Endpoint",
       s"""Get Api Collection Endpoint By API_COLLECTION_NAME and OPERATION_ID.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionEndpointJson400,
@@ -8852,7 +8852,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Api Collection Endpoints",
       s"""Get Api Collection Endpoints By API_COLLECTION_ID.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionEndpointsJson400,
@@ -8883,7 +8883,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collection Endpoints",
       s"""Get Api Collection Endpoints By API_COLLECTION_NAME.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionEndpointsJson400,
@@ -8916,7 +8916,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collection Endpoints By Id",
       s"""Get Api Collection Endpoints By API_COLLECTION_ID.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionEndpointsJson400,
@@ -8952,7 +8952,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Delete Api Collection Endpoint By OPERATION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -8989,7 +8989,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Delete Api Collection Endpoint By OPERATION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -9026,7 +9026,7 @@ trait APIMethods400 extends MdcLoggable {
          |Delete Api Collection Endpoint
          |Delete Api Collection Endpoint By Id
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -11196,7 +11196,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |You can use the url query parameters *limit* and *offset* for pagination
          |
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmsJsonV400,
       List(
@@ -11246,7 +11246,7 @@ trait APIMethods400 extends MdcLoggable {
          |* Address
          |* Geo Location
          |* License the data under this endpoint is released under
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}
+         |${userAuthenticationMessage(!getAtmsIsPublic)}
          |""".stripMargin,
       EmptyBody,
       atmJsonV400,
@@ -11638,7 +11638,7 @@ trait APIMethods400 extends MdcLoggable {
          |Can filter with attributes name and values.
          |URL params example: /banks/some-bank-id/products?&limit=50&offset=1
          |
-         |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,
       productsJsonV400,
       List(
@@ -11688,7 +11688,7 @@ trait APIMethods400 extends MdcLoggable {
          |$productHiearchyAndCollectionNote
          |
          |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |
          |
          |""",
@@ -11761,7 +11761,7 @@ trait APIMethods400 extends MdcLoggable {
          |* Attributes
          |* Fees
          |
-         |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,
       productJsonV400,
       List(
@@ -11803,7 +11803,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create Customer Message",
       s"""
          |Create a message for the customer specified by CUSTOMER_ID 
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          | 
          |""".stripMargin,
       createMessageJsonV400,
@@ -11851,7 +11851,7 @@ trait APIMethods400 extends MdcLoggable {
      "/banks/BANK_ID/customers/CUSTOMER_ID/messages",
      "Get Customer Messages for a Customer",
      s"""Get messages for the customer specified by CUSTOMER_ID
-         ${authenticationRequiredMessage(true)}
+         ${userAuthenticationMessage(true)}
         """,
      EmptyBody,
      customerMessagesJsonV400,

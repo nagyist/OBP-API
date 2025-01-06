@@ -177,7 +177,7 @@ trait APIMethods200 {
          |Returns the list of accounts at that the user has access to at all banks.
          |For each account the API returns the account ID and the available views.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -211,7 +211,7 @@ trait APIMethods200 {
         |Returns the list of accounts containing private views for the user at all banks.
         |For each account the API returns the ID and the available views.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""".stripMargin,
       EmptyBody,
@@ -254,7 +254,7 @@ trait APIMethods200 {
         |Returns accounts that contain at least one public view (a view where is_public is true)
         |For each account the API returns the ID and the available views.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |
         |""".stripMargin,
       EmptyBody,
@@ -292,7 +292,7 @@ trait APIMethods200 {
         |For each account the API returns the account ID and the views available to the user..
         |Each account must have at least one private View.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       basicAccountsJSON,
@@ -336,7 +336,7 @@ trait APIMethods200 {
         |
         |This call MAY have an alias /bank/accounts but ONLY if defaultBank is set in Props
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""".stripMargin,
       EmptyBody,
@@ -408,7 +408,7 @@ trait APIMethods200 {
         |If you want less information about the account, use the /my accounts call
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""".stripMargin,
       EmptyBody,
@@ -446,7 +446,7 @@ trait APIMethods200 {
       "Get Public Accounts at Bank",
       s"""Returns a list of the public accounts (Anonymous access) at BANK_ID. For each account the API returns the ID and the available views.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |
         |""".stripMargin,
       EmptyBody,
@@ -479,7 +479,7 @@ trait APIMethods200 {
       s"""Get KYC (know your customer) documents for a customer specified by CUSTOMER_ID
         |Get a list of documents that affirm the identity of the customer
         |Passport, driving licence etc.
-        |${authenticationRequiredMessage(false)}""".stripMargin,
+        |${userAuthenticationMessage(false)}""".stripMargin,
       EmptyBody,
       kycDocumentsJSON,
       List(UserNotLoggedIn, CustomerNotFoundByCustomerId, UnknownError),
@@ -516,7 +516,7 @@ trait APIMethods200 {
       "Get KYC Media for a customer",
       s"""Get KYC media (scans, pictures, videos) that affirms the identity of the customer.
         |
-        |${authenticationRequiredMessage(true)}""".stripMargin,
+        |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       kycMediasJSON,
       List(UserNotLoggedIn, CustomerNotFoundByCustomerId, UnknownError),
@@ -549,7 +549,7 @@ trait APIMethods200 {
       "Get Customer KYC Checks",
       s"""Get KYC checks for the Customer specified by CUSTOMER_ID.
         |
-        |${authenticationRequiredMessage(true)}""".stripMargin,
+        |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       kycChecksJSON,
       List(UserNotLoggedIn, CustomerNotFoundByCustomerId, UnknownError),
@@ -582,7 +582,7 @@ trait APIMethods200 {
       "Get Customer KYC statuses",
       s"""Get the KYC statuses for a customer specified by CUSTOMER_ID over time.
         |
-        |${authenticationRequiredMessage(true)}""".stripMargin,
+        |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       kycStatusesJSON,
       List(UserNotLoggedIn, CustomerNotFoundByCustomerId, UnknownError),
@@ -616,7 +616,7 @@ trait APIMethods200 {
       "Get Customer Social Media Handles",
       s"""Get social media handles for a customer specified by CUSTOMER_ID.
         |
-        |${authenticationRequiredMessage(true)}""".stripMargin,
+        |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       socialMediasJSON,
       List(UserNotLoggedIn, UserHasMissingRoles, CustomerNotFoundByCustomerId, UnknownError),
@@ -912,7 +912,7 @@ trait APIMethods200 {
         |This call returns the owner view and requires access to that view.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |      
         |""".stripMargin,
       EmptyBody,
@@ -1006,7 +1006,7 @@ trait APIMethods200 {
         |PSD2 Context: PSD2 requires customers to have access to their account information via third party applications.
         |This call provides balance and other account information via delegated authentication using OAuth.
         |
-        |${authenticationRequiredMessage(true)} if the 'is_public' field in view (VIEW_ID) is not set to `true`.
+        |${userAuthenticationMessage(true)} if the 'is_public' field in view (VIEW_ID) is not set to `true`.
         |
         |""".stripMargin,
       EmptyBody,
@@ -1042,7 +1042,7 @@ trait APIMethods200 {
       "Get access",
       s"""Returns the list of the permissions at BANK_ID for account ACCOUNT_ID, with each time a pair composed of the user and the views that he has access to.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |and the user needs to have access to the owner view.
         |
         |""",
@@ -1085,7 +1085,7 @@ trait APIMethods200 {
       s"""Returns the list of the views at BANK_ID for account ACCOUNT_ID that a user identified by PROVIDER_ID at their provider PROVIDER has access to.
         |All url parameters must be [%-encoded](http://en.wikipedia.org/wiki/Percent-encoding), which is often especially relevant for USER_ID and PROVIDER.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |The user needs to have access to the owner view.""",
       EmptyBody,
@@ -1265,7 +1265,7 @@ trait APIMethods200 {
           |  * description : A longer description
           |  * charge : The charge to the customer for each one of these
           |
-          |${authenticationRequiredMessage(!getTransactionTypesIsPublic)}""".stripMargin,
+          |${userAuthenticationMessage(!getTransactionTypesIsPublic)}""".stripMargin,
       EmptyBody,
       transactionTypesJsonV200,
       List(BankNotFound, UnknownError),
@@ -1549,7 +1549,7 @@ trait APIMethods200 {
         |This call may require additional permissions/role in the future.
         |For now the authenticated user can create at most one linked customer.
         |Dates need to be in the format 2013-01-21T23:08:00Z
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |""",
       createCustomerJson,
       customerJsonV140,
@@ -1710,7 +1710,7 @@ trait APIMethods200 {
       "Create User Customer Link",
       s"""Link a User to a Customer
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |$createUserCustomerLinksrequiredEntitlementsText
         |""",
@@ -1847,7 +1847,7 @@ trait APIMethods200 {
       "Get Entitlements for User",
       s"""
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |
       """.stripMargin,

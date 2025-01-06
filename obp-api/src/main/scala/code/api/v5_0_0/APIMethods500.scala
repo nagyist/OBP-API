@@ -445,7 +445,7 @@ trait APIMethods500 {
       "Create User Auth Context",
       s"""Create User Auth Context. These key value pairs will be propagated over connector to adapter. Normally used for mapping OBP user and 
          | Bank User/Customer. 
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       postUserAuthContextJson,
       userAuthContextJsonV500,
@@ -486,7 +486,7 @@ trait APIMethods500 {
       s"""Get User Auth Contexts for a User.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -521,7 +521,7 @@ trait APIMethods500 {
       "/banks/BANK_ID/users/current/auth-context-updates/SCA_METHOD",
       "Create User Auth Context Update Request",
       s"""Create User Auth Context Update Request.
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |A One Time Password (OTP) (AKA security challenge) is sent Out of Band (OOB) to the User via the transport defined in SCA_METHOD
          |SCA_METHOD is typically "SMS" or "EMAIL". "EMAIL" is used for testing purposes.
@@ -738,7 +738,7 @@ trait APIMethods500 {
          |
          |This endpoint gets the Consent By consent request id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1277,7 +1277,7 @@ trait APIMethods500 {
          |
          |Note: If you need to set a specific customer number, use the Update Customer Number endpoint after this call.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       postCustomerJsonV500,
       customerJsonV310,
@@ -1352,7 +1352,7 @@ trait APIMethods500 {
       s"""Gets the Customer Overview specified by customer_number and bank_code.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       postCustomerOverviewJsonV500,
@@ -1401,7 +1401,7 @@ trait APIMethods500 {
       s"""Gets the Customer Overview Flat specified by customer_number and bank_code.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       postCustomerOverviewJsonV500,
@@ -1486,7 +1486,7 @@ trait APIMethods500 {
       s"""Returns a list of Customers at the Bank that are linked to the currently authenticated User.
          |
          |
-         |${authenticationRequiredMessage(true)}""".stripMargin,
+         |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       customerJSONs,
       List(
@@ -1529,7 +1529,7 @@ trait APIMethods500 {
       s"""Get Customers at Bank.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1614,7 +1614,7 @@ trait APIMethods500 {
          |$productHiearchyAndCollectionNote
          |
          |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |
          |
          |""",
@@ -1678,7 +1678,7 @@ trait APIMethods500 {
       "Create Card",
       s"""Create Card at bank specified by BANK_ID .
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       createPhysicalCardJsonV500,
       physicalCardJsonV500,
@@ -1798,7 +1798,7 @@ trait APIMethods500 {
          |
          |Returns the list of the views created for account ACCOUNT_ID at BANK_ID.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
+         |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
       EmptyBody,
       viewsJsonV500,
       List(
@@ -1964,7 +1964,7 @@ trait APIMethods500 {
       "Get System View",
       s"""Get System View
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1998,7 +1998,7 @@ trait APIMethods500 {
       "Get Ids of System Views",
       s"""Get Ids of System Views
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -2033,7 +2033,7 @@ trait APIMethods500 {
       "Create System View",
       s"""Create a system view
          |
-         | ${authenticationRequiredMessage(true)} and the user needs to have access to the $canCreateSystemView entitlement.
+         | ${userAuthenticationMessage(true)} and the user needs to have access to the $canCreateSystemView entitlement.
          |
          | The 'allowed_actions' field is a list containing the names of the actions allowed through this view.
          | All the actions contained in the list will be set to `true` on the view creation, the rest will be set to `false`.
@@ -2091,7 +2091,7 @@ trait APIMethods500 {
       "Update System View",
       s"""Update an existing view on a bank account
          |
-         |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+         |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
          |
          |The json sent is the same as during view creation (above), with one difference: the 'name' field
          |of a view is not editable (it is only set when a view is created)""",
@@ -2136,7 +2136,7 @@ trait APIMethods500 {
       "Create Customer Account Link",
       s"""Link a Customer to a Account
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       createCustomerAccountLinkJson,
@@ -2191,7 +2191,7 @@ trait APIMethods500 {
       "Get Customer Account Links by CUSTOMER_ID",
       s""" Get Customer Account Links by CUSTOMER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2229,7 +2229,7 @@ trait APIMethods500 {
       "Get Customer Account Links by ACCOUNT_ID",
       s""" Get Customer Account Links by ACCOUNT_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2264,7 +2264,7 @@ trait APIMethods500 {
       "Get Customer Account Link by Id",
       s""" Get Customer Account Link by CUSTOMER_ACCOUNT_LINK_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2298,7 +2298,7 @@ trait APIMethods500 {
       "Update Customer Account Link by Id",
       s""" Update Customer Account Link by CUSTOMER_ACCOUNT_LINK_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       updateCustomerAccountLinkJson,
@@ -2337,7 +2337,7 @@ trait APIMethods500 {
       "Delete Customer Account Link",
       s""" Delete Customer Account Link by CUSTOMER_ACCOUNT_LINK_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2372,7 +2372,7 @@ trait APIMethods500 {
       "Get Adapter Info",
       s"""Get basic information about the Adapter.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,

@@ -197,7 +197,7 @@ trait APIMethods510 {
       "Create Regulated Entity",
       s"""Create Regulated Entity
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       regulatedEntityPostJsonV510,
@@ -254,7 +254,7 @@ trait APIMethods510 {
       "Delete Regulated Entity",
       s"""Delete Regulated Entity specified by REGULATED_ENTITY_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       EmptyBody,
@@ -326,7 +326,7 @@ trait APIMethods510 {
       "Get All API Collections",
       s"""Get All API Collections.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionsJson400,
@@ -357,7 +357,7 @@ trait APIMethods510 {
       "/banks/BANK_ID/agents",
       "Create Agent",
       s"""
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       postAgentJsonV510,
       agentJsonV510,
@@ -416,7 +416,7 @@ trait APIMethods510 {
       "/banks/BANK_ID/agents/AGENT_ID",
       "Update Agent status",
       s"""
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       putAgentJsonV510,
       agentJsonV510,
@@ -465,7 +465,7 @@ trait APIMethods510 {
       "Get Agent",
       s"""Get Agent.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       agentJsonV510,
@@ -506,7 +506,7 @@ trait APIMethods510 {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       userAttributeJsonV510,
@@ -559,7 +559,7 @@ trait APIMethods510 {
       "Delete Non Personal User Attribute",
       s"""Delete the Non Personal User Attribute specified by ENTITLEMENT_REQUEST_ID for a user specified by USER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       EmptyBody,
@@ -599,7 +599,7 @@ trait APIMethods510 {
       "Get Non Personal User Attributes",
       s"""Get Non Personal User Attribute for a user specified by USER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       EmptyBody,
@@ -642,7 +642,7 @@ trait APIMethods510 {
       |PROVIDER_ID is the unique identifier for the User at the PROVIDER.
       |At the end of the process, a User will exist in OBP with the Account Access records defined by the CBS.
       |
-      |${authenticationRequiredMessage(true)}
+      |${userAuthenticationMessage(true)}
       |
       |""",
       EmptyBody,
@@ -811,7 +811,7 @@ trait APIMethods510 {
       "Check Custom View Names",
       s"""Check custom view names.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       CheckSystemIntegrityJsonV510(true),
@@ -847,7 +847,7 @@ trait APIMethods510 {
       "Check System View Names",
       s"""Check system view names.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       CheckSystemIntegrityJsonV510(true),
@@ -884,7 +884,7 @@ trait APIMethods510 {
       "Check Unique Index at Account Access",
       s"""Check unique index at account access table.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       CheckSystemIntegrityJsonV510(true),
@@ -920,7 +920,7 @@ trait APIMethods510 {
       "Check for Sensible Currencies",
       s"""Check for sensible currencies at Bank Account model
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       CheckSystemIntegrityJsonV510(true),
@@ -994,7 +994,7 @@ trait APIMethods510 {
       "Check for Orphaned Accounts",
       s"""Check for orphaned accounts at Bank Account model
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       CheckSystemIntegrityJsonV510(true),
@@ -1044,7 +1044,7 @@ trait APIMethods510 {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       atmAttributeJsonV510,
@@ -1097,7 +1097,7 @@ trait APIMethods510 {
       "Get Agents at Bank",
       s"""Get Agents at Bank.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |${urlParametersDocument(true, true)}
          |""".stripMargin,
@@ -1132,7 +1132,7 @@ trait APIMethods510 {
       "Get ATM Attributes",
       s""" Get ATM Attributes
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1168,7 +1168,7 @@ trait APIMethods510 {
       "Get ATM Attribute By ATM_ATTRIBUTE_ID",
       s""" Get ATM Attribute By ATM_ATTRIBUTE_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1207,7 +1207,7 @@ trait APIMethods510 {
          |
          |Update an ATM Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       atmAttributeJsonV510,
@@ -1265,7 +1265,7 @@ trait APIMethods510 {
          |
          |Delete a Atm Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1307,7 +1307,7 @@ trait APIMethods510 {
          |
          |Each Consent has one of the following states: ${ConsentStatus.values.toList.sorted.mkString(", ")}.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       PutConsentStatusJsonV400(status = "AUTHORISED"),
@@ -1360,7 +1360,7 @@ trait APIMethods510 {
          |
          |This endpoint is used to update the Account Access of Consent.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       PutConsentPayloadJsonV510(
@@ -1449,7 +1449,7 @@ trait APIMethods510 {
          |
          |If successful, the "Created by User ID" field in the OBP Consent table will be updated.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       PutConsentUserJsonV400(user_id = "ed7a7c01-db37-45cc-ba12-0ae8891c195c"),
@@ -1527,7 +1527,7 @@ trait APIMethods510 {
          |
          |This endpoint gets the Consents created by a current User.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1567,7 +1567,7 @@ trait APIMethods510 {
          |
          |This endpoint gets the Consents at Bank by BANK_ID.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |1 limit (for pagination: defaults to 50)  eg:limit=200
          |
@@ -1621,7 +1621,7 @@ trait APIMethods510 {
          |
          |This endpoint gets the Consents.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |1 limit (for pagination: defaults to 50)  eg:limit=200
          |
@@ -1679,7 +1679,7 @@ trait APIMethods510 {
          |
          |This endpoint gets the Consent By consent id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1717,7 +1717,7 @@ trait APIMethods510 {
          |
          |This endpoint gets the Consent By consent id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1761,7 +1761,7 @@ trait APIMethods510 {
          |OBP as a resource server stores access tokens in a database, then it is relatively easy to revoke some token that belongs to a particular user.
          |The status of the token is changed to "REVOKED" so the next time the revoked client makes a request, their token will fail to validate.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1814,7 +1814,7 @@ trait APIMethods510 {
          |OBP as a resource server stores access tokens in a database, then it is relatively easy to revoke some token that belongs to a particular user.
          |The status of the token is changed to "REVOKED" so the next time the revoked client makes a request, their token will fail to validate.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1855,7 +1855,7 @@ trait APIMethods510 {
       s"""
          |Provide client's certificate info of a current call specified by PSD2-CERT value at Request Header
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1891,7 +1891,7 @@ trait APIMethods510 {
       "Update My Api Collection By API_COLLECTION_ID",
       s"""Update Api Collection for logged in user.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       postApiCollectionJson400,
       apiCollectionJson400,
@@ -1935,7 +1935,7 @@ trait APIMethods510 {
       "Get User by USERNAME",
       s"""Get user by PROVIDER and USERNAME
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |CanGetAnyUser entitlement is required,
          |
@@ -1971,7 +1971,7 @@ trait APIMethods510 {
       "Get User Lock Status",
       s"""
          |Get User Login Status.
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -2013,7 +2013,7 @@ trait APIMethods510 {
          |
          |(Perhaps the user was locked due to multiple failed login attempts)
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -2058,7 +2058,7 @@ trait APIMethods510 {
       s"""
          |Lock a User.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -2127,7 +2127,7 @@ trait APIMethods510 {
          |
          |14 include_implemented_by_partial_functions (if null ignore).eg: &include_implemented_by_partial_functions=getMetrics,getConnectorMetrics,getAggregateMetrics
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -2267,7 +2267,7 @@ trait APIMethods510 {
       s"""Gets all Customers Ids that are linked to a User.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2306,7 +2306,7 @@ trait APIMethods510 {
       s"""Gets the Customers specified by Legal Name.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       postCustomerLegalNameJsonV510,
@@ -2441,7 +2441,7 @@ trait APIMethods510 {
          |
          |You can use the url query parameters *limit* and *offset* for pagination
          |
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmsJsonV510,
       List(
@@ -2504,7 +2504,7 @@ trait APIMethods510 {
          |
          |
          |
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmJsonV510,
       List(UserNotLoggedIn, BankNotFound, AtmNotFoundByAtmId, UnknownError),
@@ -2870,7 +2870,7 @@ trait APIMethods510 {
       "Get Consumers",
       s"""Get the all Consumers.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |${urlParametersDocument(true, true)}
          |
@@ -2909,7 +2909,7 @@ trait APIMethods510 {
       "Grant User access to View",
       s"""Grants the User identified by USER_ID access to the view identified.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to be account holder.
+         |${userAuthenticationMessage(true)} and the user needs to be account holder.
          |
          |""",
       postAccountAccessJsonV510,
@@ -2970,7 +2970,7 @@ trait APIMethods510 {
       "Revoke User access to View",
       s"""Revoke the User identified by USER_ID access to the view identified.
          |
-         |${authenticationRequiredMessage(true)}.
+         |${userAuthenticationMessage(true)}.
          |
          |""",
       postAccountAccessJsonV510,
@@ -3040,7 +3040,7 @@ trait APIMethods510 {
          |
          |This endpoint will create the (DAuth) User with username and provider if the User does not already exist.
          |
-         |${authenticationRequiredMessage(true)} and the logged in user needs to be account holder.
+         |${userAuthenticationMessage(true)} and the logged in user needs to be account holder.
          |
          |For information about DAuth see below:
          |
@@ -3186,7 +3186,7 @@ trait APIMethods510 {
       "Get Account Access by USER_ID",
       s"""Get Account Access by USER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -3220,7 +3220,7 @@ trait APIMethods510 {
       "Get API Tags",
       s"""Get API TagsGet API Tags
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |""",
       EmptyBody,
@@ -3751,7 +3751,7 @@ trait APIMethods510 {
       "Create Custom View",
       s"""Create a custom view on bank account
          |
-         | ${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+         | ${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
          | The 'alias' field in the JSON can take one of three values:
          |
          | * _public_: to use the public alias if there is one specified for the other account.
@@ -3819,7 +3819,7 @@ trait APIMethods510 {
       "Update Custom View",
       s"""Update an existing custom view on a bank account
          |
-         |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+         |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
          |
          |The json sent is the same as during view creation (above), with one difference: the 'name' field
          |of a view is not editable (it is only set when a view is created)""",
@@ -3898,7 +3898,7 @@ trait APIMethods510 {
          |
          |Returns the list of the views created for account ACCOUNT_ID at BANK_ID.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
+         |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
       EmptyBody,
       customViewJsonV510,
       List(
@@ -3990,7 +3990,7 @@ trait APIMethods510 {
          |VRPs are useful in situations when a beneficiary needs to be paid different amounts on a regular basis.
          |
          |Once granted, the consent allows its holder to initiate multiple Transaction Requests to the Counterparty defined in this endpoint as long as the
-         |Counterparty Limits are respected.
+         |Counterparty Limits linked to this particular consent are respected.
          |
          |Client, Consumer or Application Authentication is mandatory for this endpoint.
          |
@@ -4011,6 +4011,8 @@ trait APIMethods510 {
          |Authorization: Bearer eXtneO-THbQtn3zvK_kQtXXfvOZyZFdBCItlPDbR2Bk.dOWqtXCtFX-tqGTVR0YrIjvAolPIVg7GZ-jz83y6nA0
          |
          |After successfully creating the VRP consent request, you need to call the `Create Consent By CONSENT_REQUEST_ID` endpoint to finalize the consent using the CONSENT_REQUEST_ID returned by this endpoint.
+         |
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       postVRPConsentRequestJsonV510,

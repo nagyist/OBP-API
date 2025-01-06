@@ -265,6 +265,8 @@ object ErrorMessages {
   val Oauth2IsNotRecognized = "OBP-20214: OAuth2 Access Token is not recognised at this instance."
   val Oauth2ValidateAccessTokenError = "OBP-20215: OAuth2 validate access token issue. "
 
+  val AuthorizationHeaderAmbiguity = "OBP-20250: Request headers cannot contain more than one authorization value. "
+
   // X.509
   val X509GeneralError = "OBP-20300: PEM Encoded Certificate issue."
   val X509ParsingFailed = "OBP-20301: Parsing failed for PEM Encoded Certificate."

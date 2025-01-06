@@ -2160,14 +2160,14 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
 
   def userAuthenticationMessage(userAuthRequired: Boolean) : String =
     userAuthRequired match {
-      case true => "User Authentication is Mandatory"
-      case false => "User Authentication is Optional"
+      case true => "User Authentication is Required. The User must be logged in. The Application must be authenticated."
+      case false => "User Authentication is Optional. The User need not be logged in."
     }
 
   def applicationAccessMessage(applicationAccessRequired: Boolean) : String =
     applicationAccessRequired match {
-      case true => "Application Authentication is Mandatory"
-      case false => "Application Authentication is Optional"
+      case true => "Application Access is Required. The Application must be authenticated."
+      case false => "Application Access is Optional."
     }
 
 

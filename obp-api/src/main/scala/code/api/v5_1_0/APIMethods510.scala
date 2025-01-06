@@ -4012,7 +4012,10 @@ trait APIMethods510 {
          |
          |After successfully creating the VRP consent request, you need to call the `Create Consent By CONSENT_REQUEST_ID` endpoint to finalize the consent using the CONSENT_REQUEST_ID returned by this endpoint.
          |
-         |${userAuthenticationMessage(true)}
+         |${applicationAccessMessage(true)}
+         |
+         |${userAuthenticationMessage(false)}
+         |
          |
          |""".stripMargin,
       postVRPConsentRequestJsonV510,

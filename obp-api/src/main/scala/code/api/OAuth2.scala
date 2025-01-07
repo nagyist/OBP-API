@@ -111,7 +111,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
         } else if (UnknownProvider.isIssuer(value)) {
           UnknownProvider.applyRulesFuture(value, cc)
         } else if (HydraUtil.integrateWithHydra) {
-          UnknownProvider.applyRulesFuture(value, cc)
+          Hydra.applyRulesFuture(value, cc)
         } else {
           Future(Failure(Oauth2IsNotRecognized), Some(cc))
         }

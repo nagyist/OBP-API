@@ -2975,8 +2975,13 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
     val title = s"Request Headers for verb: $verb, URL: $url"
     surroundDebugMessage(reqHeaders.map(h => h.name + ": " + h.values.mkString(",")).mkString, title)
     val remoteIpAddress = getRemoteIpAddress()
+
+    val authHeaders = AuthorisationUtil.getAuthorisationHeaders(reqHeaders)
+
     val res =
-      if (APIUtil.`hasConsent-ID`(reqHeaders)) { // Berlin Group's Consent
+      if (authHeaders.size > 1) { // Check Authorization Headers ambiguity
+        Future { (Failure(ErrorMessages.AuthorizationHeaderAmbiguity + s"${authHeaders}"), None) }
+      } else if (APIUtil.`hasConsent-ID`(reqHeaders)) { // Berlin Group's Consent
         Consent.applyBerlinGroupRules(APIUtil.`getConsent-ID`(reqHeaders), cc)
       } else if (APIUtil.hasConsentJWT(reqHeaders)) { // Open Bank Project's Consent
         val consentValue = APIUtil.getConsentJWT(reqHeaders)

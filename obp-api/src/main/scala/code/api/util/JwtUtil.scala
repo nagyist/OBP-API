@@ -217,7 +217,9 @@ object JwtUtil extends MdcLoggable {
     } catch {
       case e: BadJWTException => Failure(ErrorMessages.Oauth2BadJWTException + e.getMessage, Full(e), Empty)
       case e: ParseException  => Failure(ErrorMessages.Oauth2ParseException + e.getMessage, Full(e), Empty)
-      case e: Exception       => Failure(e.getMessage, Full(e), Empty)
+      case e: Exception       =>
+        logger.debug(s"remoteJWKSetUrl: $remoteJWKSetUrl")
+        Failure(ErrorMessages.Oauth2ValidateAccessTokenError + e.getMessage, Full(e), Empty)
     }
   }
 

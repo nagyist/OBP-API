@@ -199,7 +199,7 @@ object Consent extends MdcLoggable {
     val consentBox = Consents.consentProvider.vend.getConsentByConsentId(consent.jti)
     logger.debug(s"code.api.util.Consent.checkConsent.getConsentByConsentId: consentBox($consentBox)")
     val result = consentBox match {
-      case Full(c) if c.mStatus == ConsentStatus.ACCEPTED.toString | c.mStatus == ConsentStatus.VALID.toString =>
+      case Full(c) if c.mStatus.toString().toUpperCase == ConsentStatus.ACCEPTED.toString | c.mStatus.toString().toUpperCase() == ConsentStatus.VALID.toString =>
         verifyHmacSignedJwt(consentIdAsJwt, c) match {
           case true =>
             (System.currentTimeMillis / 1000) match {
@@ -216,7 +216,7 @@ object Consent extends MdcLoggable {
           case false =>
             Failure(ErrorMessages.ConsentVerificationIssue)
         }
-      case Full(c) if c.mStatus != ConsentStatus.ACCEPTED.toString =>
+      case Full(c) if c.mStatus.toString().toUpperCase() != ConsentStatus.ACCEPTED.toString =>
         Failure(s"${ErrorMessages.ConsentStatusIssue}${ConsentStatus.ACCEPTED.toString}.")
       case _ => 
         Failure(ErrorMessages.ConsentNotFound)
@@ -917,7 +917,7 @@ object Consent extends MdcLoggable {
     }
 
     boxedConsent match {
-      case Full(c) if c.mStatus == ConsentStatus.AUTHORISED.toString =>
+      case Full(c) if c.mStatus.toString().toUpperCase() == ConsentStatus.AUTHORISED.toString =>
         System.currentTimeMillis match {
           case currentTimeMillis if currentTimeMillis < c.creationDateTime.getTime =>
             Failure(ErrorMessages.ConsentNotBeforeIssue)
@@ -931,7 +931,7 @@ object Consent extends MdcLoggable {
               consumerIdOfLoggedInUser
             )
         }
-      case Full(c) if c.mStatus != ConsentStatus.AUTHORISED.toString =>
+      case Full(c) if c.mStatus.toString().toUpperCase() != ConsentStatus.AUTHORISED.toString =>
         Failure(s"${ErrorMessages.ConsentStatusIssue}${ConsentStatus.AUTHORISED.toString}.")
       case _ =>
         Failure(ErrorMessages.ConsentNotFound)

@@ -1340,7 +1340,7 @@ trait APIMethods200 {
                 .username(postedData.username)
                 .email(postedData.email)
                 .password(postedData.password)
-                .validated(APIUtil.getPropsAsBoolValue("user_account_validated", false))
+                .validated(APIUtil.getPropsAsBoolValue("authUser.skipEmailValidation", defaultValue = false))
             }
             _ <- Helper.booleanToFuture(userCreated.validate.map(_.msg).mkString(";"), 400, cc.callContext) {
               userCreated.validate.size == 0

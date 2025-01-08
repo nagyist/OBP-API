@@ -578,6 +578,8 @@ case class TransactionRequestsJsonV510(
 
 case class SyncExternalUserJson(user_id: String)
 
+case class UserValidatedJson(is_validated: Boolean)
+
 object JSONFactory510 extends CustomJsonFormats {
 
   def createTransactionRequestJson(tr : TransactionRequest, transactionRequestAttributes: List[TransactionRequestAttributeTrait] ) : TransactionRequestJsonV510 = {

@@ -1670,5 +1670,12 @@ def restoreSomeSessions(): Unit = {
       case _ => false // Error case
     }
   }
+
+  def validateAuthUser(userPrimaryKey: UserPrimaryKey): Box[AuthUser] = tryo {
+    AuthUser.find(By(AuthUser.user, userPrimaryKey.value)) match {
+      case Full(user) =>
+        user.validated(true).saveMe()
+    }
+  }
   
 }

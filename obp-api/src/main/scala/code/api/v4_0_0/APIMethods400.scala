@@ -12434,11 +12434,13 @@ object APIMethods400 extends RestHelper with APIMethods400 {
         }
         case COUNTERPARTY => {
           for {
+            _ <- Future { logger.debug(s"Before extracting counterparty id") }
             //For COUNTERPARTY, Use the counterpartyId to find the toCounterparty and set up the toAccount
             transactionRequestBodyCounterparty <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $COUNTERPARTY json format", 400, callContext) {
               json.extract[TransactionRequestBodyCounterpartyJSON]
             }
             toCounterpartyId = transactionRequestBodyCounterparty.to.counterparty_id
+            _ <- Future { logger.debug(s"After extracting counterparty id: $toCounterpartyId") }
             (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(CounterpartyId(toCounterpartyId), callContext)
 
             transactionRequestAttributes <- if(transactionRequestBodyCounterparty.attributes.isDefined && transactionRequestBodyCounterparty.attributes.head.length > 0 ) {

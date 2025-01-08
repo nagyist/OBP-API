@@ -19,12 +19,12 @@ class CreateUserTest extends V200ServerSetup with BeforeAndAfter {
 
   override def beforeEach() = {
     super.beforeEach()
-    setPropsValues("user_account_validated" -> "true")
+    setPropsValues("authUser.skipEmailValidation" -> "true")
   }
 
   override def afterEach() = {
     super.afterEach()
-    setPropsValues("user_account_validated" -> "false")
+    setPropsValues("authUser.skipEmailValidation" -> "false")
   }
 
   object CreateUser extends Tag("createUser")

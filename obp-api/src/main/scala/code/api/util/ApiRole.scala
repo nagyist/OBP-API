@@ -419,7 +419,10 @@ object ApiRole extends MdcLoggable{
   lazy val canLockUser = CanLockUser()
   
   case class CanDeleteUser (requiresBankId: Boolean = false) extends ApiRole
-  lazy val canDeleteUser = CanDeleteUser() 
+  lazy val canDeleteUser = CanDeleteUser()
+
+  case class CanValidateUser (requiresBankId: Boolean = false) extends ApiRole
+  lazy val canValidateUser = CanValidateUser()
   
   case class CanGetUsersWithAttributes (requiresBankId: Boolean = false) extends ApiRole
   lazy val canGetUsersWithAttributes = CanGetUsersWithAttributes()

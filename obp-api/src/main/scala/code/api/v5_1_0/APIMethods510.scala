@@ -2082,6 +2082,41 @@ trait APIMethods510 {
       }
     }
 
+    staticResourceDocs += ResourceDoc(
+      validateUserByUserId,
+      implementedInApiVersion,
+      nameOf(validateUserByUserId),
+      "PUT",
+      "/management/users/USER_ID",
+      "Validate a user",
+      s"""
+         |Validate the User by USER_ID.
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |""".stripMargin,
+      EmptyBody,
+      userLockStatusJson,
+      List(
+        $UserNotLoggedIn,
+        UserNotFoundByUserId,
+        UserHasMissingRoles,
+        UnknownError
+      ),
+      List(apiTagUser),
+      Some(List(canValidateUser)))
+    lazy val validateUserByUserId: OBPEndpoint = {
+      case "management" :: "users" :: userId :: Nil JsonPut req => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (user, callContext) <- NewStyle.function.findByUserId(userId, cc.callContext)
+            (userValidated, callContext) <- NewStyle.function.validateUser(user.userPrimaryKey, callContext)
+          } yield {
+            (UserValidatedJson(userValidated.validated.get), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
     resourceDocs += ResourceDoc(
       getAggregateMetrics,
       implementedInApiVersion,

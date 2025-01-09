@@ -1120,6 +1120,10 @@ object NewStyle extends MdcLoggable{
           (false, callContext)
       }
     }
+    def validateUser(userPrimaryKey: UserPrimaryKey, callContext: Option[CallContext]): OBPReturnType[AuthUser] = Future {
+      val response = AuthUser.validateAuthUser(userPrimaryKey)
+      (unboxFullOrFail(response, callContext, s"$UserNotFoundById", 404), callContext)
+    }
 
     def findByUserId(userId: String, callContext: Option[CallContext]): OBPReturnType[User] = {
       Future { UserX.findByUserId(userId).map(user =>(user, callContext))} map {

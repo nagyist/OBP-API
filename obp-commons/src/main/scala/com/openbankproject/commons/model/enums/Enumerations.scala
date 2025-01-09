@@ -79,6 +79,35 @@ object TransactionRequestAttributeType extends  OBPEnumeration[TransactionReques
 }
 
 //------api enumerations ----
+sealed trait PaymentServiceTypes extends EnumValue
+object PaymentServiceTypes extends  OBPEnumeration[PaymentServiceTypes]{
+  object payments        extends Value
+  object bulk_payments       extends Value
+  object periodic_payments        extends Value
+}
+
+sealed trait TransactionRequestTypes extends EnumValue
+object TransactionRequestTypes extends  OBPEnumeration[TransactionRequestTypes]{
+  object SANDBOX_TAN extends Value
+  object ACCOUNT extends Value
+  object ACCOUNT_OTP extends Value
+  object COUNTERPARTY extends Value
+  object SEPA extends Value
+  object FREE_FORM extends Value
+  object SIMPLE extends Value
+  object CARD extends Value
+  object TRANSFER_TO_PHONE extends Value
+  object TRANSFER_TO_ATM extends Value
+  object TRANSFER_TO_ACCOUNT extends Value
+  object TRANSFER_TO_REFERENCE_ACCOUNT extends Value
+  object SEPA_CREDIT_TRANSFERS extends Value
+  object INSTANT_SEPA_CREDIT_TRANSFERS extends Value
+  object TARGET_2_PAYMENTS extends Value
+  object CROSS_BORDER_CREDIT_TRANSFERS extends Value
+  object REFUND extends Value
+  object AGENT_CASH_WITHDRAWAL extends Value
+}
+
 sealed trait StrongCustomerAuthentication extends EnumValue
 object StrongCustomerAuthentication extends OBPEnumeration[StrongCustomerAuthentication] {
   type SCA = Value
@@ -218,6 +247,11 @@ object AttributeType extends OBPEnumeration[AttributeType]{
   object DATE_WITH_DAY extends Value
 }
 
+sealed trait ConsentType extends EnumValue
+object ConsentType extends OBPEnumeration[ConsentType]{
+  object VRP extends Value
+}
+
 sealed trait AttributeCategory extends EnumValue
 object AttributeCategory extends OBPEnumeration[AttributeCategory]{
   object Bank extends Value
@@ -228,6 +262,13 @@ object AttributeCategory extends OBPEnumeration[AttributeCategory]{
   object Card extends Value
   object TransactionRequest extends Value
 }
+
+sealed trait SuppliedAnswerType extends EnumValue
+object SuppliedAnswerType extends OBPEnumeration[SuppliedAnswerType]{
+  object PLAIN_TEXT_VALUE extends Value
+  object HASH_VALUE extends Value
+}
+
 
 object TransactionRequestStatus extends Enumeration {
   type TransactionRequestStatus = Value

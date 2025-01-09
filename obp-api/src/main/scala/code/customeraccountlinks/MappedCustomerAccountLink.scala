@@ -8,6 +8,7 @@ import net.liftweb.mapper._
 import scala.concurrent.Future
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import net.liftweb.util.Helpers.tryo
+import com.openbankproject.commons.model.{CustomerAccountLinkTrait,AgentAccountLinkTrait}
 
 object MappedCustomerAccountLinkProvider extends CustomerAccountLinkProvider {
   override def createCustomerAccountLink(customerId: String, bankId: String, accountId: String, relationshipType: String): Box[CustomerAccountLinkTrait] = {
@@ -102,7 +103,8 @@ object MappedCustomerAccountLinkProvider extends CustomerAccountLinkProvider {
   }
 }
 
-class CustomerAccountLink extends CustomerAccountLinkTrait with LongKeyedMapper[CustomerAccountLink] with IdPK with CreatedUpdated {
+//in OBP, customer and agent share the same customer model. the CustomerAccountLink and AgentAccountLink also share the same model
+class CustomerAccountLink extends CustomerAccountLinkTrait with AgentAccountLinkTrait with LongKeyedMapper[CustomerAccountLink] with IdPK with CreatedUpdated {
 
   def getSingleton = CustomerAccountLink
 
@@ -117,6 +119,10 @@ class CustomerAccountLink extends CustomerAccountLinkTrait with LongKeyedMapper[
   override def bankId: String = BankId.get // id.toString
   override def accountId: String = AccountId.get
   override def relationshipType: String = RelationshipType.get
+  
+  override def agentId: String = CustomerId.get
+  override def agentAccountLinkId: String = CustomerAccountLinkId.get
+  
 }
 
 object CustomerAccountLink extends CustomerAccountLink with LongKeyedMetaMapper[CustomerAccountLink] {

@@ -1,7 +1,6 @@
 package code.api.v2_0_0
 
 import java.util.{Calendar, Date}
-
 import code.api.Constant._
 import code.TransactionTypes.TransactionType
 import code.api.{APIFailure, APIFailureNewStyle}
@@ -34,6 +33,7 @@ import code.util.Helper
 import code.util.Helper.{booleanToBox, booleanToFuture}
 import code.views.Views
 import code.views.system.ViewDefinition
+import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.model._
 import net.liftweb.common.{Full, _}
 import net.liftweb.http.CurrentReq
@@ -128,7 +128,7 @@ trait APIMethods200 {
     val resourceDocs = ArrayBuffer[ResourceDoc]()
     val apiRelations = ArrayBuffer[ApiRelation]()
 
-    val emptyObjectJson = EmptyClassJson()
+    
     val apiVersion = ApiVersion.v2_0_0 // was String "2_0_0"
 
     val codeContext = CodeContext(resourceDocs, apiRelations)
@@ -147,7 +147,7 @@ trait APIMethods200 {
         |* API version
         |* Hosted by information
         |* Git Commit""",
-      emptyObjectJson,
+      EmptyBody,
       apiInfoJSON,
       List(UnknownError, "no connector set"),
       apiTagApi :: Nil)
@@ -177,10 +177,10 @@ trait APIMethods200 {
          |Returns the list of accounts at that the user has access to at all banks.
          |For each account the API returns the account ID and the available views.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       basicAccountsJSON,
       List(UserNotLoggedIn, UnknownError),
       List(apiTagAccount, apiTagPrivateData, apiTagPublicData, apiTagOldStyle))
@@ -211,10 +211,10 @@ trait APIMethods200 {
         |Returns the list of accounts containing private views for the user at all banks.
         |For each account the API returns the ID and the available views.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       coreAccountsJSON,
       List(UnknownError),
       List(apiTagAccount, apiTagPrivateData, apiTagPsd2, apiTagOldStyle))
@@ -254,10 +254,10 @@ trait APIMethods200 {
         |Returns accounts that contain at least one public view (a view where is_public is true)
         |For each account the API returns the ID and the available views.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |
         |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       basicAccountsJSON,
       List(UserNotLoggedIn, CannotGetAccounts, UnknownError),
       List(apiTagAccountPublic, apiTagAccount, apiTagPublicData)
@@ -292,9 +292,9 @@ trait APIMethods200 {
         |For each account the API returns the account ID and the views available to the user..
         |Each account must have at least one private View.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       basicAccountsJSON,
       List(BankNotFound, UnknownError),
       List(apiTagAccount, apiTagPrivateData, apiTagPublicData)
@@ -336,10 +336,10 @@ trait APIMethods200 {
         |
         |This call MAY have an alias /bank/accounts but ONLY if defaultBank is set in Props
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       coreAccountsJSON,
       List(UserNotLoggedIn, UnknownError),
       List(apiTagAccount, apiTagPrivateData, apiTagPsd2))
@@ -408,10 +408,10 @@ trait APIMethods200 {
         |If you want less information about the account, use the /my accounts call
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       basicAccountsJSON,
       List(UserNotLoggedIn, BankNotFound, UnknownError),
       List(apiTagAccount, apiTagPsd2)
@@ -446,10 +446,10 @@ trait APIMethods200 {
       "Get Public Accounts at Bank",
       s"""Returns a list of the public accounts (Anonymous access) at BANK_ID. For each account the API returns the ID and the available views.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |
         |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       basicAccountsJSON,
       List(UnknownError),
       List(apiTagAccountPublic, apiTagAccount, apiTagPublicData))
@@ -479,8 +479,8 @@ trait APIMethods200 {
       s"""Get KYC (know your customer) documents for a customer specified by CUSTOMER_ID
         |Get a list of documents that affirm the identity of the customer
         |Passport, driving licence etc.
-        |${authenticationRequiredMessage(false)}""".stripMargin,
-      emptyObjectJson,
+        |${userAuthenticationMessage(false)}""".stripMargin,
+      EmptyBody,
       kycDocumentsJSON,
       List(UserNotLoggedIn, CustomerNotFoundByCustomerId, UnknownError),
       List(apiTagKyc, apiTagCustomer),
@@ -516,8 +516,8 @@ trait APIMethods200 {
       "Get KYC Media for a customer",
       s"""Get KYC media (scans, pictures, videos) that affirms the identity of the customer.
         |
-        |${authenticationRequiredMessage(true)}""".stripMargin,
-      emptyObjectJson,
+        |${userAuthenticationMessage(true)}""".stripMargin,
+      EmptyBody,
       kycMediasJSON,
       List(UserNotLoggedIn, CustomerNotFoundByCustomerId, UnknownError),
     List(apiTagKyc, apiTagCustomer),
@@ -549,8 +549,8 @@ trait APIMethods200 {
       "Get Customer KYC Checks",
       s"""Get KYC checks for the Customer specified by CUSTOMER_ID.
         |
-        |${authenticationRequiredMessage(true)}""".stripMargin,
-      emptyObjectJson,
+        |${userAuthenticationMessage(true)}""".stripMargin,
+      EmptyBody,
       kycChecksJSON,
       List(UserNotLoggedIn, CustomerNotFoundByCustomerId, UnknownError),
       List(apiTagKyc, apiTagCustomer),
@@ -582,8 +582,8 @@ trait APIMethods200 {
       "Get Customer KYC statuses",
       s"""Get the KYC statuses for a customer specified by CUSTOMER_ID over time.
         |
-        |${authenticationRequiredMessage(true)}""".stripMargin,
-      emptyObjectJson,
+        |${userAuthenticationMessage(true)}""".stripMargin,
+      EmptyBody,
       kycStatusesJSON,
       List(UserNotLoggedIn, CustomerNotFoundByCustomerId, UnknownError),
       List(apiTagKyc, apiTagCustomer),
@@ -616,8 +616,8 @@ trait APIMethods200 {
       "Get Customer Social Media Handles",
       s"""Get social media handles for a customer specified by CUSTOMER_ID.
         |
-        |${authenticationRequiredMessage(true)}""".stripMargin,
-      emptyObjectJson,
+        |${userAuthenticationMessage(true)}""".stripMargin,
+      EmptyBody,
       socialMediasJSON,
       List(UserNotLoggedIn, UserHasMissingRoles, CustomerNotFoundByCustomerId, UnknownError),
       List(apiTagCustomer),
@@ -912,10 +912,10 @@ trait APIMethods200 {
         |This call returns the owner view and requires access to that view.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |      
         |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       moderatedCoreAccountJSON,
       List(BankAccountNotFound,UnknownError),
       apiTagAccount :: apiTagPsd2 :: apiTagOldStyle :: Nil)
@@ -957,7 +957,7 @@ trait APIMethods200 {
         |${urlParametersDocument(true, true)}
         |
         |""",
-      emptyObjectJson,
+      EmptyBody,
       coreTransactionsJSON,
       List(BankAccountNotFound, UnknownError),
       List(apiTagTransaction, apiTagAccount, apiTagPsd2, apiTagOldStyle))
@@ -1006,10 +1006,10 @@ trait APIMethods200 {
         |PSD2 Context: PSD2 requires customers to have access to their account information via third party applications.
         |This call provides balance and other account information via delegated authentication using OAuth.
         |
-        |${authenticationRequiredMessage(true)} if the 'is_public' field in view (VIEW_ID) is not set to `true`.
+        |${userAuthenticationMessage(true)} if the 'is_public' field in view (VIEW_ID) is not set to `true`.
         |
         |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       moderatedAccountJSON,
       List(BankNotFound,AccountNotFound,ViewNotFound, UserNoPermissionAccessView, UnknownError),
       apiTagAccount :: apiTagOldStyle :: Nil)
@@ -1042,11 +1042,11 @@ trait APIMethods200 {
       "Get access",
       s"""Returns the list of the permissions at BANK_ID for account ACCOUNT_ID, with each time a pair composed of the user and the views that he has access to.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |and the user needs to have access to the owner view.
         |
         |""",
-      emptyObjectJson,
+      EmptyBody,
       permissionsJSON,
       List(UserNotLoggedIn, BankNotFound, AccountNotFound ,UnknownError),
       List(apiTagView, apiTagAccount, apiTagUser, apiTagEntitlement)
@@ -1062,7 +1062,7 @@ trait APIMethods200 {
             anyViewContainsCanSeeViewsWithPermissionsForAllUsersPermission = Views.views.vend.permission(BankIdAccountId(account.bankId, account.accountId), u)
               .map(_.views.map(_.canSeeViewsWithPermissionsForAllUsers).find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- Helper.booleanToFuture(
-              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canSeeViewsWithPermissionsForAllUsers_.dbColumnName).dropRight(1)}` permission on any your views",
+              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeViewsWithPermissionsForAllUsers_)).dropRight(1)}` permission on any your views",
               cc = callContext
             ) {
               anyViewContainsCanSeeViewsWithPermissionsForAllUsersPermission
@@ -1085,10 +1085,10 @@ trait APIMethods200 {
       s"""Returns the list of the views at BANK_ID for account ACCOUNT_ID that a user identified by PROVIDER_ID at their provider PROVIDER has access to.
         |All url parameters must be [%-encoded](http://en.wikipedia.org/wiki/Percent-encoding), which is often especially relevant for USER_ID and PROVIDER.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |The user needs to have access to the owner view.""",
-      emptyObjectJson,
+      EmptyBody,
       viewsJSONV121,
       List(UserNotLoggedIn,BankNotFound, AccountNotFound,UnknownError),
       List(apiTagView, apiTagAccount, apiTagUser, apiTagOldStyle))
@@ -1106,7 +1106,7 @@ trait APIMethods200 {
               .find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- booleanToBox(
               anyViewContainsCanSeePermissionForOneUserPermission,
-              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(ViewDefinition.canSeeViewsWithPermissionsForOneUser_.dbColumnName).dropRight(1)}` permission on any your views"
+              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeViewsWithPermissionsForOneUser_)).dropRight(1)}` permission on any your views"
             )
             userFromURL <- UserX.findByProviderId(provider, providerId) ?~! UserNotFoundByProviderAndProvideId
             permission <- Views.views.vend.permission(BankIdAccountId(bankId, accountId), userFromURL)
@@ -1265,8 +1265,8 @@ trait APIMethods200 {
           |  * description : A longer description
           |  * charge : The charge to the customer for each one of these
           |
-          |${authenticationRequiredMessage(!getTransactionTypesIsPublic)}""".stripMargin,
-      emptyObjectJson,
+          |${userAuthenticationMessage(!getTransactionTypesIsPublic)}""".stripMargin,
+      EmptyBody,
       transactionTypesJsonV200,
       List(BankNotFound, UnknownError),
       List(apiTagBank, apiTagPSD2AIS, apiTagPsd2)
@@ -1295,257 +1295,6 @@ trait APIMethods200 {
     import net.liftweb.json.Extraction._
     import net.liftweb.json.JsonAST._
     val exchangeRates = prettyRender(decompose(fx.fallbackExchangeRates))
-
-    resourceDocs += ResourceDoc(
-      createTransactionRequest,
-      apiVersion,
-      "createTransactionRequest",
-      "POST",
-      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-request-types/TRANSACTION_REQUEST_TYPE/transaction-requests",
-      "Create Transaction Request",
-      s"""Initiate a Payment via a Transaction Request.
-        |
-        |This is the preferred method to create a payment and supersedes makePayment in 1.2.1.
-        |
-        |PSD2 Context: Third party access access to payments is a core tenent of PSD2.
-        |
-        |This call satisfies that requirement from several perspectives:
-        |
-        |1) A transaction can be initiated by a third party application.
-        |
-        |2) The customer is informed of the charge that will incurred.
-        |
-        |3) The call uses delegated authentication (OAuth)
-        |
-        |See [this python code](https://github.com/OpenBankProject/Hello-OBP-DirectLogin-Python/blob/master/hello_payments.py) for a complete example of this flow.
-        |
-        |In sandbox mode, if the amount is less than 100 (any currency), the transaction request will create a transaction without a challenge, else the Transaction Request will be set to INITIALISED and a challenge will need to be answered.|
-        |If a challenge is created you must answer it using Answer Transaction Request Challenge before the Transaction is created.
-        |
-        |You can transfer between different currency accounts. (new in 2.0.0). The currency in body must match the sending account.
-        |
-        |Currently TRANSACTION_REQUEST_TYPE must be set to SANDBOX_TAN
-        |
-        |The following static FX rates are available in sandbox mode:
-        |
-        |${exchangeRates}
-        |
-        |
-        |The payer is set in the URL. Money comes out of the BANK_ID and ACCOUNT_ID specified in the URL
-        |
-        |The payee is set in the request body. Money goes into the BANK_ID and ACCOUNT_IDO specified in the request body.
-        |
-        |
-        |${authenticationRequiredMessage(true)}
-        |
-        |""".stripMargin,
-      transactionRequestBodyJsonV200,
-      emptyObjectJson,
-      List(
-        UserNotLoggedIn,
-        InvalidJsonFormat,
-        InvalidBankIdFormat,
-        InvalidAccountIdFormat,
-        BankNotFound,
-        AccountNotFound,
-        ViewNotFound,
-        UserNoPermissionAccessView,
-        InsufficientAuthorisationToCreateTransactionRequest,
-        CounterpartyNotFound,
-        InvalidTransactionRequestType,
-        InvalidTransactionRequestCurrency,
-        TransactionDisabled,
-        UnknownError
-      ),
-      List(apiTagTransactionRequest, apiTagPsd2, apiTagOldStyle),
-      Some(List(canCreateAnyTransactionRequest)))
-
-    lazy val createTransactionRequest: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-request-types" ::
-        TransactionRequestType(transactionRequestType) :: "transaction-requests" :: Nil JsonPost json -> _ => {
-        cc =>
-          if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false)) {
-            for {
-            /* TODO:
-             * check if user has access using the view that is given (now it checks if user has access to owner view), will need some new permissions for transaction requests
-             * test: functionality, error messages if user not given or invalid, if any other value is not existing
-            */
-              u <- cc.user ?~! ErrorMessages.UserNotLoggedIn
-              transBodyJson <- tryo{json.extract[TransactionRequestBodyJsonV200]} ?~! InvalidJsonFormat
-              transBody <- tryo{getTransactionRequestBodyFromJson(transBodyJson)}
-              _ <- tryo(assert(isValidID(bankId.value)))?~! InvalidBankIdFormat
-              _ <- tryo(assert(isValidID(accountId.value)))?~! InvalidAccountIdFormat
-              (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-              fromAccount <- BankAccountX(bankId, accountId) ?~! AccountNotFound
-              _ <- APIUtil.checkAuthorisationToCreateTransactionRequest(viewId: ViewId, BankIdAccountId(bankId, accountId), u: User, callContext: Option[CallContext]) ?~! {
-                s"$InsufficientAuthorisationToCreateTransactionRequest " +
-                  s"Current ViewId(${viewId.value})," +
-                  s"current UserId(${u.userId})" +
-                  s"current ConsumerId(${callContext.map(_.consumer.map(_.consumerId.get).getOrElse("")).getOrElse("")})"
-              }
-              toBankId <- tryo(BankId(transBodyJson.to.bank_id))
-              toAccountId <- tryo(AccountId(transBodyJson.to.account_id))
-              toAccount <- BankAccountX(toBankId, toAccountId) ?~! {ErrorMessages.CounterpartyNotFound}
-              // Prevent default value for transaction request type (at least).
-              // Get Transaction Request Types from Props "transactionRequests_supported_types". Default is empty string
-              validTransactionRequestTypes <- tryo{APIUtil.getPropsValue("transactionRequests_supported_types", "")}
-              // Use a list instead of a string to avoid partial matches
-              validTransactionRequestTypesList <- tryo{validTransactionRequestTypes.split(",")}
-              _ <- tryo(assert(transactionRequestType.value != "TRANSACTION_REQUEST_TYPE" && validTransactionRequestTypesList.contains(transactionRequestType.value))) ?~! s"${InvalidTransactionRequestType} : Invalid value is: '${transactionRequestType.value}' Valid values are: ${validTransactionRequestTypes}"
-              _ <- tryo(assert(transBodyJson.value.currency == fromAccount.currency)) ?~! InvalidTransactionRequestCurrency
-              createdTransactionRequest <- Connector.connector.vend.createTransactionRequestv200(u, fromAccount, toAccount, transactionRequestType, transBody, callContext)
-            } yield {
-              // Explicitly format as v2.0.0 json
-              val json = JSONFactory200.createTransactionRequestWithChargeJSON(createdTransactionRequest)
-              createdJsonResponse(Extraction.decompose(json))
-            }
-          } else {
-            Full(errorJsonResponse(TransactionDisabled))
-          }
-      }
-    }
-
-    resourceDocs += ResourceDoc(
-      answerTransactionRequestChallenge,
-      apiVersion,
-      "answerTransactionRequestChallenge",
-      "POST",
-      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-request-types/TRANSACTION_REQUEST_TYPE/transaction-requests/TRANSACTION_REQUEST_ID/challenge",
-      "Answer Transaction Request Challenge",
-      """ 
-        |In Sandbox mode, any string that can be converted to a positive integer will be accepted as an answer.
-        |
-      """.stripMargin,
-      ChallengeAnswerJSON("89123812", "123345"),
-      transactionRequestWithChargeJson,
-      List(
-        UserNotLoggedIn,
-        InvalidAccountIdFormat,
-          InvalidBankIdFormat,
-        BankNotFound,
-        UserNoPermissionAccessView,
-        InvalidJsonFormat,
-        InvalidTransactionRequestId,
-        TransactionRequestTypeHasChanged,
-        InvalidTransactionRequestChallengeId,
-        TransactionRequestStatusNotInitiated,
-        TransactionDisabled,
-        UnknownError
-      ),
-      List(apiTagTransactionRequest, apiTagPsd2, apiTagOldStyle))
-
-    lazy val answerTransactionRequestChallenge: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-request-types" ::
-        TransactionRequestType(transactionRequestType) :: "transaction-requests" :: TransactionRequestId(transReqId) :: "challenge" :: Nil JsonPost json -> _ => {
-        cc =>
-          if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false)) {
-            for {
-              u <- cc.user ?~! ErrorMessages.UserNotLoggedIn
-              _ <- tryo(assert(isValidID(accountId.value)))?~! ErrorMessages.InvalidAccountIdFormat
-              _ <- tryo(assert(isValidID(bankId.value)))?~! ErrorMessages.InvalidBankIdFormat
-              (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-              fromAccount <- BankAccountX(bankId, accountId) ?~! AccountNotFound
-              _ <- APIUtil.checkAuthorisationToCreateTransactionRequest(viewId: ViewId, BankIdAccountId(bankId, accountId), u: User, callContext: Option[CallContext]) ?~! {
-                s"$InsufficientAuthorisationToCreateTransactionRequest " +
-                  s"Current ViewId(${viewId.value})," +
-                  s"current UserId(${u.userId})" +
-                  s"current ConsumerId(${callContext.map(_.consumer.map(_.consumerId.get).getOrElse("")).getOrElse("")})"
-              }
-              answerJson <- tryo{json.extract[ChallengeAnswerJSON]} ?~! InvalidJsonFormat
-              _ <- Connector.connector.vend.answerTransactionRequestChallenge(transReqId, answerJson.answer)
-              //check the transReqId validation.
-              (existingTransactionRequest, callContext) <- Connector.connector.vend.getTransactionRequestImpl(transReqId, callContext) ?~! s"${ErrorMessages.InvalidTransactionRequestId} : $transReqId"
-
-              //check the input transactionRequestType is same as when the user create the existingTransactionRequest
-              existingTransactionRequestType = existingTransactionRequest.`type`
-              _ <- booleanToBox(existingTransactionRequestType.equals(transactionRequestType.value),s"${ErrorMessages.TransactionRequestTypeHasChanged} It should be :'$existingTransactionRequestType' ")
-
-              //check the challenge id is same as when the user create the existingTransactionRequest
-              _ <- booleanToBox(existingTransactionRequest.challenge.id.equals(answerJson.id),{ErrorMessages.InvalidTransactionRequestChallengeId})
-
-              //check the challenge statue whether is initiated, only retreive INITIATED transaction requests.
-              _ <- booleanToBox(existingTransactionRequest.status.equals("INITIATED"),ErrorMessages.TransactionRequestStatusNotInitiated)
-
-              toBankId  = BankId(existingTransactionRequest.body.to_sandbox_tan.get.bank_id)
-              toAccountId  = AccountId(existingTransactionRequest.body.to_sandbox_tan.get.account_id)
-              toAccount <- BankAccountX(toBankId, toAccountId) ?~! s"$AccountNotFound,toBankId($toBankId) and toAccountId($toAccountId) is invalid ."
-            
-              //create transaction and insert its id into the transaction request
-              transactionRequest <- Connector.connector.vend.createTransactionAfterChallengev200(fromAccount, toAccount, existingTransactionRequest)
-            } yield {
-
-              // Format explicitly as v2.0.0 json
-              val json = JSONFactory200.createTransactionRequestWithChargeJSON(transactionRequest)
-              //successJsonResponse(Extraction.decompose(json))
-
-              val successJson = Extraction.decompose(json)
-              successJsonResponse(successJson, 202)
-            }
-          } else {
-            Full(errorJsonResponse(TransactionDisabled))
-          }
-      }
-    }
-
-
-
-    resourceDocs += ResourceDoc(
-      getTransactionRequests,
-      apiVersion,
-      "getTransactionRequests",
-      "GET",
-      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-requests",
-      "Get Transaction Requests." ,
-      """Returns transaction requests for account specified by ACCOUNT_ID at bank specified by BANK_ID.
-        |
-        |The VIEW_ID specified must be 'owner' and the user must have access to this view.
-        |
-        |Version 2.0.0 now returns charge information.
-        |
-        |Transaction Requests serve to initiate transactions that may or may not proceed. They contain information including:
-        |
-        |* Transaction Request Id
-        |* Type
-        |* Status (INITIATED, COMPLETED)
-        |* Challenge (in order to confirm the request)
-        |* From Bank / Account
-        |* Body including To Account, Currency, Value, Description and other initiation information. (Could potentialy include a list of future transactions.)
-        |* Related Transactions
-        |
-        |PSD2 Context: PSD2 requires transparency of charges to the customer.
-        |This endpoint provides the charge that would be applied if the Transaction Request proceeds - and a record of that charge there after.
-        |The customer can proceed with the Transaction by answering the security challenge.
-        |
-      """.stripMargin,
-      emptyObjectJson,
-      transactionRequestWithChargesJson,
-      List(UserNotLoggedIn, BankNotFound, AccountNotFound, UserNoPermissionAccessView, UnknownError),
-      List(apiTagTransactionRequest, apiTagPsd2, apiTagOldStyle))
-
-    lazy val getTransactionRequests: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-requests" :: Nil JsonGet _ => {
-        cc =>
-          if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false)) {
-            for {
-              u <- cc.user ?~! UserNotLoggedIn
-              (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-              fromAccount <- BankAccountX(bankId, accountId) ?~! AccountNotFound
-              view <-APIUtil.checkViewAccessAndReturnView(viewId, BankIdAccountId(fromAccount.bankId, fromAccount.accountId), Some(u), callContext)
-              _ <- Helper.booleanToBox(view.canSeeTransactionRequests,
-                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canSeeTransactionRequests_.dbColumnName).dropRight(1)}` permission on the View(${viewId.value} )")
-              transactionRequests <- Connector.connector.vend.getTransactionRequests(u, fromAccount, callContext)
-            }
-              yield {
-                // Format the data as V2.0.0 json
-                val json = JSONFactory200.createTransactionRequestJSONs(transactionRequests)
-                successJsonResponse(Extraction.decompose(json))
-              }
-          } else {
-            Full(errorJsonResponse(TransactionDisabled))
-          }
-      }
-    }
-
 
     resourceDocs += ResourceDoc(
       createUser,
@@ -1591,7 +1340,7 @@ trait APIMethods200 {
                 .username(postedData.username)
                 .email(postedData.email)
                 .password(postedData.password)
-                .validated(APIUtil.getPropsAsBoolValue("user_account_validated", false))
+                .validated(APIUtil.getPropsAsBoolValue("authUser.skipEmailValidation", defaultValue = false))
             }
             _ <- Helper.booleanToFuture(userCreated.validate.map(_.msg).mkString(";"), 400, cc.callContext) {
               userCreated.validate.size == 0
@@ -1695,7 +1444,7 @@ trait APIMethods200 {
 //        |
 //        |This call is **experimental** and will require further authorisation in the future.
 //      """.stripMargin,
-//      emptyObjectJson,
+//      EmptyBody,
 //      meetingsJson,
 //      List(
 //        UserNotLoggedIn,
@@ -1750,7 +1499,7 @@ trait APIMethods200 {
 //        |
 //        |This call is **experimental** and will require further authorisation in the future.
 //      """.stripMargin,
-//      emptyObjectJson,
+//      EmptyBody,
 //      meetingJson,
 //      List(
 //        UserNotLoggedIn, 
@@ -1800,7 +1549,7 @@ trait APIMethods200 {
         |This call may require additional permissions/role in the future.
         |For now the authenticated user can create at most one linked customer.
         |Dates need to be in the format 2013-01-21T23:08:00Z
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |""",
       createCustomerJson,
       customerJsonV140,
@@ -1887,7 +1636,7 @@ trait APIMethods200 {
         |
         |Login is required.
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       userJsonV200,
       List(UserNotLoggedIn, UnknownError),
       List(apiTagUser, apiTagOldStyle))
@@ -1921,7 +1670,7 @@ trait APIMethods200 {
         |CanGetAnyUser entitlement is required,
         |
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       usersJsonV200,
       List(UserNotLoggedIn, UserHasMissingRoles, UserNotFoundByEmail, UnknownError),
       List(apiTagUser, apiTagOldStyle),
@@ -1961,7 +1710,7 @@ trait APIMethods200 {
       "Create User Customer Link",
       s"""Link a User to a Customer
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |$createUserCustomerLinksrequiredEntitlementsText
         |""",
@@ -2098,11 +1847,11 @@ trait APIMethods200 {
       "Get Entitlements for User",
       s"""
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       entitlementJSONs,
       List(UserNotLoggedIn, UserHasMissingRoles, UnknownError),
       List(apiTagRole, apiTagEntitlement, apiTagUser, apiTagOldStyle),
@@ -2147,8 +1896,8 @@ trait APIMethods200 {
         |
         |
       """.stripMargin,
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(UserNotLoggedIn, UserHasMissingRoles, EntitlementNotFound, UnknownError),
       List(apiTagRole, apiTagUser, apiTagEntitlement))
 
@@ -2185,7 +1934,7 @@ trait APIMethods200 {
         |
         |
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       entitlementJSONs,
       List(UserNotLoggedIn, UnknownError),
       List(apiTagRole, apiTagEntitlement))
@@ -2279,8 +2028,8 @@ trait APIMethods200 {
           |You can specify the esType thus: /search/warehouse/esType=type&q=a
           |
         """,
-        emptyObjectJson,
-        emptyObjectJson, //TODO what is output here?
+        EmptyBody,
+        emptyElasticSearch, //TODO what is output here?
         List(UserNotLoggedIn, BankNotFound, UserHasMissingRoles, UnknownError),
         List(apiTagSearchWarehouse, apiTagOldStyle),
         Some(List(canSearchWarehouse)))
@@ -2365,8 +2114,8 @@ trait APIMethods200 {
           |
           |
         """,
-        emptyObjectJson,
-        emptyObjectJson,
+        EmptyBody,
+        emptyElasticSearch,
         List(UserNotLoggedIn, UserHasMissingRoles, UnknownError),
         List(apiTagMetric, apiTagApi, apiTagOldStyle),
         Some(List(canSearchMetrics)))
@@ -2395,7 +2144,7 @@ trait APIMethods200 {
       """Information about the currently authenticated user.
         |
         |Authentication via OAuth is required.""",
-      emptyObjectJson,
+      EmptyBody,
       customersJsonV140,
       List(UserNotLoggedIn, UserCustomerLinksNotFoundForUser, UnknownError),
       List(apiTagPerson, apiTagCustomer, apiTagOldStyle))

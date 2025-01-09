@@ -2,6 +2,7 @@ package code.endpointTag
 
 import code.api.util.CustomJsonFormats
 import code.util.MappedUUID
+import com.openbankproject.commons.model.EndpointTagT
 import net.liftweb.common.{Box, Empty, EmptyBox, Full}
 import net.liftweb.mapper._
 import net.liftweb.util.Helpers.tryo

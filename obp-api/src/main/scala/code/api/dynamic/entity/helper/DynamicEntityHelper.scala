@@ -1,6 +1,6 @@
 package code.api.dynamic.entity.helper
 
-import code.api.util.APIUtil.{EmptyBody, ResourceDoc, authenticationRequiredMessage}
+import code.api.util.APIUtil.{EmptyBody, ResourceDoc, userAuthenticationMessage}
 import code.api.util.ApiRole.getOrCreateDynamicApiRole
 import code.api.util.ApiTag._
 import code.api.util.ErrorMessages.{InvalidJsonFormat, UnknownError, UserHasMissingRoles, UserNotLoggedIn}
@@ -176,7 +176,7 @@ object DynamicEntityHelper {
          |
          |${methodRoutingExample(entityName)}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Can do filter on the fields
          |e.g: /${entityName}?name=James%20Brown&number=123.456&number=11.11
@@ -208,7 +208,7 @@ object DynamicEntityHelper {
          |
          |${methodRoutingExample(entityName)}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       dynamicEntityInfo.getSingleExample,
@@ -236,7 +236,7 @@ object DynamicEntityHelper {
          |
          |${methodRoutingExample(entityName)}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       dynamicEntityInfo.getSingleExampleWithoutId,
@@ -266,7 +266,7 @@ object DynamicEntityHelper {
          |
          |${methodRoutingExample(entityName)}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       dynamicEntityInfo.getSingleExampleWithoutId,
@@ -293,7 +293,7 @@ object DynamicEntityHelper {
          |
          |${methodRoutingExample(entityName)}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       dynamicEntityInfo.getSingleExampleWithoutId,
@@ -324,7 +324,7 @@ object DynamicEntityHelper {
            |
            |${methodRoutingExample(entityName)}
            |
-           |${authenticationRequiredMessage(true)}
+           |${userAuthenticationMessage(true)}
            |
            |Can do filter on the fields
            |e.g: /${entityName}?name=James%20Brown&number=123.456&number=11.11
@@ -354,7 +354,7 @@ object DynamicEntityHelper {
            |
            |${methodRoutingExample(entityName)}
            |
-           |${authenticationRequiredMessage(true)}
+           |${userAuthenticationMessage(true)}
            |""".stripMargin,
         EmptyBody,
         dynamicEntityInfo.getSingleExample,
@@ -380,7 +380,7 @@ object DynamicEntityHelper {
            |
            |${methodRoutingExample(entityName)}
            |
-           |${authenticationRequiredMessage(true)}
+           |${userAuthenticationMessage(true)}
            |
            |""",
         dynamicEntityInfo.getSingleExampleWithoutId,
@@ -408,7 +408,7 @@ object DynamicEntityHelper {
            |
            |${methodRoutingExample(entityName)}
            |
-           |${authenticationRequiredMessage(true)}
+           |${userAuthenticationMessage(true)}
            |
            |""",
         dynamicEntityInfo.getSingleExampleWithoutId,
@@ -434,7 +434,7 @@ object DynamicEntityHelper {
            |
            |${methodRoutingExample(entityName)}
            |
-           |${authenticationRequiredMessage(true)}
+           |${userAuthenticationMessage(true)}
            |
            |""",
         dynamicEntityInfo.getSingleExampleWithoutId,

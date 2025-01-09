@@ -1,7 +1,7 @@
 package code.management
 
 import code.api.util.ErrorMessages._
-import code.bankconnectors.Connector
+import code.bankconnectors.{Connector, LocalMappedConnectorInternal}
 import code.management.ImporterAPI._
 import code.util.Helper.MdcLoggable
 import com.openbankproject.commons.model.Transaction
@@ -56,7 +56,7 @@ object TransactionInserter extends LiftActor with MdcLoggable {
 
       val toMatch = identicalTransactions(0)
 
-      val existingMatches = Connector.connector.vend.getMatchingTransactionCount(
+      val existingMatches = LocalMappedConnectorInternal.getMatchingTransactionCount(
         toMatch.obp_transaction.this_account.bank.national_identifier,
         toMatch.obp_transaction.this_account.number,
         toMatch.obp_transaction.details.value.amount,
@@ -68,7 +68,7 @@ object TransactionInserter extends LiftActor with MdcLoggable {
       //if(numberToInsert > 0)
         //logger.info("Insert operation id " + insertID + " copies being inserted: " + numberToInsert)
 
-      val results = (1 to numberToInsert).map(_ => Connector.connector.vend.createImportedTransaction(toMatch)).toList
+      val results = (1 to numberToInsert).map(_ => LocalMappedConnectorInternal.createImportedTransaction(toMatch)).toList
 
       results.foreach{
         case Failure(msg, _, _) => logger.warn(s"create transaction failed: $msg")

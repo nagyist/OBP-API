@@ -37,6 +37,7 @@ trait V400ServerSetup extends ServerSetupWithTestData with DefaultUsers {
 
   def v4_0_0_Request: Req = baseRequest / "obp" / "v4.0.0"
   def v5_0_0_Request: Req = baseRequest / "obp" / "v5.0.0"
+  def v5_1_0_Request: Req = baseRequest / "obp" / "v5.1.0"
   def dynamicEndpoint_Request: Req = baseRequest / "obp" / ApiShortVersions.`dynamic-endpoint`.toString
   def dynamicEntity_Request: Req = baseRequest / "obp" / ApiShortVersions.`dynamic-entity`.toString
 

@@ -55,6 +55,16 @@ trait Customer {
   def nameSuffix: String
 }
 
+trait Agent {
+  def agentId : String 
+  def bankId : String
+  def number : String 
+  def legalName : String
+  def mobileNumber : String
+  def isConfirmedAgent: Boolean
+  def isPendingAgent: Boolean
+}
+
 trait CustomerFaceImageTrait {
   def url : String
   def date : Date

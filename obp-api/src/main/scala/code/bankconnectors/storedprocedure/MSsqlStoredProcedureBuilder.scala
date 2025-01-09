@@ -7,7 +7,7 @@ import code.api.ResourceDocs1_4_0.MessageDocsSwaggerDefinitions.successStatus
 import code.api.util.APIUtil.MessageDoc
 import code.api.util.CustomJsonFormats.formats
 import code.api.util.{APIUtil, OptionalFieldSerializer}
-import code.bankconnectors.ConnectorBuilderUtil._
+import code.bankconnectors.generator.ConnectorBuilderUtil._
 import com.openbankproject.commons.model.Status
 import com.openbankproject.commons.util.Functions
 import net.liftweb.json
@@ -22,7 +22,6 @@ import scala.collection.mutable.ArrayBuffer
  * create ms sql server stored procedure according messageDocs.
  */
 object MSsqlStoredProcedureBuilder {
-  specialMethods // this line just for modify "MappedWebUiPropsProvider"
   object StatusSerializer extends Serializer[Status] {
 
     override def deserialize(implicit format: Formats): PartialFunction[(TypeInfo, JValue), Status] = Functions.doNothing
@@ -33,6 +32,7 @@ object MSsqlStoredProcedureBuilder {
   }
 
   def main(args: Array[String]): Unit = {
+    commonMethodNames// do not delete this line, it is to modify "MappedWebUiPropsProvider", to avoid access DB cause dataSource not found exception
     // Boot.scala set default TimeZone, So here need also fix the TimeZone to make example Date is a fix value,
     // not affect by local TimeZone.
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
@@ -50,6 +50,10 @@ object MSsqlStoredProcedureBuilder {
     val path = new File(getClass.getResource("").toURI.toString.replaceFirst("target/.*", "").replace("file:", ""),
     "src/main/scala/code/bankconnectors/storedprocedure/MSsqlStoredProcedure.sql")
     val source = FileUtils.write(path, procedureNameToInbound, "utf-8")
+
+
+    // After generatin the code, then exit 
+    sys.exit(0)
   }
 
   def buildProcedure(processName: String, outBoundExample: String, inBoundExample: String) = {
@@ -80,5 +84,7 @@ object MSsqlStoredProcedureBuilder {
       |
       |""".stripMargin
   }
+
+
 
 }

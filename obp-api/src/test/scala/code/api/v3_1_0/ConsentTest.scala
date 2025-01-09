@@ -25,6 +25,7 @@ TESOBE (http://www.tesobe.com/)
   */
 package code.api.v3_1_0
 
+import code.api.Constant
 import code.api.RequestHeader
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
 import code.api.util.{APIUtil, Consent}
@@ -59,7 +60,7 @@ class ConsentTest extends V310ServerSetup {
   lazy val bankId = randomBankId
   lazy val bankAccount = randomPrivateAccount(bankId)
   lazy val entitlements = List(PostConsentEntitlementJsonV310("", CanGetAnyUser.toString()))
-  lazy val views = List(PostConsentViewJsonV310(bankId, bankAccount.id, "owner"))
+  lazy val views = List(PostConsentViewJsonV310(bankId, bankAccount.id, Constant.SYSTEM_OWNER_VIEW_ID))
   lazy val postConsentEmailJsonV310 = SwaggerDefinitionsJSON.postConsentEmailJsonV310
     .copy(entitlements=entitlements)
     .copy(consumer_id=Some(testConsumer.consumerId.get))
@@ -102,19 +103,27 @@ class ConsentTest extends V310ServerSetup {
     }
 
     scenario("We will call the endpoint with user credentials", ApiEndpoint1, ApiEndpoint3, VersionOfApi, VersionOfApi2) {
+      setPropsValues("consumer_validation_method_for_consent"-> "CONSUMER_KEY_VALUE")
       wholeFunctionality(RequestHeader.`Consent-JWT`)
+      setPropsValues("consumer_validation_method_for_consent"-> "CONSUMER_CERTIFICATE")
     }
 
     scenario("We will call the endpoint with user credentials and deprecated header name", ApiEndpoint1, ApiEndpoint3, VersionOfApi, VersionOfApi2) {
+      setPropsValues("consumer_validation_method_for_consent"-> "CONSUMER_KEY_VALUE")
       wholeFunctionality(RequestHeader.`Consent-Id`)
+      setPropsValues("consumer_validation_method_for_consent"-> "CONSUMER_CERTIFICATE")
     }
 
     scenario("We will call the endpoint with user credentials-Implicit", ApiEndpoint1, ApiEndpoint3, VersionOfApi, VersionOfApi2) {
+      setPropsValues("consumer_validation_method_for_consent"-> "CONSUMER_KEY_VALUE")
       wholeFunctionalityImplicit(RequestHeader.`Consent-JWT`)
+      setPropsValues("consumer_validation_method_for_consent"-> "CONSUMER_CERTIFICATE")
     }
 
     scenario("We will call the endpoint with user credentials and deprecated header name-Implicit", ApiEndpoint1, ApiEndpoint3, VersionOfApi, VersionOfApi2) {
+      setPropsValues("consumer_validation_method_for_consent"-> "CONSUMER_KEY_VALUE")
       wholeFunctionalityImplicit(RequestHeader.`Consent-Id`)
+      setPropsValues("consumer_validation_method_for_consent"-> "CONSUMER_CERTIFICATE")
     }
   }
 

@@ -47,14 +47,13 @@ import code.api.v3_1_0.{AccountAttributeResponseJson, CustomerJsonV310, JSONFact
 import code.apicollection.ApiCollectionTrait
 import code.apicollectionendpoint.ApiCollectionEndpointTrait
 import code.atms.Atms.Atm
-import code.bankattribute.BankAttribute
 import code.consent.MappedConsent
 import code.entitlement.Entitlement
 import code.loginattempts.LoginAttempt
 import code.model.dataAccess.ResourceUser
 import code.model.{Consumer, ModeratedBankAccount, ModeratedBankAccountCore}
 import code.ratelimiting.RateLimiting
-import code.standingorders.StandingOrderTrait
+import com.openbankproject.commons.model.StandingOrderTrait
 import code.userlocks.UserLocks
 import code.users.{UserAgreement, UserAttribute, UserInvitation}
 import code.views.system.AccountAccess
@@ -138,7 +137,8 @@ case class TransactionRequestWithChargeJSON400(
                                                 start_date: Date,
                                                 end_date: Date,
                                                 challenges: List[ChallengeJsonV400],
-                                                charge : TransactionRequestChargeJsonV200
+                                                charge : TransactionRequestChargeJsonV200,
+                                                attributes: Option[List[BankAttributeBankResponseJsonV400]]
                                               )
 case class PostHistoricalTransactionAtBankJson(
                                                 from_account_id: String,
@@ -309,8 +309,8 @@ case class AccountsBalancesJsonV400(accounts:List[AccountBalanceJsonV400])
 case class BalanceJsonV400(`type`: String, currency: String, amount: String)
 
 case class AccountBalanceJsonV400(
-                                   account_id: String,
                                    bank_id: String,
+                                   account_id: String,
                                    account_routings: List[AccountRouting],
                                    label: String,
                                    balances: List[BalanceJsonV400]
@@ -390,6 +390,19 @@ case class ConsentInfoJsonV400(consent_id: String,
                                api_standard: String, 
                                api_version: String)
 case class ConsentInfosJsonV400(consents: List[ConsentInfoJsonV400])
+
+case class AgentCashWithdrawalJson(
+  bank_id: String,
+  agent_number: String
+)
+
+case class TransactionRequestBodyAgentJsonV400(
+  to: AgentCashWithdrawalJson,
+  value: AmountOfMoneyJsonV121,
+  description: String,
+  charge_policy: String,
+  future_date: Option[String] = None
+) extends TransactionRequestCommonBodyJSON
 
 case class TransactionRequestBodySEPAJsonV400(
                                                value: AmountOfMoneyJsonV121,
@@ -535,12 +548,6 @@ case class TransactionAttributeResponseJson(
 
 case class TransactionAttributesResponseJson(
   transaction_attributes: List[TransactionAttributeResponseJson]
-)
-
-case class TransactionRequestAttributeJsonV400(
-  name: String,
-  `type`: String,
-  value: String,
 )
 
 case class TransactionRequestAttributeResponseJson(
@@ -1187,7 +1194,7 @@ object JSONFactory400 {
 
   }
   
-  def createBankJSON400(bank: Bank, attributes: List[BankAttribute] = Nil): BankJson400 = {
+  def createBankJSON400(bank: Bank, attributes: List[BankAttributeTrait] = Nil): BankJson400 = {
     val obp = BankRoutingJsonV121("OBP", bank.bankId.value)
     val bic = BankRoutingJsonV121("BIC", bank.swiftBic)
     val routings = bank.bankRoutingScheme match {
@@ -1248,8 +1255,8 @@ object JSONFactory400 {
       account_attributes = accountAttributes.map(createAccountAttributeJson)
     )
 
-  def createTransactionRequestWithChargeJSON(tr : TransactionRequest, challenges: List[ChallengeTrait]) : TransactionRequestWithChargeJSON400 = {
-    new TransactionRequestWithChargeJSON400(
+  def createTransactionRequestWithChargeJSON(tr : TransactionRequest, challenges: List[ChallengeTrait],  transactionRequestAttribute: List[TransactionRequestAttributeTrait]) : TransactionRequestWithChargeJSON400 = {
+    TransactionRequestWithChargeJSON400(
       id = stringOrNull(tr.id.value),
       `type` = stringOrNull(tr.`type`),
       from = try{TransactionRequestAccountJsonV140 (
@@ -1310,7 +1317,12 @@ object JSONFactory400 {
       charge = try {TransactionRequestChargeJsonV200 (summary = stringOrNull(tr.charge.summary),
         value = AmountOfMoneyJsonV121(currency = stringOrNull(tr.charge.value.currency),
           amount = stringOrNull(tr.charge.value.amount))
-      )} catch {case _ : Throwable => null}
+      )} catch {case _ : Throwable => null},
+      attributes = if(transactionRequestAttribute.isEmpty) None else Some(transactionRequestAttribute
+        .map(attribute =>BankAttributeBankResponseJsonV400(
+          attribute.name,
+          attribute.value
+        )))
     )
   }
 
@@ -1801,7 +1813,7 @@ object JSONFactory400 {
       value = productAttribute.value,
       is_active = productAttribute.isActive
     )
-  def createBankAttributeJson(bankAttribute: BankAttribute): BankAttributeResponseJsonV400 =
+  def createBankAttributeJson(bankAttribute: BankAttributeTrait): BankAttributeResponseJsonV400 =
     BankAttributeResponseJsonV400(
       bank_id = bankAttribute.bankId.value,
       bank_attribute_id = bankAttribute.bankAttributeId,
@@ -1810,7 +1822,7 @@ object JSONFactory400 {
       value = bankAttribute.value,
       is_active = bankAttribute.isActive
     )
-  def createBankAttributesJson(bankAttributes: List[BankAttribute]): BankAttributesResponseJsonV400 =
+  def createBankAttributesJson(bankAttributes: List[BankAttributeTrait]): BankAttributesResponseJsonV400 =
     BankAttributesResponseJsonV400(bankAttributes.map(createBankAttributeJson))
   
     

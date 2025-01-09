@@ -43,6 +43,7 @@ class UserInformation extends MdcLoggable {
   private object providerVar extends RequestVar("")
   private object devEmailVar extends RequestVar("")
   private object usernameVar extends RequestVar("")
+  private object userIdVar extends RequestVar("")
 
   def show: CssSel = {
     if(!AuthUser.loggedIn_?) {
@@ -52,6 +53,7 @@ class UserInformation extends MdcLoggable {
     } else {
       val user: User = AuthUser.getCurrentUser.openOrThrowException(attemptedToOpenAnEmptyBox)
       usernameVar.set(user.name)
+      userIdVar.set(user.userId)
       devEmailVar.set(user.emailAddress)
       providerVar.set(user.provider)
       idTokenVar.set(AuthUser.getIDTokenOfCurrentUser)
@@ -61,7 +63,8 @@ class UserInformation extends MdcLoggable {
         "#user-info-provider" #> SHtml.text(providerVar.is, providerVar(_)) &
         "#user-info-email" #> SHtml.text(devEmailVar, devEmailVar(_)) &
         "#user-info-id-token" #> SHtml.text(idTokenVar, idTokenVar(_)) &
-        "#user-info-access-token" #> SHtml.text(accessTokenVar, accessTokenVar(_))
+        "#user-info-access-token" #> SHtml.text(accessTokenVar, accessTokenVar(_)) &
+        "#user-info-user-id" #> SHtml.text(userIdVar, accessTokenVar(_))
       } & "#register-consumer-success" #> ""
     }
   }

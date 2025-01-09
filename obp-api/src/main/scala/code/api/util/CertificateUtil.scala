@@ -1,10 +1,6 @@
 package code.api.util
 
-import java.io.{FileInputStream, IOException}
-import java.security.cert.{Certificate, CertificateException, X509Certificate}
-import java.security.interfaces.{RSAPrivateKey, RSAPublicKey}
-import java.security.{PublicKey, _}
-
+import code.api.CertificateConstants
 import code.api.util.CryptoSystem.CryptoSystem
 import code.api.util.SelfSignedCertificateUtil.generateSelfSignedCert
 import code.util.Helper.MdcLoggable
@@ -13,7 +9,11 @@ import com.nimbusds.jose.crypto.{MACSigner, RSAEncrypter, RSASSASigner}
 import com.nimbusds.jose.util.X509CertUtils
 import com.nimbusds.jwt.{EncryptedJWT, JWTClaimsSet}
 import net.liftweb.util.Props
-import org.bouncycastle.operator.OperatorCreationException
+
+import java.io.{FileInputStream, IOException}
+import java.security.cert.{Certificate, CertificateException, X509Certificate}
+import java.security.interfaces.{RSAPrivateKey, RSAPublicKey}
+import java.security._
 
 
 object CryptoSystem extends Enumeration {
@@ -223,6 +223,40 @@ object CertificateUtil extends MdcLoggable {
     // logger.debug("getState: " + jwtParsed.getState)
     // logger.debug("getJWTClaimsSet: " + jwtParsed.getJWTClaimsSet)
     jwtParsed.getJWTClaimsSet
+  }
+
+  // Remove all whitespace characters including spaces, tabs, newlines, and carriage returns
+  def normalizePemX509Certificate(pem: String): String = {
+    val pemHeader = CertificateConstants.BEGIN_CERT
+    val pemFooter = CertificateConstants.END_CERT
+
+    def extractContent(pem: String): Option[String] = {
+      val start = pem.indexOf(pemHeader)
+      val end = pem.indexOf(pemFooter)
+
+      if (start >= 0 && end > start) {
+        Some(pem.substring(start + pemHeader.length, end))
+      } else {
+        None
+      }
+    }
+
+    extractContent(pem).map { content => // Extract content from PEM representation of X509 certificate
+      val normalizedContent = content.replaceAll("\\s+", "")
+      s"$pemHeader$normalizedContent$pemFooter"
+    }.getOrElse(pem) // In case the extraction cannot be done default the input value we try to normalize
+  }
+
+  def comparePemX509Certificates(pem1: String, pem2: String): Boolean = {
+    val normalizedPem1 = normalizePemX509Certificate(pem1)
+    val normalizedPem2 = normalizePemX509Certificate(pem2)
+
+    val result = normalizedPem1 == normalizedPem2
+    if(!result) { 
+      logger.debug(s"normalizedPem1: ${normalizedPem1}")
+      logger.debug(s"normalizedPem2: ${normalizedPem2}")
+    }
+    result
   }
 
 

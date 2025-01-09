@@ -87,7 +87,8 @@ case class TransactionRequestBodyCounterpartyJSON(
                                                    value: AmountOfMoneyJsonV121,
                                                    description: String,
                                                    charge_policy: String,
-                                                   future_date: Option[String] = None
+                                                   future_date: Option[String] = None,
+                                                   attributes: Option[List[TransactionRequestAttributeJsonV400]]= None,
                                                  ) extends TransactionRequestCommonBodyJSON
 
 // the data from endpoint, extract as valid JSON

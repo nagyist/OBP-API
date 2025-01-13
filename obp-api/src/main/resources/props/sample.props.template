@@ -793,6 +793,7 @@ display_internal_errors=false
 # - decoupled
 # In case that "psu_authentication_method = redirection" you must define
 # psu_authentication_method_sca_redirect_url = redirect_url_value
+# psu_make_payment_sca_redirect_url = redirect_url_value
 # -------------------------------------------------------------- Authentication methods --
 
 ## This property is used for documenting at Resource Doc. It may include the port also (but not /obp)

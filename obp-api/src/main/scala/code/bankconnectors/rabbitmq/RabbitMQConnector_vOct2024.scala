@@ -70,7 +70,7 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
   val connectorName = "rabbitmq_vOct2024"
 
 //---------------- dynamic start -------------------please don't modify this line
-// ---------- created on 2025-01-14T19:12:57Z
+// ---------- created on 2025-01-14T19:52:36Z
 
   messageDocs += getAdapterInfoDoc
   def getAdapterInfoDoc = MessageDoc(
@@ -1188,6 +1188,42 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
         import com.openbankproject.commons.dto.{InBoundGetAccountsHeld => InBound, OutBoundGetAccountsHeld => OutBound}  
         val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).orNull, bankId, user)
         val response: Future[Box[InBound]] = sendRequest[InBound]("obp_get_accounts_held", req, callContext)
+        response.map(convertToTuple[List[BankIdAccountId]](callContext))        
+  }
+          
+  messageDocs += getAccountsHeldByUserDoc
+  def getAccountsHeldByUserDoc = MessageDoc(
+    process = "obp.getAccountsHeldByUser",
+    messageFormat = messageFormat,
+    description = "Get Accounts Held By User",
+    outboundTopic = None,
+    inboundTopic = None,
+    exampleOutboundMessage = (
+     OutBoundGetAccountsHeldByUser(outboundAdapterCallContext=MessageDocsSwaggerDefinitions.outboundAdapterCallContext,
+      user= UserCommons(userPrimaryKey=UserPrimaryKey(123),
+      userId=userIdExample.value,
+      idGivenByProvider="string",
+      provider=providerExample.value,
+      emailAddress=emailAddressExample.value,
+      name=userNameExample.value,
+      createdByConsentId=Some("string"),
+      createdByUserInvitationId=Some("string"),
+      isDeleted=Some(true),
+      lastMarketingAgreementSignedDate=Some(toDate(dateExample))))
+    ),
+    exampleInboundMessage = (
+     InBoundGetAccountsHeldByUser(inboundAdapterCallContext=MessageDocsSwaggerDefinitions.inboundAdapterCallContext,
+      status=MessageDocsSwaggerDefinitions.inboundStatus,
+      data=List( BankIdAccountId(bankId=BankId(bankIdExample.value),
+      accountId=AccountId(accountIdExample.value))))
+    ),
+    adapterImplementation = Some(AdapterImplementation("- Core", 1))
+  )
+
+  override def getAccountsHeldByUser(user: User, callContext: Option[CallContext]): OBPReturnType[Box[List[BankIdAccountId]]] = {
+        import com.openbankproject.commons.dto.{InBoundGetAccountsHeldByUser => InBound, OutBoundGetAccountsHeldByUser => OutBound}  
+        val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).orNull, user)
+        val response: Future[Box[InBound]] = sendRequest[InBound]("obp_get_accounts_held_by_user", req, callContext)
         response.map(convertToTuple[List[BankIdAccountId]](callContext))        
   }
           
@@ -7034,8 +7070,8 @@ trait RabbitMQConnector_vOct2024 extends Connector with MdcLoggable {
         response.map(convertToTuple[Boolean](callContext))        
   }
           
-// ---------- created on 2025-01-14T19:12:57Z
-//---------------- dynamic end ---------------------please don't modify this line                                                         
+// ---------- created on 2025-01-14T19:52:36Z
+//---------------- dynamic end ---------------------please don't modify this line                                                          
 
   private val availableOperation = DynamicEntityOperation.values.map(it => s""""$it"""").mkString("[", ", ", "]")
 

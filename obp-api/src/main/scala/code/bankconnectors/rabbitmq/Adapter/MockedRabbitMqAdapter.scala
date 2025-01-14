@@ -77,7 +77,7 @@ class ServerCallback(val ch: Channel) extends DeliverCallback with MdcLoggable{
           ))
         }
 //---------------- dynamic start -------------------please don't modify this line
-// ---------- created on 2025-01-14T11:14:03Z
+// ---------- created on 2025-01-14T11:53:01Z
 
       } else if (obpMessageId.contains("get_adapter_info")) {
         val outBound = json.parse(message).extract[OutBoundGetAdapterInfo]
@@ -707,6 +707,27 @@ class ServerCallback(val ch: Channel) extends DeliverCallback with MdcLoggable{
           data = response
         )).recoverWith {
           case e: Exception => Future(InBoundGetAccountsHeld(          
+          
+          inboundAdapterCallContext = InboundAdapterCallContext(
+            correlationId = outBound.outboundAdapterCallContext.correlationId
+          ),
+            status = Status(e.getMessage, Nil),
+            data = null
+          ))
+        }
+      } else if (obpMessageId.contains("get_accounts_held_by_user")) {
+        val outBound = json.parse(message).extract[OutBoundGetAccountsHeldByUser]
+        val obpMappedResponse = code.bankconnectors.LocalMappedConnector.getAccountsHeldByUser(outBound.user,None).map(_._1.head)
+        
+        obpMappedResponse.map(response => InBoundGetAccountsHeldByUser(          
+          
+          inboundAdapterCallContext = InboundAdapterCallContext(
+            correlationId = outBound.outboundAdapterCallContext.correlationId
+          ),
+          status = Status("", Nil),
+          data = response
+        )).recoverWith {
+          case e: Exception => Future(InBoundGetAccountsHeldByUser(          
           
           inboundAdapterCallContext = InboundAdapterCallContext(
             correlationId = outBound.outboundAdapterCallContext.correlationId
@@ -3109,8 +3130,8 @@ class ServerCallback(val ch: Channel) extends DeliverCallback with MdcLoggable{
             data = null
           ))
         }
-// ---------- created on 2025-01-14T11:14:03Z
-//---------------- dynamic end ---------------------please don't modify this line                     
+// ---------- created on 2025-01-14T11:53:01Z
+//---------------- dynamic end ---------------------please don't modify this line                      
       } else {  
         Future {
           1

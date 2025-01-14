@@ -432,6 +432,7 @@ object ConnectorBuilderUtil {
     "saveTransactionRequestStatusImpl",
     "getTransactionRequestTypeCharges",
     "getAccountsHeld",
+    "getAccountsHeldByUser",
   ).distinct
 
   /**

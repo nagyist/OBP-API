@@ -528,8 +528,7 @@ object OAuth2Login extends RestHelper with MdcLoggable {
         val openBankRoles: List[String] =
         // Sync Keycloak's roles
           (json \ "resource_access" \ resourceAccessName \ "roles").extract[List[String]]
-            // Keep only the roles OBP-API can recognise
-            .filter(role => tryo(ApiRole.valueOf(role)).isDefined || ApiRole.isBerlinGroupRole(role))
+            .filter(role => tryo(ApiRole.valueOf(role)).isDefined) // Keep only the roles OBP-API can recognise
         val scopes = Scope.scope.vend.getScopesByConsumerId(consumerPrimaryKey.toString).getOrElse(Nil)
         val databaseState = scopes.map(_.roleName)
         // Already exist at DB

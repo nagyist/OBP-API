@@ -21,7 +21,7 @@ import scala.reflect.runtime.{universe => ru}
  */
 object ConnectorBuilderUtil {
   
-  def getClassesFromPackage(packageName: String): Seq[Class[_]] = {
+  def getClassesFromPackage(packageName: String): List[Class[_]] = {
     val classLoader = Thread.currentThread().getContextClassLoader
     val path = packageName.replace('.', '/')
     val resources: Seq[URL] = classLoader.getResources(path).asScala.toSeq
@@ -36,7 +36,7 @@ object ConnectorBuilderUtil {
       } else {
         Seq.empty
       }
-    }
+    }.toList
   }
   
   
@@ -430,7 +430,8 @@ object ConnectorBuilderUtil {
     "updateAccountLabel",
     "getProduct",
     "saveTransactionRequestStatusImpl",
-    "getTransactionRequestTypeCharges"
+    "getTransactionRequestTypeCharges",
+    "getAccountsHeld",
   ).distinct
 
   /**

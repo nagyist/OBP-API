@@ -692,9 +692,10 @@ object Consent extends MdcLoggable {
     val accounts: List[Future[ConsentView]] = consent.access.accounts.getOrElse(Nil) map { account =>
       Connector.connector.vend.getBankAccountByIban(account.iban.getOrElse(""), callContext) map { bankAccount =>
         logger.debug(s"createBerlinGroupConsentJWT.accounts.bankAccount: $bankAccount")
+        val error = s"${InvalidConnectorResponse} IBAN: ${account.iban.getOrElse("")} ${handleBox(bankAccount._1)}"
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
-          account_id = bankAccount._1.map(_.accountId.value).getOrElse(""),
+          account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
           view_id = Constant.SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID
         )
       }
@@ -702,9 +703,10 @@ object Consent extends MdcLoggable {
     val balances: List[Future[ConsentView]] = consent.access.balances.getOrElse(Nil) map { account =>
       Connector.connector.vend.getBankAccountByIban(account.iban.getOrElse(""), callContext) map { bankAccount =>
         logger.debug(s"createBerlinGroupConsentJWT.balances.bankAccount: $bankAccount")
+        val error = s"${InvalidConnectorResponse} IBAN: ${account.iban.getOrElse("")} ${handleBox(bankAccount._1)}"
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
-          account_id = bankAccount._1.map(_.accountId.value).getOrElse(""),
+          account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
           view_id = Constant.SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID
         )
       }
@@ -712,9 +714,10 @@ object Consent extends MdcLoggable {
     val transactions: List[Future[ConsentView]] = consent.access.transactions.getOrElse(Nil) map { account =>
       Connector.connector.vend.getBankAccountByIban(account.iban.getOrElse(""), callContext) map { bankAccount =>
         logger.debug(s"createBerlinGroupConsentJWT.transactions.bankAccount: $bankAccount")
+        val error = s"${InvalidConnectorResponse} IBAN: ${account.iban.getOrElse("")} ${handleBox(bankAccount._1)}"
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
-          account_id = bankAccount._1.map(_.accountId.value).getOrElse(""),
+          account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
           view_id = Constant.SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID
         )
       }

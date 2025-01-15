@@ -37,9 +37,13 @@ object CommonsCaseClassGenerator extends App {
   }
  // private val str: String = ru.typeOf[Bank].decls.map(it => s"${it.name} :${it.typeSignature.typeSymbol.name}").mkString(", \n")
   private val caseClassStrings: Set[String] = missingReturnModels.map(mkClass)
+  println("#################################Started########################################################################")
   caseClassStrings.foreach {
     println
   }
-  println()
 
+  println("#################################Finished########################################################################")
+  println("Please copy and compair the result to obp-commons/src/main/scala/com/openbankproject/commons/model/CommonModel.scala")
+
+  System.exit(0)
 }

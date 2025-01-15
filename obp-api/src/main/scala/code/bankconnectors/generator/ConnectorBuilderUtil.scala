@@ -273,6 +273,9 @@ object ConnectorBuilderUtil {
     }
   }
 
+  //TODO WIP, need to fix the code to support the following methods
+//  val commonMethodNames = Connector.getConnectorInstance("mapped").callableMethods.keySet.toList
+  
   val commonMethodNames = List(
     "getAdapterInfo",
     "getChallengeThreshold",

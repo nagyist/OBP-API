@@ -34,6 +34,7 @@ object InOutCaseClassGenerator extends App {
          |case class InBound${it.name.toString.capitalize} (inboundAdapterCallContext: InboundAdapterCallContext, status: Status, data: $payload) extends InBoundTrait[$payload]
      """.stripMargin
     })
+  println("#################################Started########################################################################")
   code.foreach(println)
   
   println("#################################Finished########################################################################")

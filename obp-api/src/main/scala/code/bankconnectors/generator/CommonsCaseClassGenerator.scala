@@ -9,7 +9,6 @@ object CommonsCaseClassGenerator extends App {
   //We need to check if the classCommons is existing or not.
   val allExistingClasses = getClassesFromPackage("com.openbankproject.commons.model")
     .filter(it =>it.getName.endsWith("Commons"))
-    .toList
   
   
   val missingReturnModels: Set[ru.Type] = connectorDeclsMethodsReturnOBPRequiredType
@@ -17,7 +16,8 @@ object CommonsCaseClassGenerator extends App {
     .filter(it => {
       val symbol = it.typeSymbol
       val isAbstract = symbol.isAbstract
-      isAbstract //We only need the commons classes for abstract class, eg: ProductAttributeCommons instead of ProductAttribute
+      isAbstract && //We only need the commons classes for abstract class, eg: ProductAttributeCommons instead of ProductAttribute
+        !it.toString.equals("Boolean") //Boolean is also abstract class, so we need to remove it.
     })
     .filterNot(it =>
       allExistingClasses.find(thisClass=> thisClass.toString.contains(s"${it.typeSymbol.name}Commons")).isDefined

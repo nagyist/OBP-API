@@ -27,9 +27,7 @@
 package com.openbankproject.commons.dto
 
 import java.util.Date
-import com.openbankproject.commons.model.enums.{AttributeCategory, AttributeType, BankAttributeType, CardAttributeType, ChallengeType, 
-  CustomerAttributeType, DynamicEntityOperation, PaymentServiceTypes, StrongCustomerAuthentication, 
-  SuppliedAnswerType, TransactionAttributeType, TransactionRequestAttributeType, TransactionRequestStatus, TransactionRequestTypes}
+import com.openbankproject.commons.model.enums.{AttributeCategory, AttributeType, BankAttributeType, CardAttributeType, ChallengeType, CustomerAttributeType, DynamicEntityOperation, PaymentServiceTypes, StrongCustomerAuthentication, SuppliedAnswerType, TransactionAttributeType, TransactionRequestAttributeType, TransactionRequestStatus, TransactionRequestTypes, UserAttributeType}
 import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
 import com.openbankproject.commons.model.{enums, _}
@@ -1726,10 +1724,6 @@ case class InBoundUpdateAtmLocationCategories(inboundAdapterCallContext: Inbound
 
 
 
-case class OutBoundGetAllAtms(outboundAdapterCallContext: OutboundAdapterCallContext) extends TopicTrait
-
-case class InBoundGetAllAtms(inboundAdapterCallContext: InboundAdapterCallContext, status: Status, data: List[AtmTCommons]) extends InBoundTrait[List[AtmTCommons]]
-
 case class OutBoundCheckCounterpartyExists(outboundAdapterCallContext: OutboundAdapterCallContext,
   name: String,
   thisBankId: String,
@@ -1799,12 +1793,6 @@ case class OutBoundCreateAgent(outboundAdapterCallContext: OutboundAdapterCallCo
 
 case class InBoundCreateAgent(inboundAdapterCallContext: InboundAdapterCallContext, status: Status, data: AgentCommons) extends InBoundTrait[AgentCommons]
 
-
-case class OutBoundGetCustomersAtAllBanks(outboundAdapterCallContext: OutboundAdapterCallContext) extends TopicTrait
-
-case class InBoundGetCustomersAtAllBanks(inboundAdapterCallContext: InboundAdapterCallContext, status: Status, data: List[CustomerCommons]) extends InBoundTrait[List[CustomerCommons]]
-
-
 case class OutBoundGetCustomersByCustomerLegalName(outboundAdapterCallContext: OutboundAdapterCallContext,
   bankId: BankId,
   legalName: String) extends TopicTrait
@@ -1839,14 +1827,6 @@ case class OutBoundCreateOrUpdateAttributeDefinition(outboundAdapterCallContext:
   isActive: Boolean
   ) extends TopicTrait
 
-
-  case class OutBoundCreateOrUpdateUserAttribute(outboundAdapterCallContext: OutboundAdapterCallContext,
-    userId: String,
-    userAttributeId: Option[String],
-    name: String,
-    attributeType: BankAttributeType.Value,
-    value: String,
-    isPersonal: Boolean) extends TopicTrait
 
   case class InBoundDeleteUserAttribute(inboundAdapterCallContext: InboundAdapterCallContext, status: Status, data: Boolean) extends InBoundTrait[Boolean]
 

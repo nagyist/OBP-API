@@ -560,7 +560,7 @@ object ErrorMessages {
 
   // Consents
   val ConsentNotFound = "OBP-35001: Consent not found by CONSENT_ID. "
-  val ConsentNotBeforeIssue = "OBP-35002: The time Consent-ID token was issued is set in the future. "
+  val ConsentNotBeforeIssue = "OBP-35002: The Consent Not Before time (nbf) is in the future. Not Before (nbf) should be in the past. Please make sure the Consent nbf is before the current date time of the OBP API server. "
   val ConsentExpiredIssue = "OBP-35003: Consent-Id is expired. "
   val ConsentVerificationIssue = "OBP-35004: Consent-Id JWT value couldn't be verified. "
   val ConsentStatusIssue = "OBP-35005: Consent-Id is not in status "

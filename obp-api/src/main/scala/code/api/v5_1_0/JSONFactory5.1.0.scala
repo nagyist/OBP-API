@@ -576,6 +576,9 @@ case class TransactionRequestsJsonV510(
   transaction_requests : List[TransactionRequestJsonV510]
 )
 
+case class PostTransactionRequestStatusJsonV510(status: String)
+case class TransactionRequestStatusJsonV510(transaction_request_id: String, status: String)
+
 case class SyncExternalUserJson(user_id: String)
 
 case class UserValidatedJson(is_validated: Boolean)

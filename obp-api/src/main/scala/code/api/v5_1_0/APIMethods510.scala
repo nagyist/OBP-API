@@ -18,7 +18,7 @@ import code.api.util.newstyle.BalanceNewStyle
 import code.api.util.newstyle.Consumer.createConsumerNewStyle
 import code.api.util.newstyle.RegulatedEntityNewStyle.{createRegulatedEntityNewStyle, deleteRegulatedEntityNewStyle, getRegulatedEntitiesNewStyle, getRegulatedEntityByEntityIdNewStyle}
 import code.api.v2_0_0.AccountsHelper.{accountTypeFilterText, getFilteredCoreAccounts}
-import code.api.v2_1_0.ConsumerRedirectUrlJSON
+import code.api.v2_1_0.{ConsumerRedirectUrlJSON, JSONFactory210}
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_0_0.JSONFactory300.createAggregateMetricJson
 import code.api.v3_1_0.{ConsentChallengeJsonV310, ConsentJsonV310}
@@ -46,7 +46,7 @@ import code.views.system.{AccountAccess, ViewDefinition}
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.model._
-import com.openbankproject.commons.model.enums.{AtmAttributeType, ConsentType, UserAttributeType}
+import com.openbankproject.commons.model.enums.{AtmAttributeType, ConsentType, TransactionRequestStatus, UserAttributeType}
 import com.openbankproject.commons.util.{ApiVersion, ScannedApiVersion}
 import net.liftweb.common.Full
 import net.liftweb.http.rest.RestHelper
@@ -3135,6 +3135,43 @@ trait APIMethods510 {
       }
     }
 
+
+    staticResourceDocs += ResourceDoc(
+      getTransactionRequestById,
+      implementedInApiVersion,
+      nameOf(getTransactionRequestById),
+      "GET",
+      "/management/transaction-requests/TRANSACTION_REQUEST_ID",
+      "Get Transaction Request by ID.",
+      """Returns transaction request for transaction specified by TRANSACTION_REQUEST_ID.
+        |
+      """.stripMargin,
+      EmptyBody,
+      transactionRequestWithChargeJSON210,
+      List(
+        $UserNotLoggedIn,
+        GetTransactionRequestsException,
+        UnknownError
+      ),
+      List(apiTagTransactionRequest, apiTagPSD2PIS, apiTagPsd2),
+      Some(List(canGetTransactionRequestAtAnyBank))
+    )
+
+    lazy val getTransactionRequestById: OBPEndpoint = {
+      case "management" :: "transaction-requests" :: TransactionRequestId(requestId) :: Nil JsonGet _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (transactionRequest, callContext) <- NewStyle.function.getTransactionRequestImpl(requestId, cc.callContext)
+          } yield {
+            val json = JSONFactory210.createTransactionRequestWithChargeJSON(transactionRequest)
+            (json, HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+
+
     resourceDocs += ResourceDoc(
       getTransactionRequests,
       implementedInApiVersion,
@@ -3211,6 +3248,50 @@ trait APIMethods510 {
           }
       }
     }
+
+
+    staticResourceDocs += ResourceDoc(
+      updateTransactionRequestStatus,
+      implementedInApiVersion,
+      nameOf(updateTransactionRequestStatus),
+      "PUT",
+      "/management/transaction-requests/TRANSACTION_REQUEST_ID",
+      "Update Transaction Request Status",
+      s""" Update Transaction Request Status
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |""",
+      PostTransactionRequestStatusJsonV510(TransactionRequestStatus.COMPLETED.toString),
+      PostTransactionRequestStatusJsonV510(TransactionRequestStatus.COMPLETED.toString),
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagTransactionRequest),
+      Some(List(canUpdateTransactionRequestStatusAtAnyBank))
+    )
+
+    lazy val updateTransactionRequestStatus : OBPEndpoint = {
+      case "management" :: "transaction-requests" :: TransactionRequestId(transactionRequestId) :: Nil JsonPut json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          val failMsg = s"$InvalidJsonFormat The Json body should be the $PostTransactionRequestStatusJsonV510"
+          for {
+            postedData <- NewStyle.function.tryons(failMsg, 400, cc.callContext) {
+              json.extract[PostTransactionRequestStatusJsonV510]
+            }
+            _ <- NewStyle.function.saveTransactionRequestStatusImpl(transactionRequestId, postedData.status, cc.callContext)
+            (transactionRequest, callContext) <- NewStyle.function.getTransactionRequestImpl(transactionRequestId, cc.callContext)
+          } yield {
+            (TransactionRequestStatusJsonV510(transactionRequest.id.value, transactionRequest.status), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
     
     staticResourceDocs += ResourceDoc(
       getAccountAccessByUserId,

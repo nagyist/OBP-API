@@ -743,6 +743,12 @@ object ApiRole extends MdcLoggable{
   case class CanGetTransactionRequestAttributeAtOneBank(requiresBankId: Boolean = true) extends ApiRole
   lazy val canGetTransactionRequestAttributeAtOneBank = CanGetTransactionRequestAttributeAtOneBank()
 
+  case class CanGetTransactionRequestAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canGetTransactionRequestAtAnyBank = CanGetTransactionRequestAtAnyBank()
+
+  case class CanUpdateTransactionRequestStatusAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canUpdateTransactionRequestStatusAtAnyBank = CanUpdateTransactionRequestStatusAtAnyBank()
+
   case class CanGetDoubleEntryTransactionAtOneBank(requiresBankId: Boolean = true) extends ApiRole
   lazy val canGetDoubleEntryTransactionAtOneBank = CanGetDoubleEntryTransactionAtOneBank()
   

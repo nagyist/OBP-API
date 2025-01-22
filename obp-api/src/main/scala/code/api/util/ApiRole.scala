@@ -1,6 +1,5 @@
 package code.api.util
 
-import code.api.Constant.{SYSTEM_INITIATE_PAYMENTS_BERLIN_GROUP_VIEW_ID, SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID, SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID, SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID}
 import code.api.dynamic.endpoint.helper.DynamicEndpointHelper
 
 import java.util.concurrent.ConcurrentHashMap
@@ -744,6 +743,12 @@ object ApiRole extends MdcLoggable{
   case class CanGetTransactionRequestAttributeAtOneBank(requiresBankId: Boolean = true) extends ApiRole
   lazy val canGetTransactionRequestAttributeAtOneBank = CanGetTransactionRequestAttributeAtOneBank()
 
+  case class CanGetTransactionRequestAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canGetTransactionRequestAtAnyBank = CanGetTransactionRequestAtAnyBank()
+
+  case class CanUpdateTransactionRequestStatusAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canUpdateTransactionRequestStatusAtAnyBank = CanUpdateTransactionRequestStatusAtAnyBank()
+
   case class CanGetDoubleEntryTransactionAtOneBank(requiresBankId: Boolean = true) extends ApiRole
   lazy val canGetDoubleEntryTransactionAtOneBank = CanGetDoubleEntryTransactionAtOneBank()
   
@@ -1057,16 +1062,6 @@ object ApiRole extends MdcLoggable{
     import scala.collection.JavaConverters._
     val dynamicRoles = dynamicApiRoles.keys().asScala.toList
     dynamicRoles ::: roles.map(_.toString)
-  }
-
-  def isBerlinGroupRole(value: String): Boolean = {
-    value match {
-      case SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID => true
-      case SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID => true
-      case SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID => true
-      case SYSTEM_INITIATE_PAYMENTS_BERLIN_GROUP_VIEW_ID => true
-      case _ => false
-    }
   }
 
 }

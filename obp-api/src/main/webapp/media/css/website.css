@@ -438,3 +438,7 @@ input{
 	line-height: 24px;
 	margin-bottom: 15px;
 }
+
+#confirm-vrp-consent-request-deny-submit-button {
+	background: red;
+}

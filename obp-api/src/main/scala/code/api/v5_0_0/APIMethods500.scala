@@ -929,7 +929,7 @@ trait APIMethods500 {
               )) map {
               i => unboxFullOrFail(i,callContext, ConsentRequestNotFound)
             }
-            _ <- Helper.booleanToFuture(ConsentRequestIsInvalid, cc=callContext){
+            _ <- Helper.booleanToFuture(s"$ConsentRequestIsInvalid, the current CONSENT_REQUEST_ID($consentRequestId) is already used to create a consent, please provide another one!", cc=callContext){
               Consents.consentProvider.vend.getConsentByConsentRequestId(consentRequestId).isEmpty
             }
             _ <- Helper.booleanToFuture(ConsentAllowedScaMethods, cc=callContext){

@@ -593,7 +593,9 @@ class Boot extends MdcLoggable {
       OAuthWorkedThanks.menu, //OAuth thanks page that will do the redirect
       Menu.i("Introduction") / "introduction",
       Menu.i("add-user-auth-context-update-request") / "add-user-auth-context-update-request",
-      Menu.i("confirm-user-auth-context-update-request") / "confirm-user-auth-context-update-request"
+      Menu.i("confirm-user-auth-context-update-request") / "confirm-user-auth-context-update-request",
+      Menu.i("confirm-vrp-consent-request") / "confirm-vrp-consent-request" >> AuthUser.loginFirst,//OAuth consent page,
+      Menu.i("confirm-vrp-consent") / "confirm-vrp-consent" >> AuthUser.loginFirst //OAuth consent page
     ) ++ accountCreation ++ Admin.menus
     
     // Build SiteMap

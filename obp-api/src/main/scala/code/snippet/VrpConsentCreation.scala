@@ -50,18 +50,18 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
     getConsentRequest match {
       case Left(error) => {
         S.error(error._1)
-        "#confirm-vrp-consent-request-form-title *" #> s"Please enter your consent request info:" &
+        "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
           "#confirm-vrp-consent-request-response-json *" #> s"""""" &
           "type=submit" #> ""
       }
       case Right(response) => {
         tryo {json.parse(response).extract[ConsentRequestResponseJson]} match {
           case Full(consentRequestResponseJson) =>
-            "#confirm-vrp-consent-request-form-title *" #> s"Please enter your consent request info:" &
+            "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
               "#confirm-vrp-consent-request-response-json *" #> s"""${json.prettyRender(json.Extraction.decompose(consentRequestResponseJson.payload))}""" &
               "#confirm-vrp-consent-request-confirm-submit-button" #> SHtml.onSubmitUnit(confirmConsentRequestProcess)
           case _ =>
-            "#confirm-vrp-consent-request-form-title *" #> s"Please enter your consent request info:" & 
+            "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" & 
               "#confirm-vrp-consent-request-response-json *" #>
                 s"""$InvalidJsonFormat The Json body should be the $ConsentRequestResponseJson. 
                    |Please check `Get Consent Request` endpoint separately! """.stripMargin &

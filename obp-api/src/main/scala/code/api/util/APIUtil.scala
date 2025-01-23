@@ -3167,7 +3167,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
   }
 
   def connectorEmptyResponse[T](box: Box[T], cc: Option[CallContext])(implicit m: Manifest[T]): T = {
-    unboxFullOrFail(box, cc, InvalidConnectorResponse, 400)
+    unboxFullOrFail(box, cc, s"$InvalidConnectorResponse ${nameOf(connectorEmptyResponse _)}" , 400)
   }
 
   def unboxFuture[T](box: Box[Future[T]]): Future[Box[T]] = box match {

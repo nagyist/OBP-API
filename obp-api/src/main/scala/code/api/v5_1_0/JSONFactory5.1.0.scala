@@ -31,8 +31,7 @@ import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.ConsentAccessJson
 import code.api.util.APIUtil.{DateWithDay, DateWithSeconds, gitCommit, stringOrNull}
 import code.api.util._
 import code.api.v1_2_1.BankRoutingJsonV121
-import code.api.v1_4_0.JSONFactory1_4_0.{LocationJsonV140, MetaJsonV140, transformToLocationFromV140, transformToMetaFromV140,
-  TransactionRequestAccountJsonV140,ChallengeJsonV140}
+import code.api.v1_4_0.JSONFactory1_4_0.{ChallengeJsonV140, LocationJsonV140, MetaJsonV140, TransactionRequestAccountJsonV140, transformToLocationFromV140, transformToMetaFromV140}
 import code.api.v2_0_0.TransactionRequestChargeJsonV200
 import code.api.v2_1_0.ResourceUserJSON
 import code.api.v3_0_0.JSONFactory300.{createLocationJson, createMetaJson, transformToAddressFromV300}
@@ -121,7 +120,8 @@ case class ConsentJsonV510(consent_id: String,
                            jwt: String, 
                            status: String,
                            consent_request_id: Option[String],
-                           scopes: Option[List[Role]])
+                           scopes: Option[List[Role]],
+                           consumer_id:String)
 
 
 case class ConsentInfoJsonV510(consent_id: String,
@@ -856,7 +856,8 @@ object JSONFactory510 extends CustomJsonFormats {
       consent.jsonWebToken,
       consent.status,
       Some(consent.consentRequestId),
-      jsonWebTokenAsJValue.map(_.entitlements).toOption
+      jsonWebTokenAsJValue.map(_.entitlements).toOption,
+      consent.consumerId
     )
   }
 

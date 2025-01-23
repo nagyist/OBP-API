@@ -1683,7 +1683,7 @@ trait APIMethods510 {
          |
       """.stripMargin,
       EmptyBody,
-      consentJsonV500,
+      consentJsonV510,
       List(
         $UserNotLoggedIn,
         UnknownError

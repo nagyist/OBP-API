@@ -29,10 +29,10 @@ package code.snippet
 import code.api.util.APIUtil._
 import code.api.util.ErrorMessages.InvalidJsonFormat
 import code.api.util.{APIUtil, CustomJsonFormats}
+import code.api.v5_1_0.{APIMethods510, ConsentJsonV510}
 import code.api.v5_0_0.{APIMethods500, ConsentJsonV500, ConsentRequestResponseJson}
-import code.api.v3_1_0.{APIMethods310, ConsentChallengeJsonV310}
-import code.consent.{ConsentStatus, Consents}
-import code.consumer.Consumers
+import code.api.v3_1_0.{APIMethods310, ConsentChallengeJsonV310, ConsumerJsonV310}
+import code.consent.{ConsentStatus}
 import code.util.Helper.{MdcLoggable, ObpS}
 import net.liftweb.common.Full
 import net.liftweb.http.rest.RestHelper
@@ -41,7 +41,7 @@ import net.liftweb.json
 import net.liftweb.json.Formats
 import net.liftweb.util.Helpers._
 
-class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods500 with APIMethods310 {
+class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 with APIMethods500 with APIMethods310 {
   protected implicit override def formats: Formats = CustomJsonFormats.formats
 
   private object otpValue extends RequestVar("123456")
@@ -123,6 +123,33 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods500 
 
   }
   
+  private def callGetConsentByConsentId(consentId: String): Either[(String, Int), String] = {
+    
+    val pathOfEndpoint = List(
+      "user",
+      "current",
+      "consents",
+      consentId,
+    )
+
+    val authorisationsResult = callEndpoint(Implementations5_1_0.getConsentByConsentId, pathOfEndpoint, GetRequest)
+
+    authorisationsResult
+  }
+  
+  private def callGetConsumer(consumerId: String): Either[(String, Int), String] = {
+    
+    val pathOfEndpoint = List(
+      "management",
+      "consumers",
+      consumerId,
+    )
+
+    val authorisationsResult = callEndpoint(Implementations5_1_0.getConsumer, pathOfEndpoint, GetRequest)
+
+    authorisationsResult
+  }
+  
   private def callCreateConsentByConsentRequestIdImplicit: Either[(String, Int), String] = {
 
     val requestParam = List(
@@ -147,19 +174,44 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods500 
   }
   
   private def confirmVrpConsentProcess() ={
+    //1st: we need to answer challenge and create the consent properly.
     callAnswerConsentChallenge match {
       case Left(error) => S.error(error._1)
       case Right(response) => {
         tryo {json.parse(response).extract[ConsentChallengeJsonV310]} match {
           case Full(consentChallengeJsonV310) if (consentChallengeJsonV310.status.equals(ConsentStatus.ACCEPTED.toString)) =>
-            val consentId = Consents.consentProvider.vend.getConsentByConsentId(consentChallengeJsonV310.consent_id).map(_.consumerId)
-            val consumer = consentId.map(Consumers.consumers.vend.getConsumerByConsumerId(_)).flatten
-            val redirectURL = consumer.map(_.redirectURL.get).getOrElse("")
-            S.redirectTo(redirectURL)
+            //2nd: we need to call getConsent by consentId --> get the consumerId
+            callGetConsentByConsentId(consentChallengeJsonV310.consent_id)  match {
+              case Left(error) => S.error(error._1)
+              case Right(response) => {
+                tryo {json.parse(response).extract[ConsentJsonV510]} match {
+                  case Full(consentJsonV510) =>
+                    //3rd: get consumer by consumerId
+                    callGetConsumer(consentJsonV510.consumer_id)  match {
+                      case Left(error) => S.error(error._1)
+                      case Right(response) => {
+                        tryo {json.parse(response).extract[ConsumerJsonV310]} match {
+                          case Full(consumerJsonV310) =>
+                            //4th: get the redirect url.
+                            val redirectURL =  consumerJsonV310.redirect_url 
+                            S.redirectTo(redirectURL)
+                          case _ =>
+                            S.error(s"$InvalidJsonFormat The Json body should be the $ConsumerJsonV310. " +
+                              s"Please check `Get Consumer` !")
+                        }
+                      }
+                    }
+                    
+                  case _ =>
+                    S.error(s"$InvalidJsonFormat The Json body should be the $ConsentJsonV510. " +
+                      s"Please check `Get Consent By Consent Id` !")
+                }
+              }
+            }
           case Full(consentChallengeJsonV310) =>
             S.error(s"Current SCA status is ${consentChallengeJsonV310.status}. Please double check OTP value.")
           case _ => S.error(s"$InvalidJsonFormat The Json body should be the $ConsentChallengeJsonV310. " +
-            s"Please check `Create User Auth Context Update Request` endpoint separately! ")
+            s"Please check `Answer Consent Challenge` ! ")
         }
       }
     }

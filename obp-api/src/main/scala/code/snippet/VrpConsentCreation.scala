@@ -28,10 +28,11 @@ package code.snippet
 
 import code.api.util.APIUtil._
 import code.api.util.ErrorMessages.InvalidJsonFormat
-import code.api.util.CustomJsonFormats
-import code.api.v5_0_0.{APIMethods500, ConsentRequestResponseJson}
+import code.api.util.{APIUtil, CustomJsonFormats}
+import code.api.v5_0_0.{APIMethods500, ConsentJsonV500, ConsentRequestResponseJson}
 import code.api.v3_1_0.{APIMethods310, ConsentChallengeJsonV310}
-import code.consent.ConsentStatus
+import code.consent.{ConsentStatus, Consents}
+import code.consumer.Consumers
 import code.util.Helper.{MdcLoggable, ObpS}
 import net.liftweb.common.Full
 import net.liftweb.http.rest.RestHelper
@@ -48,8 +49,9 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods500 
   def confirmVrpConsentRequest = {
     getConsentRequest match {
       case Left(error) => {
+        S.error(error._1)
         "#confirm-vrp-consent-request-form-title *" #> s"Please enter your consent request info:" &
-          "#confirm-vrp-consent-request-response-json *" #> s"""$error""" &
+          "#confirm-vrp-consent-request-response-json *" #> s"""""" &
           "type=submit" #> ""
       }
       case Right(response) => {
@@ -57,8 +59,7 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods500 
           case Full(consentRequestResponseJson) =>
             "#confirm-vrp-consent-request-form-title *" #> s"Please enter your consent request info:" &
               "#confirm-vrp-consent-request-response-json *" #> s"""${json.prettyRender(json.Extraction.decompose(consentRequestResponseJson.payload))}""" &
-              "#confirm-vrp-consent-request-confirm-submit-button" #> SHtml.onSubmitUnit(confirmConsentRequestProcess)&
-              "#confirm-vrp-consent-request-deny-submit-button" #> SHtml.onSubmitUnit(denyConsentRequestProcess)
+              "#confirm-vrp-consent-request-confirm-submit-button" #> SHtml.onSubmitUnit(confirmConsentRequestProcess)
           case _ =>
             "#confirm-vrp-consent-request-form-title *" #> s"Please enter your consent request info:" & 
               "#confirm-vrp-consent-request-response-json *" #>
@@ -78,33 +79,38 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods500 
   
   private def confirmConsentRequestProcess() ={
     //1st: we need to call `Create Consent By CONSENT_REQUEST_ID (IMPLICIT)`, this will send OTP to account owner.
-    
-    //2nd: we need to redirect to confirm page to fill the OTP
-    
-    S.redirectTo(
-      s"/confirm-vrp-consent" 
-    )
-  }
-  private def denyConsentRequestProcess() ={
-    S.redirectTo(
-      s"/" // if click deny, we just redirect to Home page.
-    )
+    callCreateConsentByConsentRequestIdImplicit match {
+      case Left(error) => {
+        S.error(error._1)
+      }
+      case Right(response) => {
+        tryo {json.parse(response).extract[ConsentJsonV500]} match {
+          case Full(consentJsonV500) =>
+            //2nd: we need to redirect to confirm page to fill the OTP
+            S.redirectTo(
+              s"/confirm-vrp-consent?CONSENT_ID=${consentJsonV500.consent_id}"
+            )
+          case _ =>
+            S.error(s"$InvalidJsonFormat The Json body should be the $ConsentJsonV500. " +
+              s"Please check `Create Consent By CONSENT_REQUEST_ID (IMPLICIT) !")
+        }
+      }
+    }
   }
 
   private def callAnswerConsentChallenge: Either[(String, Int), String] = {
 
     val requestParam = List(
-      ObpS.param("BANK_ID"),
       ObpS.param("CONSENT_ID")
     )
 
     if(requestParam.count(_.isDefined) < requestParam.size) {
-      return Left(("There are one or many mandatory request parameter not present, please check request parameter: BANK_ID, CONSENT_ID", 500))
+      return Left(("There are one or many mandatory request parameter not present, please check request parameter: CONSENT_ID", 500))
     }
 
     val pathOfEndpoint = List(
       "banks",
-      ObpS.param("BANK_ID")openOr(""),
+      APIUtil.defaultBankId,//we do not need to get this from URL, it will be easier for the developer.
       "consents",
       ObpS.param("CONSENT_ID")openOr(""),
       "challenge"
@@ -117,16 +123,42 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods500 
 
   }
   
+  private def callCreateConsentByConsentRequestIdImplicit: Either[(String, Int), String] = {
+
+    val requestParam = List(
+      ObpS.param("CONSENT_REQUEST_ID"),
+    )
+    if(requestParam.count(_.isDefined) < requestParam.size) {
+      return Left(("Parameter CONSENT_REQUEST_ID is missing, please set it in the URL", 500))
+    }
+    
+    val pathOfEndpoint = List(
+      "consumer",
+      "consent-requests",
+      ObpS.param("CONSENT_REQUEST_ID")openOr(""),
+      "IMPLICIT",
+      "consents",
+    )
+
+    val requestBody = s"""{}"""
+    val authorisationsResult = callEndpoint(Implementations5_0_0.createConsentByConsentRequestIdImplicit, pathOfEndpoint, PostRequest, requestBody)
+
+    authorisationsResult
+  }
+  
   private def confirmVrpConsentProcess() ={
     callAnswerConsentChallenge match {
-      case Left(error) => S.error("otp-value-error",error._1)
+      case Left(error) => S.error(error._1)
       case Right(response) => {
         tryo {json.parse(response).extract[ConsentChallengeJsonV310]} match {
           case Full(consentChallengeJsonV310) if (consentChallengeJsonV310.status.equals(ConsentStatus.ACCEPTED.toString)) =>
-            S.redirectTo("/")
+            val consentId = Consents.consentProvider.vend.getConsentByConsentId(consentChallengeJsonV310.consent_id).map(_.consumerId)
+            val consumer = consentId.map(Consumers.consumers.vend.getConsumerByConsumerId(_)).flatten
+            val redirectURL = consumer.map(_.redirectURL.get).getOrElse("")
+            S.redirectTo(redirectURL)
           case Full(consentChallengeJsonV310) =>
-            S.error("otp-value-error",s"Current SCA status is ${consentChallengeJsonV310.status}. Please double check OTP value.")
-          case _ => S.error("otp-value-error",s"$InvalidJsonFormat The Json body should be the $ConsentChallengeJsonV310. " +
+            S.error(s"Current SCA status is ${consentChallengeJsonV310.status}. Please double check OTP value.")
+          case _ => S.error(s"$InvalidJsonFormat The Json body should be the $ConsentChallengeJsonV310. " +
             s"Please check `Create User Auth Context Update Request` endpoint separately! ")
         }
       }

@@ -601,6 +601,11 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
     domain: String,
     bank_ids: List[String]
   )
+  //This is used for get the value from props `skip_consent_sca_for_consumer_id_pairs`
+  case class ConsumerIdPair(
+    grantor_consumer_id: String,
+    grantee_consumer_id: String
+  )
   
   case class EmailDomainToEntitlementMapping(
     domain: String,
@@ -3167,7 +3172,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
   }
 
   def connectorEmptyResponse[T](box: Box[T], cc: Option[CallContext])(implicit m: Manifest[T]): T = {
-    unboxFullOrFail(box, cc, InvalidConnectorResponse, 400)
+    unboxFullOrFail(box, cc, s"$InvalidConnectorResponse ${nameOf(connectorEmptyResponse _)}" , 400)
   }
 
   def unboxFuture[T](box: Box[Future[T]]): Future[Box[T]] = box match {
@@ -4727,6 +4732,23 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
     }
 
     APIUtil.getPropsValue("email_domain_to_space_mappings").map(extractor).getOrElse(Nil)
+  }
+
+  val skipConsentScaForConsumerIdPairs: List[ConsumerIdPair] = {
+    def extractor(str: String) = try {
+      val consumerIdPair =  json.parse(str).extract[List[ConsumerIdPair]]
+      //The props value can be parsed to JNothing.
+      if(str.nonEmpty && consumerIdPair == Nil) 
+        throw new RuntimeException("props [skip_consent_sca_for_consumer_id_pairs] parse -> extract to Nil!")
+      else
+        consumerIdPair
+    } catch {
+      case e: Throwable => // error handling, found wrong props value as early as possible.
+        this.logger.error(s"props [skip_consent_sca_for_consumer_id_pairs] value is invalid, it should be the class($ConsumerIdPair) json format, current value is $str ." );
+        throw e;
+    }
+
+    APIUtil.getPropsValue("skip_consent_sca_for_consumer_id_pairs").map(extractor).getOrElse(Nil)
   }
 
   val emailDomainToEntitlementMappings: List[EmailDomainToEntitlementMapping] = {

@@ -3,6 +3,7 @@
 ### Most recent changes at top of file
 ```
 Date          Commit        Action
+24/01/2025    ad68f054      Added props skip_consent_sca_for_consumer_id_pairs .
 03/02/2024    7bcb6bc5      Added props oauth2.keycloak.source_of_truth, default is false.
                             oauth2.keycloak.source_of_truth = true turns sync ON.
                             It is used to sync IAM of OBP-API and IAM of Keycloak.

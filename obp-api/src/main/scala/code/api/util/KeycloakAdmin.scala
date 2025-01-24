@@ -2,21 +2,23 @@ package code.api.util
 
 
 import code.api.OAuth2Login.Keycloak
+import code.model.{AppType, Consumer}
 import net.liftweb.common.{Box, Failure, Full}
 import okhttp3._
 import okhttp3.logging.HttpLoggingInterceptor
 import org.slf4j.LoggerFactory
 
 
-object KeycloakAdmin extends App {
+object KeycloakAdmin {
 
   // Initialize Logback logger
   private val logger = LoggerFactory.getLogger("okhttp3")
 
+  val integrateWithKeycloak = APIUtil.getPropsAsBoolValue("integrate_with_keycloak", defaultValue = false)
   // Define variables (replace with actual values)
   private val keycloakHost = Keycloak.keycloakHost
-  private val realm = "master"
-  private val accessToken = ""
+  private val realm = APIUtil.getPropsValue(nameOfProperty = "oauth2.keycloak.realm", "master")
+  private val accessToken = APIUtil.getPropsValue(nameOfProperty = "keycloak.admin.access_token", "")
 
   def createHttpClientWithLogback(): OkHttpClient = {
     val builder = new OkHttpClient.Builder()
@@ -30,19 +32,29 @@ object KeycloakAdmin extends App {
   // Create OkHttp client with logging
   val client = createHttpClientWithLogback()
 
-  createClient(
-    "my-consumer-client",
-    "My Consume",
-    "Client for accessing API resources",
-    isPublic = false
-  )
-
+  def createKeycloakConsumer(consumer: Consumer): Box[Boolean] = {
+    val isPublic =
+      AppType.valueOf(consumer.appType.get) match {
+        case AppType.Confidential => false
+        case _ => true
+      }
+    createClient(
+      clientId = consumer.key.get,
+      secret = consumer.secret.get,
+      name = consumer.name.get,
+      description = consumer.description.get,
+      redirectUri = consumer.redirectURL.get,
+      isPublic = isPublic,
+    )
+  }
   def createClient(clientId: String,
+                   secret: String,
                    name: String,
                    description: String,
+                   redirectUri: String,
                    isPublic: Boolean,
                    realm: String = realm
-                  ): Unit = {
+                  ) = {
     val url = s"$keycloakHost/admin/realms/$realm/clients"
     // JSON request body
     val jsonBody =
@@ -50,14 +62,15 @@ object KeycloakAdmin extends App {
         |  "clientId": "$clientId",
         |  "name": "$name",
         |  "description": "$description",
+        |  "redirectUris": ["$redirectUri"],
         |  "enabled": true,
         |  "clientAuthenticatorType": "client-secret",
         |  "directAccessGrantsEnabled": true,
         |  "standardFlowEnabled": true,
         |  "implicitFlowEnabled": false,
         |  "serviceAccountsEnabled": true,
-        |  "publicClient": false,
-        |  "secret": "$isPublic"
+        |  "publicClient": $isPublic,
+        |  "secret": "$secret"
         |}""".stripMargin
 
     // Define the request with headers and JSON body

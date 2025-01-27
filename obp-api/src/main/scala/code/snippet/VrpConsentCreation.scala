@@ -57,11 +57,38 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
       case Right(response) => {
         tryo {json.parse(response).extract[ConsentRequestResponseJson]} match {
           case Full(consentRequestResponseJson) =>
+            val jsonAst = consentRequestResponseJson.payload
             "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
-              "#confirm-vrp-consent-request-response-json *" #> s"""${json.prettyRender(json.Extraction.decompose(consentRequestResponseJson.payload))}""" &
-              "#confirm-vrp-consent-request-confirm-submit-button" #> SHtml.onSubmitUnit(confirmConsentRequestProcess)
+            // "#confirm-vrp-consent-request-response-json *" #> s"""${json.prettyRender(json.Extraction.decompose(consentRequestResponseJson.payload))}""" &
+            "#from_bank_routing_scheme [value]" #> s"${(jsonAst \ "from_account" \ "bank_routing" \ "scheme").extract[String]}" &
+            "#from_bank_routing_address [value]" #> s"${(jsonAst \ "from_account" \ "bank_routing" \ "address").extract[String]}" &
+            "#from_branch_routing_scheme [value]" #> s"${(jsonAst \ "from_account" \ "branch_routing" \ "scheme").extract[String]}" &
+            "#from_branch_routing_address [value]" #> s"${(jsonAst \ "from_account" \ "branch_routing" \ "address").extract[String]}" &
+            "#from_routing_scheme [value]" #> s"${(jsonAst \ "from_account" \ "account_routing" \ "scheme").extract[String]}" &
+            "#from_routing_address [value]" #> s"${(jsonAst \ "from_account" \ "account_routing" \ "address").extract[String]}" &
+            "#to_bank_routing_scheme [value]" #> s"${(jsonAst \ "to_account" \ "bank_routing" \ "scheme").extract[String]}" &
+            "#to_bank_routing_address [value]" #> s"${(jsonAst \ "to_account" \ "bank_routing" \ "address").extract[String]}" &
+            "#to_branch_routing_scheme [value]" #> s"${(jsonAst \ "to_account" \ "branch_routing" \ "scheme").extract[String]}" &
+            "#to_branch_routing_address [value]" #> s"${(jsonAst \ "to_account" \ "branch_routing" \ "address").extract[String]}" &
+            "#to_routing_scheme [value]" #> s"${(jsonAst \ "to_account" \ "account_routing" \ "scheme").extract[String]}" &
+            "#to_routing_address [value]" #> s"${(jsonAst \ "to_account" \ "account_routing" \ "address").extract[String]}" &
+            "#counterparty_name [value]" #> s"${(jsonAst \ "to_account" \ "counterparty_name").extract[String]}" &
+            "#currency [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "currency").extract[String]}" &
+            "#max_single_amount [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_single_amount").extract[String]}" &
+            "#max_monthly_amount [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_monthly_amount").extract[String]}" &
+            "#max_yearly_amount [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_yearly_amount").extract[String]}" &
+            "#max_total_amount [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_total_amount").extract[String]}" &
+            "#max_number_of_monthly_transactions [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_number_of_monthly_transactions").extract[String]}" &
+            "#max_number_of_yearly_transactions [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_number_of_yearly_transactions").extract[String]}" &
+            "#max_number_of_transactions [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_number_of_transactions").extract[String]}" &
+            "#time_to_live_in_seconds [value]" #> s"${(jsonAst \ "time_to_live").extract[String]}" &
+            "#valid_from [value]" #> s"${(jsonAst \ "valid_from").extract[String]}" &
+            "#email [value]" #> s"${(jsonAst \ "email").extract[String]}" &
+            "#phone_number [value]" #> s"${(jsonAst \ "phone_number").extract[String]}" &
+            "#confirm-vrp-consent-request-confirm-submit-button" #> SHtml.onSubmitUnit(confirmConsentRequestProcess)
           case _ =>
-            "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" & 
+            "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
+            "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
               "#confirm-vrp-consent-request-response-json *" #>
                 s"""$InvalidJsonFormat The Json body should be the $ConsentRequestResponseJson. 
                    |Please check `Get Consent Request` endpoint separately! """.stripMargin &

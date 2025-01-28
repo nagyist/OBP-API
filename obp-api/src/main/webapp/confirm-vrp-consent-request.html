@@ -179,5 +179,11 @@ Berlin 13359, Germany
                 <a id="confirm-vrp-consent-request-deny-submit-button" class="btn btn-danger"  href="/">Deny</span></a>
             </div>
             <br>
+            <script>
+                // Apply the `readonly` attribute dynamically
+                const elements = document.querySelectorAll('#confirm-vrp-consent-request-div input, #confirm-vrp-consent-request-div textarea');
+                elements.forEach(el => el.setAttribute('readonly', 'readonly'));
+            </script>
+        </form>
     </div>
 </div>

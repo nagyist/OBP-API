@@ -28,7 +28,7 @@ package code.snippet
 
 import code.api.util.APIUtil._
 import code.api.util.ErrorMessages.InvalidJsonFormat
-import code.api.util.{APIUtil, CustomJsonFormats}
+import code.api.util.{APIUtil, CustomJsonFormats, DateTimeUtil}
 import code.api.v5_1_0.{APIMethods510, ConsentJsonV510}
 import code.api.v5_0_0.{APIMethods500, ConsentJsonV500, ConsentRequestResponseJson}
 import code.api.v3_1_0.{APIMethods310, ConsentChallengeJsonV310, ConsumerJsonV310}
@@ -40,6 +40,7 @@ import net.liftweb.http.rest.RestHelper
 import net.liftweb.http.{GetRequest, PostRequest, RequestVar, S, SHtml}
 import net.liftweb.json
 import net.liftweb.json.Formats
+import net.liftweb.util.CssSel
 import net.liftweb.util.Helpers._
 
 class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 with APIMethods500 with APIMethods310 {
@@ -60,22 +61,23 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
           case Full(consentRequestResponseJson) =>
             val jsonAst = consentRequestResponseJson.payload
             val currency = (jsonAst \ "to_account" \ "limit" \ "currency").extract[String]
+            val ttl: Long = (jsonAst \ "time_to_live").extract[Long]
             val formText =
-              s"""
-                 |I, ${AuthUser.currentUser.flatMap(_.user.foreign.map(_.name)).getOrElse("")}
-                 |, grant to transfer of funds from my account at ${(jsonAst \ "from_account" \ "bank_routing" \ "address").extract[String]}
-                 |, ${(jsonAst \ "from_account" \ "account_routing" \ "address").extract[String]}
-                 |, to ${(jsonAst \ "to_account" \ "counterparty_name").extract[String]}
-                 |, address ${(jsonAst \ "to_account" \ "bank_routing" \ "address").extract[String]}
-                 |, of $currency, ${(jsonAst \ "to_account" \ "limit" \ "max_single_amount").extract[String]}
-                 | per transaction, up to $currency, ${(jsonAst \ "to_account" \ "limit" \ "max_monthly_amount").extract[String]}
-                 | per month, up to ${(jsonAst \ "to_account" \ "limit" \ "max_number_of_monthly_transactions").extract[String]} transactions per month
-                 |, up to $currency, ${(jsonAst \ "to_account" \ "limit" \ "max_yearly_amount").extract[String]}
-                 | per year, and up to ${(jsonAst \ "to_account" \ "limit" \ "max_number_of_yearly_transactions").extract[String]} transactions per year
-                 |, up to the total amount of $currency, ${(jsonAst \ "to_account" \ "limit" \ "max_total_amount").extract[String]}
-                 | and up to a total of ${(jsonAst \ "to_account" \ "limit" \ "max_number_of_transactions").extract[String]} in total.
-                 |This consent will be valid from ${(jsonAst \ "valid_from").extract[String]} for ${(jsonAst \ "time_to_live").extract[String]} seconds.
-                 |""".stripMargin
+              s"""I, ${AuthUser.currentUser.map(_.firstName.get).getOrElse("")} ${AuthUser.currentUser.map(_.lastName.get).getOrElse("")}, consent to the service provider <CONSUMER_NAME> making transfers on my behalf from my bank account number ${(jsonAst \ "from_account" \ "account_routing" \ "address").extract[String]}, to the beneficiary ${(jsonAst \ "to_account" \ "counterparty_name").extract[String]}, account number ${(jsonAst \ "to_account" \ "account_routing" \ "address").extract[String]} at bank code ${(jsonAst \ "to_account" \ "bank_routing" \ "address").extract[String]}.
+              |
+              |The transfers governed by this consent must respect the following rules:
+              |
+              |  1) The grand total amount will not exceed {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_total_amount").extract[String]})}
+              |  2) Any single amount will not exceed {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_single_amount").extract[String]})}
+              |  3) The maximum amount per month that can be transferred is {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_monthly_amount").extract[String]})} over {limit (${(jsonAst \ "to_account" \ "limit" \ "max_number_of_monthly_transactions").extract[String]}) transactions.
+              |  4) The maximum amount per year that can be transferred is {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_yearly_amount").extract[String]})} over {limit (${(jsonAst \ "to_account" \ "limit" \ "max_number_of_yearly_transactions").extract[String]}) transactions.
+              |
+              |This consent will start on date {${(jsonAst \ "valid_from").extract[String]}} and be valid for ${DateTimeUtil.formatDuration(ttl)}.
+              |
+              |I understand that I can revoke this consent at any time.
+              |""".stripMargin
+
+
             "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
             "#confirm-vrp-consent-request-form-text *" #> s"""$formText""" &
             "#from_bank_routing_scheme [value]" #> s"${(jsonAst \ "from_account" \ "bank_routing" \ "scheme").extract[String]}" &
@@ -103,6 +105,7 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
             "#valid_from [value]" #> s"${(jsonAst \ "valid_from").extract[String]}" &
             "#email [value]" #> s"${(jsonAst \ "email").extract[String]}" &
             "#phone_number [value]" #> s"${(jsonAst \ "phone_number").extract[String]}" &
+              showHideElements &
             "#confirm-vrp-consent-request-confirm-submit-button" #> SHtml.onSubmitUnit(confirmConsentRequestProcess)
           case _ =>
             "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
@@ -115,6 +118,25 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
       }
     }
     
+  }
+
+  def showHideElements: CssSel = {
+    if (ObpS.param("format").isEmpty) {
+      "#confirm-vrp-consent-request-form-text-div [style]" #> "display:block" &
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:block"
+    } else if(ObpS.param("format").contains("1")) {
+      "#confirm-vrp-consent-request-form-text-div [style]" #> "display:none" &
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:block"
+    } else if(ObpS.param("format").contains("2")) {
+      "#confirm-vrp-consent-request-form-text-div [style]" #> "display:block" &
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:none"
+    }  else if(ObpS.param("format").contains("3")) {
+      "#confirm-vrp-consent-request-form-text-div [style]" #> "display:block" &
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:block"
+    } else {
+      "#confirm-vrp-consent-request-form-text-div [style]" #> "display:block" &
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:block"
+    }
   }
   
   def confirmVrpConsent = {

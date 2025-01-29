@@ -31,9 +31,11 @@ Berlin 13359, Germany
     <div id="confirm-vrp-consent-request-div" style="width: 90%; margin: 0 auto;" data-lift="VrpConsentCreation.confirmVrpConsentRequest">
         <form method="post">
             <div class="form-group">
-                <h3 id="confirm-vrp-consent-request-form-title">Please check the VRP Consent Request: 1111 </h3>
+                <h3 id="confirm-vrp-consent-request-form-title">Please check the VRP Consent Request: </h3>
+                <p id="confirm-vrp-consent-request-form-text"></p>
             </div>
             <div class="wrap-text">
+                <div class="form-group col-md-6">
                 <h4>From Account</h4>
                 <div class="form-row">
                     <div class="form-group col-md-6">
@@ -65,7 +67,8 @@ Berlin 13359, Germany
                         <input type="text" name="from_routing_address" id="from_routing_address" class="form-control">
                     </div>
                 </div>
-                <hr>
+                </div>
+                <div class="form-group col-md-6">
                 <h4>To Account</h4>
                 <div class="form-row">
                     <div class="form-group col-md-6">
@@ -99,76 +102,72 @@ Berlin 13359, Germany
                         <input type="text" name="counterparty_name" id="counterparty_name" class="form-control">
                     </div>
                 </div>
-                <hr>
+                </div>
                 <h4>Limits</h4>
-                <div class="form-group">
-                    <div class="form-row">
+                <div class="form-group col-md-12">
+                    <div class="form-group col-md-4">
+                        <div class="form-row">
+                            <div class="form-group col-md-12">
+                                <label for="currency">Currency</label>
+                                <input type="text" name="currency" id="currency" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <div class="form-row">
+                            <div class="form-group col-md-12">
+                                <label for="max_single_amount">Max single amount</label>
+                                <input type="number" min="0" value="100" name="max_single_amount" id="max_single_amount" class="form-control">
+                            </div>
+                            <div class="form-group col-md-12">
+                                <label for="max_monthly_amount">Max monthly amount</label>
+                                <input type="number" min="0" value="100" name="max_monthly_amount" id="max_monthly_amount" class="form-control">
+                            </div>
+                            <div class="form-group col-md-12">
+                                <label for="max_yearly_amount">Max yearly amount</label>
+                                <input type="number" min="0" value="1200" name="max_yearly_amount" id="max_yearly_amount" class="form-control">
+                            </div>
+                            <div class="form-group col-md-12">
+                                <label for="max_total_amount">Max total amount</label>
+                                <input type="number" min="0" value="1200" name="max_total_amount" id="max_total_amount" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group col-md-4">
                         <div class="form-group col-md-12">
-                            <label for="currency">Currency</label>
-                            <input type="text" name="currency" id="currency" class="form-control">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group col-md-3">
-                            <label for="max_single_amount">Max single amount</label>
-                            <input type="number" min="0" value="100" name="max_single_amount" id="max_single_amount" class="form-control">
-                        </div>
-                        <div class="form-group col-md-3">
-                            <label for="max_monthly_amount">Max monthly amount</label>
-                            <input type="number" min="0" value="100" name="max_monthly_amount" id="max_monthly_amount" class="form-control">
-                        </div>
-                        <div class="form-group col-md-3">
-                            <label for="max_yearly_amount">Max yearly amount</label>
-                            <input type="number" min="0" value="1200" name="max_yearly_amount" id="max_yearly_amount" class="form-control">
-                        </div>
-                        <div class="form-group col-md-3">
-                            <label for="max_total_amount">Max total amount</label>
-                            <input type="number" min="0" value="1200" name="max_total_amount" id="max_total_amount" class="form-control">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group col-md-4">
                             <label for="max_number_of_monthly_transactions">Max number of monthly transactions</label>
                             <input type="number" min="0" value="1" name="max_number_of_monthly_transactions" id="max_number_of_monthly_transactions" class="form-control">
                         </div>
-                        <div class="form-group col-md-4">
+                        <div class="form-group col-md-12">
                             <label for="max_number_of_yearly_transactions">Max number of yearly transactions</label>
                             <input type="number" min="0" value="12" name="max_number_of_yearly_transactions" id="max_number_of_yearly_transactions" class="form-control">
                         </div>
-                        <div class="form-group col-md-4">
+                        <div class="form-group col-md-12">
                             <label for="max_number_of_transactions">Max number of total transactions</label>
                             <input type="number" min="0" value="12" name="max_number_of_transactions" id="max_number_of_transactions" class="form-control">
                         </div>
                     </div>
                 </div>
                 <h4>Other</h4>
-                <div class="form-group">
-                    <div class="form-row">
-                        <div class="form-group col-md-12">
-                            <label for="time_to_live_in_seconds">Time to live in seconds</label>
-                            <input type="number" min="1" value="31556926" name="time_to_live_in_seconds" id="time_to_live_in_seconds" class="form-control">
-                        </div>
+                <div class="form-group col-md-12">
+                    <div class="form-group col-md-6">
+                        <label for="valid_from">Valid from</label>
+                        <input type="text" name="valid_from" id="valid_from" class="form-control" data-date-format="YYYY-MM-DDTHH:mm:ss">
                     </div>
-                    <div class="form-row">
-                        <div class="form-group col-md-12">
-                            <label for="valid_from">Valid from</label>
-                            <input type="text" name="valid_from" id="valid_from" class="form-control" data-date-format="YYYY-MM-DDTHH:mm:ss">
-                        </div>
+                    <div class="form-group col-md-6">
+                        <label for="time_to_live_in_seconds">Time to live in seconds</label>
+                        <input type="number" min="1" value="31556926" name="time_to_live_in_seconds" id="time_to_live_in_seconds" class="form-control">
                     </div>
                 </div>
                 <hr>
-                <div class="form-group">
-                    <div class="form-row">
-                        <div class="form-group col-md-12">
-                            <label for="email">Email</label>
-                            <input type="text" name="email" id="email" class="form-control">
-                        </div>
+                <div class="form-group col-md-12">
+                    <div class="form-group col-md-6">
+                        <label for="phone_number">Phone number</label>
+                        <input type="text" name="phone_number" id="phone_number" class="form-control">
                     </div>
-                    <div class="form-row">
-                        <div class="form-group col-md-12">
-                            <label for="phone_number">Phone number</label>
-                            <input type="text" name="phone_number" id="phone_number" class="form-control">
-                        </div>
+                    <div class="form-group col-md-6">
+                        <label for="email">Email</label>
+                        <input type="text" name="email" id="email" class="form-control">
                     </div>
                 </div>
             </div>

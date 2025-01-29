@@ -32,7 +32,8 @@ import code.api.util.{APIUtil, CustomJsonFormats}
 import code.api.v5_1_0.{APIMethods510, ConsentJsonV510}
 import code.api.v5_0_0.{APIMethods500, ConsentJsonV500, ConsentRequestResponseJson}
 import code.api.v3_1_0.{APIMethods310, ConsentChallengeJsonV310, ConsumerJsonV310}
-import code.consent.{ConsentStatus}
+import code.consent.ConsentStatus
+import code.model.dataAccess.AuthUser
 import code.util.Helper.{MdcLoggable, ObpS}
 import net.liftweb.common.Full
 import net.liftweb.http.rest.RestHelper
@@ -58,8 +59,25 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
         tryo {json.parse(response).extract[ConsentRequestResponseJson]} match {
           case Full(consentRequestResponseJson) =>
             val jsonAst = consentRequestResponseJson.payload
+            val currency = (jsonAst \ "to_account" \ "limit" \ "currency").extract[String]
+            val formText =
+              s"""
+                 |I, ${AuthUser.currentUser.flatMap(_.user.foreign.map(_.name)).getOrElse("")}
+                 |, grant to transfer of funds from my account at ${(jsonAst \ "from_account" \ "bank_routing" \ "address").extract[String]}
+                 |, ${(jsonAst \ "from_account" \ "account_routing" \ "address").extract[String]}
+                 |, to ${(jsonAst \ "to_account" \ "counterparty_name").extract[String]}
+                 |, address ${(jsonAst \ "to_account" \ "bank_routing" \ "address").extract[String]}
+                 |, of $currency, ${(jsonAst \ "to_account" \ "limit" \ "max_single_amount").extract[String]}
+                 | per transaction, up to $currency, ${(jsonAst \ "to_account" \ "limit" \ "max_monthly_amount").extract[String]}
+                 | per month, up to ${(jsonAst \ "to_account" \ "limit" \ "max_number_of_monthly_transactions").extract[String]} transactions per month
+                 |, up to $currency, ${(jsonAst \ "to_account" \ "limit" \ "max_yearly_amount").extract[String]}
+                 | per year, and up to ${(jsonAst \ "to_account" \ "limit" \ "max_number_of_yearly_transactions").extract[String]} transactions per year
+                 |, up to the total amount of $currency, ${(jsonAst \ "to_account" \ "limit" \ "max_total_amount").extract[String]}
+                 | and up to a total of ${(jsonAst \ "to_account" \ "limit" \ "max_number_of_transactions").extract[String]} in total.
+                 |This consent will be valid from ${(jsonAst \ "valid_from").extract[String]} for ${(jsonAst \ "time_to_live").extract[String]} seconds.
+                 |""".stripMargin
             "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
-            // "#confirm-vrp-consent-request-response-json *" #> s"""${json.prettyRender(json.Extraction.decompose(consentRequestResponseJson.payload))}""" &
+            "#confirm-vrp-consent-request-form-text *" #> s"""$formText""" &
             "#from_bank_routing_scheme [value]" #> s"${(jsonAst \ "from_account" \ "bank_routing" \ "scheme").extract[String]}" &
             "#from_bank_routing_address [value]" #> s"${(jsonAst \ "from_account" \ "bank_routing" \ "address").extract[String]}" &
             "#from_branch_routing_scheme [value]" #> s"${(jsonAst \ "from_account" \ "branch_routing" \ "scheme").extract[String]}" &

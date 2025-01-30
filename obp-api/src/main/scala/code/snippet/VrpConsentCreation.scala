@@ -33,11 +33,12 @@ import code.api.v5_1_0.{APIMethods510, ConsentJsonV510}
 import code.api.v5_0_0.{APIMethods500, ConsentJsonV500, ConsentRequestResponseJson}
 import code.api.v3_1_0.{APIMethods310, ConsentChallengeJsonV310, ConsumerJsonV310}
 import code.consent.ConsentStatus
+import code.consumer.Consumers
 import code.model.dataAccess.AuthUser
 import code.util.Helper.{MdcLoggable, ObpS}
 import net.liftweb.common.Full
 import net.liftweb.http.rest.RestHelper
-import net.liftweb.http.{GetRequest, PostRequest, RequestVar, S, SHtml}
+import net.liftweb.http.{GetRequest, PostRequest, RequestVar, S, SHtml, SessionVar}
 import net.liftweb.json
 import net.liftweb.json.Formats
 import net.liftweb.util.CssSel
@@ -47,7 +48,8 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
   protected implicit override def formats: Formats = CustomJsonFormats.formats
 
   private object otpValue extends RequestVar("123456")
-  
+  private object consentRequestIdValue extends SessionVar("")
+
   def confirmVrpConsentRequest = {
     getConsentRequest match {
       case Left(error) => {
@@ -62,8 +64,9 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
             val jsonAst = consentRequestResponseJson.payload
             val currency = (jsonAst \ "to_account" \ "limit" \ "currency").extract[String]
             val ttl: Long = (jsonAst \ "time_to_live").extract[Long]
+            val consumer = Consumers.consumers.vend.getConsumerByConsumerId(consentRequestResponseJson.consumer_id)
             val formText =
-              s"""I, ${AuthUser.currentUser.map(_.firstName.get).getOrElse("")} ${AuthUser.currentUser.map(_.lastName.get).getOrElse("")}, consent to the service provider <CONSUMER_NAME> making transfers on my behalf from my bank account number ${(jsonAst \ "from_account" \ "account_routing" \ "address").extract[String]}, to the beneficiary ${(jsonAst \ "to_account" \ "counterparty_name").extract[String]}, account number ${(jsonAst \ "to_account" \ "account_routing" \ "address").extract[String]} at bank code ${(jsonAst \ "to_account" \ "bank_routing" \ "address").extract[String]}.
+              s"""I, ${AuthUser.currentUser.map(_.firstName.get).getOrElse("")} ${AuthUser.currentUser.map(_.lastName.get).getOrElse("")}, consent to the service provider ${consumer.map(_.name.get).getOrElse("")} making transfers on my behalf from my bank account number ${(jsonAst \ "from_account" \ "account_routing" \ "address").extract[String]}, to the beneficiary ${(jsonAst \ "to_account" \ "counterparty_name").extract[String]}, account number ${(jsonAst \ "to_account" \ "account_routing" \ "address").extract[String]} at bank code ${(jsonAst \ "to_account" \ "bank_routing" \ "address").extract[String]}.
               |
               |The transfers governed by this consent must respect the following rules:
               |
@@ -285,7 +288,7 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
   }
 
   private def getConsentRequest: Either[(String, Int), String] = {
-    
+
     val requestParam = List(
       ObpS.param("CONSENT_REQUEST_ID"),
     )
@@ -293,11 +296,14 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
     if(requestParam.count(_.isDefined) < requestParam.size) {
       return Left(("Parameter CONSENT_REQUEST_ID is missing, please set it in the URL", 500))
     }
-    
+
+    val consentRequestId = ObpS.param("CONSENT_REQUEST_ID")openOr("")
+    consentRequestIdValue.set(consentRequestId)
+
     val pathOfEndpoint = List(
       "consumer",
       "consent-requests",
-      ObpS.param("CONSENT_REQUEST_ID")openOr("")
+      consentRequestId
     )
 
     val authorisationsResult = callEndpoint(Implementations5_0_0.getConsentRequest, pathOfEndpoint, GetRequest)

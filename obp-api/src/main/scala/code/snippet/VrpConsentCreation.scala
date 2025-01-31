@@ -126,7 +126,7 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
   def showHideElements: CssSel = {
     if (ObpS.param("format").isEmpty) {
       "#confirm-vrp-consent-request-form-text-div [style]" #> "display:block" &
-      "#confirm-vrp-consent-request-form-fields [style]" #> "display:block"
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:none"
     } else if(ObpS.param("format").contains("1")) {
       "#confirm-vrp-consent-request-form-text-div [style]" #> "display:none" &
       "#confirm-vrp-consent-request-form-fields [style]" #> "display:block"
@@ -138,7 +138,7 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
       "#confirm-vrp-consent-request-form-fields [style]" #> "display:block"
     } else {
       "#confirm-vrp-consent-request-form-text-div [style]" #> "display:block" &
-      "#confirm-vrp-consent-request-form-fields [style]" #> "display:block"
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:none"
     }
   }
   

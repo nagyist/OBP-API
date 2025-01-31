@@ -28,24 +28,28 @@ package code.snippet
 
 import code.api.util.APIUtil._
 import code.api.util.ErrorMessages.InvalidJsonFormat
-import code.api.util.{APIUtil, CustomJsonFormats}
+import code.api.util.{APIUtil, CustomJsonFormats, DateTimeUtil}
 import code.api.v5_1_0.{APIMethods510, ConsentJsonV510}
 import code.api.v5_0_0.{APIMethods500, ConsentJsonV500, ConsentRequestResponseJson}
 import code.api.v3_1_0.{APIMethods310, ConsentChallengeJsonV310, ConsumerJsonV310}
-import code.consent.{ConsentStatus}
+import code.consent.ConsentStatus
+import code.consumer.Consumers
+import code.model.dataAccess.AuthUser
 import code.util.Helper.{MdcLoggable, ObpS}
 import net.liftweb.common.Full
 import net.liftweb.http.rest.RestHelper
-import net.liftweb.http.{GetRequest, PostRequest, RequestVar, S, SHtml}
+import net.liftweb.http.{GetRequest, PostRequest, RequestVar, S, SHtml, SessionVar}
 import net.liftweb.json
 import net.liftweb.json.Formats
+import net.liftweb.util.CssSel
 import net.liftweb.util.Helpers._
 
 class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 with APIMethods500 with APIMethods310 {
   protected implicit override def formats: Formats = CustomJsonFormats.formats
 
   private object otpValue extends RequestVar("123456")
-  
+  private object consentRequestIdValue extends SessionVar("")
+
   def confirmVrpConsentRequest = {
     getConsentRequest match {
       case Left(error) => {
@@ -57,11 +61,58 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
       case Right(response) => {
         tryo {json.parse(response).extract[ConsentRequestResponseJson]} match {
           case Full(consentRequestResponseJson) =>
+            val jsonAst = consentRequestResponseJson.payload
+            val currency = (jsonAst \ "to_account" \ "limit" \ "currency").extract[String]
+            val ttl: Long = (jsonAst \ "time_to_live").extract[Long]
+            val consumer = Consumers.consumers.vend.getConsumerByConsumerId(consentRequestResponseJson.consumer_id)
+            val formText =
+              s"""I, ${AuthUser.currentUser.map(_.firstName.get).getOrElse("")} ${AuthUser.currentUser.map(_.lastName.get).getOrElse("")}, consent to the service provider ${consumer.map(_.name.get).getOrElse("")} making transfers on my behalf from my bank account number ${(jsonAst \ "from_account" \ "account_routing" \ "address").extract[String]}, to the beneficiary ${(jsonAst \ "to_account" \ "counterparty_name").extract[String]}, account number ${(jsonAst \ "to_account" \ "account_routing" \ "address").extract[String]} at bank code ${(jsonAst \ "to_account" \ "bank_routing" \ "address").extract[String]}.
+              |
+              |The transfers governed by this consent must respect the following rules:
+              |
+              |  1) The grand total amount will not exceed {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_total_amount").extract[String]})}
+              |  2) Any single amount will not exceed {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_single_amount").extract[String]})}
+              |  3) The maximum amount per month that can be transferred is {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_monthly_amount").extract[String]})} over {limit (${(jsonAst \ "to_account" \ "limit" \ "max_number_of_monthly_transactions").extract[String]}) transactions.
+              |  4) The maximum amount per year that can be transferred is {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_yearly_amount").extract[String]})} over {limit (${(jsonAst \ "to_account" \ "limit" \ "max_number_of_yearly_transactions").extract[String]}) transactions.
+              |
+              |This consent will start on date {${(jsonAst \ "valid_from").extract[String]}} and be valid for ${DateTimeUtil.formatDuration(ttl)}.
+              |
+              |I understand that I can revoke this consent at any time.
+              |""".stripMargin
+
+
             "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
-              "#confirm-vrp-consent-request-response-json *" #> s"""${json.prettyRender(json.Extraction.decompose(consentRequestResponseJson.payload))}""" &
-              "#confirm-vrp-consent-request-confirm-submit-button" #> SHtml.onSubmitUnit(confirmConsentRequestProcess)
+            "#confirm-vrp-consent-request-form-text *" #> s"""$formText""" &
+            "#from_bank_routing_scheme [value]" #> s"${(jsonAst \ "from_account" \ "bank_routing" \ "scheme").extract[String]}" &
+            "#from_bank_routing_address [value]" #> s"${(jsonAst \ "from_account" \ "bank_routing" \ "address").extract[String]}" &
+            "#from_branch_routing_scheme [value]" #> s"${(jsonAst \ "from_account" \ "branch_routing" \ "scheme").extract[String]}" &
+            "#from_branch_routing_address [value]" #> s"${(jsonAst \ "from_account" \ "branch_routing" \ "address").extract[String]}" &
+            "#from_routing_scheme [value]" #> s"${(jsonAst \ "from_account" \ "account_routing" \ "scheme").extract[String]}" &
+            "#from_routing_address [value]" #> s"${(jsonAst \ "from_account" \ "account_routing" \ "address").extract[String]}" &
+            "#to_bank_routing_scheme [value]" #> s"${(jsonAst \ "to_account" \ "bank_routing" \ "scheme").extract[String]}" &
+            "#to_bank_routing_address [value]" #> s"${(jsonAst \ "to_account" \ "bank_routing" \ "address").extract[String]}" &
+            "#to_branch_routing_scheme [value]" #> s"${(jsonAst \ "to_account" \ "branch_routing" \ "scheme").extract[String]}" &
+            "#to_branch_routing_address [value]" #> s"${(jsonAst \ "to_account" \ "branch_routing" \ "address").extract[String]}" &
+            "#to_routing_scheme [value]" #> s"${(jsonAst \ "to_account" \ "account_routing" \ "scheme").extract[String]}" &
+            "#to_routing_address [value]" #> s"${(jsonAst \ "to_account" \ "account_routing" \ "address").extract[String]}" &
+            "#counterparty_name [value]" #> s"${(jsonAst \ "to_account" \ "counterparty_name").extract[String]}" &
+            "#currency [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "currency").extract[String]}" &
+            "#max_single_amount [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_single_amount").extract[String]}" &
+            "#max_monthly_amount [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_monthly_amount").extract[String]}" &
+            "#max_yearly_amount [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_yearly_amount").extract[String]}" &
+            "#max_total_amount [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_total_amount").extract[String]}" &
+            "#max_number_of_monthly_transactions [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_number_of_monthly_transactions").extract[String]}" &
+            "#max_number_of_yearly_transactions [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_number_of_yearly_transactions").extract[String]}" &
+            "#max_number_of_transactions [value]" #> s"${(jsonAst \ "to_account" \ "limit" \ "max_number_of_transactions").extract[String]}" &
+            "#time_to_live_in_seconds [value]" #> s"${(jsonAst \ "time_to_live").extract[String]}" &
+            "#valid_from [value]" #> s"${(jsonAst \ "valid_from").extract[String]}" &
+            "#email [value]" #> s"${(jsonAst \ "email").extract[String]}" &
+            "#phone_number [value]" #> s"${(jsonAst \ "phone_number").extract[String]}" &
+              showHideElements &
+            "#confirm-vrp-consent-request-confirm-submit-button" #> SHtml.onSubmitUnit(confirmConsentRequestProcess)
           case _ =>
-            "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" & 
+            "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
+            "#confirm-vrp-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
               "#confirm-vrp-consent-request-response-json *" #>
                 s"""$InvalidJsonFormat The Json body should be the $ConsentRequestResponseJson. 
                    |Please check `Get Consent Request` endpoint separately! """.stripMargin &
@@ -70,6 +121,25 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
       }
     }
     
+  }
+
+  def showHideElements: CssSel = {
+    if (ObpS.param("format").isEmpty) {
+      "#confirm-vrp-consent-request-form-text-div [style]" #> "display:block" &
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:none"
+    } else if(ObpS.param("format").contains("1")) {
+      "#confirm-vrp-consent-request-form-text-div [style]" #> "display:none" &
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:block"
+    } else if(ObpS.param("format").contains("2")) {
+      "#confirm-vrp-consent-request-form-text-div [style]" #> "display:block" &
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:none"
+    }  else if(ObpS.param("format").contains("3")) {
+      "#confirm-vrp-consent-request-form-text-div [style]" #> "display:block" &
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:block"
+    } else {
+      "#confirm-vrp-consent-request-form-text-div [style]" #> "display:block" &
+      "#confirm-vrp-consent-request-form-fields [style]" #> "display:none"
+    }
   }
   
   def confirmVrpConsent = {
@@ -218,7 +288,7 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
   }
 
   private def getConsentRequest: Either[(String, Int), String] = {
-    
+
     val requestParam = List(
       ObpS.param("CONSENT_REQUEST_ID"),
     )
@@ -226,11 +296,14 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
     if(requestParam.count(_.isDefined) < requestParam.size) {
       return Left(("Parameter CONSENT_REQUEST_ID is missing, please set it in the URL", 500))
     }
-    
+
+    val consentRequestId = ObpS.param("CONSENT_REQUEST_ID")openOr("")
+    consentRequestIdValue.set(consentRequestId)
+
     val pathOfEndpoint = List(
       "consumer",
       "consent-requests",
-      ObpS.param("CONSENT_REQUEST_ID")openOr("")
+      consentRequestId
     )
 
     val authorisationsResult = callEndpoint(Implementations5_0_0.getConsentRequest, pathOfEndpoint, GetRequest)

@@ -764,14 +764,22 @@ display_internal_errors=false
 # URL of Public server JWK set used for validating bearer JWT access tokens
 # It can contain more than one URL i.e. list of uris. Values are comma separated.
 # oauth2.jwk_set.url=http://localhost:8080/jwk.json,https://www.googleapis.com/oauth2/v3/certs
+# ------------------------------------------------------------------------------ OAuth 2 ------
+
+# -- Keycloak OAuth 2 ---------------------------------------------------------------------------
+# integrate_with_keycloak = false
 # Keycloak Identity Provider Host
 # oauth2.keycloak.host=http://localhost:7070
+# Keycloak access token to make a call to Admin APIs (This props is likely to change)
+# keycloak.admin.access_token =
+# Keycloak Identity Provider Realm (Multi-Tenancy Support)
+# oauth2.keycloak.realm = master
 # oauth2.keycloak.well_known=http://localhost:7070/realms/master/.well-known/openid-configuration
 # Used to sync IAM of OBP-API and IAM of Keycloak
 # oauth2.keycloak.source_of_truth = false
 # Resource access object allowed to sync IAM of OBP-API and IAM of Keycloak
 # oauth2.keycloak.resource_access_key_name_to_trust = open-bank-project
-# ------------------------------------------------------------------------------ OAuth 2 ------
+# ------------------------------------------------------------------------ Keycloak OAuth 2 ------
 
 # -- PSU Authentication methods --------------------------------------------------------------
 # The EBA notes that there would appear to currently be three main ways or methods

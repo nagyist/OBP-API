@@ -26,21 +26,24 @@ TESOBE (http://www.tesobe.com/)
   */
 package code.snippet
 
+import code.api.RequestHeader
 import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{GetConsentResponseJson, createGetConsentResponseJson}
-import code.api.util.CustomJsonFormats
+import code.api.util.{ConsentJWT, CustomJsonFormats, JwtUtil}
 import code.api.v3_1_0.APIMethods310
 import code.api.v5_0_0.APIMethods500
 import code.api.v5_1_0.APIMethods510
-import code.consent.{Consents, MappedConsent}
+import code.consent.{ConsentStatus, Consents, MappedConsent}
 import code.consumer.Consumers
 import code.model.dataAccess.AuthUser
 import code.util.Helper.{MdcLoggable, ObpS}
 import net.liftweb.common.{Box, Failure, Full}
 import net.liftweb.http.rest.RestHelper
 import net.liftweb.http.{RequestVar, S, SHtml, SessionVar}
-import net.liftweb.json.Formats
+import net.liftweb.json.{Formats, parse}
 import net.liftweb.util.CssSel
 import net.liftweb.util.Helpers._
+
+import scala.collection.immutable
 
 class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 with APIMethods500 with APIMethods310 {
   protected implicit override def formats: Formats = CustomJsonFormats.formats
@@ -53,7 +56,13 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
       case Full(consent) =>
         val json: GetConsentResponseJson = createGetConsentResponseJson(consent)
         val consumer = Consumers.consumers.vend.getConsumerByConsumerId(consent.consumerId)
-        val uri: String = consumer.map(_.redirectURL.get).getOrElse("none")
+        val consentJwt: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken).map(parse(_)
+          .extract[ConsentJWT])
+        val tppRedirectUri: immutable.Seq[String] = consentJwt.map{ h =>
+          h.request_headers.filter(h => h.name == RequestHeader.`TPP-Redirect-URL`)
+        }.getOrElse(Nil).map((_.values.mkString("")))
+        val consumerRedirectUri: Option[String] = consumer.map(_.redirectURL.get).toOption
+        val uri: String = tppRedirectUri.headOption.orElse(consumerRedirectUri).getOrElse("https://not.defined.com")
         redirectUriValue.set(uri)
         val formText =
           s"""I, ${AuthUser.currentUser.map(_.firstName.get).getOrElse("")} ${AuthUser.currentUser.map(_.lastName.get).getOrElse("")}, consent to the service provider ${consumer.map(_.name.get).getOrElse("")} making actions on my behalf.
@@ -73,6 +82,7 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
             "#confirm-bg-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
             "#confirm-bg-consent-request-form-text *" #> s"""$formText""" &
             "#confirm-bg-consent-request-confirm-submit-button" #> SHtml.onSubmitUnit(confirmConsentRequestProcess)
+            "#confirm-bg-consent-request-deny-submit-button" #> SHtml.onSubmitUnit(denyConsentRequestProcess)
       case everythingElse =>
         S.error(everythingElse.toString)
         "#confirm-bg-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
@@ -98,15 +108,23 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
       s"/confirm-bg-consent-request-sca?CONSENT_ID=${consentId}"
     )
   }
+  private def denyConsentRequestProcess() = {
+    val consentId = ObpS.param("CONSENT_ID") openOr ("")
+    Consents.consentProvider.vend.updateConsentStatus(consentId, ConsentStatus.rejected)
+    S.redirectTo(
+      s"$redirectUriValue?CONSENT_ID=${consentId}"
+    )
+  }
   private def confirmConsentRequestProcessSca() = {
     val consentId = ObpS.param("CONSENT_ID") openOr ("")
+    Consents.consentProvider.vend.updateConsentStatus(consentId, ConsentStatus.valid)
     S.redirectTo(
       s"$redirectUriValue?CONSENT_ID=${consentId}"
     )
   }
 
 
-  def confirmBgConsentRequest = {
+  def confirmBgConsentRequest: CssSel = {
     "#otp-value" #> SHtml.textElem(otpValue) &
       "type=submit" #> SHtml.onSubmitUnit(confirmConsentRequestProcessSca)
   }

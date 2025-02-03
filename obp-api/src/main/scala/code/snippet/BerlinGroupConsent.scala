@@ -81,7 +81,7 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
 
             "#confirm-bg-consent-request-form-title *" #> s"Please confirm or deny the following consent request:" &
             "#confirm-bg-consent-request-form-text *" #> s"""$formText""" &
-            "#confirm-bg-consent-request-confirm-submit-button" #> SHtml.onSubmitUnit(confirmConsentRequestProcess)
+            "#confirm-bg-consent-request-confirm-submit-button" #> SHtml.onSubmitUnit(confirmConsentRequestProcess) &
             "#confirm-bg-consent-request-deny-submit-button" #> SHtml.onSubmitUnit(denyConsentRequestProcess)
       case everythingElse =>
         S.error(everythingElse.toString)

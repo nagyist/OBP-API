@@ -529,13 +529,18 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
 
     getPropsValue("psu_authentication_method") match {
       case Full("redirection") =>
-        val scaRedirectUrl = getPropsValue("psu_authentication_method_sca_redirect_url")
+        val scaRedirectUrlPattern = getPropsValue("psu_authentication_method_sca_redirect_url")
           .openOr(MissingPropsValueAtThisInstance + "psu_authentication_method_sca_redirect_url")
+        val scaRedirectUrl =
+          if(scaRedirectUrlPattern.contains("PLACEHOLDER"))
+            scaRedirectUrlPattern.replace("PLACEHOLDER", consent.consentId)
+          else
+            s"$scaRedirectUrlPattern/${consent.consentId}"
         PostConsentResponseJson(
           consentId = consent.consentId,
           consentStatus = consent.status.toLowerCase(),
           _links = ConsentLinksV13(
-            scaRedirect = Some(Href(s"$scaRedirectUrl/${consent.consentId}")),
+            scaRedirect = Some(Href(s"$scaRedirectUrl")),
             status = Some(Href(s"/v1.3/consents/${consent.consentId}/status")),
             scaStatus = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations/AUTHORISATIONID")),
           )

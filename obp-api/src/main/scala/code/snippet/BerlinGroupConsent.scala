@@ -48,12 +48,13 @@ import scala.collection.immutable
 class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 with APIMethods500 with APIMethods310 {
   protected implicit override def formats: Formats = CustomJsonFormats.formats
 
-  private object otpValue extends RequestVar("123456")
+  private object otpValue extends SessionVar("123")
   private object redirectUriValue extends SessionVar("")
 
   def confirmBerlinGroupConsentRequest: CssSel = {
     callGetConsentByConsentId() match {
       case Full(consent) =>
+        otpValue.set(consent.challenge)
         val json: GetConsentResponseJson = createGetConsentResponseJson(consent)
         val consumer = Consumers.consumers.vend.getConsumerByConsumerId(consent.consumerId)
         val consentJwt: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken).map(parse(_)
@@ -117,15 +118,20 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
   }
   private def confirmConsentRequestProcessSca() = {
     val consentId = ObpS.param("CONSENT_ID") openOr ("")
-    Consents.consentProvider.vend.updateConsentStatus(consentId, ConsentStatus.valid)
-    S.redirectTo(
-      s"$redirectUriValue?CONSENT_ID=${consentId}"
-    )
+    Consents.consentProvider.vend.getConsentByConsentId(consentId) match {
+      case Full(consent) if otpValue.is == consent.challenge =>
+        Consents.consentProvider.vend.updateConsentStatus(consentId, ConsentStatus.valid)
+        S.redirectTo(
+          s"$redirectUriValue?CONSENT_ID=${consentId}"
+        )
+      case _ =>
+        S.error("Wrong OTP value")
+    }
   }
 
 
   def confirmBgConsentRequest: CssSel = {
-    "#otp-value" #> SHtml.textElem(otpValue) &
+    "#otp-value" #> SHtml.text(otpValue, otpValue(_)) &
       "type=submit" #> SHtml.onSubmitUnit(confirmConsentRequestProcessSca)
   }
   

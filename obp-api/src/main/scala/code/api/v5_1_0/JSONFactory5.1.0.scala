@@ -146,6 +146,8 @@ case class AllConsentJsonV510(consent_reference_id: String,
                               last_action_date: String,
                               last_usage_date: String,
                               jwt_payload: Box[ConsentJWT],
+                              frequency_per_day: Option[Int] = None,
+                              remaining_requests: Option[Int] = None,
                               api_standard: String,
                               api_version: String,
                              )
@@ -895,6 +897,8 @@ object JSONFactory510 extends CustomJsonFormats {
           last_action_date = if (c.lastActionDate != null) new SimpleDateFormat(DateWithDay).format(c.lastActionDate) else null,
           last_usage_date = if (c.usesSoFarTodayCounterUpdatedAt != null) new SimpleDateFormat(DateWithSeconds).format(c.usesSoFarTodayCounterUpdatedAt) else null,
           jwt_payload = jwtPayload,
+          frequency_per_day = if(c.apiStandard == "BG") Some(c.frequencyPerDay) else None,
+          remaining_requests = if(c.apiStandard == "BG") Some(c.frequencyPerDay - c.usesSoFarTodayCounter) else None,
           api_standard = c.apiStandard,
           api_version = c.apiVersion
         )

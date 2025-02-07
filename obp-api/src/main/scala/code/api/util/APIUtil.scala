@@ -255,6 +255,16 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
       case _ => None
     }
   }
+  /**
+   * Purpose of this helper function is to get the PSD2-CERT value from a Request Headers.
+   * @return the PSD2-CERT value from a Request Header as a String
+   */
+  def getTppSignatureCertificate(requestHeaders: List[HTTPParam]): Option[String] = {
+    requestHeaders.toSet.filter(_.name == RequestHeader.`TPP-Signature-Certificate`).toList match {
+      case x :: Nil => Some(x.values.mkString(", "))
+      case _ => None
+    }
+  }
 
   def getRequestHeader(name: String, requestHeaders: List[HTTPParam]): String = {
     requestHeaders.toSet.filter(_.name.toLowerCase == name.toLowerCase).toList match {
@@ -2983,6 +2993,9 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
 
     val authHeaders = AuthorisationUtil.getAuthorisationHeaders(reqHeaders)
 
+    // Identify consumer via certificate
+    val consumerByCertificate = Consent.getCurrentConsumerViaMtls(callContext = cc)
+
     val res =
       if (authHeaders.size > 1) { // Check Authorization Headers ambiguity
         Future { (Failure(ErrorMessages.AuthorizationHeaderAmbiguity + s"${authHeaders}"), None) }
@@ -3109,7 +3122,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
           // - Authorization: Basic mF_9.B5f-4.1JqM
           Future { (Failure(ErrorMessages.InvalidAuthorizationHeader), Some(cc)) }
         } else {
-          Future { (Empty, Some(cc)) }
+          Future { (Empty, Some(cc.copy(consumer = consumerByCertificate))) }
         }
       }
 

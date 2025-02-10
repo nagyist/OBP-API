@@ -264,7 +264,7 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
                           case Full(consumerJsonV310) =>
                             //4th: get the redirect url.
                             val redirectURL = consumerJsonV310.redirect_url.trim
-                            S.redirectTo(s"$redirectURL?CONSENT_REQUEST_ID=${consentJsonV510.consent_request_id.getOrElse("")}")
+                            S.redirectTo(s"$redirectURL?CONSENT_REQUEST_ID=${consentJsonV510.consent_request_id.getOrElse("")}&status=${consentJsonV510.status}")
                           case _ =>
                             S.error(s"$InvalidJsonFormat The Json body should be the $ConsumerJsonV310. " +
                               s"Please check `Get Consumer` !")

@@ -28,7 +28,7 @@ Berlin 13359, Germany
 -->
 <!DOCTYPE html>
 <html lang="en">
-<head>
+<head data-lift="GoogleAnalytics.set">
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="description" content="Webapp of the Open Bank Project API">
@@ -56,6 +56,15 @@ Berlin 13359, Germany
 	<script src="/media/js/bootstrap-datetimepicker.min.js"></script>
 	<script src="/media/js/popper.min.js"></script>
 	<script type="module" defer src="/media/js/inactivity.js"></script> <!-- The script loads “in the background”, and then runs when the DOM is fully built. -->
+	<!-- Other head elements -->
+	<script id="google_analytics_1" src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+	<script id="google_analytics_2">
+		window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-XXXXXXXXXX');
+	</script>
+
 </head>
 <body id="page_init">
 	<div id="cookies-consent" data-lift="WebUI.cookieConsent">

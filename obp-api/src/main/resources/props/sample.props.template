@@ -279,6 +279,9 @@ userAuthContextUpdateRequest.challenge.ttl.seconds=600
 #answer_transactionRequest_challenge_allowed_attempts=3
 
 
+### Google analytics
+# Add your google-analytics ID here to activate google analytics
+google_analytics_id = G-XXXXXXXXXX
 
 
 ### Sandbox

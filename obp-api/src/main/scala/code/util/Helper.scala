@@ -386,15 +386,21 @@ object Helper extends Loggable {
   }
 
   def i18n(message: String, default: Option[String] = None): String = {
-    if(S.?(message)==message) {
-      val words = message.split('.').toList match {
-        case x :: Nil => Helpers.capify(x) :: Nil
-        case x :: xs  => Helpers.capify(x) :: xs
-        case _        => Nil
-      }
-      default.getOrElse(words.mkString(" ") + ".")
+    if (S.inStatefulScope_?) {
+      if (S.?(message) == message) {
+        val words = message.split('.').toList match {
+          case x :: Nil => Helpers.capify(x) :: Nil
+          case x :: xs => Helpers.capify(x) :: xs
+          case _ => Nil
+        }
+        default.getOrElse(words.mkString(" ") + ".")
+      } else 
+        S.?(message)
+    } else {
+      logger.error(s"i18n(message($message), default${default}: Attempted to use resource bundles outside of an initialized S scope. " +
+        s"S only usable when initialized, such as during request processing. Did you call S.? from Future?")
+      default.getOrElse(message)
     }
-    else S.?(message)
   }
 
   /**

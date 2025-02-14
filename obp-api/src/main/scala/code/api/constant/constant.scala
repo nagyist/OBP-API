@@ -144,9 +144,15 @@ object RequestHeader {
   final lazy val `Consent-JWT` = "Consent-JWT"
   final lazy val `PSD2-CERT` = "PSD2-CERT"
   final lazy val `If-None-Match` = "If-None-Match"
-  final lazy val `TPP-Redirect-URL` = "TPP-Redirect-URL" // Berlin Group
-  final lazy val `TPP-Signature-Certificate` = "TPP-Signature-Certificate" // Berlin Group
+
   final lazy val `X-Request-ID` = "X-Request-ID" // Berlin Group
+  final lazy val `TPP-Redirect-URL` = "TPP-Redirect-URL" // Berlin Group
+  final lazy val Date = "Date" // Berlin Group
+  // Headers to support the signature function of Berlin Group
+  final lazy val Digest = "Digest" // Berlin Group
+  final lazy val Signature = "Signature" // Berlin Group
+  final lazy val `TPP-Signature-Certificate` = "TPP-Signature-Certificate" // Berlin Group
+
   /**
    * The If-Modified-Since request HTTP header makes the request conditional: 
    * the server sends back the requested resource, with a 200 status, 

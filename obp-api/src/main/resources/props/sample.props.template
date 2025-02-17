@@ -1367,5 +1367,15 @@ regulated_entities = []
 #    "grantee_consumer_id": "fb327484-94d7-44d2-83e5-8d27301e8279" \
 #}]
 
+# Bootstrap Super User
+# Given the following credentials, OBP will create a user if they do not already exist.
+# This user's password will be valid for a limited time.
+# This user will be granted ONLY the CanCreateEntitlementAtAnyBank permission.
+# This feature can also be used in a "Break Glass" scenario.
+# If you want to use this feature, please set up all three values properly at the same time.
+# super_admin_username=TomWilliams
+# super_admin_inital_password=681aeeb9f681aeeb9f681aeeb9 
+# super_admin_email=tom@tesobe.com
+
 
 # Note: For secure and http only settings for cookies see resources/web.xml which is mentioned in the README.md

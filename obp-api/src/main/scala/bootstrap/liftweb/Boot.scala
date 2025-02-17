@@ -980,7 +980,7 @@ class Boot extends MdcLoggable {
     if(isPropsNotSetProperly) {
       //Nothing happens, props is not set
     }else if(existingAuthUser.isDefined) {
-      throw new RuntimeException(s"Existing AuthUser with username ${superAdminUsername} detected in data import where no ResourceUser was found")
+      logger.error(s"createBootstrapSuperUser- Errors:  Existing AuthUser with username ${superAdminUsername} detected in data import where no ResourceUser was found")
     } else {
       val authUser = AuthUser.create
         .email(superAdminEmail)
@@ -994,13 +994,18 @@ class Boot extends MdcLoggable {
       val validationErrors = authUser.validate
 
       if(!validationErrors.isEmpty)
-        throw new RuntimeException(s"Errors: ${validationErrors.map(_.msg)}")
-      else
+        logger.error(s"createBootstrapSuperUser- Errors: ${validationErrors.map(_.msg)}")
+      else {
         Full(authUser.save()) //this will create/update the resourceUser.
 
-      val userId = Users.users.vend.getUserByProviderAndUsername(authUser.getProvider(), authUser.username.get).map(_.userId).head
-
-      Entitlement.entitlement.vend.addEntitlement("", userId, CanCreateEntitlementAtAnyBank.toString)
+        val userBox = Users.users.vend.getUserByProviderAndUsername(authUser.getProvider(), authUser.username.get)
+  
+        val resultBox = userBox.map(user => Entitlement.entitlement.vend.addEntitlement("", user.userId, CanCreateEntitlementAtAnyBank.toString))
+        
+        if(resultBox.isEmpty){
+          logger.error(s"createBootstrapSuperUser- Errors: ${resultBox}")
+        }
+      }
 
     }
  

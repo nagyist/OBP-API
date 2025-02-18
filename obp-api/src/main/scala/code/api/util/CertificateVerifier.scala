@@ -1,6 +1,6 @@
 package code.api.util
 
-import java.io.ByteArrayInputStream
+import java.io.{ByteArrayInputStream, FileInputStream}
 import java.security.KeyStore
 import java.security.cert._
 import java.util.{Base64, Collections}
@@ -10,25 +10,36 @@ import scala.util.{Failure, Success, Try}
 
 object CertificateVerifier {
 
+  // Load trust store from configured path and password
+  private def loadTrustStore(): Option[KeyStore] = {
+    val trustStorePath = APIUtil.getPropsValue("truststore.path.tpp_signature", "")
+    val trustStorePassword = APIUtil.getPropsValue("truststore.password.tpp_signature", "").toCharArray
+
+    Try {
+      val trustStore = KeyStore.getInstance("PKCS12") // Using `.p12` format
+      val trustStoreInputStream = new FileInputStream(trustStorePath)
+      trustStore.load(trustStoreInputStream, trustStorePassword)
+      trustStoreInputStream.close()
+      trustStore
+    } match {
+      case Success(store) =>
+        println(s"✅ Loaded trust store from: $trustStorePath")
+        Some(store)
+      case Failure(e) =>
+        println(s"❌ Failed to load trust store: ${e.getMessage}")
+        None
+    }
+  }
+
   def verifyCertificate(pemCertificate: String): Boolean = {
     Try {
-      // Convert PEM string to X.509 Certificate
       val certificate = parsePemToX509Certificate(pemCertificate)
 
-      // Load the default trust store (can be replaced with a custom one)
-      val trustStore = KeyStore.getInstance(KeyStore.getDefaultType)
-
-
-      val trustStorePath = Option(System.getProperty("javax.net.ssl.trustStore"))
-        .getOrElse("/usr/lib/jvm/java-17-openjdk-amd64/lib/security/cacerts")
-
-      val trustStoreInputStream = new java.io.FileInputStream(trustStorePath)
-      trustStore.load(trustStoreInputStream, "changeit".toCharArray) // Default password: changeit
-      trustStoreInputStream.close()
-
+      // Load trust store
+      val trustStore = loadTrustStore()
+        .getOrElse(throw new Exception("Trust store could not be loaded."))
 
       val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm)
-      // trustStore.load(null, null) // Load default trust store
       trustManagerFactory.init(trustStore)
 
       // Get trusted CAs from the trust store
@@ -50,23 +61,21 @@ object CertificateVerifier {
       val validator = CertPathValidator.getInstance("PKIX")
       validator.validate(certPath, pkixParams)
 
+      println("✅ Certificate is valid and trusted.")
       true
     } match {
-      case Success(_) =>
-        println("Certificate is valid and trusted.")
-        true
+      case Success(_) => true
       case Failure(e: CertPathValidatorException) =>
-        println(s"Certificate validation failed: ${e.getMessage}")
+        println(s"❌ Certificate validation failed: ${e.getMessage}")
         false
       case Failure(e) =>
-        println(s"Error: ${e.getMessage}")
+        println(s"❌ Error: ${e.getMessage}")
         false
     }
   }
 
   private def parsePemToX509Certificate(pem: String): X509Certificate = {
-    val cleanedPem = pem
-      .replaceAll("-----BEGIN CERTIFICATE-----", "")
+    val cleanedPem = pem.replaceAll("-----BEGIN CERTIFICATE-----", "")
       .replaceAll("-----END CERTIFICATE-----", "")
       .replaceAll("\\s", "")
 
@@ -82,21 +91,11 @@ object CertificateVerifier {
       -----END CERTIFICATE-----"""
 
     val isValid = verifyCertificate(pemCertificate)
-    println(s"Certificate verification result: $isValid")
+    println(s"✅ Certificate verification result: $isValid")
 
-
-    val defaultTrustStore = System.getProperty("javax.net.ssl.trustStore", "Default (cacerts)")
-    println(s"Default Trust Store: $defaultTrustStore")
-
-    // Load and print all certificates in the default trust store
-    val trustStore = KeyStore.getInstance(KeyStore.getDefaultType)
-    val trustStorePath = Option(System.getProperty("javax.net.ssl.trustStore"))
-      .getOrElse("/usr/lib/jvm/java-17-openjdk-amd64/lib/security/cacerts")
-
-    val trustStoreInputStream = new java.io.FileInputStream(trustStorePath)
-    trustStore.load(trustStoreInputStream, "changeit".toCharArray) // Default password: changeit
-    trustStoreInputStream.close()
-
-    println(s"Trust Store contains ${trustStore.size()} certificates")
+    // Display loaded trust store info
+    loadTrustStore().foreach { trustStore =>
+      println(s"🔹 Trust Store contains ${trustStore.size()} certificates.")
+    }
   }
 }

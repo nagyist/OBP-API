@@ -178,6 +178,12 @@ jwt.use.ssl=false
 # truststore.password.redis = truststore-password
 
 
+## Trust stores is a list of trusted CA certificates
+## Public certificate for the CA (used by clients and servers to validate signatures)
+# truststore.path.tpp_signature = path/to/ca.p12
+# truststore.password.tpp_signature = truststore-password
+
+
 ## Enable writing API metrics (which APIs are called) to RDBMS
 write_metrics=true
 ## Enable writing connector metrics (which methods are called)to RDBMS 

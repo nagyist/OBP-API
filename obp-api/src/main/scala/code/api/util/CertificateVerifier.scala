@@ -1,36 +1,66 @@
 package code.api.util
 
+import code.util.Helper.MdcLoggable
+
 import java.io.{ByteArrayInputStream, FileInputStream}
 import java.security.KeyStore
 import java.security.cert._
 import java.util.{Base64, Collections}
 import javax.net.ssl.TrustManagerFactory
+import scala.io.Source
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
-object CertificateVerifier {
+object CertificateVerifier extends MdcLoggable {
 
-  // Load trust store from configured path and password
+  /**
+   * Loads a trust store (`.p12` file) from a configured path.
+   *
+   * This function:
+   * - Reads the trust store password from the application properties (`truststore.path.tpp_signature`).
+   * - Uses Java's `KeyStore` class to load the certificates.
+   * - If successful, logs `✅ Loaded trust store from: path`.
+   * - If it fails, logs `❌ Failed to load trust store: error message`.
+   *
+   * @return An `Option[KeyStore]` containing the loaded trust store, or `None` if loading fails.
+   */
   private def loadTrustStore(): Option[KeyStore] = {
-    val trustStorePath = APIUtil.getPropsValue("truststore.path.tpp_signature", "")
+    val trustStorePath = APIUtil.getPropsValue("truststore.path.tpp_signature")
+      .or(APIUtil.getPropsValue("truststore.path")).getOrElse("")
     val trustStorePassword = APIUtil.getPropsValue("truststore.password.tpp_signature", "").toCharArray
 
     Try {
-      val trustStore = KeyStore.getInstance("PKCS12") // Using `.p12` format
+      val trustStore = KeyStore.getInstance("PKCS12")
       val trustStoreInputStream = new FileInputStream(trustStorePath)
-      trustStore.load(trustStoreInputStream, trustStorePassword)
-      trustStoreInputStream.close()
+      try {
+        trustStore.load(trustStoreInputStream, trustStorePassword)
+      } finally {
+        trustStoreInputStream.close()
+      }
       trustStore
     } match {
       case Success(store) =>
-        println(s"✅ Loaded trust store from: $trustStorePath")
+        logger.info(s"✅ Loaded trust store from: $trustStorePath")
         Some(store)
       case Failure(e) =>
-        println(s"❌ Failed to load trust store: ${e.getMessage}")
+        logger.info(s"❌ Failed to load trust store: ${e.getMessage}")
         None
     }
   }
 
+  /**
+   * Verifies an X.509 certificate against the loaded trust store.
+   *
+   * This function:
+   * - Parses the PEM certificate into an `X509Certificate` using `parsePemToX509Certificate`.
+   * - Loads the trust store using `loadTrustStore()`.
+   * - Extracts trusted root CAs from the trust store.
+   * - Creates PKIX validation parameters and disables revocation checking.
+   * - Validates the certificate using Java's `CertPathValidator`.
+   *
+   * @param pemCertificate The X.509 certificate in PEM format.
+   * @return `true` if the certificate is valid and trusted, otherwise `false`.
+   */
   def verifyCertificate(pemCertificate: String): Boolean = {
     Try {
       val certificate = parsePemToX509Certificate(pemCertificate)
@@ -61,19 +91,30 @@ object CertificateVerifier {
       val validator = CertPathValidator.getInstance("PKIX")
       validator.validate(certPath, pkixParams)
 
-      println("✅ Certificate is valid and trusted.")
+      logger.info("✅ Certificate is valid and trusted.")
       true
     } match {
       case Success(_) => true
       case Failure(e: CertPathValidatorException) =>
-        println(s"❌ Certificate validation failed: ${e.getMessage}")
+        logger.info(s"❌ Certificate validation failed: ${e.getMessage}")
         false
       case Failure(e) =>
-        println(s"❌ Error: ${e.getMessage}")
+        logger.info(s"❌ Error: ${e.getMessage}")
         false
     }
   }
 
+  /**
+   * Converts a PEM certificate (Base64-encoded) into an `X509Certificate` object.
+   *
+   * This function:
+   * - Removes the PEM header and footer (`-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`).
+   * - Decodes the Base64-encoded certificate data.
+   * - Generates and returns an `X509Certificate` object.
+   *
+   * @param pem The X.509 certificate in PEM format.
+   * @return The parsed `X509Certificate` object.
+   */
   private def parsePemToX509Certificate(pem: String): X509Certificate = {
     val cleanedPem = pem.replaceAll("-----BEGIN CERTIFICATE-----", "")
       .replaceAll("-----END CERTIFICATE-----", "")
@@ -84,18 +125,31 @@ object CertificateVerifier {
     certFactory.generateCertificate(new ByteArrayInputStream(decoded)).asInstanceOf[X509Certificate]
   }
 
+  def loadPemCertificateFromFile(filePath: String): Option[String] = {
+    Try {
+      val source = Source.fromFile(filePath)
+      try source.getLines().mkString("\n") // Read entire file into a single string
+      finally source.close()
+    } match {
+      case Success(pem) => Some(pem)
+      case Failure(exception) =>
+        println(s"❌ Failed to load PEM certificate from file: ${exception.getMessage}")
+        None
+    }
+  }
+
   def main(args: Array[String]): Unit = {
-    val pemCertificate =
-      """-----BEGIN CERTIFICATE-----
-      MIIDFzCCAf+gAwIBAgIUPvfFnlyEm/bRwvPzhpfSxuI6XjkwDQYJKoZIhvcNAQELBQAwGzEZMBcGA1UEAwwQVGVzdCBDZXJ0aWZpY2F0ZTAeFw0yNTAyMTQwODM3NDhaFw0yNjAyMTQwODM3NDhaMBsxGTAXBgNVBAMMEFRlc3QgQ2VydGlmaWNhdGUwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCk9Mj4YgJywaCduTLjAEd3o1OqzFaj2MuI/bcdKIwPlld0n8WHp+CMkbpCD8TSAlDrjLjxcL6Homw8SM3VYUJVP/5phRNgNx7E+KzquskPUsWvTUnylLF52jLjbKVXqs6DuukGAaJNudcuJCPuGd5xDTiymRdqFL1LFxSlaqt/qRS8DV9d3/Z0JwXuHebq17pjUGluq8nkJ0N1zF5hKLdQmo9PxVULY5Kubjf2cXoH09AgJUj3RSgeScRbFxgYOhU/5OaEfQuAST0Qa8lFI6SyWQp5G08wNZGITLh/66ZissNPYIUgqGccDFKWhUNDubFF+Qyl3Gy12g8Uou6FN1qrAgMBAAGjUzBRMB0GA1UdDgQWBBSN2MfohCTpCamhcyidj2w6z6tGXDAfBgNVHSMEGDAWgBSN2MfohCTpCamhcyidj2w6z6tGXDAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQBYXj3L5UN8PxJAMtLT9bU4FkxyXIQM+bzvAln1ZcAfHAGb2q49oJAXy4I22f9keuq3PV7OftsjZ888rjz9QU8vMSBejWT5GV4Ln5QmQXCHonmhq6DbP7BYb4DTOXfhvk+fdg0EDdqCpzDSCXdutOjjGU6P7L0769Zjpkrnk7uuqxZ8u/FslALeuq7cerBpsOUT5CJumpQxWcUCEbFxyZJTu5SXetgKJ9Dm62AfX5H69//z88W5TUzp66Mh4AWhEa/UByJGEw9SEsjFtYhkXluz5oFee5TGWTVZRlK08UrgH9JbiuyvPc9ZNL6Ek9fV54iajqsixZCfcICICtu8hZjZ
-      -----END CERTIFICATE-----"""
+    // val certificatePath = "/path/to/certificate.pem"
+    val certificatePath = "/home/marko/Downloads/BerlinGroupSigning/certificate.pem"
+    val pemCertificate = loadPemCertificateFromFile(certificatePath)
 
-    val isValid = verifyCertificate(pemCertificate)
-    println(s"✅ Certificate verification result: $isValid")
+    pemCertificate.foreach { pem =>
+      val isValid = verifyCertificate(pem)
+      logger.info(s"✅ Certificate verification result: $isValid")
+    }
 
-    // Display loaded trust store info
     loadTrustStore().foreach { trustStore =>
-      println(s"🔹 Trust Store contains ${trustStore.size()} certificates.")
+      logger.info(s"🔹 Trust Store contains ${trustStore.size()} certificates.")
     }
   }
 }

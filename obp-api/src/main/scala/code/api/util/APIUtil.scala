@@ -784,16 +784,24 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
      * (?=.*\d)                    //should contain at least one digit
      * (?=.*[a-z])                 //should contain at least one lower case
      * (?=.*[A-Z])                 //should contain at least one upper case
-     * (?=.*[!"#$%&'\(\)*+,-./:;<=>?@\\[\\\\]^_\\`{|}~])              //should contain at least one special character
-     * ([A-Za-z0-9!"#$%&'\(\)*+,-./:;<=>?@\\[\\\\]^_\\`{|}~]{10,16})  //should contain 10 to 16 valid characters
+     * (?=.*[!\"#$%&'\(\)*+,-./:;<=>?@\\[\\\\]^_\\`{|}~\[\]])              //should contain at least one special character
+     * ([A-Za-z0-9!\"#$%&'\(\)*+,-./:;<=>?@\\[\\\\]^_\\`{|}~\[\]]{10,16})  //should contain 10 to 16 valid characters
      **/
     val regex =
-      """^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!"#$%&'\(\)*+,-./:;<=>?@\\[\\\\]^_\\`{|}~])([A-Za-z0-9!"#$%&'\(\)*+,-./:;<=>?@\\[\\\\]^_\\`{|}~]{10,16})$""".r
-    password match {
-      case password if(password.length > 16 && password.length <= 512 && basicPasswordValidation(password) ==SILENCE_IS_GOLDEN) => true
-      case regex(password) if(basicPasswordValidation(password) ==SILENCE_IS_GOLDEN) => true
-      case _ => false
+      """^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!\"#$%&'\(\)*+,-./:;<=>?@\\[\\\\]^_\\`{|}~\[\]])([A-Za-z0-9!\"#$%&'\(\)*+,-./:;<=>?@\\[\\\\]^_\\`{|}~\[\]]{10,16})$""".r
+
+    // first check `basicPasswordValidation`
+    if (basicPasswordValidation(password) != SILENCE_IS_GOLDEN) {
+      return false
     }
+
+    // 2nd: check the password length between 10 and 512 
+    if (password.length > 16 && password.length <= 512) {
+      return true
+    }
+
+    // 3rd: check the regular expression
+    regex.pattern.matcher(password).matches()
   }
   
   /** only  A-Z, a-z, 0-9,-,_,. =, & and max length <= 2048  */
@@ -847,12 +855,17 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
   /** also support space now  */
   def basicPasswordValidation(value:String): String ={
     val valueLength = value.length
-    val regex = """^([A-Za-z0-9!"#$%&'\(\)*+,-./:;<=>?@\\[\\\\]^_\\`{|}~ ]+)$""".r
-    value match {
-      case regex(e) if(valueLength <= 512) => SILENCE_IS_GOLDEN
-      case regex(e) if(valueLength > 512) => ErrorMessages.InvalidValueLength
-      case _ => ErrorMessages.InvalidValueCharacters
+    val regex = """^([A-Za-z0-9!\"#$%&'\(\)*+,-./:;<=>?@\\[\\\\]^_\\`{|}~ \[\]]+)$""".r
+    
+    if (!regex.pattern.matcher(value).matches()) {
+      return ErrorMessages.InvalidValueCharacters
     }
+    
+    if (valueLength > 512) {
+      return ErrorMessages.InvalidValueLength
+    }
+    
+    SILENCE_IS_GOLDEN
   }
 
   /** only  A-Z, a-z, 0-9, -, _, ., @, and max length <= 512  */

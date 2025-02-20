@@ -130,7 +130,12 @@ object BerlinGroupSigning {
             val signatureHeaderValue = getHeaderValue(RequestHeader.Signature, requestHeaders)
             val signature = parseSignatureHeader(signatureHeaderValue).getOrElse("signature", "NONE")
             val isVerified = verifySignature(signingString, signature, certificatePem)
-            if (isVerified) forwardResult else (Failure(ErrorMessages.X509PublicKeyCannotVerify), forwardResult._2)
+            val isValidated = CertificateVerifier.validateCertificate(certificatePem)
+            (isVerified, isValidated) match {
+              case (true, true) => forwardResult
+              case (true, false) => (Failure(ErrorMessages.X509PublicKeyCannotBeValidated), forwardResult._2)
+              case (false, _) => (Failure(ErrorMessages.X509PublicKeyCannotVerify), forwardResult._2)
+            }
           case Failure(msg, t, c) => (Failure(msg, t, c), forwardResult._2) // PEM certificate is not valid
           case _ => (Failure(ErrorMessages.X509GeneralError), forwardResult._2) // PEM certificate cannot be validated
         }

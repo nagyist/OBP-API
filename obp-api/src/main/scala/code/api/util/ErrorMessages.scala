@@ -279,6 +279,7 @@ object ErrorMessages {
   val X509ThereAreNoPsd2Roles = "OBP-20308: PEM Encoded Certificate does not contain PSD2 roles."
   val X509CannotGetPublicKey = "OBP-20309: Public key cannot be found in the PEM Encoded Certificate."
   val X509PublicKeyCannotVerify = "OBP-20310: Certificate's public key cannot be used to verify signed request."
+  val X509PublicKeyCannotBeValidated = "OBP-20312: Certificate's public key cannot be validated."
   val X509RequestIsNotSigned = "OBP-20311: The Request is not signed."
   
   // OpenID Connect

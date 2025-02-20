@@ -61,7 +61,7 @@ object CertificateVerifier extends MdcLoggable {
    * @param pemCertificate The X.509 certificate in PEM format.
    * @return `true` if the certificate is valid and trusted, otherwise `false`.
    */
-  def verifyCertificate(pemCertificate: String): Boolean = {
+  def validateCertificate(pemCertificate: String): Boolean = {
     Try {
       val certificate = parsePemToX509Certificate(pemCertificate)
 
@@ -144,7 +144,7 @@ object CertificateVerifier extends MdcLoggable {
     val pemCertificate = loadPemCertificateFromFile(certificatePath)
 
     pemCertificate.foreach { pem =>
-      val isValid = verifyCertificate(pem)
+      val isValid = validateCertificate(pem)
       logger.info(s"✅ Certificate verification result: $isValid")
     }
 

@@ -27,29 +27,32 @@
 package code.api.v5_1_0
 
 import code.api.Constant
-import code.api.util.{APIUtil, ConsentJWT, CustomJsonFormats, JwtUtil, Role}
-import code.api.util.APIUtil.gitCommit
-import code.api.v1_4_0.JSONFactory1_4_0.{LocationJsonV140, MetaJsonV140, transformToLocationFromV140, transformToMetaFromV140}
+import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.ConsentAccessJson
+import code.api.util.APIUtil.{DateWithDay, DateWithSeconds, gitCommit, stringOrNull}
+import code.api.util._
+import code.api.v1_2_1.BankRoutingJsonV121
+import code.api.v1_4_0.JSONFactory1_4_0.{ChallengeJsonV140, LocationJsonV140, MetaJsonV140, TransactionRequestAccountJsonV140, transformToLocationFromV140, transformToMetaFromV140}
+import code.api.v2_0_0.TransactionRequestChargeJsonV200
 import code.api.v2_1_0.ResourceUserJSON
 import code.api.v3_0_0.JSONFactory300.{createLocationJson, createMetaJson, transformToAddressFromV300}
-import code.api.v3_0_0.{AccountIdJson, AccountsIdsJsonV300, AddressJsonV300, OpeningTimesV300}
-import code.api.v4_0_0.{EnergySource400, HostedAt400, HostedBy400, PostViewJsonV400}
+import code.api.v3_0_0.{AddressJsonV300, OpeningTimesV300}
+import code.api.v4_0_0.{EnergySource400, HostedAt400, HostedBy400}
+import code.api.v5_0_0.PostConsentRequestJsonV500
 import code.atmattribute.AtmAttribute
 import code.atms.Atms.Atm
-import code.users.{UserAttribute, Users}
-import code.views.system.{AccountAccess, ViewDefinition}
-import com.openbankproject.commons.model.{Address, AtmId, AtmT, BankId, BankIdAccountId, Customer, Location, Meta, RegulatedEntityTrait}
-import com.openbankproject.commons.util.{ApiVersion, ScannedApiVersion}
-
-import java.util.Date
 import code.consent.MappedConsent
 import code.metrics.APIMetric
 import code.model.Consumer
+import code.users.{UserAttribute, Users}
+import code.views.system.{AccountAccess, ViewDefinition}
+import com.openbankproject.commons.model._
+import com.openbankproject.commons.util.ApiVersion
 import net.liftweb.common.{Box, Full}
 import net.liftweb.json
 import net.liftweb.json.{JString, JValue, parse, parseOpt}
 
-import scala.collection.immutable.List
+import java.text.SimpleDateFormat
+import java.util.Date
 import scala.util.Try
 
 
@@ -117,7 +120,39 @@ case class ConsentJsonV510(consent_id: String,
                            jwt: String, 
                            status: String,
                            consent_request_id: Option[String],
-                           scopes: Option[List[Role]])
+                           scopes: Option[List[Role]],
+                           consumer_id:String)
+
+
+case class ConsentInfoJsonV510(consent_id: String,
+                               consumer_id: String,
+                               created_by_user_id: String,
+                               status: String,
+                               last_action_date: String,
+                               last_usage_date: String,
+                               jwt: String,
+                               jwt_payload: Box[ConsentJWT],
+                               api_standard: String,
+                               api_version: String,
+                              )
+case class ConsentsInfoJsonV510(consents: List[ConsentInfoJsonV510])
+
+case class PutConsentPayloadJsonV510(access: ConsentAccessJson)
+
+case class AllConsentJsonV510(consent_reference_id: String,
+                              consumer_id: String,
+                              created_by_user_id: String,
+                              status: String,
+                              last_action_date: String,
+                              last_usage_date: String,
+                              jwt_payload: Box[ConsentJWT],
+                              frequency_per_day: Option[Int] = None,
+                              remaining_requests: Option[Int] = None,
+                              api_standard: String,
+                              api_version: String,
+                             )
+case class ConsentsJsonV510(consents: List[AllConsentJsonV510])
+
 
 case class CurrencyJsonV510(alphanumeric_code: String)
 case class CurrenciesJsonV510(currencies: List[CurrencyJsonV510])
@@ -158,6 +193,60 @@ case class PostAtmJsonV510 (
   balance_inquiry_fee: String,
   atm_type: String,
   phone: String
+)
+
+case class PostCounterpartyLimitV510(
+  currency: String,
+  max_single_amount: String,
+  max_monthly_amount: String,
+  max_number_of_monthly_transactions: Int,
+  max_yearly_amount: String,
+  max_number_of_yearly_transactions: Int,
+  max_total_amount: String,
+  max_number_of_transactions: Int
+)
+
+case class CounterpartyLimitV510(
+  counterparty_limit_id: String,
+  bank_id: String,
+  account_id: String,
+  view_id: String,
+  counterparty_id: String,
+  currency: String,
+  max_single_amount: String,
+  max_monthly_amount: String,
+  max_number_of_monthly_transactions: Int,
+  max_yearly_amount: String,
+  max_number_of_yearly_transactions: Int,
+  max_total_amount: String,
+  max_number_of_transactions: Int
+)
+
+case class CounterpartyLimitStatus(
+  currency_status: String,
+  max_monthly_amount_status: String,
+  max_number_of_monthly_transactions_status: Int,
+  max_yearly_amount_status: String,
+  max_number_of_yearly_transactions_status: Int,
+  max_total_amount_status: String,
+  max_number_of_transactions_status: Int
+)
+
+case class CounterpartyLimitStatusV510(
+  counterparty_limit_id: String,
+  bank_id: String,
+  account_id: String,
+  view_id: String,
+  counterparty_id: String,
+  currency: String,
+  max_single_amount: String,
+  max_monthly_amount: String,
+  max_number_of_monthly_transactions: Int,
+  max_yearly_amount: String,
+  max_number_of_yearly_transactions: Int,
+  max_total_amount: String,
+  max_number_of_transactions: Int,
+  status: CounterpartyLimitStatus
 )
 
 case class AtmJsonV510 (
@@ -262,7 +351,46 @@ case class UserAttributesResponseJsonV510(
 )
 
 case class CustomerIdJson(id: String)
+case class AgentJson(
+  id: String,
+  name:String
+)
+
+case class PostAgentJsonV510(
+  legal_name: String,
+  mobile_phone_number: String,
+  agent_number: String,
+  currency: String
+)
+
+case class PutAgentJsonV510(
+  is_pending_agent: Boolean,
+  is_confirmed_agent: Boolean
+)
+
+case class AgentJsonV510(
+  agent_id: String,
+  bank_id: String,
+  legal_name: String,
+  mobile_phone_number: String,
+  agent_number: String,
+  currency: String,
+  is_confirmed_agent: Boolean,
+  is_pending_agent: Boolean
+)
+
+case class MinimalAgentJsonV510(
+  agent_id: String,
+  legal_name: String,
+  agent_number: String,
+)
+case class MinimalAgentsJsonV510(
+  agents: List[MinimalAgentJsonV510]
+)
+
 case class CustomersIdsJsonV510(customers: List[CustomerIdJson])
+
+case class PostCustomerLegalNameJsonV510(legal_name: String)
 
 case class MetricJsonV510(
                        user_id: String,
@@ -293,7 +421,6 @@ case class ConsumerPostJsonV510(app_name: Option[String],
                                )
 case class ConsumerJsonV510(consumer_id: String,
                             consumer_key: String,
-                            consumer_secret: String,
                             app_name: String,
                             app_type: String,
                             description: String,
@@ -304,15 +431,220 @@ case class ConsumerJsonV510(consumer_id: String,
                             certificate_info: Option[CertificateInfoJsonV510],
                             created_by_user: ResourceUserJSON,
                             enabled: Boolean,
-                            created: Date
+                            created: Date, 
+                            logo_url: Option[String]
                            )
 
+case class ConsumersJsonV510(
+  consumers : List[ConsumerJsonV510]
+)
 case class PostCreateUserAccountAccessJsonV510(username: String, provider:String, view_id:String)
 
 case class PostAccountAccessJsonV510(user_id: String, view_id: String)
 
+case class CreateConsumerRequestJsonV510(
+  app_name: String,
+  app_type: String,
+  description: String,
+  developer_email: String,
+  company: String,
+  redirect_url: String,
+  created_by_user_id: String,
+  enabled: Boolean,
+  created: Date,
+  client_certificate: String,
+  logo_url: Option[String]
+)
+
+case class CreateCustomViewJson(
+  name: String,
+  description: String,
+  metadata_view: String,
+  is_public: Boolean,
+  which_alias_to_use: String,
+  hide_metadata_if_alias_used: Boolean,
+  allowed_permissions : List[String],
+) {
+  def toCreateViewJson = CreateViewJson(
+    name: String,
+    description: String,
+    metadata_view: String,
+    is_public: Boolean,
+    which_alias_to_use: String,
+    hide_metadata_if_alias_used: Boolean,
+    allowed_actions = allowed_permissions,
+  )
+}
+
+case class UpdateCustomViewJson(
+  description: String,
+  metadata_view: String,
+  is_public: Boolean,
+  which_alias_to_use: String,
+  hide_metadata_if_alias_used: Boolean,
+  allowed_permissions: List[String]
+) {
+  def toUpdateViewJson = UpdateViewJSON(
+    description: String,
+    metadata_view: String,
+    is_public: Boolean,
+    is_firehose= None,
+    which_alias_to_use: String,
+    hide_metadata_if_alias_used: Boolean,
+    allowed_actions = allowed_permissions
+  )
+}
+
+case class CustomViewJsonV510(
+  id: String,
+  name: String,
+  description: String,
+  metadata_view: String,
+  is_public: Boolean,
+  alias: String,
+  hide_metadata_if_alias_used: Boolean,
+  allowed_permissions: List[String]
+)
+
+case class ConsentRequestFromAccountJson(
+  bank_routing: BankRoutingJsonV121,
+  account_routing: AccountRoutingJsonV121,
+  branch_routing: BranchRoutingJsonV141
+)
+
+case class ConsentRequestToAccountJson(
+  counterparty_name: String,
+  bank_routing: BankRoutingJsonV121,
+  account_routing: AccountRoutingJsonV121,
+  branch_routing: BranchRoutingJsonV141,
+  limit: PostCounterpartyLimitV510
+)
+
+case class PostVRPConsentRequestJsonInternalV510(
+  consent_type: String,
+  from_account: ConsentRequestFromAccountJson,
+  to_account: ConsentRequestToAccountJson,
+  email: Option[String],
+  phone_number: Option[String],
+  valid_from: Option[Date],
+  time_to_live: Option[Long]) {
+  def toPostConsentRequestJsonV500 = {
+    PostConsentRequestJsonV500(
+      everything = false,
+      bank_id = Some(from_account.bank_routing.address),
+      account_access = Nil,
+      entitlements = None,
+      consumer_id = None,
+      email = email,
+      phone_number = phone_number,
+      valid_from = valid_from,
+      time_to_live = time_to_live
+    )
+  }
+}
+
+case class PostVRPConsentRequestJsonV510(
+  from_account:ConsentRequestFromAccountJson,
+  to_account:ConsentRequestToAccountJson,
+  email: Option[String],
+  phone_number: Option[String],
+  valid_from: Option[Date],
+  time_to_live: Option[Long]
+)
+
+case class APITags(
+  tags : List[String]
+)
+
+case class ConsumerLogoUrlJson(
+  logo_url: String
+)
+
+case class TransactionRequestJsonV510(
+  transaction_request_id: String,
+  transaction_request_type: String,
+  from: TransactionRequestAccountJsonV140,
+  details: TransactionRequestBodyAllTypes,
+  transaction_ids: List[String],
+  status: String,
+  start_date: Date,
+  end_date: Date,
+  challenge: ChallengeJsonV140,
+  charge : TransactionRequestChargeJsonV200,
+  attributes: List[TransactionRequestAttributeJsonV400]
+)
+
+case class TransactionRequestsJsonV510(
+  transaction_requests : List[TransactionRequestJsonV510]
+)
+
+case class PostTransactionRequestStatusJsonV510(status: String)
+case class TransactionRequestStatusJsonV510(transaction_request_id: String, status: String)
+
+case class SyncExternalUserJson(user_id: String)
+
+case class UserValidatedJson(is_validated: Boolean)
+
 object JSONFactory510 extends CustomJsonFormats {
 
+  def createTransactionRequestJson(tr : TransactionRequest, transactionRequestAttributes: List[TransactionRequestAttributeTrait] ) : TransactionRequestJsonV510 = {
+    TransactionRequestJsonV510(
+      transaction_request_id = stringOrNull(tr.id.value),
+      transaction_request_type = stringOrNull(tr.`type`),
+      from = try{TransactionRequestAccountJsonV140 (
+        bank_id = stringOrNull(tr.from.bank_id),
+        account_id = stringOrNull(tr.from.account_id)
+      )} catch {case _ : Throwable => null},
+      details = try{tr.body} catch {case _ : Throwable => null},
+      transaction_ids = tr.transaction_ids::Nil,
+      status = stringOrNull(tr.status),
+      start_date = tr.start_date,
+      end_date = tr.end_date,
+      // Some (mapped) data might not have the challenge. TODO Make this nicer
+      challenge = {
+        try {ChallengeJsonV140 (id = stringOrNull(tr.challenge.id), allowed_attempts = tr.challenge.allowed_attempts, challenge_type = stringOrNull(tr.challenge.challenge_type))}
+          // catch { case _ : Throwable => ChallengeJSON (id = "", allowed_attempts = 0, challenge_type = "")}
+        catch { case _ : Throwable => null}
+      },
+      charge = try {TransactionRequestChargeJsonV200 (summary = stringOrNull(tr.charge.summary),
+        value = AmountOfMoneyJsonV121(currency = stringOrNull(tr.charge.value.currency),
+          amount = stringOrNull(tr.charge.value.amount))
+      )} catch {case _ : Throwable => null},
+      attributes = transactionRequestAttributes.filter(_.transactionRequestId==tr.id).map(transactionRequestAttribute => TransactionRequestAttributeJsonV400(
+        transactionRequestAttribute.name,
+        transactionRequestAttribute.attributeType.toString,
+        transactionRequestAttribute.value
+      ))
+    )
+  }
+
+  def createTransactionRequestJSONs(transactionRequests : List[TransactionRequest], transactionRequestAttributes: List[TransactionRequestAttributeTrait]) : TransactionRequestsJsonV510 = {
+    TransactionRequestsJsonV510(
+      transactionRequests.map(
+        transactionRequest => 
+          createTransactionRequestJson(transactionRequest, transactionRequestAttributes)
+      ))
+  }
+  
+  def createViewJson(view: View): CustomViewJsonV510 = {
+    val alias =
+      if (view.usePublicAliasIfOneExists)
+        "public"
+      else if (view.usePrivateAliasIfOneExists)
+        "private"
+      else
+        ""
+    CustomViewJsonV510(
+      id = view.viewId.value,
+      name = stringOrNull(view.name),
+      description = stringOrNull(view.description),
+      metadata_view = view.metadataView,
+      is_public = view.isPublic,
+      alias = alias,
+      hide_metadata_if_alias_used = view.hideOtherAccountMetadataIfAlias,
+      allowed_permissions = APIUtil.getViewPermissions(view.asInstanceOf[ViewDefinition]).toList
+    )
+  }
   def createCustomersIds(customers :  List[Customer]): CustomersIdsJsonV510 =
     CustomersIdsJsonV510(customers.map(x => CustomerIdJson(x.customerId)))
 
@@ -529,7 +861,48 @@ object JSONFactory510 extends CustomJsonFormats {
       consent.jsonWebToken,
       consent.status,
       Some(consent.consentRequestId),
-      jsonWebTokenAsJValue.map(_.entitlements).toOption
+      jsonWebTokenAsJValue.map(_.entitlements).toOption,
+      consent.consumerId
+    )
+  }
+
+  def createConsentsInfoJsonV510(consents: List[MappedConsent]): ConsentsInfoJsonV510 = {
+    ConsentsInfoJsonV510(
+      consents.map { c =>
+        val jwtPayload: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(c.jsonWebToken).map(parse(_).extract[ConsentJWT])
+        ConsentInfoJsonV510(
+          consent_id = c.consentId,
+          consumer_id = c.consumerId,
+          created_by_user_id = c.userId,
+          status = c.status,
+          last_action_date = if (c.lastActionDate != null) new SimpleDateFormat(DateWithDay).format(c.lastActionDate) else null,
+          last_usage_date = if (c.usesSoFarTodayCounterUpdatedAt != null) new SimpleDateFormat(DateWithSeconds).format(c.usesSoFarTodayCounterUpdatedAt) else null,
+          jwt = c.jsonWebToken,
+          jwt_payload = jwtPayload,
+          api_standard = c.apiStandard,
+          api_version = c.apiVersion
+        )
+      }
+    )
+  }
+  def createConsentsJsonV510(consents: List[MappedConsent]): ConsentsJsonV510 = {
+    ConsentsJsonV510(
+      consents.map { c =>
+        val jwtPayload: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(c.jsonWebToken).map(parse(_).extract[ConsentJWT])
+        AllConsentJsonV510(
+          consent_reference_id = c.consentReferenceId,
+          consumer_id = c.consumerId,
+          created_by_user_id = c.userId,
+          status = c.status,
+          last_action_date = if (c.lastActionDate != null) new SimpleDateFormat(DateWithDay).format(c.lastActionDate) else null,
+          last_usage_date = if (c.usesSoFarTodayCounterUpdatedAt != null) new SimpleDateFormat(DateWithSeconds).format(c.usesSoFarTodayCounterUpdatedAt) else null,
+          jwt_payload = jwtPayload,
+          frequency_per_day = if(c.apiStandard == "BG") Some(c.frequencyPerDay) else None,
+          remaining_requests = if(c.apiStandard == "BG") Some(c.frequencyPerDay - c.usesSoFarTodayCounter) else None,
+          api_standard = c.apiStandard,
+          api_version = c.apiVersion
+        )
+      }
     )
   }
 
@@ -589,6 +962,10 @@ object JSONFactory510 extends CustomJsonFormats {
       insert_date = userAttribute.insertDate,
       is_personal = userAttribute.isPersonal
     )
+  }
+
+  def getSyncedUser(user :  User): SyncExternalUserJson = {
+    SyncExternalUserJson(user.userId)
   }
 
   def createUserAttributesJson(userAttribute: List[UserAttribute]): UserAttributesResponseJsonV510 = {
@@ -655,7 +1032,6 @@ object JSONFactory510 extends CustomJsonFormats {
     ConsumerJsonV510(
       consumer_id = c.consumerId.get,
       consumer_key = c.key.get,
-      consumer_secret = c.secret.get,
       app_name = c.name.get,
       app_type = c.appType.toString(),
       description = c.description.get,
@@ -666,10 +1042,37 @@ object JSONFactory510 extends CustomJsonFormats {
       certificate_info = certificateInfo,
       created_by_user = resourceUserJSON,
       enabled = c.isActive.get,
-      created = c.createdAt.get
+      created = c.createdAt.get,
+      logo_url =  if (c.logoUrl.get == null || c.logoUrl.get.isEmpty ) null else Some(c.logoUrl.get)
     )
   }
+  
+  def createConsumersJson(consumers:List[Consumer]) = {
+    ConsumersJsonV510(consumers.map(createConsumerJSON(_,None)))
+  }
 
+  def createAgentJson(agent: Agent, bankAccount: BankAccount): AgentJsonV510 = {
+    AgentJsonV510(
+      agent_id =  agent.agentId,
+      bank_id =  agent.bankId,
+      legal_name = agent.legalName,
+      mobile_phone_number = agent.mobileNumber,
+      agent_number = agent.number,
+      currency = bankAccount.currency,
+      is_confirmed_agent = agent.isConfirmedAgent,
+      is_pending_agent = agent.isPendingAgent
+    )
+  }
+  def createMinimalAgentsJson(agents: List[Agent]): MinimalAgentsJsonV510 = {
+    MinimalAgentsJsonV510(
+      agents
+        .filter(_.isConfirmedAgent == true)
+        .map(agent => MinimalAgentJsonV510(
+          agent_id = agent.agentId, 
+          legal_name = agent.legalName,
+          agent_number = agent.number
+        )))
+  }
 
 }
 

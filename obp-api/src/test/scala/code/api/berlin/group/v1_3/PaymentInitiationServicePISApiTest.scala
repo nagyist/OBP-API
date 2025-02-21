@@ -2,7 +2,7 @@ package code.api.berlin.group.v1_3
 
 import code.api.BerlinGroup.ScaStatus
 import code.api.Constant
-import code.api.Constant.SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID
+import code.api.Constant.{SYSTEM_INITIATE_PAYMENTS_BERLIN_GROUP_VIEW_ID, SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID}
 import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{CancellationJsonV13, InitiatePaymentResponseJson, StartPaymentAuthorisationJson}
 import code.api.berlin.group.v1_3.model.{PsuData, ScaStatusResponse, UpdatePsuAuthenticationResponse}
 import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{CancellationJsonV13, ErrorMessagesBG, InitiatePaymentResponseJson, StartPaymentAuthorisationJson}
@@ -12,7 +12,10 @@ import code.api.util.APIUtil.extractErrorMessageCode
 import code.api.util.ErrorMessages.{AuthorisationNotFound, InvalidJsonFormat, NotPositiveAmount, _}
 import code.model.dataAccess.{BankAccountRouting, MappedBankAccount}
 import code.setup.{APIResponse, DefaultUsers}
-import code.transactionrequests.TransactionRequests.{PaymentServiceTypes, TransactionRequestTypes}
+import com.openbankproject.commons.model.enums.TransactionRequestTypes
+import com.openbankproject.commons.model.enums.TransactionRequestTypes._
+import com.openbankproject.commons.model.enums.PaymentServiceTypes
+import com.openbankproject.commons.model.enums.PaymentServiceTypes._
 import code.views.Views
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.model.enums.AccountRoutingScheme
@@ -206,7 +209,8 @@ class PaymentInitiationServicePISApiTest extends BerlinGroupServerSetupV1_3 with
   }
 
   private def grantAccountAccess(acountRoutingIbanFrom: BankAccountRouting) = {
-    Views.views.vend.systemView(ViewId(SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID)).flatMap(view =>
+    org.scalameta.logger.elem(Views.views.vend.systemView(ViewId(SYSTEM_INITIATE_PAYMENTS_BERLIN_GROUP_VIEW_ID)))
+    Views.views.vend.systemView(ViewId(SYSTEM_INITIATE_PAYMENTS_BERLIN_GROUP_VIEW_ID)).flatMap(view =>
       // Grant account access
       Views.views.vend.grantAccessToSystemView(acountRoutingIbanFrom.bankId,
         acountRoutingIbanFrom.accountId,

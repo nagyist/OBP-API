@@ -1,6 +1,6 @@
 package code.snippet
 
-import code.bankconnectors.Connector
+import code.bankconnectors.{Connector, LocalMappedConnectorInternal}
 import net.liftweb.util.Helpers._
 import net.liftweb.http.SHtml
 import code.model.{BankX, BankAccountX}
@@ -80,7 +80,7 @@ object CreateTestAccountForm{
     else if(bankId.value == "") Failure("Bank id cannot be empty")
     else if(currency == "") Failure("Currency cannot be empty")
     else if(initialBalance == "") Failure("Initial balance cannot be empty")
-    else if(fx.exchangeRate(currency, "EUR", Some(bankId.value)).isEmpty) Failure(s"Currency($currency) is not allowed, please call `Create Fx` for BANK_ID($BankId) and `EUR` first! ")
+    else if(fx.exchangeRate(currency, "EUR", Some(bankId.value), None).isEmpty) Failure(s"Currency($currency) is not allowed, please call `Create Fx` for BANK_ID($BankId) and `EUR` first! ")
     else {
       for {
         initialBalanceAsNumber <- tryo {BigDecimal(initialBalance)} ?~! "Initial balance must be a number, e.g 1000.00"
@@ -89,7 +89,7 @@ object CreateTestAccountForm{
         (bank, callContext) <- BankX(bankId, None) ?~ s"Bank $bankId not found"
         accountDoesNotExist <- booleanToBox(BankAccountX(bankId, accountId).isEmpty,
           s"Account with id $accountId already exists at bank $bankId")
-        bankAccount <- Connector.connector.vend.createBankAccountLegacy(bankId, accountId, accountType, accountLabel, currency, initialBalanceAsNumber, user.name,
+        bankAccount <- LocalMappedConnectorInternal.createBankAccountLegacy(bankId, accountId, accountType, accountLabel, currency, initialBalanceAsNumber, user.name,
                                                                          "", List.empty)//added field in V220
 
         //1 Create or Update the `Owner` for the new account

@@ -17,6 +17,7 @@ import com.tesobe.CacheKeyFromArguments
 import net.liftweb.common.{Box, Full}
 import net.liftweb.mapper.{By, MappedString, _}
 import net.liftweb.util.Helpers.tryo
+import net.liftweb.util.StringHelpers
 
 import scala.concurrent.duration._
 
@@ -211,18 +212,18 @@ object MapperCounterparties extends Counterparties with MdcLoggable {
                                  ): Box[CounterpartyTrait] = {
     
     val mappedCounterparty = MappedCounterparty.create
-      .mCounterPartyId(APIUtil.createExplicitCounterpartyId) //We create the Counterparty_Id here, it means, it will be create in each connnector.
+      .mCounterPartyId(APIUtil.createExplicitCounterpartyId) //We create the Counterparty_Id here, it means, it will be create in each connector.
       .mName(name)
       .mCreatedByUserId(createdByUserId)
       .mThisBankId(thisBankId)
       .mThisAccountId(thisAccountId)
       .mThisViewId(thisViewId)
-      .mOtherAccountRoutingScheme(otherAccountRoutingScheme)
+      .mOtherAccountRoutingScheme(StringHelpers.snakify(otherAccountRoutingScheme).toUpperCase)
       .mOtherAccountRoutingAddress(otherAccountRoutingAddress)
-      .mOtherBankRoutingScheme(otherBankRoutingScheme)
+      .mOtherBankRoutingScheme(StringHelpers.snakify(otherBankRoutingScheme).toUpperCase)
       .mOtherBankRoutingAddress(otherBankRoutingAddress)
       .mOtherBranchRoutingAddress(otherBranchRoutingAddress)
-      .mOtherBranchRoutingScheme(otherBranchRoutingScheme)
+      .mOtherBranchRoutingScheme(StringHelpers.snakify(otherBranchRoutingScheme).toUpperCase)
       .mIsBeneficiary(isBeneficiary)
       .mDescription(description)
       .mCurrency(currency)

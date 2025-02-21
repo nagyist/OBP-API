@@ -339,7 +339,7 @@ case class BankAccountExtended(val bankAccount: BankAccount) extends MdcLoggable
     if(APIUtil.hasAccountAccess(view, BankIdAccountId(bankId, accountId), user, callContext)) {
       for {
         (transactions, callContext)  <- Connector.connector.vend.getTransactions(bankId, accountId, callContext, queryParams) map {
-          x => (unboxFullOrFail(x._1, callContext, InvalidConnectorResponse, 400), x._2)
+          x => (unboxFullOrFail(x._1, callContext, InvalidConnectorResponseForGetTransactions, 400), x._2)
         }
       } yield {
         view.moderateTransactionsWithSameAccount(bank, transactions) match {
@@ -385,20 +385,27 @@ case class BankAccountExtended(val bankAccount: BankAccount) extends MdcLoggable
     * @return a Box of a list ModeratedOtherBankAccounts, it the bank
     *  accounts that have at least one transaction in common with this bank account
     */
-  final def moderatedOtherBankAccounts(view : View, bankIdAccountId: BankIdAccountId, user : Box[User], callContext: Option[CallContext]) : Box[List[ModeratedOtherBankAccount]] =
+  final def moderatedOtherBankAccounts(view : View, bankIdAccountId: BankIdAccountId, user : Box[User], callContext: Option[CallContext]) : OBPReturnType[Box[List[ModeratedOtherBankAccount]]] =
     if(APIUtil.hasAccountAccess(view, bankIdAccountId, user, callContext)){
-      val implicitModeratedOtherBankAccounts = Connector.connector.vend.getCounterpartiesFromTransaction(bankId, accountId).openOrThrowException(attemptedToOpenAnEmptyBox).map(oAcc => view.moderateOtherAccount(oAcc)).flatten
-      val explictCounterpartiesBox = Connector.connector.vend.getCounterpartiesLegacy(view.bankId, view.accountId, view.viewId)
-      explictCounterpartiesBox match {
-        case Full((counterparties, callContext))=> {
-          val explictModeratedOtherBankAccounts: List[ModeratedOtherBankAccount] = counterparties.flatMap(BankAccountX.toInternalCounterparty).flatMap(counterparty=>view.moderateOtherAccount(counterparty))
-          Full(explictModeratedOtherBankAccounts ++ implicitModeratedOtherBankAccounts)
+       val moderatedOtherBankAccountListFuture: Future[Full[List[ModeratedOtherBankAccount]]] = for{
+        (implicitCounterpartyList, callContext) <- NewStyle.function.getCounterpartiesFromTransaction(bankId, accountId, callContext)
+        implicitModeratedOtherBankAccounts <- NewStyle.function.tryons(failMsg = InvalidJsonFormat, 400, callContext) {
+          implicitCounterpartyList.map(view.moderateOtherAccount).flatten
         }
-        case _ => Full(implicitModeratedOtherBankAccounts)
+        explicitCounterpartiesBox = Connector.connector.vend.getCounterpartiesLegacy(view.bankId, view.accountId, view.viewId)
+        explicitModeratedOtherBankAccounts <- NewStyle.function.tryons(failMsg = InvalidJsonFormat, 400, callContext) {
+          if(explicitCounterpartiesBox.isDefined)
+            explicitCounterpartiesBox.head._1.map(BankAccountX.toInternalCounterparty).flatMap(counterparty=>view.moderateOtherAccount(counterparty.head))
+          else
+            Nil
+        }
+      }yield{
+        Full(explicitModeratedOtherBankAccounts ++ implicitModeratedOtherBankAccounts)
       }
-    }
-    else
-      viewNotAllowed(view)
+      moderatedOtherBankAccountListFuture.map( i=> (i,callContext))
+    } else
+      Future{(viewNotAllowed(view), callContext)}
+      
   /**
     * @param the ID of the other bank account that the user want have access
     * @param the view that we will use to get the ModeratedOtherBankAccount
@@ -406,23 +413,29 @@ case class BankAccountExtended(val bankAccount: BankAccount) extends MdcLoggable
     * @return a Box of a ModeratedOtherBankAccounts, it a bank
     *  account that have at least one transaction in common with this bank account
     */
-  final def moderatedOtherBankAccount(counterpartyID : String, view : View, bankIdAccountId: BankIdAccountId, user : Box[User], callContext: Option[CallContext]) : Box[ModeratedOtherBankAccount] =
-    if(APIUtil.hasAccountAccess(view, bankIdAccountId, user, callContext))
-      Connector.connector.vend.getCounterpartyByCounterpartyIdLegacy(CounterpartyId(counterpartyID), None).map(_._1).flatMap(BankAccountX.toInternalCounterparty).flatMap(view.moderateOtherAccount) match {
-        //First check the explict counterparty
-        case Full(moderatedOtherBankAccount) => Full(moderatedOtherBankAccount)
-        //Than we checked the implict counterparty.
-        case _ => Connector.connector.vend.getCounterpartyFromTransaction(bankId, accountId, counterpartyID).flatMap(oAcc => view.moderateOtherAccount(oAcc))
+  final def moderatedOtherBankAccount(counterpartyID : String, view : View, bankIdAccountId: BankIdAccountId, user : Box[User], callContext: Option[CallContext]) : OBPReturnType[Box[ModeratedOtherBankAccount]] =
+    if(APIUtil.hasAccountAccess(view, bankIdAccountId, user, callContext)) {
+      for{
+        (counterparty, callContext) <- Connector.connector.vend.getCounterpartyByCounterpartyId(CounterpartyId(counterpartyID), callContext)
+        moderateOtherAccount <- if(counterparty.isDefined) {
+         Future{
+          counterparty.map(BankAccountX.toInternalCounterparty).flatten.map(view.moderateOtherAccount).flatten
+         }
+        } else {
+          Connector.connector.vend.getCounterpartyFromTransaction(bankId, accountId, counterpartyID, callContext).map(oAccTuple => view.moderateOtherAccount(oAccTuple._1.head))
+        }
+      } yield{
+        (moderateOtherAccount, callContext)
       }
-    else
-      viewNotAllowed(view)
-
+    } else {
+      Future{(viewNotAllowed(view),callContext)}
+    }
 }
 
 object BankAccountX {
 
   def apply(bankId: BankId, accountId: AccountId) : Box[BankAccount] = {
-    Connector.connector.vend.getBankAccountOld(bankId, accountId)
+    Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).map(_._1)
   }
 
   def apply(bankId: BankId, accountId: AccountId, callContext: Option[CallContext]) : Box[(BankAccount,Option[CallContext])] = {
@@ -439,30 +452,48 @@ object BankAccountX {
     *                          incoming: counterparty send money to obp account.
     * @return BankAccount
     */
-  def getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean) : Box[BankAccount] = {
-    if (
-      (counterparty.otherBankRoutingScheme =="OBP" || counterparty.otherBankRoutingScheme =="OBP_BANK_ID" )
-      && (counterparty.otherAccountRoutingScheme =="OBP" || counterparty.otherAccountRoutingScheme =="OBP_ACCOUNT_ID")
-    )
+  def getBankAccountFromCounterparty(counterparty: CounterpartyTrait, isOutgoingAccount: Boolean, callContext: Option[CallContext]) : Future[(Box[BankAccount], Option[CallContext])] = {
+    if (counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP_BANK_ID" )
+      && (counterparty.otherAccountRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherAccountRoutingScheme.equalsIgnoreCase("OBP_ACCOUNT_ID")))
       for{
-        toBankId <- Full(BankId(counterparty.otherBankRoutingAddress))
-        toAccountId <- Full(AccountId(counterparty.otherAccountRoutingAddress))
-        toAccount <- BankAccountX(toBankId, toAccountId) ?~! s"${ErrorMessages.BankNotFound} Current Value: BANK_ID(counterparty.otherBankRoutingAddress=$toBankId) and ACCOUNT_ID(counterparty.otherAccountRoutingAddress=$toAccountId), please use correct OBP BankAccount to create the Counterparty.!!!!! "
-      } yield{
-        toAccount
+        (_, callContext) <- NewStyle.function.getBank(BankId(counterparty.otherBankRoutingAddress), callContext)
+        (account, callContext) <- NewStyle.function.checkBankAccountExists(
+          BankId(counterparty.otherBankRoutingAddress),
+          AccountId(counterparty.otherAccountRoutingAddress),
+          callContext)
+      } yield {
+        (Full(account), callContext)
       }
-    else if (
-      (counterparty.otherBankRoutingScheme =="OBP" || counterparty.otherBankRoutingScheme =="OBP_BANK_ID" ) 
-        && (counterparty.otherAccountSecondaryRoutingScheme == "OBP" || counterparty.otherAccountSecondaryRoutingScheme == "OBP_ACCOUNT_ID")
-    )
+    else if (counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherBankRoutingScheme.equalsIgnoreCase("OBP_BANK_ID" ) 
+        && (counterparty.otherAccountSecondaryRoutingScheme.equalsIgnoreCase("OBP") || counterparty.otherAccountSecondaryRoutingScheme.equalsIgnoreCase("OBP_ACCOUNT_ID")))
       for{
-        toBankId <- Full(BankId(counterparty.otherBankRoutingAddress))
-        toAccountId <- Full(AccountId(counterparty.otherAccountSecondaryRoutingAddress))
-        toAccount <- BankAccountX(toBankId, toAccountId) ?~! s"${ErrorMessages.BankNotFound} Current Value: BANK_ID(counterparty.otherBankRoutingAddress=$toBankId) and ACCOUNT_ID(counterparty.otherAccountRoutingAddress=$toAccountId), please use correct OBP BankAccount to create the Counterparty.!!!!! "
+        (_, callContext) <- NewStyle.function.getBank(BankId(counterparty.otherBankRoutingAddress), callContext)
+        (account, callContext) <- NewStyle.function.checkBankAccountExists(
+          BankId(counterparty.otherBankRoutingAddress),
+          AccountId(counterparty.otherAccountSecondaryRoutingAddress),
+          callContext)
       } yield{
-        toAccount
+        (Full(account), callContext)
       }
-    else {
+    else if (counterparty.otherAccountRoutingScheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| counterparty.otherAccountRoutingScheme.equalsIgnoreCase("ACCOUNT_NO")){
+      for{
+        bankIdOption <- Future.successful(if(counterparty.otherBankRoutingAddress.isEmpty) None else Some(counterparty.otherBankRoutingAddress))
+        (account, callContext) <- NewStyle.function.getBankAccountByNumber(
+          bankIdOption.map(BankId(_)),
+          counterparty.otherAccountRoutingAddress,
+          callContext)
+      } yield {
+        (Full(account), callContext)
+      }
+    }else if (counterparty.otherAccountRoutingScheme.equalsIgnoreCase("IBAN")){
+      for{
+        (account, callContext) <- NewStyle.function.getBankAccountByIban(
+          counterparty.otherAccountRoutingAddress,
+          callContext)
+      } yield {
+        (Full(account), callContext)
+      }
+    } else {
       //in obp we are creating a fake account with the counterparty information in this case:
       //These are just the obp mapped mode, if connector to the bank, bank will decide it.
 
@@ -476,7 +507,7 @@ object BankAccountX {
       // Due to the new field in the database, old counterparty have void currency, so by default, we set it to EUR
       val counterpartyCurrency = if (counterparty.currency.nonEmpty) counterparty.currency else "EUR"
 
-      Full(BankAccountCommons(
+      Future{(Full(BankAccountCommons(
         AccountId(counterparty.otherAccountSecondaryRoutingAddress), "", 0,
         currency = counterpartyCurrency,
         name = counterparty.name,
@@ -494,7 +525,7 @@ object BankAccountX {
             value = counterparty.otherBankRoutingAddress
           ),
         ))
-      ))
+      )), callContext)}
     }
   }
 

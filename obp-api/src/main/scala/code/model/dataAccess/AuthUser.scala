@@ -96,6 +96,8 @@ class AuthUser extends MegaProtoUser[AuthUser] with CreatedUpdated with MdcLogga
   def getSingleton = AuthUser // what's the "meta" server
 
   object user extends MappedLongForeignKey(this, ResourceUser)
+  
+  object passwordShouldBeChanged extends MappedBoolean(this)
 
   override lazy val firstName = new MyFirstName
   
@@ -185,7 +187,7 @@ class AuthUser extends MegaProtoUser[AuthUser] with CreatedUpdated with MdcLogga
       case e if usernameRegex.findFirstMatchIn(e).isDefined => Nil
       case _                                                => List(FieldError(this, Text(msg)))
     }
-    override def displayName = S.?("Username")
+    override def displayName = Helper.i18n("Username")
     @deprecated("Use UniqueIndex(username, provider)","27 December 2021")
     override def dbIndexed_? = false // We use more general index UniqueIndex(username, provider) :: super.dbIndexes
     override def validations = isEmpty(Helper.i18n("Please.enter.your.username")) _ ::
@@ -350,8 +352,8 @@ class AuthUser extends MegaProtoUser[AuthUser] with CreatedUpdated with MdcLogga
     }
   }
 
-  def getResourceUserByUsername(provider: String, username: String) : Box[User] = {
-    Users.users.vend.getUserByUserName(provider, username)
+  def getResourceUserByProviderAndUsername(provider: String, username: String) : Box[User] = {
+    Users.users.vend.getUserByProviderAndUsername(provider, username)
   }
 
   override def save(): Boolean = {
@@ -398,7 +400,7 @@ class AuthUser extends MegaProtoUser[AuthUser] with CreatedUpdated with MdcLogga
     override def validate = i_is_! match {
       case null                  => List(FieldError(this, Text(Helper.i18n("Please.enter.your.email"))))
       case e if e.trim.isEmpty   => List(FieldError(this, Text(Helper.i18n("Please.enter.your.email"))))
-      case e if (!isEmailValid(e))  => List(FieldError(this, Text(S.?("invalid.email.address"))))
+      case e if (!isEmailValid(e))  => List(FieldError(this, Text(Helper.i18n("invalid.email.address"))))
       case _                     => Nil
     }
     override def _toForm: Box[Elem] =
@@ -509,7 +511,7 @@ import net.liftweb.util.Helpers._
             Constant.localIdentityProvider 
           else 
             user.provider.get
-        Users.users.vend.getUserByUserName(provider, user.username.get)
+        Users.users.vend.getUserByProviderAndUsername(provider, user.username.get)
       } else if (directLogin.isDefined) // Direct Login
         DirectLogin.getUser
       else if (hasDirectLoginHeader(authorization)) // Direct Login Deprecated
@@ -591,7 +593,7 @@ import net.liftweb.util.Helpers._
    * Overridden to use the hostname set in the props file
    */
   override def sendPasswordReset(name: String) {
-    findAuthUserByUsernameLocally(name).toList ::: findUsersByEmailLocally(name) map {
+    findAuthUserByUsernameLocallyLegacy(name).toList ::: findUsersByEmailLocally(name) map {
       // reason of case parameter name is "u" instead of "user": trait AuthUser have constant mumber name is "user"
       // So if the follow case paramter name is "user" will cause compile warnings
       case u if u.validated_? =>
@@ -655,7 +657,7 @@ import net.liftweb.util.Helpers._
   }
 
    def grantDefaultEntitlementsToAuthUser(user: TheUserType) = {
-     tryo{getResourceUserByUsername(user.getProvider(), user.username.get).head.userId} match {
+     tryo{getResourceUserByProviderAndUsername(user.getProvider(), user.username.get).head.userId} match {
        case Full(userId)=>APIUtil.grantDefaultEntitlementsToNewUser(userId)
        case _ => logger.error("Can not getResourceUserByUsername here, so it breaks the grantDefaultEntitlementsToNewUser process.")
      }
@@ -686,9 +688,9 @@ import net.liftweb.util.Helpers._
     val privacyPolicyValue: String = getWebUiPropsValue("webui_privacy_policy", "")
     val termsAndConditionsValue: String = getWebUiPropsValue("webui_terms_and_conditions", "")
     // User Agreement table
-    UserAgreementProvider.userAgreementProvider.vend.createOrUpdateUserAgreement(
+    UserAgreementProvider.userAgreementProvider.vend.createUserAgreement(
       theUser.user.foreign.map(_.userId).getOrElse(""), "privacy_conditions", privacyPolicyValue)
-    UserAgreementProvider.userAgreementProvider.vend.createOrUpdateUserAgreement(
+    UserAgreementProvider.userAgreementProvider.vend.createUserAgreement(
       theUser.user.foreign.map(_.userId).getOrElse(""), "terms_and_conditions", termsAndConditionsValue)
     if (!skipEmailValidation) {
       sendValidationEmail(theUser)
@@ -840,7 +842,7 @@ import net.liftweb.util.Helpers._
 
 
   def getResourceUserId(username: String, password: String): Box[Long] = {
-    findAuthUserByUsernameLocally(username) match {
+    findAuthUserByUsernameLocallyLegacy(username) match {
       // We have a user from the local provider.
       case Full(user) if (user.getProvider() == Constant.localIdentityProvider) =>
         if (
@@ -913,55 +915,10 @@ import net.liftweb.util.Helpers._
     * 3 if not existing, will create new AuthUser.
     * @return Return the authUser
     */
-  @deprecated("we have @checkExternalUserViaConnector method ","01-07-2020")
-  def getUserFromConnector(name: String, password: String):Box[AuthUser] = {
-    Connector.connector.vend.getUser(name, password) match {
-      case Full(InboundUser(extEmail, extPassword, extUsername)) => {
-        val extProvider = connector
-        val user = findAuthUserByUsernameLocally(name) match {
-          // Check if the external user is already created locally
-          case Full(user) if user.validated_?
-            // && user.provider == extProvider
-            => {
-            // Return existing user if found
-            logger.info("external user already exists locally, using that one")
-            user
-          }
-
-          // If not found, create a new user
-          case _ =>
-            // Create AuthUser using fetched data from connector
-            // assuming that user's email is always validated
-            logger.info("external user "+ extEmail +" does not exist locally, creating one")
-            val newUser = AuthUser.create
-              .firstName(extUsername)
-              .email(extEmail)
-              .username(extUsername)
-              // No need to store password, so store dummy string instead
-              .password(generateUUID())
-              .provider(extProvider)
-              .validated(true)
-            // Return created user
-            newUser.saveMe()
-        }
-        Full(user)
-      }
-      case _ => {
-        Empty
-      }
-    }
-  }
-  /**
-    * This method is belong to AuthUser, it is used for authentication(Login stuff)
-    * 1 get the user over connector.
-    * 2 check whether it is existing in AuthUser table in obp side.
-    * 3 if not existing, will create new AuthUser.
-    * @return Return the authUser
-    */
   def checkExternalUserViaConnector(username: String, password: String):Box[AuthUser] = {
     Connector.connector.vend.checkExternalUserCredentials(username, password, None) match {
       case Full(InboundExternalUser(aud, exp, iat, iss, sub, azp, email, emailVerified, name, userAuthContexts)) =>
-        val user = findAuthUserByUsernameLocally(sub) match { // Check if the external user is already created locally
+        val user = findAuthUserByUsernameAndProvider(sub, iss) match { // Check if the external user is already created locally
           case Full(user) if user.validated_? => // Return existing user if found
             logger.debug("external user already exists locally, using that one")
             userAuthContexts match {
@@ -1041,13 +998,13 @@ def restoreSomeSessions(): Unit = {
     def redirectUri(user: Box[ResourceUser]): String = {
       val userId = user.map(_.userId).getOrElse("")
       val hashedAgreementTextOfUser =
-        UserAgreementProvider.userAgreementProvider.vend.getUserAgreement(userId, "terms_and_conditions")
+        UserAgreementProvider.userAgreementProvider.vend.getLastUserAgreement(userId, "terms_and_conditions")
           .map(_.agreementHash).getOrElse(HashUtil.Sha256Hash("not set"))
       val agreementText = getWebUiPropsValue("webui_terms_and_conditions", "not set")
       val hashedAgreementText = HashUtil.Sha256Hash(agreementText)
-      if(hashedAgreementTextOfUser == hashedAgreementText) { // Chech terms and conditions
+      if(hashedAgreementTextOfUser == hashedAgreementText) { // Check terms and conditions
         val hashedAgreementTextOfUser =
-          UserAgreementProvider.userAgreementProvider.vend.getUserAgreement(userId, "privacy_conditions")
+          UserAgreementProvider.userAgreementProvider.vend.getLastUserAgreement(userId, "privacy_conditions")
             .map(_.agreementHash).getOrElse(HashUtil.Sha256Hash("not set"))
         val agreementText = getWebUiPropsValue("webui_privacy_policy", "not set")
         val hashedAgreementText = HashUtil.Sha256Hash(agreementText)
@@ -1111,6 +1068,7 @@ def restoreSomeSessions(): Unit = {
     }
 
     def isObpProvider(user: AuthUser) = {
+      // TODO Consider does http://host should match https://host in development mode
       user.getProvider() == Constant.localIdentityProvider
     }
 
@@ -1138,7 +1096,7 @@ def restoreSomeSessions(): Unit = {
             if(passwordEmptyField)
               S.error("login-form-password-error", Helper.i18n("please.enter.your.password"))
           case false =>
-            findAuthUserByUsernameLocally(usernameFromGui) match {
+            findAuthUserByUsernameLocallyLegacy(usernameFromGui) match {
               case Full(user) if !user.validated_? =>
                 S.error(S.?("account.validation.error"))
 
@@ -1162,6 +1120,7 @@ def restoreSomeSessions(): Unit = {
               case Full(user) if LoginAttempt.userIsLocked(user.getProvider(), usernameFromGui) =>
                 LoginAttempt.incrementBadLoginAttempts(user.getProvider(),usernameFromGui)
                 S.error(S.?(ErrorMessages.UsernameHasBeenLocked))
+                loginRedirect(ObpS.param("Referer").or(S.param("Referer")))
 
               // Check if user came from kafka/obpjvm/stored_procedure and
               // if User is NOT locked. Then check username and password
@@ -1253,17 +1212,9 @@ def restoreSomeSessions(): Unit = {
     * The user authentications is not exciting in obp side, it need get the user via connector
     */
  def testExternalPassword(usernameFromGui: String, passwordFromGui: String): Boolean = {
-   // TODO Remove kafka and obpjvm special cases
-   if (connector.startsWith("kafka")) {
-     getUserFromConnector(usernameFromGui, passwordFromGui) match {
-       case Full(user:AuthUser) => true
-       case _ => false
-     }
-   } else {
-     checkExternalUserViaConnector(usernameFromGui, passwordFromGui) match {
-       case Full(user:AuthUser) => true
-       case _ => false
-     }
+   checkExternalUserViaConnector(usernameFromGui, passwordFromGui) match {
+     case Full(user:AuthUser) => true
+     case _ => false
    }
   }
 
@@ -1271,21 +1222,11 @@ def restoreSomeSessions(): Unit = {
     * This method will update the views and createAccountHolder ....
     */
   def externalUserHelper(name: String, password: String): Box[AuthUser] = {
-    // TODO Remove kafka and obpjvm special cases
-    if (connector.startsWith("kafka") ) {
-      for {
-       user <- getUserFromConnector(name, password)
-       u <- Users.users.vend.getUserByUserName(user.getProvider(), name)
-      } yield {
-        user
-      }
-    } else {
-      for {
-        user <- checkExternalUserViaConnector(name, password)
-        u <- Users.users.vend.getUserByUserName(user.getProvider(), name)
-      } yield {
-        user
-      }
+    for {
+      user <- checkExternalUserViaConnector(name, password)
+      u <- Users.users.vend.getUserByProviderAndUsername(user.getProvider(), name)
+    } yield {
+      user
     }
   }
 
@@ -1296,7 +1237,7 @@ def restoreSomeSessions(): Unit = {
   def registeredUserHelper(provider: String,  username: String) = {
     if (connector.startsWith("kafka")) {
       for {
-       u <- Users.users.vend.getUserByUserName(provider, username)
+       u <- Users.users.vend.getUserByProviderAndUsername(provider, username)
       } yield {
         refreshUserLegacy(u, None)
       }
@@ -1595,13 +1536,18 @@ def restoreSomeSessions(): Unit = {
    * Only search at the local database.
    * Please note that provider is implicitly defined i.e. not provided via a parameter
    */
-  def findAuthUserByUsernameLocally(name: String): Box[TheUserType] = {
+  @deprecated("AuthUser unique key is username and provider, please use @findAuthUserByUsernameAndProvider instead.","06.06.2024")
+  def findAuthUserByUsernameLocallyLegacy(name: String): Box[TheUserType] = {
     // 1st try is provider with local_identity_provider or hostname value
     find(By(this.username, name), By(this.provider, Constant.localIdentityProvider))
       // 2nd try is provider with null value
       .or(find(By(this.username, name), NullRef(this.provider)))
       // 3rd try is provider with empty string value
       .or(find(By(this.username, name), By(this.provider, "")))
+  }
+
+  def findAuthUserByUsernameAndProvider(name: String, provider: String): Box[TheUserType] = {
+    find(By(this.username, name), By(this.provider, provider))
   }
   def findAuthUserByPrimaryKey(key: Long): Box[TheUserType] = {
     find(By(this.user, key))
@@ -1724,6 +1670,13 @@ def restoreSomeSessions(): Unit = {
         scrambledUser.save
       case Empty => true // There is a resource user but no the correlated Auth user 
       case _ => false // Error case
+    }
+  }
+
+  def validateAuthUser(userPrimaryKey: UserPrimaryKey): Box[AuthUser] = tryo {
+    AuthUser.find(By(AuthUser.user, userPrimaryKey.value)) match {
+      case Full(user) =>
+        user.validated(true).saveMe()
     }
   }
   

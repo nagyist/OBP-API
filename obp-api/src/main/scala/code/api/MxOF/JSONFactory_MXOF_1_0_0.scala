@@ -97,7 +97,7 @@ object JSONFactory_MXOF_0_0_1 extends CustomJsonFormats {
   final val BANK_ATTRIBUTE_LICENSE = "ATM_META_LICENCE"
   final val BANK_ATTRIBUTE_TERMSOFUSE = "ATM_META_TERMS_OF_USE"
   
-   def createGetAtmsResponse (banks: List[Bank], atms: List[AtmT], attributes:List[BankAttribute]) :GetAtmsResponseJson = {
+   def createGetAtmsResponse (banks: List[Bank], atms: List[AtmT], attributes:List[BankAttributeTrait]) :GetAtmsResponseJson = {
      def access24HoursIndicator (atm: AtmT) = {
        atm.OpeningTimeOnMonday.equals(Some("00:00")) && atm.ClosingTimeOnMonday.equals(Some("23:59"))
        atm.OpeningTimeOnTuesday.equals(Some("00:00")) && atm.ClosingTimeOnTuesday.equals(Some("23:59"))

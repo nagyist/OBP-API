@@ -1,10 +1,11 @@
 package code.api.util
 
 import java.io.File
-
+import code.api.Constant
 import code.api.Constant.{PARAM_LOCALE, directLoginHeaderName}
 import code.api.util.APIUtil.{getObpApiRoot, getServerUrl}
 import code.api.util.ExampleValue.{accountIdExample, bankIdExample, customerIdExample, userIdExample}
+
 import code.util.Helper.MdcLoggable
 import code.util.HydraUtil
 import code.webuiprops.MappedWebUiPropsProvider.getWebUiPropsValue
@@ -55,6 +56,19 @@ object Glossary extends MdcLoggable  {
 			case None => "glossary-item-simple-not-found"
 		}
 		//logger.debug(s"getGlossaryItemSimple says the text to return is $something")
+		something
+	}
+
+	def getGlossaryItemLink(title: String): String = {
+		// This function just returns a link to the Glossary Item in question.
+		// Can reduce bandwith and maybe make things semantically clearer if we use links instead of includes.
+
+		val something = glossaryItems.find(_.title.toLowerCase == title.toLowerCase) match {
+			case Some(foundItem) =>
+				// We use the title because anchors are case sensitive, but we find it so we can log / display not found.
+				s"""[here](/glossary#${title})"""
+			case None => "glossary-item-link-not-found"
+		}
 		something
 	}
 
@@ -115,18 +129,6 @@ object Glossary extends MdcLoggable  {
 	// NOTE! Some glossary items are defined in ExampleValue.scala
 
 
-	//implicit val formats = CustomJsonFormats.formats
-	//val prettyJson: String = extraction(decompose(authInfoExample))
-
-
-	/*
-
-
-
-
-	 */
-
-
 	val latestKafkaConnector : String = "kafka_vSept2018"
 
 	def messageDocLink(process: String) : String = {
@@ -138,8 +140,12 @@ object Glossary extends MdcLoggable  {
 		s"""<a href="/message-docs?connector=$latestAkkaConnector#$process">$process</a>"""
 	}
 
-
-
+	// Note: this doesn't get / use an OBP version
+	def getApiExplorerLink(title: String, operationId: String) : String = {
+		val apiExplorerPrefix = APIUtil.getPropsValue("webui_api_explorer_url", "")
+		// Note: This is hardcoded for API Explorer II
+		s"""<a href="$apiExplorerPrefix/operationid/$operationId">$title</a>"""
+	}
 
 	glossaryItems += GlossaryItem(
 		title = "Cheat Sheet",
@@ -175,7 +181,6 @@ object Glossary extends MdcLoggable  {
 				 				 |
 				 |[API Tester](https://github.com/OpenBankProject/API-Tester/blob/master/README.md)
 				 				 |
-
 				 				 |
 """)
 
@@ -599,7 +604,7 @@ object Glossary extends MdcLoggable  {
 |
 |* APIs are enabled in Props. See the README.md
 |
-|* Consumers (Apps) are granted access to Roles and Views via Scopes (WIP)
+|* Consumers (AKA Clients or Apps) are granted access to Roles and Views via Scopes
 |
 |See [here](/index#group-Scope) for related endpoints and documentation.
 |
@@ -739,7 +744,16 @@ object Glossary extends MdcLoggable  {
 		s"""
 		  |The "consumer" of the API, i.e. the web, mobile or serverside "App" that calls on the OBP API on behalf of the end user (or system).
 		  |
-		  |Each Consumer has a consumer key and secrect which allows it to enter into secure communication with the API server.
+		  |Each Consumer has a consumer key and secret which allows it to enter into secure communication with the API server.
+			|
+			|A Consumer is given a Consumer ID (a UUID) which appears in logs and messages to the backend.
+			|
+			|A Consumer may be pinned to an mTLS certificate i.e. the consumer record in the database is given a field which matches the PEM representation of the certificate.
+			|
+			|After pinning, the consumer must present the certificate in all communication with the server.
+			|
+			|There is a one to one relationship between a Consumer and its certificate. i.e. OBP does not (currently) store the history of certificates bound to a Consumer. If a certificate expires, the third party provider (TPP) must generate a new consumer using a new certificate. In this case, related resources such as rate limits and scopes must be copied from the old consumer to the new consumer. In the future, OBP may store multiple certificates for a consumer, but a certificate will always identify only one consumer record.
+			|
 		""")
 
 	  glossaryItems += GlossaryItem(
@@ -753,7 +767,7 @@ object Glossary extends MdcLoggable  {
 	glossaryItems += GlossaryItem(
 		title = "client_id (Client ID)",
 		description =
-			s"""Please take a look at a Consumer.consumer_key""".stripMargin)
+			s"""Please see Consumer.consumer_key""".stripMargin)
 
 	  glossaryItems += GlossaryItem(
 		title = "Customer",
@@ -767,7 +781,7 @@ object Glossary extends MdcLoggable  {
 		title = "Customer.customer_id",
 		description =
 		  s"""
-			|The identifier that MUST NOT leak the customer number or other identifier nomrally used by the customer or bank staff. It SHOULD be a UUID and MUST be unique in combination with BANK_ID.
+			|The identifier that MUST NOT leak the customer number or other identifier normally used by the customer or bank staff. It SHOULD be a UUID and MUST be unique in combination with BANK_ID.
 			|
 			|Example value: ${customerIdExample.value}
 		  """)
@@ -801,7 +815,7 @@ object Glossary extends MdcLoggable  {
 |Account: A
 |Currency: EUR
 |Amount: -5
-|Counterparty: Account B
+|CounterpartyCounterpartyCounterparty: Account B
 |
 |Transaction 2.
 |
@@ -859,14 +873,14 @@ object Glossary extends MdcLoggable  {
 		title = "User.provider",
 		description =
 		  """
-			|The name of the authentication service. e.g. the OBP hostname or kafka if users are authenticated over Kafka.
+			|The host name of the authentication service. e.g. the OBP hostname or OIDC host.
 		  """)
 
 	  glossaryItems += GlossaryItem(
 		title = "User.provider_id",
 		description =
 		  """
-			|The id of the user given by the authentication provider.
+			|The id of the user given by the authentication provider. This is UNIQUE in combination with PROVIDER name.
 		  """)
 
 	  glossaryItems += GlossaryItem(
@@ -879,15 +893,70 @@ object Glossary extends MdcLoggable  {
 	  glossaryItems += GlossaryItem(
 		title = "Consent",
 		description =
-			s"""Consents provide a mechanism by which a third party App or User can access resources on behalf of a User.
-				|${getGlossaryItem("Consent OBP Flow Example")}
-				|${getGlossaryItem("Consent / Account Onboarding")}
+			s"""Consents provide a mechanism through which a resource owner (e.g. a customer) can grant a third party certain access to their resources.
+|
+|The following are important considerations in Consent flows:
+|
+|1) The privacy of the resource owner (the Customer or User) should be preserved.
+|
+|This means that when a TPP first asks a User if they would like to provide their data, the user should not be authenticated.
+|Thus the start of the Consent process authenticates the Client (TPP) but not the User.
+|
+|Authentication of the user comes later.
+|
+|${getApiExplorerLink("This endpoint initiates a consent in OBP", "OBPv5.0.0-createConsentRequest")}
+|
+|2) Consent finalisation often involves SCA.
+|
+|Since a consent gives its holder privileges on the API, we need to make sure it is not created lightly, therefore some second factor of authentication is employed.
+|
+|${getApiExplorerLink("This endpoint finalises an OBP consent", "OBPv5.0.0-createConsentByConsentRequestIdSms")}
+|
+|3) A User should be able to list and revoke their consents.
+|
+|
+|
+|${getApiExplorerLink("This endpoint lists consents for the authenticated user.", "OBPv5.1.0-getMyConsents")}
+|
+|${getApiExplorerLink("This endpoint revokes a consent for the current user.", "OBPv3.1.0-revokeConsent")}
+|
+|This gives the user visibility over the consents they have granted to various apps for various purposes and confidence they can stop the TPP acting for a certain purpose.
+|
+|4) The consent manager should be able to list and revoke consents.
+|
+|${getApiExplorerLink("This is a management endpoint lists consents with various query parameters", "OBPv5.1.0-getConsentsAtBank")}
+|
+|${getApiExplorerLink("This is a management endpoint to revoke a consent", "OBPv5.1.0-revokeConsentAtBank")}
+|
+|The consent manager may want to list the consents by each Client or User and the ability to revoke individual consents (rather than disabling a client completely).
+|
+|This requires that the resource server stores the CONSENT_ID and other information so that it can be disabled or queried.
+|
+|However, the consent manager should not be able to see the CONSENT_ID since this would make it easier to actually use it.
+|
+|5) A consent is bound to the application has created it.
+|
+|The User gave consent to a certain application not any application.
+|
+|6) The consent will have a limited life time.
+|
+|The consent can become valid in the future and need not last forever.
+|
+|7) The consent will be signed using JWT.
+|
+|This increases the security of the claims contained in the consent.
+|
+|
+|
+				|See ${getGlossaryItemLink("Consent_OBP_Flow_Example")} for an example flow.
+				|See ${getGlossaryItemLink("Consent_Account_Onboarding")} for more information about onboarding.
+|
 				|<img width="468" alt="OBP Access Control Image" src="$getServerUrl/media/images/glossary/OBP_Consent_Request__3_.png"></img>
 				|""".stripMargin)
 
 
 	glossaryItems += GlossaryItem(
-		title = "Consent OBP Flow Example",
+		title = "Consent_OBP_Flow_Example",
 		description =
 				s"""
 					|#### 1) Call endpoint Create Consent Request using application access (Client Credentials)
@@ -1018,7 +1087,7 @@ object Glossary extends MdcLoggable  {
 
 
 	glossaryItems += GlossaryItem(
-		title = "Consent / Account Onboarding",
+		title = "Consent_Account_Onboarding",
 		description =
 				"""|*Consent*, or *Account onboarding*, is the process by which the account owner gives permission for their account(s) to be accessible to the API endpoints.
 |
@@ -1061,7 +1130,73 @@ object Glossary extends MdcLoggable  {
 
 
 
-	  glossaryItems += GlossaryItem(
+	glossaryItems += GlossaryItem(
+		title = "Authentication",
+		description =
+			s"""
+			|Authentication generally refers to a set of processes which result in a resource server (in this case, OBP-API) knowing about the User and/or Application that is making the http request it receives.
+|
+|In most cases when we talk about authentication we are thinking about User authentication, e.g. the user J.Brown is requesting data from the API.
+|However, user authentication is pretty much always accompanied by knowledge of the Client AKA Consumer, TPP or Application.
+|In some cases, we only perform Client authentication which results in knowledge of the Application but not the human that is making the call. This is useful when we want to protect the identity of a user but still want to control access to the API.
+|
+|In most cases, OBP-API server knows about at least two entities involved in the http request / call: The Client and the User - but it will also know about (and trust) the Identity Server (Provider) that authenticated the user and other elements in the chain of trust such as load balancers and certificate authorities.
+|
+|In simple terms, there are two phases of the Authentication process:
+|
+|1) The phase where an authorisation token is obtained.
+|2) The phase where an authorisation token is used.
+|
+|Phase 1 is an exchange of credentials such as a username and password and possibly knowledge of a "second factor" for a token.
+|
+|Phase 2 is the execution of an http call which contains the token in a "header" in exchange for some response data or some resource being created, update or deleted.
+|
+|There are several methods of obtaining and using a token which vary in their ease of use and security.
+|
+|Direct Login and OAuth 1.0a are used for testing purposes / local installations and are built into OBP.
+|
+|OAuth2 / Open ID Connect (OIDC) depend on the configuration of Identity Provider solutions such as Keycloak or Hydra or external services such as Google or Yahoo.
+|
+|Open Bank Project can support multiple identity providers per OBP instance. For example, for a single OBP installation, some Users could authenticate against Google and some could authenticate against a local identity provider.
+|In the cases where multiple identity providers are configured, OBP differentiates between Users by not only their Username but also by their "Identity Provider". i.e. J.Brown logged in via Google is distinct from J.Brown who logged in via a local OBP instance.
+|
+|Phase 1 generally results in a temporary token i.e. a token that is valid for a limited amount of time e.g. 2 hours or 3 minutes.
+|
+|Phase 1 might also result in a token that represents a subset of the User's full permissions. This token is generally called a Consent. i.e. a User might give consent for an application to access one of her accounts but not all of them. A Consent is generally given to a Client and bound to that Client i.e. no other application may use it.
+|
+|Phase 2 results in OBP having identified a User record in the OBP database so that Authorisation can proceed.
+|
+""")
+
+
+	glossaryItems += GlossaryItem(
+		title = "Authorization",
+		description =
+			s"""
+|If Authentication involves the process of determining the *identity* of a user or application, Authorization involves the process of determining *what* the user or application can do.
+|
+|In OBP, Endpoints are protected by "Guards".
+|
+|There are two types of permissions which can be granted:
+|
+|1) *Entitlements to Roles* provide course grained access to resources which are related to the OBP system or a bank / space e.g. CanCreateAtm would allow the holder to create an ATM record.
+|
+|2) *Account Access records* provide fine grained permissions to customer bank accounts, their transactions and payments through Views. e.g. the A User with the Balances View on Account No 12345 would be allowed to get the balances on that account.
+|
+|Both types of permissions can be encapsulated in Consents or other authentication mechanisms.
+|
+|When OBP receives a call, after authentication is performed, OBP checks if the caller has sufficient permissions.
+|
+|If an endpoint guard blocks a call due to insufficient permissions / authorization, OBP will return an OBP- error message.
+|
+|If the caller passes the guards, the OBP-API forwards the request to the next step in the process.
+|
+|Note: All OBP- error messages can be found in the OBP-API logs and OBP source code for debugging purposes.
+""")
+
+
+
+	glossaryItems += GlossaryItem(
 		title = "Direct Login",
 		description =
 		  s"""
@@ -1599,7 +1734,7 @@ object Glossary extends MdcLoggable  {
 |
 |### 3) Authentication and Authorisation
 |
-|Depending on the configuration of this OBP instance, the Consumer will need Scopes and / or the User will need Entitlements.
+|Depending on the configuration of this OBP instance, and the endpoints being called, the Consumer / Client may need Scopes and / or the User may need Entitlements and Account Access.
 |To get started, we suggest requesting Entitlements via the API Explorer.
 |
 |### 4) Endpoints
@@ -1752,7 +1887,7 @@ object Glossary extends MdcLoggable  {
 |
 |Body:
 |
-|	{  "everything":false,  "views":[{    "bank_id":"gh.29.uk",    "account_id":"8ca8a7e4-6d02-40e3-a129-0b2bf89de9f0",    "view_id":"owner"  }],  "entitlements":[{    "bank_id":"gh.29.uk",    "role_name":"CanGetCustomer"  }],  "consumer_id":"7uy8a7e4-6d02-40e3-a129-0b2bf89de8uh",  "phone_number":"+44 07972 444 876",  "valid_from":"2022-04-29T10:40:03Z",  "time_to_live":3600}
+|	{  "everything":false,  "views":[{    "bank_id":"gh.29.uk",    "account_id":"8ca8a7e4-6d02-40e3-a129-0b2bf89de9f0",    "view_id":${Constant.SYSTEM_OWNER_VIEW_ID}],  "entitlements":[{    "bank_id":"gh.29.uk",    "role_name":"CanGetCustomer"  }],  "consumer_id":"7uy8a7e4-6d02-40e3-a129-0b2bf89de8uh",  "phone_number":"+44 07972 444 876",  "valid_from":"2022-04-29T10:40:03Z",  "time_to_live":3600}
 |
 |Headers:
 |
@@ -2143,7 +2278,7 @@ object Glossary extends MdcLoggable  {
         |
         |${APIUtil.getHydraPublicServerUrl}/oauth2/auth?client_id=YOUR-CLIENT-ID&response_type=code&state=GENERATED_BY_YOUR_APP&scope=openid+offline+ReadAccountsBasic+ReadAccountsDetail+ReadBalances+ReadTransactionsBasic+ReadTransactionsDebits+ReadTransactionsDetail&redirect_uri=https%3A%2F%2FYOUR-APP.com%2Fmain.html
         |
-        |### Step 3: Exchange the authorisation code for an access token
+        |### Step 3: Exchange the code for an access token
         |
         |The token endpoint is:
         |
@@ -2154,7 +2289,7 @@ object Glossary extends MdcLoggable  {
         |
         |In this sandbox, this will cause the following flow:
         |
-        |1) The User is authorised using OAuth2 / OpenID Connect against the banks authentication system
+        |1) The User is authenticated using OAuth2 / OpenID Connect against the banks authentication system
         |2) The User grants consent to the App on the bank's Consent page.
         |3) The User grants access to one or more accounts that they own on the bank's Account Selection page
         |4) The User is redirected back to the App where they can now see the Accounts they have selected.
@@ -2320,10 +2455,10 @@ object Glossary extends MdcLoggable  {
 |# Define comma separated list of allowed IP addresses
 |# gateway.host=127.0.0.1
 |# Define secret used to validate JWT token
-|# jwt.token_secret=your-at-least-256-bit-secret-token
+|# jwt_token_secret=your-at-least-256-bit-secret-token
 |# -------------------------------------- Gateway login --
 |```
-|Please keep in mind that property jwt.token_secret is used to validate JWT token to check it is not changed or corrupted during transport.
+|Please keep in mind that property jwt_token_secret is used to validate JWT token to check it is not changed or corrupted during transport.
 |
 |### 2) Create / have access to a JWT
 |
@@ -3342,7 +3477,107 @@ object Glossary extends MdcLoggable  {
    |These parts are intended to be used with <a href="https://tools.ietf.org/html/rfc6749" target="_blank">RFC6749</a>, <a href="https://tools.ietf.org/html/rfc6750" target="_blank">RFC6750</a>, <a href="https://tools.ietf.org/html/rfc7636" target="_blank">RFC7636</a>, and <a href="https://openid.net/specs/openid-connect-core-1_0.html" target="_blank">OIDC</a>.
 	 |""".stripMargin)
 
-		glossaryItems += GlossaryItem(
+	glossaryItems += GlossaryItem(
+		title = "Transaction-Request-Introduction",
+		description =
+			s"""
+   |In OBP we initiate a Payment by creating a Transaction Request.
+   |
+	 |An OBP `transaction request` may or may not result in a `transaction`. However, a `transaction` only has one possible state: completed.
+	 |
+	 |A `Transaction Request` can have one of several states: INITIATED, NEXT_CHALLENGE_PENDING etc.
+	 |
+	 |`Transactions` are modeled on items in a bank statement that represent the movement of money.
+	 |
+	 |`Transaction Requests` are requests to move money which may or may not succeed and thus result in a `Transaction`.
+	 |
+	 |A `Transaction Request` might create a security challenge that needs to be answered before the `Transaction Request` proceeds.
+	 |In case 1 person needs to answer security challenge we have next flow of state of an `transaction request`:
+	 |  INITIATED => COMPLETED
+	 |In case n persons needs to answer security challenge we have next flow of state of an `transaction request`:
+	 |  INITIATED => NEXT_CHALLENGE_PENDING => ... => NEXT_CHALLENGE_PENDING => COMPLETED
+	 |
+	 |The security challenge is bound to a user i.e. in case of right answer and the user is different than expected one the challenge will fail.
+	 |
+	 |Rule for calculating number of security challenges:
+	 |If product Account attribute REQUIRED_CHALLENGE_ANSWERS=N then create N challenges
+	 |(one for every user that has a View where permission "can_add_transaction_request_to_any_account"=true)
+	 |In case REQUIRED_CHALLENGE_ANSWERS is not defined as an account attribute default value is 1.
+	 |
+	 |Transaction Requests contain charge information giving the client the opportunity to proceed or not (as long as the challenge level is appropriate).
+	 |
+	 |Transaction Requests can have one of several Transaction Request Types which expect different bodies. The escaped body is returned in the details key of the GET response.
+	 |This provides some commonality and one URL for many different payment or transfer types with enough flexibility to validate them differently.
+	 |
+	 |The payer is set in the URL. Money comes out of the BANK_ID and ACCOUNT_ID specified in the URL.
+	 |
+	 |In sandbox mode, TRANSACTION_REQUEST_TYPE is commonly set to ACCOUNT. See getTransactionRequestTypesSupportedByBank for all supported types.
+	 |
+	 |In sandbox mode, if the amount is less than 1000 EUR (any currency, unless it is set differently on this server), the transaction request will create a transaction without a challenge, else the Transaction Request will be set to INITIALISED and a challenge will need to be answered.
+	 |
+	 |If a challenge is created you must answer it using Answer Transaction Request Challenge before the Transaction is created.
+	 |
+	 |You can transfer between different currency accounts. (new in 2.0.0). The currency in body must match the sending account.
+	 |
+	 |For exchange rates in this sandbox see here: ${Glossary.getGlossaryItemLink("FX-Rates")}
+	 |
+	 |Transaction Requests satisfy PSD2 requirements thus:
+	 |
+	 |1) A transaction can be initiated by a third party application.
+	 |
+	 |2) The customer is informed of the charge that will incurred.
+	 |
+	 |3) The call supports delegated authentication (OAuth)
+	 |
+	 |See [this python code](https://github.com/OpenBankProject/Hello-OBP-DirectLogin-Python/blob/master/hello_payments.py) for a complete example of this flow.
+	 |
+	 |There is further documentation [here](https://github.com/OpenBankProject/OBP-API/wiki/Transaction-Requests)
+	 |
+	 |
+   |
+	 |""".stripMargin)
+
+//	val exchangeRates =
+//		APIUtil.getPropsValue("webui_api_explorer_url", "") +
+//			"/more?version=OBPv4.0.0&list-all-banks=false&core=&psd2=&obwg=#OBPv2_2_0-getCurrentFxRate"
+
+	glossaryItems += GlossaryItem(
+		title = "FX-Rates",
+		description =
+			s"""You can use the following endpoint to get the FX Rates available on this OBP instance: ${getApiExplorerLink("Get FX Rates", "OBPv2.2.0-getCurrentFxRate")}
+|
+|""".stripMargin)
+
+	glossaryItems += GlossaryItem(
+		title = "Counterparty-Limits",
+		description =
+			s"""Counterparty Limits can be used to restrict payment (Transaction Request) amounts and frequencies (per month, year, total) that can be made to a Counterparty (Beneficiary).
+				 |
+|Counterparty Limits can be used to limit both single or repeated payments (VRPs) to a Counterparty Beneficiary.
+|
+|Counterparty Limits reference a counterparty_id (a UUID) rather an an IBAN or Account Number.
+|This means it is possible to have multiple Counterparties that refer to the same external bank account.
+|In other words, a Counterparty Limit restricts an OBP Counterparty rather than a certain IBAN or other Bank Account Number.
+|
+|Since Counterparties are bound to OBP Views it is possible to create similar Counterparties used by different Views. This is by design i.e. a Two Users called Accountant1 could Accountant2 could create their own Views and Counterparties referencing the same corporation but still have their own limits say for different cost centers.
+|
+|To manually create and use a Counterparty Limit via a Consent for Variable Recurring Payments (VRP) you would:
+				 |1) Create a Custom View named e.g. VRP1.
+				 |2) Place a Beneficiary Counterparty on that view.
+				 |3) Add Counterparty Limits for that Counterparty.
+				 |4) Generate a Consent containing the bank, account and view (e.g. VRP1)
+				 |5) Let the App use the consent to trigger Transaction Requests.
+|
+|However, you can use the following ${Glossary.getApiExplorerLink("endpoint", "OBPv5.1.0-createVRPConsentRequest")} to automate the above steps.
+|
+				 |""".stripMargin)
+
+
+
+
+
+
+	glossaryItems += GlossaryItem(
 			title = "FAPI 2.0",
 			description =
 				s"""FAPI 2.0 has a broader scope than FAPI 1.0.
@@ -3363,6 +3598,66 @@ object Glossary extends MdcLoggable  {
 					 |* <a href="https://openid.net/specs/fapi-2_0-baseline-01.html">FAPI 2</a>
 					 |* <a href="https://bitbucket.org/openid/fapi/src/master/FAPI_2_0_Advanced_Profile.md">FAPI 2 Message Signing:</a>
 					 |""".stripMargin)
+
+	glossaryItems += GlossaryItem(
+		title = "Counterparties",
+		description =
+			s"""
+|
+|In OBP, there are two types of Counterparty:
+|
+|* Explicit Counterparties are created by calling an OBP endpoint - mainly for the purpose of creating a payment or variable recurring payments (VRPs) via Transaction Requests.
+|
+|* Implicit Counterparties (or "Other Accounts") are generated automatically from transactions - mainly for the purpose of tagging or adding other metadata.
+|
+|Counterparties always bound to a "View" on an Account. In this way, different managers of an account can use different sets of beneficiaries.
+|
+|Counterparties can be thought of the other side of of a transaction i.e. the other account or other party.
+|
+|Common fields in a Counterparty are:
+|
+|- id : A UUID which references it.
+|
+|- name : the human readable name (e.g. Piano teacher)
+|
+|- description : the human readable name (e.g. Piano teacher)
+|
+|- currency : account currency (e.g. EUR, GBP, USD, ...)
+|
+|- other_bank_routing_scheme : eg: 'OBP', 'BIC', 'bankCode' etc
+|
+|- other_bank_routing_address : eg: `gh.29.uk` - it must be a valid example of the scheme and may be validated for existance.
+|
+|- other_account_routing_scheme : eg: 'OBP', 'IBAN', 'AccountNumber' etc.
+|
+|- other_account_routing_address : eg: `1d65db7c-a7b2-4839-af41-95` -  a valid example of the scheme which may be validated for existance.
+|
+|The above fields describe how the backend can route payments to the counterparty.
+|
+|Alternative routings might be useful as well:
+|
+|- other_account_secondary_routing_scheme : An alternative routing scheme
+|
+|- other_account_secondary_routing_address : If it is an IBAN value, it should be unique for each counterparty.
+|
+|- other_branch_routing_scheme : eg: OBP or other branch scheme
+|
+|- other_branch_routing_address : eg: `branch-id-123. Unlikely to be used in sandbox mode.
+|
+|In order to send payments to a counterparty:
+|
+|- is_beneficiary : must be set to `true`
+|
+|If the backend wants to transmit other information we can use:
+|
+| - bespoke: A list of key-value pairs can be added to the counterparty.
+|
+|Note: In order to add a Counterparty to a View, the view must have the canAddCounterparty permission
+|
+|Counterparties may have Limits have setup for them which constrain payments made to them through Variable Recurring Payments (VRP).
+					 |
+					 |""".stripMargin)
+
 
 
 	private def getContentFromMarkdownFile(path: String): String = {

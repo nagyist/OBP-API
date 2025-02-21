@@ -1,7 +1,7 @@
 package code.bankaccountcreation
 
 import code.api.util.ErrorMessages._
-import code.bankconnectors.Connector
+import code.bankconnectors.{Connector, LocalMappedConnectorInternal}
 import code.setup.{DefaultConnectorTestSetup, DefaultUsers, ServerSetup}
 import com.openbankproject.commons.model.{AccountId, BankId}
 import org.scalatest.Tag
@@ -61,10 +61,13 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       Connector.connector.vend.getBanksLegacy(None).map(_._1).openOrThrowException(attemptedToOpenAnEmptyBox).size should equal(0)
 
       When("We create an account at that bank")
-      val (_, returnedAccount) = Connector.connector.vend.createBankAndAccount(
+      val (_, returnedAccount) = LocalMappedConnectorInternal.createBankAndAccount(
         bankName, bankNationalIdentifier, accountNumber, accountType,
         accountLabel, currency, accountHolderName,
-        "","", "" //added field in V220
+        "",
+        "", 
+        "",
+        None//added field in V220
       ).openOrThrowException(attemptedToOpenAnEmptyBox)
 
       Then("A bank should now exist, with the correct parameters")
@@ -75,7 +78,7 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       newBank.nationalIdentifier should equal(bankNationalIdentifier)
 
       And("An account should now exist, with the correct parameters")
-      val foundAccountBox = Connector.connector.vend.getBankAccountOld(newBank.bankId, returnedAccount.accountId)
+      val foundAccountBox = Connector.connector.vend.getBankAccountLegacy(newBank.bankId, returnedAccount.accountId, None).map(_._1)
       foundAccountBox.isDefined should equal(true)
       val foundAccount = foundAccountBox.openOrThrowException(attemptedToOpenAnEmptyBox)
 
@@ -93,13 +96,14 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
 
 
       When("We create an account at that bank")
-      val (_, returnedAccount) = Connector.connector.vend.createBankAndAccount(
+      val (_, returnedAccount) = LocalMappedConnectorInternal.createBankAndAccount(
         existingBank.fullName, 
         existingBank.nationalIdentifier, 
         accountNumber,
         accountType, accountLabel, currency, 
         accountHolderName,
-        "","", "" //added field in V220
+        "","", "",
+        None//added field in V220
       ).openOrThrowException(attemptedToOpenAnEmptyBox)
 
       Then("No new bank should be created")
@@ -109,7 +113,7 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       allBanksAfter(0).nationalIdentifier should equal(existingBank.nationalIdentifier)
 
       And("An account should now exist, with the correct parameters")
-      val foundAccountBox = Connector.connector.vend.getBankAccountOld(existingBank.bankId, returnedAccount.accountId)
+      val foundAccountBox = Connector.connector.vend.getBankAccountLegacy(existingBank.bankId, returnedAccount.accountId, None).map(_._1)
       foundAccountBox.isDefined should equal(true)
       val foundAccount = foundAccountBox.openOrThrowException(attemptedToOpenAnEmptyBox)
 
@@ -135,7 +139,7 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       Connector.connector.vend.getBankLegacy(bankId, None).map(_._1).isDefined should equal(false)
 
       When("We try to create an account at that bank")
-      Connector.connector.vend.createSandboxBankAccount(
+      LocalMappedConnectorInternal.createSandboxBankAccount(
         bankId, accountId, defaultAccountNumber, 
         accountType, accountLabel,
         currency, initialBalance, accountHolderName,
@@ -144,7 +148,7 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       ) 
 
       Then("No account is created")
-      Connector.connector.vend.getBankAccountOld(bankId, accountId).isDefined should equal(false)
+      Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).isDefined should equal(false)
 
     }
 
@@ -154,11 +158,11 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       Connector.connector.vend.getBankLegacy(bankId, None).map(_._1).isDefined should equal(true)
 
       When("We try to create an account at that bank")
-      Connector.connector.vend.createSandboxBankAccount(bankId, accountId, defaultAccountNumber, accountType, accountLabel, currency, initialBalance, accountHolderName,
+      LocalMappedConnectorInternal.createSandboxBankAccount(bankId, accountId, defaultAccountNumber, accountType, accountLabel, currency, initialBalance, accountHolderName,
                                                         "", List.empty )
 
       Then("An account with the proper parameters should be created")
-      val createdAccBox = Connector.connector.vend.getBankAccountOld(bankId, accountId)
+      val createdAccBox = Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).map(_._1)
       createdAccBox.isDefined should be(true)
       val createdAcc = createdAccBox.openOrThrowException(attemptedToOpenAnEmptyBox)
 
@@ -176,11 +180,11 @@ class BankAccountCreationTest extends ServerSetup with DefaultUsers with Default
       Connector.connector.vend.getBankLegacy(bankId, None).map(_._1).isDefined should equal(true)
 
       When("We try to create an account at that bank")
-      Connector.connector.vend.createBankAccountLegacy(bankId, accountId, accountType, accountLabel, currency, initialBalance, accountHolderName,
+      LocalMappedConnectorInternal.createBankAccountLegacy(bankId, accountId, accountType, accountLabel, currency, initialBalance, accountHolderName,
                                                         "", List.empty)
 
       Then("An account with the proper parameters should be created")
-      val createdAccBox = Connector.connector.vend.getBankAccountOld(bankId, accountId)
+      val createdAccBox = Connector.connector.vend.getBankAccountLegacy(bankId, accountId, None).map(_._1)
       createdAccBox.isDefined should be(true)
       val createdAcc = createdAccBox.openOrThrowException(attemptedToOpenAnEmptyBox)
 

@@ -46,7 +46,7 @@ package code.model.dataAccess {
   import code.accountholders.AccountHolders
   import code.api.Constant._
   import code.api.util.{APIUtil, CallContext}
-  import code.bankconnectors.Connector
+  import code.bankconnectors.{Connector, LocalMappedConnectorInternal}
   import code.users.Users
   import code.util.Helper.MdcLoggable
   import code.views.Views
@@ -131,13 +131,16 @@ package code.model.dataAccess {
           val result = for {
             user <- foundUser ?~!
               s"user ${message.accountOwnerId} at ${message.accountOwnerProvider} not found. Could not create the account with owner view"
-            (_, bankAccount) <- Connector.connector.vend.createBankAndAccount(
+            (_, bankAccount) <- LocalMappedConnectorInternal.createBankAndAccount(
               message.bankName,
               message.bankIdentifier,
               message.accountNumber,
               accountType, accountLabel,
               currency, user.name,
-              "","","" //added field in V220
+              "",
+              "",
+              "", //added field in V220
+              None
             )
           } yield {
             logger.debug(s"created account with id ${bankAccount.bankId.value} with number ${bankAccount.number} at bank with identifier ${message.bankIdentifier}")

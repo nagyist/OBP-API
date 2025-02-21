@@ -1,12 +1,12 @@
 package code.consent
 
 import java.util.Date
-
-import code.api.util.{APIUtil, Consent, ErrorMessages, SecureRandomUtil}
+import code.api.util.{APIUtil, Consent, ErrorMessages, OBPBankId, OBPConsentId, OBPConsumerId, OBPLimit, OBPOffset, OBPQueryParam, OBPStatus, OBPUserId, SecureRandomUtil}
 import code.consent.ConsentStatus.ConsentStatus
 import code.model.Consumer
 import code.util.MappedUUID
 import com.openbankproject.commons.model.User
+import com.openbankproject.commons.util.ApiStandards
 import net.liftweb.common.{Box, Empty, Failure, Full}
 import net.liftweb.mapper.{MappedString, _}
 import net.liftweb.util.Helpers.{now, tryo}
@@ -62,6 +62,39 @@ object MappedConsentProvider extends ConsentProvider {
   override def getConsentsByUser(userId: String): List[MappedConsent] = {
     MappedConsent.findAll(By(MappedConsent.mUserId, userId))
   }
+
+
+  private def getQueryParams(queryParams: List[OBPQueryParam]) = {
+    val limit = queryParams.collectFirst { case OBPLimit(value) => MaxRows[MappedConsent](value) }
+    val offset = queryParams.collectFirst { case OBPOffset(value) => StartAt[MappedConsent](value) }
+    // The optional variables:
+    val consumerId = queryParams.collectFirst { case OBPConsumerId(value) => By(MappedConsent.mConsumerId, value) }
+    val consentId = queryParams.collectFirst { case OBPConsentId(value) => By(MappedConsent.mConsentId, value) }
+    val userId = queryParams.collectFirst { case OBPUserId(value) => By(MappedConsent.mUserId, value) }
+    val status = queryParams.collectFirst {
+      case OBPStatus(value) => ByList(MappedConsent.mStatus, List(value.toLowerCase(), value.toUpperCase()))
+    }
+
+    Seq(
+      offset.toSeq,
+      limit.toSeq,
+      status.toSeq,
+      userId.toSeq,
+      consentId.toSeq,
+      consumerId.toSeq
+    ).flatten
+  }
+
+  override def getConsents(queryParams: List[OBPQueryParam]): List[MappedConsent] = {
+    val optionalParams = getQueryParams(queryParams)
+    val consents = MappedConsent.findAll(optionalParams: _*)
+    val bankId: Option[String] = queryParams.collectFirst { case OBPBankId(value) => value }
+    if(bankId.isDefined) {
+      Consent.filterStrictlyByBank(consents, bankId.get)
+    } else {
+      consents
+    }
+  }
   override def createObpConsent(user: User, challengeAnswer: String, consentRequestId:Option[String], consumer: Option[Consumer]): Box[MappedConsent] = {
     tryo {
       val salt = BCrypt.gensalt()
@@ -74,6 +107,12 @@ object MappedConsentProvider extends ConsentProvider {
         .mChallenge(challengeAnswerHashed)
         .mSalt(salt)
         .mStatus(ConsentStatus.INITIATED.toString)
+        .mRecurringIndicator(true)
+        .mFrequencyPerDay(100)
+        .mUsesSoFarTodayCounter(0)
+        .mUsesSoFarTodayCounterUpdatedAt(new Date())
+        .mLastActionDate(now) //maybe not right, but for the create we use the `now`, we need to update it later.
+        .mApiStandard(ApiStandards.obp.toString)
         .saveMe()
     }
   }
@@ -292,6 +331,7 @@ class MappedConsent extends ConsentTrait with LongKeyedMapper[MappedConsent] wit
   override def transactionToDateTime= mTransactionToDateTime.get    
   override def creationDateTime= createdAt.get    
   override def statusUpdateDateTime= mStatusUpdateDateTime.get    
+  override def consentReferenceId = id.get.toString  
 
 }
 

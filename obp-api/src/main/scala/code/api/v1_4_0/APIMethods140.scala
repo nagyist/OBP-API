@@ -41,7 +41,7 @@ import scala.collection.mutable.ArrayBuffer
 // So we can include resource docs from future versions
 //import code.api.v1_4_0.JSONFactory1_4_0._
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON._
-import code.api.util.APIUtil.{ResourceDoc, authenticationRequiredMessage, _}
+import code.api.util.APIUtil._
 import code.api.util.ErrorMessages
 import code.api.util.ErrorMessages._
 import code.crm.CrmEvent
@@ -60,7 +60,6 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
   val Implementations1_4_0 = new Object() {
 
     val resourceDocs = ArrayBuffer[ResourceDoc]()
-    val emptyObjectJson = EmptyClassJson()
     val apiVersion = ApiVersion.v1_4_0 // was noV i.e.  "1_4_0"
     val apiVersionStatus : String = "STABLE"
 
@@ -77,7 +76,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
         |* API version
         |* Hosted by information
         |* Git Commit""",
-      emptyObjectJson,
+      EmptyBody,
       apiInfoJSON,
       List(UnknownError, "no connector set"),
       apiTagApi :: Nil)
@@ -104,7 +103,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
       """Information about the currently authenticated user.
       |
       |Authentication via OAuth is required.""",
-      emptyObjectJson,
+      EmptyBody,
       customerJsonV140,
       List(UserNotLoggedIn, UnknownError),
       List(apiTagCustomer, apiTagOldStyle))
@@ -139,7 +138,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
       |Messages sent to the currently authenticated user.
       |
       |Authentication via OAuth is required.""",
-      emptyObjectJson,
+      EmptyBody,
       customerMessagesJson,
       List(UserNotLoggedIn, UnknownError),
       List(apiTagMessage, apiTagCustomer))
@@ -223,8 +222,8 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
         |
         |You can use the url query parameters *limit* and *offset* for pagination
         |
-        |${authenticationRequiredMessage(!getBranchesIsPublic)}""".stripMargin,
-      emptyObjectJson,
+        |${userAuthenticationMessage(!getBranchesIsPublic)}""".stripMargin,
+      EmptyBody,
       branchesJson,
       List(
         UserNotLoggedIn,
@@ -275,8 +274,8 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
          |
          |${urlParametersDocument(false,false)}         
          |
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
-      emptyObjectJson,
+         |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
+      EmptyBody,
       atmsJson,
       List(
         UserNotLoggedIn,
@@ -333,8 +332,8 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
         |* Description
         |* Terms and Conditions
         |* License the data under this endpoint is released under
-        |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
-      emptyObjectJson,
+        |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
+      EmptyBody,
       productsJson,
       List(
         UserNotLoggedIn,
@@ -375,7 +374,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
       "/banks/BANK_ID/crm-events",
       "Get CRM Events",
       "",
-      emptyObjectJson,
+      EmptyBody,
       crmEventsJson,
       List(
         UserNotLoggedIn,
@@ -430,7 +429,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
         | This approach aims to provide only one endpoint for initiating transactions, and one that handles challenges, whilst still allowing flexibility with the payload and internal logic.
         | 
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       transactionRequestTypesJsonV140,
       List(
         UserNotLoggedIn,
@@ -457,218 +456,24 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
             _ <- NewStyle.function.isValidCurrencyISOCode(fromAccount.currency, failMsg, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(fromAccount.bankId, fromAccount.accountId), Some(u), callContext)
             _ <- Helper.booleanToFuture(
-              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canSeeTransactionRequestTypes_.dbColumnName).dropRight(1)}` permission on the View(${viewId.value} )",
+              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeTransactionRequestTypes_)).dropRight(1)}` permission on the View(${viewId.value} )",
               cc = callContext
             ) {
               view.canSeeTransactionRequestTypes
             }
             // TODO: Consider storing allowed_transaction_request_types (List of String) in View Definition. 
             // TODO:  This would allow us to restrict transaction request types available to the User for an Account
-            transactionRequestTypes <- Future(Connector.connector.vend.getTransactionRequestTypes(u, fromAccount, callContext)) map {
+            (transactionRequestTypes, callContext) <- Future(Connector.connector.vend.getTransactionRequestTypes(u, fromAccount, callContext)) map {
               connectorEmptyResponse(_, callContext)
             }
-            transactionRequestTypeCharges <- Future(Connector.connector.vend.getTransactionRequestTypeCharges(bankId, accountId, viewId, transactionRequestTypes)) map {
-              connectorEmptyResponse(_, callContext)
-            }
+            (transactionRequestTypeCharges, callContext) <- NewStyle.function.getTransactionRequestTypeCharges(bankId, accountId, viewId, transactionRequestTypes, callContext)
           } yield {
             val json = JSONFactory1_4_0.createTransactionRequestTypesJSONs(transactionRequestTypeCharges)
             (json, HttpCode.`200`(callContext))
           }
       }
     }
-
-    resourceDocs += ResourceDoc(
-      getTransactionRequests,
-      apiVersion,
-      "getTransactionRequests",
-      "GET",
-      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-requests",
-      "Get all Transaction Requests",
-      "",
-      emptyObjectJson,
-      transactionRequest,
-      List(
-        UserNotLoggedIn,
-        BankNotFound,
-        AccountNotFound,
-        "Current user does not have access to the view",
-        "account not found at bank",
-        "user does not have access to owner view",
-        UnknownError),
-      List(apiTagTransactionRequest, apiTagPsd2, apiTagOldStyle))
-
-    lazy val getTransactionRequests: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-requests" :: Nil JsonGet _ => {
-        cc =>
-          if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false)) {
-            for {
-              u <- cc.user ?~ ErrorMessages.UserNotLoggedIn
-              (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! {ErrorMessages.BankNotFound}
-              fromAccount <- BankAccountX(bankId, accountId) ?~! {ErrorMessages.AccountNotFound}
-              view <- APIUtil.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-              _ <- Helper.booleanToBox(
-                view.canSeeTransactionRequests, 
-                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canSeeTransactionRequests_.dbColumnName).dropRight(1)}` permission on the View(${viewId.value})"
-              )
-              transactionRequests <- Connector.connector.vend.getTransactionRequests(u, fromAccount, callContext)
-            }
-            yield {
-              // TODO return 1.4.0 version of Transaction Requests!
-              val successJson = Extraction.decompose(transactionRequests)
-              successJsonResponse(successJson)
-            }
-          } else {
-            Full(errorJsonResponse(TransactionRequestsNotEnabled))
-          }
-      }
-    }
-
-
-
-    case class TransactionIdJson(transaction_id : String)
-
-    resourceDocs += ResourceDoc(
-      createTransactionRequest,
-      apiVersion,
-      "createTransactionRequest",
-      "POST",
-      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-request-types/TRANSACTION_REQUEST_TYPE/transaction-requests",
-      "Create Transaction Request",
-      """Initiate a Payment via a Transaction Request.
-        |
-        |This is the preferred method to create a payment and supersedes makePayment in 1.2.1.
-        |
-        |See [this python code](https://github.com/OpenBankProject/Hello-OBP-DirectLogin-Python/blob/master/hello_payments.py) for a complete example of this flow.
-        |
-        |In sandbox mode, if the amount is < 100 the transaction request will create a transaction without a challenge, else a challenge will need to be answered.
-        |If a challenge is created you must answer it using Answer Transaction Request Challenge before the Transaction is created.
-        |
-        |Please see later versions of this call in 2.0.0 or 2.1.0.
-        |""",
-      transactionRequestBodyJsonV140,
-      transactionRequestJson,
-      List(
-        UserNotLoggedIn,
-        InvalidJsonFormat,
-        BankNotFound,
-        AccountNotFound,
-        CounterpartyNotFound,
-        "Counterparty and holder accounts have differing currencies",
-        "Request currency and holder account currency can't be different.",
-        "Amount not convertible to number",
-        "account ${fromAccount.accountId} not found at bank ${fromAccount.bankId}",
-        "user does not have access to owner view",
-        "amount ${body.value.amount} not convertible to number",
-        "Cannot send payment to account with different currency",
-        "Can't send a payment with a value of 0 or less.",
-        TransactionRequestsNotEnabled,
-        UnknownError),
-      List(apiTagTransactionRequest, apiTagPsd2, apiTagOldStyle))
-
-    lazy val createTransactionRequest: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-request-types" ::
-          TransactionRequestType(transactionRequestType) :: "transaction-requests" :: Nil JsonPost json -> _ => {
-        cc =>
-          if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false)) {
-            for {
-              /* TODO:
-               * check if user has access using the view that is given (now it checks if user has access to owner view), will need some new permissions for transaction requests
-               * test: functionality, error messages if user not given or invalid, if any other value is not existing
-              */
-              u <- cc.user ?~ ErrorMessages.UserNotLoggedIn
-              transBodyJson <- tryo{json.extract[TransactionRequestBodyJsonV140]} ?~ {ErrorMessages.InvalidJsonFormat}
-              transBody <- tryo{getTransactionRequestBodyFromJson(transBodyJson)}
-              (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! {ErrorMessages.BankNotFound}
-              fromAccount <- BankAccountX(bankId, accountId) ?~! {ErrorMessages.AccountNotFound}
-              _ <- APIUtil.checkAuthorisationToCreateTransactionRequest(viewId : ViewId,  BankIdAccountId(bankId, accountId), u: User, callContext: Option[CallContext]) ?~!  {
-                s"$InsufficientAuthorisationToCreateTransactionRequest " + 
-                  s"Current ViewId(${viewId.value})," + 
-                  s"current UserId(${u.userId})" + 
-                  s"current ConsumerId(${callContext.map (_.consumer.map (_.consumerId.get).getOrElse ("")).getOrElse ("")})"
-              }
-              toBankId <- tryo(BankId(transBodyJson.to.bank_id))
-              toAccountId <- tryo(AccountId(transBodyJson.to.account_id))
-              toAccount <- BankAccountX(toBankId, toAccountId) ?~! {ErrorMessages.CounterpartyNotFound}
-              _ <- tryo(assert(fromAccount.currency == toAccount.currency)) ?~! {"Counterparty and holder accounts have differing currencies."}
-              _ <- tryo(assert(transBodyJson.value.currency == fromAccount.currency)) ?~! {"Request currency and holder account currency can't be different."}
-              _ <- tryo {BigDecimal(transBodyJson.value.amount)} ?~! s"Amount ${transBodyJson.value.amount} not convertible to number"
-              createdTransactionRequest <- Connector.connector.vend.createTransactionRequest(u, fromAccount, toAccount, transactionRequestType, transBody, callContext)
-              oldTransactionRequest <- transforOldTransactionRequest(createdTransactionRequest)
-            } yield {
-              val json = Extraction.decompose(oldTransactionRequest)
-              createdJsonResponse(json)
-            }
-          } else {
-            Full(errorJsonResponse(TransactionRequestsNotEnabled))
-          }
-      }
-    }
-
-
-
-    resourceDocs += ResourceDoc(
-      answerTransactionRequestChallenge,
-      apiVersion,
-      "answerTransactionRequestChallenge",
-      "POST",
-      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-request-types/TRANSACTION_REQUEST_TYPE/transaction-requests/TRANSACTION_REQUEST_ID/challenge",
-      "Answer Transaction Request Challenge.",
-      """
-        |In Sandbox mode, any string that can be converted to a possitive integer will be accepted as an answer. 
-        |
-      """.stripMargin,
-      challengeAnswerJSON,
-      transactionRequestJson,
-      List(
-        UserNotLoggedIn,
-        BankNotFound,
-        BankAccountNotFound,
-        InvalidJsonFormat,
-        "Current user does not have access to the view ",
-        "Couldn't create Transaction",
-        TransactionRequestsNotEnabled,
-        "Need a non-empty answer",
-        "Need a numeric TAN",
-        "Need a positive TAN",
-        "unknown challenge type",
-        "Sorry, you've used up your allowed attempts.",
-        "Error getting Transaction Request",
-        "Transaction Request not found",
-        "Couldn't create Transaction",
-        UnknownError),
-      List(apiTagTransactionRequest, apiTagPsd2, apiTagOldStyle))
-
-    lazy val answerTransactionRequestChallenge: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-request-types" ::
-        TransactionRequestType(transactionRequestType) :: "transaction-requests" :: TransactionRequestId(transReqId) :: "challenge" :: Nil JsonPost json -> _ => {
-        cc =>
-          if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false)) {
-            for {
-              u <- cc.user ?~ ErrorMessages.UserNotLoggedIn
-              (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! {ErrorMessages.BankNotFound}
-              fromAccount <- BankAccountX(bankId, accountId) ?~! BankAccountNotFound
-              _ <- APIUtil.checkAuthorisationToCreateTransactionRequest(viewId: ViewId, BankIdAccountId(bankId, accountId), u: User, callContext: Option[CallContext]) ?~! {
-                s"$InsufficientAuthorisationToCreateTransactionRequest " +
-                  s"Current ViewId(${viewId.value})," +
-                  s"current UserId(${u.userId})" +
-                  s"current ConsumerId(${callContext.map(_.consumer.map(_.consumerId.get).getOrElse("")).getOrElse("")})"
-              }
-              answerJson <- tryo{json.extract[ChallengeAnswerJSON]} ?~ InvalidJsonFormat
-              //TODO check more things here
-              _ <- Connector.connector.vend.answerTransactionRequestChallenge(transReqId, answerJson.answer)
-              //create transaction and insert its id into the transaction request
-              transactionRequest <- Connector.connector.vend.createTransactionAfterChallenge(u, transReqId, callContext)
-              oldTransactionRequest <- transforOldTransactionRequest(transactionRequest)
-            } yield {
-              val successJson = Extraction.decompose(oldTransactionRequest)
-              successJsonResponse(successJson, 202)
-            }
-          } else {
-            Full(errorJsonResponse(TransactionRequestsNotEnabled))
-          }
-      }
-    }
-
+    
     resourceDocs += ResourceDoc(
       addCustomer,
       apiVersion,
@@ -681,7 +486,7 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
          |This call may require additional permissions/role in the future.
          |For now the authenticated user can create at most one linked customer.
          |Dates need to be in the format 2013-01-21T23:08:00Z
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |Note: This call is depreciated in favour of v.2.0.0 createCustomer
          |""",
       code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON.createCustomerJson,
@@ -745,9 +550,9 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
 
     if (Props.devMode) {
       resourceDocs += ResourceDoc(
-        dummy(apiVersion, apiVersionStatus),
+        testResourceDoc,
         apiVersion,
-        "testResourceDoc",
+        nameOf(testResourceDoc),
         "GET",
         "/dummy",
         "I am only a test resource Doc",
@@ -777,15 +582,15 @@ trait APIMethods140 extends MdcLoggable with APIMethods130 with APIMethods121{
             |There are (underscores_in_words_in_brackets)
             |
             |_etc_...""",
-        emptyObjectJson,
+        EmptyBody,
         apiInfoJSON,
-        List(UserNotLoggedIn, UnknownError),
+        List(UnknownError),
         List(apiTagDocumentation, apiTagOldStyle))
       }
 
 
 
-    def dummy(apiVersion : ApiVersion, apiVersionStatus: String) : OBPEndpoint = {
+    lazy val testResourceDoc : OBPEndpoint = {
       case "dummy" :: Nil JsonGet req => {
         cc =>
           val apiDetails: JValue = {

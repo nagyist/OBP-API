@@ -1,6 +1,6 @@
 package code.bankconnectors.akka
 
-import code.bankconnectors.ConnectorBuilderUtil._
+import code.bankconnectors.generator.ConnectorBuilderUtil._
 
 import scala.language.postfixOps
 

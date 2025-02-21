@@ -608,8 +608,8 @@ object JSONFactory300{
   }
 
   //stated -- Transaction relevant methods /////
-  def createTransactionsJson(moderatedTansactionsWithAttributes: List[ModeratedTransactionWithAttributes]) : TransactionsJsonV300 = {
-    TransactionsJsonV300(moderatedTansactionsWithAttributes.map(t => createTransactionJSON(t.transaction, t.transactionAttributes)))
+  def createTransactionsJson(moderatedTransactionsWithAttributes: List[ModeratedTransactionWithAttributes]) : TransactionsJsonV300 = {
+    TransactionsJsonV300(moderatedTransactionsWithAttributes.map(t => createTransactionJSON(t.transaction, t.transactionAttributes)))
   }
 
   def createTransactionJSON(transaction : ModeratedTransaction, transactionAttributes: List[TransactionAttribute]) : TransactionJsonV300 = {

@@ -1,6 +1,6 @@
 package code.bankconnectors.storedprocedure
 
-import code.bankconnectors.ConnectorBuilderUtil._
+import code.bankconnectors.generator.ConnectorBuilderUtil._
 import net.liftweb.util.StringHelpers
 
 import scala.language.postfixOps

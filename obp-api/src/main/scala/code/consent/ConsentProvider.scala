@@ -1,5 +1,6 @@
 package code.consent
 
+import code.api.util.OBPQueryParam
 import com.openbankproject.commons.model.User
 import net.liftweb.common.Box
 import net.liftweb.util.SimpleInjector
@@ -16,6 +17,7 @@ object Consents extends SimpleInjector {
 }
 
 trait ConsentProvider {
+  def getConsents(queryParams: List[OBPQueryParam]): List[MappedConsent]
   def getConsentByConsentId(consentId: String): Box[MappedConsent]
   def getConsentByConsentRequestId(consentRequestId: String): Box[MappedConsent]
   def updateConsentStatus(consentId: String, status: ConsentStatus): Box[MappedConsent]
@@ -178,13 +180,18 @@ trait ConsentTrait {
    * Specified end date and time for the transaction query period. If the field does not contain information or if it is not sent in the request, the end date will be 90 calendar days prior to the creation of the consent.
    */
   def transactionToDateTime: Date
+
+  /**
+   * this will be a UUID later. now only use the primacyKey.toString for it.  
+   */
+  def consentReferenceId: String
 }
 
 object ConsentStatus extends Enumeration {
   type ConsentStatus = Value
-  val INITIATED, ACCEPTED, REJECTED, REVOKED,
-      //The following are for BelinGroup
-      RECEIVED, VALID, REVOKEDBYPSU, EXPIRED, TERMINATEDBYTPP ,
+  val INITIATED, ACCEPTED, REJECTED, rejected, REVOKED,
+      // The following one only exist in case of BerlinGroup
+      RECEIVED, received, VALID, valid, REVOKEDBYPSU, revokedByPsu, EXPIRED, expired, TERMINATEDBYTPP, terminatedByTpp,
      //these added for UK Open Banking 
      AUTHORISED, AWAITINGAUTHORISATION = Value
 }

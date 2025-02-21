@@ -4,7 +4,7 @@ import java.util.Date
 
 import net.liftweb.common.Box
 import net.liftweb.util.SimpleInjector
-
+import com.openbankproject.commons.model.StandingOrderTrait
 import scala.math.BigDecimal
 
 
@@ -31,20 +31,3 @@ trait StandingOrderProvider {
   def getStandingOrdersByUser(userId: String) : List[StandingOrderTrait]
 }
 
-trait StandingOrderTrait {
-  def standingOrderId: String
-  def bankId: String
-  def accountId: String
-  def customerId: String
-  def userId: String
-  def counterpartyId: String
-  def amountValue : BigDecimal
-  def amountCurrency: String
-  def whenFrequency: String
-  def whenDetail: String
-  def dateSigned: Date
-  def dateCancelled: Date
-  def dateStarts: Date
-  def dateExpires: Date
-  def active: Boolean
-}

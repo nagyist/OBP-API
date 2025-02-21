@@ -1,7 +1,6 @@
 package code.atms
 
 import code.api.util.{OBPLimit, OBPOffset, OBPQueryParam}
-import code.bankconnectors.LocalMappedConnector.getAtmLegacy
 import code.util.Helper.optionBooleanToString
 import code.util.{TwentyFourHourClockString, UUIDString}
 import com.openbankproject.commons.model._
@@ -39,8 +38,8 @@ object MappedAtmsProvider extends AtmsProvider {
     val locationCategoriesString = atm.locationCategories.map(_.mkString(",")).getOrElse("")
 
     //check the atm existence and update or insert data
-    getAtmLegacy(atm.bankId, atm.atmId) match {
-      case Full(mappedAtm: MappedAtm) =>
+    getAtmFromProvider(atm.bankId, atm.atmId) match {
+      case Some(mappedAtm: MappedAtm) =>
         tryo {
           mappedAtm.mName(atm.name)
             .mLine1(atm.address.line1)

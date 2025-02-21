@@ -25,20 +25,24 @@ TESOBE (http://www.tesobe.com/)
   */
 package code.api.v5_1_0
 
-import java.util.Date
-
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
+import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON.postCustomerLegalNameJsonV510
 import code.api.util.APIUtil.OAuth._
+import code.api.util.ApiRole.CanGetCustomer
 import code.api.util.ErrorMessages._
+import code.api.v3_0_0.CustomerJSONsV300
 import code.api.v3_1_0.CustomerJsonV310
 import code.api.v5_1_0.OBPAPI5_1_0.Implementations5_1_0
 import code.customer.CustomerX
+import code.entitlement.Entitlement
 import code.usercustomerlinks.UserCustomerLink
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.model.ErrorMessage
 import com.openbankproject.commons.util.ApiVersion
+import net.liftweb.json.Serialization.write
 import org.scalatest.Tag
 
+import java.util.Date
 import scala.language.postfixOps
 
 class CustomerTest extends V510ServerSetup {
@@ -62,6 +66,7 @@ class CustomerTest extends V510ServerSetup {
     */
   object VersionOfApi extends Tag(ApiVersion.v5_1_0.toString)
   object ApiEndpoint1 extends Tag(nameOf(Implementations5_1_0.getCustomersForUserIdsOnly))
+  object ApiEndpoint2 extends Tag(nameOf(Implementations5_1_0.getCustomersByLegalName))
 
   lazy val bankId = testBankId1.value
   val getCustomerJson = SwaggerDefinitionsJSON.postCustomerOverviewJsonV500
@@ -91,6 +96,40 @@ class CustomerTest extends V510ServerSetup {
       response.code should equal(200)
       val ids = response.body.extract[CustomersIdsJsonV510]
       ids.customers.map(_.id).filter(_ == customer.customer_id).length should equal(1)
+    }
+  }
+
+  feature(s"$ApiEndpoint2 $VersionOfApi - Unauthorized access") {
+    scenario("We will call the endpoint without user credentials", ApiEndpoint2, VersionOfApi) {
+      When(s"We make a request $VersionOfApi")
+      val request = (v5_1_0_Request / "banks" / bankId / "customers" / "legal-name").POST
+      val response = makePostRequest(request, write(postCustomerLegalNameJsonV510))
+      Then("We should get a 401")
+      response.code should equal(401)
+      And("error should be " + UserNotLoggedIn)
+      response.body.extract[ErrorMessage].message should equal(UserNotLoggedIn)
+    }
+  }
+  feature(s"$ApiEndpoint2 $VersionOfApi - Authorized access without proper role") {
+    scenario("We will call the endpoint with user credentials", ApiEndpoint2, VersionOfApi) {
+      When(s"We make a request $VersionOfApi")
+      val request = (v5_1_0_Request / "banks" / bankId / "customers" / "legal-name").POST <@(user1)
+      val response = makePostRequest(request, write(postCustomerLegalNameJsonV510))
+      Then("We should get a 403")
+      Then("error should be " + UserHasMissingRoles + CanGetCustomer)
+      response.code should equal(403)
+      response.body.extract[ErrorMessage].message should startWith(UserHasMissingRoles + CanGetCustomer)
+    }
+  }
+  feature(s"$ApiEndpoint2 $VersionOfApi - Authorized access with proper role") {
+    scenario("We will call the endpoint with user credentials", ApiEndpoint2, VersionOfApi) {
+      When(s"We make a request $VersionOfApi")
+      Entitlement.entitlement.vend.addEntitlement(bankId, resourceUser1.userId, CanGetCustomer.toString)
+      val request = (v5_1_0_Request / "banks" / bankId / "customers" / "legal-name").POST <@(user1)
+      val response = makePostRequest(request, write(postCustomerLegalNameJsonV510))
+      Then("We should get a 200")
+      response.code should equal(200)
+      val customers = response.body.extract[CustomerJSONsV300]
     }
   }
   

@@ -26,6 +26,7 @@ TESOBE (http://www.tesobe.com/)
 package code.api.v4_0_0
 
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
+import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON.postCustomerPhoneNumberJsonV400
 import code.api.util.APIUtil.OAuth._
 import code.api.util.ApiRole._
 import code.api.util.ErrorMessages._
@@ -65,6 +66,7 @@ class CustomerTest extends V400ServerSetup  with PropsReset{
   object ApiEndpoint1 extends Tag(nameOf(Implementations4_0_0.getCustomersAtAnyBank))
   object ApiEndpoint2 extends Tag(nameOf(Implementations4_0_0.getCustomersMinimalAtAnyBank))
   object ApiEndpoint3 extends Tag(nameOf(Implementations4_0_0.createCustomer))
+  object ApiEndpoint4 extends Tag(nameOf(Implementations4_0_0.getCustomersByCustomerPhoneNumber))
 
   val customerNumberJson = PostCustomerNumberJsonV310(customer_number = "123")
   val postCustomerJson = SwaggerDefinitionsJSON.postCustomerJsonV310
@@ -186,6 +188,41 @@ class CustomerTest extends V400ServerSetup  with PropsReset{
       val infoGet = responseGet.body.extract[CustomerJsonV310]
       And("POST feedback and GET feedback must be the same")
       infoGet should equal(infoPost)
+    }
+  }
+
+
+  feature(s"$ApiEndpoint4 $VersionOfApi - Unauthorized access") {
+    scenario("We will call the endpoint without user credentials", ApiEndpoint4, VersionOfApi) {
+      When(s"We make a request $VersionOfApi")
+      val request = (v4_0_0_Request / "banks" / bankId / "search" / "customers" / "mobile-phone-number").POST
+      val response = makePostRequest(request, write(postCustomerPhoneNumberJsonV400))
+      Then("We should get a 401")
+      response.code should equal(401)
+      And("error should be " + UserNotLoggedIn)
+      response.body.extract[ErrorMessage].message should equal(UserNotLoggedIn)
+    }
+  }
+  feature(s"$ApiEndpoint4 $VersionOfApi - Authorized access without proper role") {
+    scenario("We will call the endpoint with user credentials", ApiEndpoint4, VersionOfApi) {
+      When(s"We make a request $VersionOfApi")
+      val request = (v4_0_0_Request / "banks" / bankId / "search" /"customers" / "mobile-phone-number").POST <@ (user1)
+      val response = makePostRequest(request, write(postCustomerPhoneNumberJsonV400))
+      Then("We should get a 403")
+      Then("error should be " + UserHasMissingRoles + CanGetCustomer)
+      response.code should equal(403)
+      response.body.extract[ErrorMessage].message should startWith(UserHasMissingRoles + CanGetCustomer)
+    }
+  }
+  feature(s"$ApiEndpoint4 $VersionOfApi - Authorized access with proper role") {
+    scenario("We will call the endpoint with user credentials", ApiEndpoint4, VersionOfApi) {
+      When(s"We make a request $VersionOfApi")
+      Entitlement.entitlement.vend.addEntitlement(bankId, resourceUser1.userId, CanGetCustomer.toString)
+      val request = (v4_0_0_Request / "banks" / bankId / "search" / "customers" / "mobile-phone-number").POST <@ (user1)
+      val response = makePostRequest(request, write(postCustomerPhoneNumberJsonV400))
+      Then("We should get a 200")
+      response.code should equal(200)
+      val customers = response.body.extract[CustomerJSONsV300]
     }
   }
 

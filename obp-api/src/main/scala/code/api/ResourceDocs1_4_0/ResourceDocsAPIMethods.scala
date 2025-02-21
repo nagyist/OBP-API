@@ -519,7 +519,7 @@ trait ResourceDocsAPIMethods extends MdcLoggable with APIMethods220 with APIMeth
                 case Some(STATIC) => {
                   val cacheValueFromRedis = Caching.getStaticResourceDocCache(cacheKey)
 
-                  val dynamicDocs: Box[JValue] =
+                  val staticDocs: Box[JValue] =
                     if (cacheValueFromRedis.isDefined) {
                       Full(json.parse(cacheValueFromRedis.get))
                     } else {
@@ -530,12 +530,12 @@ trait ResourceDocsAPIMethods extends MdcLoggable with APIMethods220 with APIMeth
                       Full(resourceDocJsonJValue)
                     }
 
-                  Future(dynamicDocs.map(successJsonResponse(_)))
+                  Future(staticDocs.map(successJsonResponse(_)))
                 }
                 case _ => {
                   val cacheValueFromRedis = Caching.getAllResourceDocCache(cacheKey)
 
-                  val dynamicDocs: Box[JValue] =
+                  val bothStaticAndDyamicDocs: Box[JValue] =
                     if (cacheValueFromRedis.isDefined) {
                       Full(json.parse(cacheValueFromRedis.get))
                     } else {
@@ -546,7 +546,7 @@ trait ResourceDocsAPIMethods extends MdcLoggable with APIMethods220 with APIMeth
                       Full(resourceDocJsonJValue)
                     }
 
-                  Future(dynamicDocs.map(successJsonResponse(_)))
+                  Future(bothStaticAndDyamicDocs.map(successJsonResponse(_)))
                 }
               }
           }
@@ -715,13 +715,11 @@ trait ResourceDocsAPIMethods extends MdcLoggable with APIMethods220 with APIMeth
             swaggerJValue <- NewStyle.function.tryons(s"$UnknownError Can not convert internal swagger file.", 400, cc.callContext) {
               val cacheValueFromRedis = Caching.getStaticSwaggerDocCache(cacheKey)
 
-              val dynamicDocs: JValue =
-                if (cacheValueFromRedis.isDefined) {
-                  json.parse(cacheValueFromRedis.get)
-                } else {
-                  convertResourceDocsToSwaggerJvalueAndSetCache(cacheKey, requestedApiVersionString, resourceDocsJsonFiltered)
-                }
-                dynamicDocs
+              if (cacheValueFromRedis.isDefined) {
+                json.parse(cacheValueFromRedis.get)
+              } else {
+                convertResourceDocsToSwaggerJvalueAndSetCache(cacheKey, requestedApiVersionString, resourceDocsJsonFiltered)
+              }
             }
           } yield {
             (swaggerJValue, HttpCode.`200`(cc.callContext))

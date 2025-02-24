@@ -1,29 +1,28 @@
 /**
-Open Bank Project - API
-Copyright (C) 2011-2019, TESOBE GmbH.
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-Email: contact@tesobe.com
-TESOBE GmbH.
-Osloer Strasse 16/17
-Berlin 13359, Germany
-
-This product includes software developed at
-TESOBE (http://www.tesobe.com/)
-
-  */
+ * Open Bank Project - API
+ * Copyright (C) 2011-2019, TESOBE GmbH.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Email: contact@tesobe.com
+ * TESOBE GmbH.
+ * Osloer Strasse 16/17
+ * Berlin 13359, Germany
+ *
+ * This product includes software developed at
+ * TESOBE (http://www.tesobe.com/)
+ */
 package code.snippet
 
 import code.accountholders.AccountHolders
@@ -53,15 +52,22 @@ import scala.collection.immutable
 import scala.concurrent.Future
 import scala.xml.NodeSeq
 
+/**
+ * This class handles Berlin Group consent requests.
+ * It provides functionality to confirm or deny consent requests,
+ * and manages the consent process for accessing account data.
+ */
 class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 with APIMethods500 with APIMethods310 {
+  // Custom JSON formats for serialization/deserialization
   protected implicit override def formats: Formats = CustomJsonFormats.formats
 
-  private object otpValue extends SessionVar("123")
-  private object redirectUriValue extends SessionVar("")
-  private object updateConsentPayloadValue extends SessionVar(false)
-  private object userIsOwnerOfAccountsValue extends SessionVar(true)
+  // Session variables to store OTP, redirect URI, and other consent-related data
+  private object otpValue extends SessionVar("123") // Stores the OTP value for SCA (Strong Customer Authentication)
+  private object redirectUriValue extends SessionVar("") // Stores the redirect URI for post-consent actions
+  private object updateConsentPayloadValue extends SessionVar(false) // Flag to indicate if consent payload needs updating
+  private object userIsOwnerOfAccountsValue extends SessionVar(true) // Flag to check if the user owns the accounts
 
-  // Separate session variables for accounts, balances, and transactions
+  // Session variables to store selected IBANs for accounts, balances, and transactions
   private object selectedAccountsIbansValue extends SessionVar[Set[String]](Set()) {
     override def set(value: Set[String]): Set[String] = {
       logger.debug(s"selectedAccountsIbansValue changed to: ${value.mkString(", ")}")
@@ -69,11 +75,17 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
     }
   }
 
-  private object selectedBalancesIbansValue extends SessionVar[Set[String]](Set())
+  private object selectedBalancesIbansValue extends SessionVar[Set[String]](Set()) // Stores selected IBANs for balances
+  private object selectedTransactionsIbansValue extends SessionVar[Set[String]](Set()) // Stores selected IBANs for transactions
 
-  private object selectedTransactionsIbansValue extends SessionVar[Set[String]](Set())
-
-  // Function to transform a list of IBANs into ConsentAccessJson
+  /**
+   * Creates a ConsentAccessJson object from lists of IBANs for accounts, balances, and transactions.
+   *
+   * @param accounts     List of IBANs for accounts.
+   * @param balances     List of IBANs for balances.
+   * @param transactions List of IBANs for transactions.
+   * @return ConsentAccessJson object.
+   */
   def createConsentAccessJson(accounts: List[String], balances: List[String], transactions: List[String]): ConsentAccessJson = {
     val accountsList = accounts.map(iban => ConsentAccessAccountsJson(iban = Some(iban), None, None, None, None, None))
     val balancesList = balances.map(iban => ConsentAccessAccountsJson(iban = Some(iban), None, None, None, None, None))
@@ -86,11 +98,22 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
     )
   }
 
+  /**
+   * Updates the consent with new IBANs for accounts, balances, and transactions.
+   *
+   * @param consentId        The ID of the consent to update.
+   * @param ibansAccount     List of IBANs for accounts.
+   * @param ibansBalance     List of IBANs for balances.
+   * @param ibansTransaction List of IBANs for transactions.
+   * @return Future[MappedConsent] representing the updated consent.
+   */
   private def updateConsent(consentId: String, ibansAccount: List[String], ibansBalance: List[String], ibansTransaction: List[String]): Future[MappedConsent] = {
     for {
+      // Fetch the consent by ID
       consent: MappedConsent <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
         APIUtil.unboxFullOrFail(_, None, s"$ConsentNotFound ($consentId)", 404)
       }
+      // Update the consent JWT with new access details
       consentJWT <- Consent.updateAccountAccessOfBerlinGroupConsentJWT(
         createConsentAccessJson(ibansAccount, ibansBalance, ibansTransaction),
         consent,
@@ -98,6 +121,7 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
       ) map {
         i => APIUtil.connectorEmptyResponse(i, None)
       }
+      // Save the updated consent
       updatedConsent <- Future(Consents.consentProvider.vend.setJsonWebToken(consent.consentId, consentJWT)) map {
         i => APIUtil.connectorEmptyResponse(i, None)
       }
@@ -106,26 +130,30 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
     }
   }
 
-
+  /**
+   * Renders the Berlin Group consent confirmation form.
+   *
+   * @return CssSel for rendering the form.
+   */
   def confirmBerlinGroupConsentRequest: CssSel = {
     callGetConsentByConsentId() match {
       case Full(consent) =>
+        // Set OTP and redirect URI from the consent
         otpValue.set(consent.challenge)
         val json: GetConsentResponseJson = createGetConsentResponseJson(consent)
         val consumer = Consumers.consumers.vend.getConsumerByConsumerId(consent.consumerId)
         val consentJwt: Box[ConsentJWT] = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken).map(parse(_)
           .extract[ConsentJWT])
-        val tppRedirectUri: immutable.Seq[String] = consentJwt.map{ h =>
+        val tppRedirectUri: immutable.Seq[String] = consentJwt.map { h =>
           h.request_headers.filter(h => h.name == RequestHeader.`TPP-Redirect-URL`)
         }.getOrElse(Nil).map((_.values.mkString("")))
         val consumerRedirectUri: Option[String] = consumer.map(_.redirectURL.get).toOption
         val uri: String = tppRedirectUri.headOption.orElse(consumerRedirectUri).getOrElse("https://not.defined.com")
         redirectUriValue.set(uri)
 
-        //Get All OBP accounts from `Account Holder` table, source == null --> mean accounts are created by OBP endpoints, not from User Auth Context,
-        // Step 1: Get all accounts held by the current user
+        // Get all accounts held by the current user
         val userAccounts: Set[BankIdAccountId] =
-        AccountHolders.accountHolders.vend.getAccountsHeldByUser(AuthUser.currentUser.flatMap(_.user.foreign).openOrThrowException(ErrorMessages.UserNotLoggedIn), Some(null)).toSet
+          AccountHolders.accountHolders.vend.getAccountsHeldByUser(AuthUser.currentUser.flatMap(_.user.foreign).openOrThrowException(ErrorMessages.UserNotLoggedIn), Some(null)).toSet
         val userIbans: Set[String] = userAccounts.flatMap { acc =>
           BankAccountRouting.find(
             By(BankAccountRouting.BankId, acc.bankId.value),
@@ -134,7 +162,7 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
           ).map(_.AccountRoutingAddress.get)
         }
 
-
+        // Determine which IBANs the user can access for accounts, balances, and transactions
         val canReadAccountsIbans: List[String] = json.access.accounts match {
           case Some(accounts) if accounts.isEmpty =>
             updateConsentPayloadValue.set(true)
@@ -169,7 +197,15 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
           case None => List()
         }
 
-        /// Function to generate toggle switches for IBAN lists
+        /**
+         * Generates toggle switches for IBAN lists.
+         *
+         * @param scope        The scope of the IBANs (e.g., "canReadAccountsIbans").
+         * @param ibans        List of IBANs to display.
+         * @param selectedList Set of currently selected IBANs.
+         * @param sessionVar   Session variable to update when toggling.
+         * @return Sequence of NodeSeq representing the toggle switches.
+         */
         def generateCheckboxes(scope: String, ibans: List[String], selectedList: Set[String], sessionVar: SessionVar[Set[String]]): immutable.Seq[NodeSeq] = {
           ibans.map { iban =>
             if (updateConsentPayloadValue.is) {
@@ -197,7 +233,6 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
             }
           }
         }
-
 
         // Form text and user details
         val currentUser = AuthUser.currentUser
@@ -259,6 +294,11 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
     }
   }
 
+  /**
+   * Fetches a consent by its ID.
+   *
+   * @return Box[MappedConsent] containing the consent if found.
+   */
   private def callGetConsentByConsentId(): Box[MappedConsent] = {
     val requestParam = List(
       ObpS.param("CONSENT_ID"),
@@ -271,11 +311,13 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
     }
   }
 
+  /**
+   * Handles the confirmation of a consent request.
+   */
   private def confirmConsentRequestProcess() = {
-    if(selectedAccountsIbansValue.is.isEmpty &&
+    if (selectedAccountsIbansValue.is.isEmpty &&
       selectedBalancesIbansValue.is.isEmpty &&
-      selectedTransactionsIbansValue.is.isEmpty)
-    {
+      selectedTransactionsIbansValue.is.isEmpty) {
       S.error(s"Please select at least 1 account")
     } else {
       val consentId = ObpS.param("CONSENT_ID") openOr ("")
@@ -286,8 +328,11 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
         s"/confirm-bg-consent-request-sca?CONSENT_ID=${consentId}"
       )
     }
-
   }
+
+  /**
+   * Handles the denial of a consent request.
+   */
   private def denyConsentRequestProcess() = {
     val consentId = ObpS.param("CONSENT_ID") openOr ("")
     Consents.consentProvider.vend.updateConsentStatus(consentId, ConsentStatus.rejected)
@@ -295,6 +340,10 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
       s"$redirectUriValue?CONSENT_ID=${consentId}"
     )
   }
+
+  /**
+   * Handles the confirmation of a consent request with SCA (Strong Customer Authentication).
+   */
   private def confirmConsentRequestProcessSca() = {
     val consentId = ObpS.param("CONSENT_ID") openOr ("")
     Consents.consentProvider.vend.getConsentByConsentId(consentId) match {
@@ -308,7 +357,11 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
     }
   }
 
-
+  /**
+   * Renders the SCA confirmation form for Berlin Group consent.
+   *
+   * @return CssSel for rendering the form.
+   */
   def confirmBgConsentRequest: CssSel = {
     "#otp-value" #> SHtml.text(otpValue, otpValue(_)) &
       "type=submit" #> SHtml.onSubmitUnit(confirmConsentRequestProcessSca)

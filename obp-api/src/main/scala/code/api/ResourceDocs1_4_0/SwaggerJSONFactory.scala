@@ -752,9 +752,10 @@ object SwaggerJSONFactory extends MdcLoggable {
       case _ if isTypeOf[JArray]                   =>
         exampleValue match {
           case JArray(v ::_) => s""" {"type": "array", "items":${buildSwaggerSchema(JsonUtils.getType(v), v)} }"""
-          case _ =>
-            logger.error(s"Empty JArray is not allowed in request body and response body example.")
-            throw new RuntimeException("JArray type should not be empty.")
+          case _ => s""" {"type": "array","items": {}}""" //if array is empty, we can not know the type here.
+//          case _ =>
+//            logger.error(s"Empty JArray is not allowed in request body and response body example.")
+//            throw new RuntimeException("JArray type should not be empty.")
         }
 
       case _ if isTypeOf[JObject]         =>

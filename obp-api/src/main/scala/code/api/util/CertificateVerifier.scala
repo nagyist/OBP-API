@@ -137,8 +137,7 @@ object CertificateVerifier extends MdcLoggable {
   }
 
   def main(args: Array[String]): Unit = {
-    // val certificatePath = "/path/to/certificate.pem"
-    val certificatePath = "/home/marko/Downloads/BerlinGroupSigning/certificate.pem"
+    val certificatePath = "/path/to/certificate.pem"
     val pemCertificate = loadPemCertificateFromFile(certificatePath)
 
     pemCertificate.foreach { pem =>

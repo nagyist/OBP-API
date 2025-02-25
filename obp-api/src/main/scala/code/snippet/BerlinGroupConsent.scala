@@ -74,10 +74,9 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
       super.set(value)
     }
   }
-
-  private object selectedBalancesIbansValue extends SessionVar[Set[String]](Set()) // Stores selected IBANs for balances
-  private object selectedTransactionsIbansValue extends SessionVar[Set[String]](Set()) // Stores selected IBANs for transactions
-
+  private object accessAccountsDefinedVar extends SessionVar(true)
+  private object accessBalancesDefinedVar extends SessionVar(true)
+  private object accessTransactionsDefinedVar extends SessionVar(true)
   /**
    * Creates a ConsentAccessJson object from lists of IBANs for accounts, balances, and transactions.
    *
@@ -93,8 +92,8 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
 
     ConsentAccessJson(
       accounts = Some(accountsList), // Populate accounts
-      balances = Some(balancesList), // Populate balances
-      transactions = Some(transactionsList) // Populate transactions
+      balances = if (balancesList.nonEmpty) Some(balancesList) else None, // Populate balances
+      transactions = if (transactionsList.nonEmpty) Some(transactionsList) else None // Populate transactions
     )
   }
 
@@ -102,12 +101,10 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
    * Updates the consent with new IBANs for accounts, balances, and transactions.
    *
    * @param consentId        The ID of the consent to update.
-   * @param ibansAccount     List of IBANs for accounts.
-   * @param ibansBalance     List of IBANs for balances.
-   * @param ibansTransaction List of IBANs for transactions.
+   * @param ibans     List of IBANs for accounts.
    * @return Future[MappedConsent] representing the updated consent.
    */
-  private def updateConsent(consentId: String, ibansAccount: List[String], ibansBalance: List[String], ibansTransaction: List[String]): Future[MappedConsent] = {
+  private def updateConsent(consentId: String, ibans: List[String], canReadBalances: Boolean, canReadTransactions: Boolean): Future[MappedConsent] = {
     for {
       // Fetch the consent by ID
       consent: MappedConsent <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
@@ -115,7 +112,11 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
       }
       // Update the consent JWT with new access details
       consentJWT <- Consent.updateAccountAccessOfBerlinGroupConsentJWT(
-        createConsentAccessJson(ibansAccount, ibansBalance, ibansTransaction),
+        createConsentAccessJson(
+          ibans,
+          if(canReadBalances) ibans else List(),
+          if(canReadTransactions) ibans else List()
+        ),
         consent,
         None
       ) map {
@@ -161,40 +162,57 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
             By(BankAccountRouting.AccountRoutingScheme, "IBAN")
           ).map(_.AccountRoutingAddress.get)
         }
+        // Select all IBANs
+        selectedAccountsIbansValue.set(userIbans)
 
         // Determine which IBANs the user can access for accounts, balances, and transactions
         val canReadAccountsIbans: List[String] = json.access.accounts match {
-          case Some(accounts) if accounts.isEmpty =>
+          case Some(accounts) if accounts.isEmpty => // Access is requested
             updateConsentPayloadValue.set(true)
+            accessAccountsDefinedVar.set(true)
             userIbans.toList
-          case Some(accounts) if accounts.flatMap(_.iban).toSet.subsetOf(userIbans) =>
+          case Some(accounts) if accounts.flatMap(_.iban).toSet.subsetOf(userIbans) => // Access is requested for specific IBANs
+            accessAccountsDefinedVar.set(true)
             accounts.flatMap(_.iban)
-          case Some(accounts) =>
+          case Some(accounts) => // Logged in user is not an owner of IBAN/IBANs
             userIsOwnerOfAccountsValue.set(false)
+            accessAccountsDefinedVar.set(true)
             accounts.flatMap(_.iban)
-          case None => List()
+          case None => // Access is not requested
+            accessAccountsDefinedVar.set(false)
+            List()
         }
         val canReadBalancesIbans: List[String] = json.access.balances match {
-          case Some(balances) if balances.isEmpty =>
+          case Some(balances) if balances.isEmpty => // Access is requested
             updateConsentPayloadValue.set(true)
+            accessBalancesDefinedVar.set(true)
             userIbans.toList
-          case Some(balances) if balances.flatMap(_.iban).toSet.subsetOf(userIbans) =>
+          case Some(balances) if balances.flatMap(_.iban).toSet.subsetOf(userIbans) => // Access is requested for specific IBANs
+            accessBalancesDefinedVar.set(true)
             balances.flatMap(_.iban)
-          case Some(balances) =>
+          case Some(balances) => // Logged in user is not an owner of IBAN/IBANs
             userIsOwnerOfAccountsValue.set(false)
+            accessBalancesDefinedVar.set(true)
             balances.flatMap(_.iban)
-          case None => List()
+          case None => // Access is not requested
+            accessBalancesDefinedVar.set(false)
+            List()
         }
         val canReadTransactionsIbans: List[String] = json.access.transactions match {
-          case Some(transactions) if transactions.isEmpty =>
+          case Some(transactions) if transactions.isEmpty => // Access is requested
             updateConsentPayloadValue.set(true)
+            accessTransactionsDefinedVar.set(true)
             userIbans.toList
-          case Some(transactions) if transactions.flatMap(_.iban).toSet.subsetOf(userIbans) =>
+          case Some(transactions) if transactions.flatMap(_.iban).toSet.subsetOf(userIbans) => // Access is requested for specific IBANs
+            accessTransactionsDefinedVar.set(true)
             transactions.flatMap(_.iban)
-          case Some(transactions) =>
+          case Some(transactions) => // Logged in user is not an owner of IBAN/IBANs
             userIsOwnerOfAccountsValue.set(false)
+            accessTransactionsDefinedVar.set(true)
             transactions.flatMap(_.iban)
-          case None => List()
+          case None => // Access is not requested
+            accessTransactionsDefinedVar.set(false)
+            List()
         }
 
         /**
@@ -253,28 +271,20 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
               <p>
                 {formTextHtml}
               </p>
-
-              <p>1) Read account (basic) details of:</p>
-              <div style="padding-left: 20px">
-                {generateCheckboxes("canReadAccountsIbans", canReadAccountsIbans, selectedAccountsIbansValue.is, selectedAccountsIbansValue)}
+              <div>
+                <p><strong>Allowed actions:</strong></p>
+                <p style="padding-left: 20px">Read account details</p>
+                <p style={if (accessBalancesDefinedVar.is) "padding-left: 20px;" else "padding-left: 20px; display: none;"}>Read account balances</p>
+                <p style={if (accessTransactionsDefinedVar.is) "padding-left: 20px;" else "padding-left: 20px; display: none;"}>Read transactions</p>
               </div>
-              <br/>
-
-              <p>2) Read account balances of:</p>
-              <div style="padding-left: 20px">
-                {generateCheckboxes("canReadBalancesIbans", canReadBalancesIbans, selectedBalancesIbansValue.is, selectedBalancesIbansValue)}
+              <div>
+                <p><strong>Accounts</strong>:</p>
+                <div style="padding-left: 20px">
+                  {generateCheckboxes("canReadAccountsIbans", userIbans.toList, selectedAccountsIbansValue.is, selectedAccountsIbansValue)}
+                </div>
+                <br/>
               </div>
-              <br/>
-
-              <p>3) Read transactions of:</p>
-              <div style="padding-left: 20px">
-                {generateCheckboxes("canReadTransactionsIbans", canReadTransactionsIbans, selectedTransactionsIbansValue.is, selectedTransactionsIbansValue)}
-              </div>
-              <br/>
-
-              <p>This consent will end on date
-                {json.validUntil}
-                .</p>
+              <p>This consent will end on date {json.validUntil}.</p>
               <p>I understand that I can revoke this consent at any time.</p>
             </div>
             ) & {
@@ -315,14 +325,17 @@ class BerlinGroupConsent extends MdcLoggable with RestHelper with APIMethods510 
    * Handles the confirmation of a consent request.
    */
   private def confirmConsentRequestProcess() = {
-    if (selectedAccountsIbansValue.is.isEmpty &&
-      selectedBalancesIbansValue.is.isEmpty &&
-      selectedTransactionsIbansValue.is.isEmpty) {
+    if (selectedAccountsIbansValue.is.isEmpty) {
       S.error(s"Please select at least 1 account")
     } else {
       val consentId = ObpS.param("CONSENT_ID") openOr ("")
       if (updateConsentPayloadValue.is) {
-        updateConsent(consentId, selectedAccountsIbansValue.is.toList, selectedBalancesIbansValue.is.toList, selectedTransactionsIbansValue.is.toList)
+        updateConsent(
+          consentId,
+          selectedAccountsIbansValue.is.toList,
+          accessBalancesDefinedVar.is,
+          accessTransactionsDefinedVar.is
+        )
       }
       S.redirectTo(
         s"/confirm-bg-consent-request-sca?CONSENT_ID=${consentId}"

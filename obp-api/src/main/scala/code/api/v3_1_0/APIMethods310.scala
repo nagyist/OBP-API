@@ -3582,7 +3582,8 @@ trait APIMethods310 {
                 createdConsent.consentId, 
                 consumerId,
                 consentJson.valid_from,
-                consentJson.time_to_live.getOrElse(3600)
+                consentJson.time_to_live.getOrElse(3600),
+                None
               )
             _ <- Future(Consents.consentProvider.vend.setJsonWebToken(createdConsent.consentId, consentJWT)) map {
               i => connectorEmptyResponse(i, callContext)

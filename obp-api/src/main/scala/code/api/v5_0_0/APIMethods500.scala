@@ -936,8 +936,10 @@ trait APIMethods500 {
             _ <- Helper.booleanToFuture(ConsentAllowedScaMethods, cc=callContext){
               List(StrongCustomerAuthentication.SMS.toString(), StrongCustomerAuthentication.EMAIL.toString(), StrongCustomerAuthentication.IMPLICIT.toString()).exists(_ == scaMethod)
             }
+            // If the payload contains "to_account` , it mean it is a VRP consent.
+            isVrpConsent = createdConsentRequest.payload.contains("to_account")
             (consentRequestJson, isVRPConsentRequest) <-
-              if(createdConsentRequest.payload.contains("to_account")) {
+              if(isVrpConsent) {
                 val failMsg = s"$InvalidJsonFormat The vrp consent request json body should be the $PostVRPConsentRequestJsonV510 "
                 NewStyle.function.tryons(failMsg, 400, callContext) {
                   json.parse(createdConsentRequest.payload).extract[code.api.v5_1_0.PostVRPConsentRequestJsonInternalV510]
@@ -1123,11 +1125,12 @@ trait APIMethods500 {
                   )
                 )
             }
-            postConsentViewJsons <- if(createdConsentRequest.payload.contains("to_account")) {
+            postConsentViewJsons <- if(isVrpConsent) {
             Future.successful(List(PostConsentViewJsonV310(
                 bankId.value,
                 accountId.value,
-                viewId.value
+                viewId.value,
+                Some(HelperInfoJson(List(counterpartyId.value)))
               )))
             }else{
               Future.sequence(
@@ -1137,7 +1140,8 @@ trait APIMethods500 {
                       .map(result =>PostConsentViewJsonV310(
                         result._1.bankId.value,
                         result._1.accountId.value,
-                        access.view_id
+                        access.view_id,
+                        None,
                       ))
                 )
               )
@@ -1198,7 +1202,8 @@ trait APIMethods500 {
               createdConsent.consentId,
               consumerId,
               postConsentBodyCommonJson.valid_from,
-              postConsentBodyCommonJson.time_to_live.getOrElse(3600)
+              postConsentBodyCommonJson.time_to_live.getOrElse(3600),
+              Some(HelperInfoJson(List(counterpartyId.value)))
               )
             _ <- Future(Consents.consentProvider.vend.setJsonWebToken(createdConsent.consentId, consentJWT)) map {
               i => connectorEmptyResponse(i, callContext)
@@ -2148,7 +2153,7 @@ trait APIMethods500 {
             _ <- NewStyle.function.systemView(ViewId(viewId), cc.callContext)
             updatedView <- NewStyle.function.updateSystemView(ViewId(viewId), updateJson.toUpdateViewJson, cc.callContext)
           } yield {
-            (JSONFactory310.createViewJSON(updatedView), HttpCode.`200`(cc.callContext))
+            (createViewJsonV500(updatedView), HttpCode.`200`(cc.callContext))
           }
       }
     }

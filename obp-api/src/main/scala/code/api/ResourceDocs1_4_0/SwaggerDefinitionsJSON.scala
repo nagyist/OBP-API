@@ -4238,7 +4238,7 @@ object SwaggerDefinitionsJSON {
 
   val postConsentEmailJsonV310 = PostConsentEmailJsonV310(
     everything = false,
-    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value)),
+    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value, None)),
     entitlements = List(PostConsentEntitlementJsonV310(bankIdExample.value, "CanGetCustomer")),
     consumer_id = Some(consumerIdExample.value),
     email = emailExample.value,
@@ -4248,7 +4248,7 @@ object SwaggerDefinitionsJSON {
   
   val postConsentPhoneJsonV310 = PostConsentPhoneJsonV310(
     everything = false,
-    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value)),
+    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value, None)),
     entitlements = List(PostConsentEntitlementJsonV310(bankIdExample.value, "CanGetCustomer")),
     consumer_id = Some(consumerIdExample.value),
     phone_number = mobileNumberExample.value,
@@ -4258,7 +4258,7 @@ object SwaggerDefinitionsJSON {
   
   val postConsentImplicitJsonV310 = PostConsentImplicitJsonV310(
     everything = false,
-    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value)),
+    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value, None)),
     entitlements = List(PostConsentEntitlementJsonV310(bankIdExample.value, "CanGetCustomer")),
     consumer_id = Some(consumerIdExample.value),
     valid_from = Some(new Date()),
@@ -5223,7 +5223,7 @@ object SwaggerDefinitionsJSON {
   )
   
   val helperInfoJson = HelperInfoJson(
-    counterparty_id = List(counterpartyIdExample.value)
+    counterparty_ids = List(counterpartyIdExample.value)
   )
   
   val consentAccountAccessJson=  ConsentAccountAccessJson(

@@ -61,7 +61,7 @@ class ConsentObpTest extends V510ServerSetup {
   lazy val bankId = randomBankId
   lazy val bankAccount = randomPrivateAccount(bankId)
   lazy val entitlements = List(PostConsentEntitlementJsonV310("", CanGetAnyUser.toString()))
-  lazy val views = List(PostConsentViewJsonV310(bankId, bankAccount.id, Constant.SYSTEM_OWNER_VIEW_ID))
+  lazy val views = List(PostConsentViewJsonV310(bankId, bankAccount.id, Constant.SYSTEM_OWNER_VIEW_ID, None))
   lazy val postConsentEmailJsonV310 = SwaggerDefinitionsJSON.postConsentEmailJsonV310
     .copy(entitlements=entitlements)
     .copy(consumer_id=Some(testConsumer.consumerId.get))
@@ -169,7 +169,7 @@ class ConsentObpTest extends V510ServerSetup {
 
         // Check we have all views from the consent
         val assignedViews = user.views.map(_.list).toSeq.flatten
-        assignedViews.map(e => PostConsentViewJsonV310(e.bank_id, e.account_id, e.view_id)).distinct should equal(views)
+        assignedViews.map(e => PostConsentViewJsonV310(e.bank_id, e.account_id, e.view_id, None)).distinct should equal(views)
 
       case false =>
         // Due to missing props at the instance the request must fail

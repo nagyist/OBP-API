@@ -232,7 +232,7 @@ case class PostConsentRequestJsonV500(
   time_to_live: Option[Long]
 )
 case class HelperInfoJson(
-  counterparty_id:List[String]
+  counterparty_ids:List[String]
 )
 
 case class ConsentAccountAccessJson(

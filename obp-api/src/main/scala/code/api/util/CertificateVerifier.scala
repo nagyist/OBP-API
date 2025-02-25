@@ -91,15 +91,15 @@ object CertificateVerifier extends MdcLoggable {
       val validator = CertPathValidator.getInstance("PKIX")
       validator.validate(certPath, pkixParams)
 
-      logger.info("✅ Certificate is valid and trusted.")
+      logger.info("Certificate is valid and trusted.")
       true
     } match {
       case Success(_) => true
       case Failure(e: CertPathValidatorException) =>
-        logger.info(s"❌ Certificate validation failed: ${e.getMessage}")
+        logger.info(s"Certificate validation failed: ${e.getMessage}")
         false
       case Failure(e) =>
-        logger.info(s"❌ Error: ${e.getMessage}")
+        logger.info(s"Error: ${e.getMessage}")
         false
     }
   }

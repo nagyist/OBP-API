@@ -819,6 +819,7 @@ object JSONFactory500 {
       metadata_view= view.metadataView,
       is_public = view.isPublic,
       is_system = view.isSystem,
+      is_firehose = Some(view.isFirehose),
       alias = alias,
       hide_metadata_if_alias_used = view.hideOtherAccountMetadataIfAlias,
       can_add_comment = view.canAddComment,

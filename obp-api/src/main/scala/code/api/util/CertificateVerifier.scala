@@ -133,7 +133,7 @@ object CertificateVerifier extends MdcLoggable {
     } match {
       case Success(pem) => Some(pem)
       case Failure(exception) =>
-        println(s"❌ Failed to load PEM certificate from file: ${exception.getMessage}")
+        logger.error(s"Failed to load PEM certificate from file: ${exception.getMessage}")
         None
     }
   }

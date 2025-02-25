@@ -40,10 +40,10 @@ object CertificateVerifier extends MdcLoggable {
       trustStore
     } match {
       case Success(store) =>
-        logger.info(s"✅ Loaded trust store from: $trustStorePath")
+        logger.info(s"Loaded trust store from: $trustStorePath")
         Some(store)
       case Failure(e) =>
-        logger.info(s"❌ Failed to load trust store: ${e.getMessage}")
+        logger.info(s"Failed to load trust store: ${e.getMessage}")
         None
     }
   }
@@ -145,11 +145,11 @@ object CertificateVerifier extends MdcLoggable {
 
     pemCertificate.foreach { pem =>
       val isValid = validateCertificate(pem)
-      logger.info(s"✅ Certificate verification result: $isValid")
+      logger.info(s"Certificate verification result: $isValid")
     }
 
     loadTrustStore().foreach { trustStore =>
-      logger.info(s"🔹 Trust Store contains ${trustStore.size()} certificates.")
+      logger.info(s"Trust Store contains ${trustStore.size()} certificates.")
     }
   }
 }

@@ -19,8 +19,6 @@ object CertificateVerifier extends MdcLoggable {
    * This function:
    * - Reads the trust store password from the application properties (`truststore.path.tpp_signature`).
    * - Uses Java's `KeyStore` class to load the certificates.
-   * - If successful, logs `✅ Loaded trust store from: path`.
-   * - If it fails, logs `❌ Failed to load trust store: error message`.
    *
    * @return An `Option[KeyStore]` containing the loaded trust store, or `None` if loading fails.
    */

@@ -72,7 +72,9 @@ trait OBPDataImport extends MdcLoggable {
   protected def dataOrFirstFailure[T](boxes : List[Box[T]]) = {
     val firstFailure = boxes.collectFirst{case f: Failure => f}
     firstFailure match {
-      case Some(f) => f
+      case Some(f) =>
+        logger.debug(f)
+        f
       case None => Full(boxes.flatten) //no failures, so we can return the results
     }
   }

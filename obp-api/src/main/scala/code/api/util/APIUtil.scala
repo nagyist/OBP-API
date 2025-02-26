@@ -795,7 +795,7 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
       return false
     }
 
-    // 2nd: check the password length between 10 and 512 
+    // 2nd: check the password length between 17 and 512 
     if (password.length > 16 && password.length <= 512) {
       return true
     }

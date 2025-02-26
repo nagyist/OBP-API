@@ -5230,7 +5230,7 @@ object SwaggerDefinitionsJSON {
     bank_id = bankIdExample.value,
     account_id = accountIdExample.value,
     view_id = viewIdExample.value,
-    helper_info = helperInfoJson
+    helper_info = Some(helperInfoJson)
   )
   
   val consentJsonV500 = ConsentJsonV500(

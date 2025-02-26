@@ -739,7 +739,7 @@ trait APIMethods500 {
       nameOf(getConsentByConsentRequestId),
       "GET",
       "/consumer/consent-requests/CONSENT_REQUEST_ID/consents",
-      "Get Consent By Consent Request Id",
+      "Get Consent By Consent Request Id via Consumner",
       s"""
          |
          |This endpoint gets the Consent By consent request id.
@@ -762,16 +762,32 @@ trait APIMethods500 {
             consent <- Future { Consents.consentProvider.vend.getConsentByConsentRequestId(consentRequestId)} map {
               unboxFullOrFail(_, callContext, ConsentRequestNotFound)
             }
-            _ <- Helper.booleanToFuture(failMsg = ConsentNotFound, cc = cc.callContext) {
-              consent.mUserId == cc.userId
+            _ <- Helper.booleanToFuture(failMsg = ConsentNotFound, failCode = 404, cc = cc.callContext) {
+              consent.mConsumerId.get == cc.consumer.map(_.consumerId.get).getOrElse("None")
+            }
+            (bankId, accountId, viewId, helperInfo) <- NewStyle.function.tryons(failMsg = Oauth2BadJWTException, 400, callContext) {
+              val jsonWebTokenAsJValue = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken).map(json.parse(_).extract[ConsentJWT])
+              val bankId = BankId(jsonWebTokenAsJValue.head.views.head.bank_id)
+              val accountId = AccountId(jsonWebTokenAsJValue.head.views.head.account_id)
+              val viewId = ViewId(jsonWebTokenAsJValue.head.views.head.view_id)
+              val helperInfoFromJwtToken = jsonWebTokenAsJValue.head.views.head.helper_info
+              val viewCanGetCounterparty = Views.views.vend.customView(viewId, BankIdAccountId(bankId, accountId)).map(_.canGetCounterparty)
+              val helperInfo = if(viewCanGetCounterparty==Full(true)) helperInfoFromJwtToken else None
+              (bankId, accountId, viewId, helperInfo)
             }
           } yield {
             (
               ConsentJsonV500(
-              consent.consentId, 
-              consent.jsonWebToken, 
-              consent.status, 
-              Some(consent.consentRequestId)
+                consent.consentId, 
+                consent.jsonWebToken, 
+                consent.status, 
+                Some(consent.consentRequestId),
+                Some(ConsentAccountAccessJson(
+                  bank_id = bankId.value,
+                  account_id = accountId.value,
+                  view_id = viewId.value,
+                  helper_info =  helperInfo 
+                ))
               ), 
               HttpCode.`200`(cc)
             )
@@ -1256,7 +1272,14 @@ trait APIMethods500 {
               consentJWT,
               mappedConsent.status,
               Some(mappedConsent.consentRequestId),
-              if (isVRPConsentRequest) Some(ConsentAccountAccessJson(bankId.value, accountId.value, viewId.value, HelperInfoJson(List(counterpartyId.value)))) else None
+              if (isVRPConsentRequest) Some(
+                ConsentAccountAccessJson(
+                  bankId.value, 
+                  accountId.value,
+                  viewId.value, 
+                  Some(HelperInfoJson(List(counterpartyId.value))))
+              ) 
+              else None
             ), HttpCode.`201`(callContext))
           }
       }

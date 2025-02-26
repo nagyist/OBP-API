@@ -1675,7 +1675,7 @@ trait APIMethods510 {
       nameOf(getConsentByConsentId),
       "GET",
       "/user/current/consents/CONSENT_ID",
-      "Get Consent By Consent Id",
+      "Get Consent By Consent Id via User",
       s"""
          |
          |This endpoint gets the Consent By consent id.
@@ -1713,7 +1713,7 @@ trait APIMethods510 {
       nameOf(getConsentByConsentIdViaConsumer),
       "GET",
       "/consumer/current/consents/CONSENT_ID",
-      "Get Consent By Consent Id",
+      "Get Consent By Consent Id via Consumer",
       s"""
          |
          |This endpoint gets the Consent By consent id.

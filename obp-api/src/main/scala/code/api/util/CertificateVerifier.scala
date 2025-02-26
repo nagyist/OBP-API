@@ -137,6 +137,7 @@ object CertificateVerifier extends MdcLoggable {
   }
 
   def main(args: Array[String]): Unit = {
+    // change the following path if using this function to test on your localhost
     val certificatePath = "/path/to/certificate.pem"
     val pemCertificate = loadPemCertificateFromFile(certificatePath)
 

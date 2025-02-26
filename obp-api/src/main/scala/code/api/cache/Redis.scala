@@ -61,7 +61,7 @@ object Redis extends MdcLoggable {
 
     // Load the CA certificate
     val trustStore = KeyStore.getInstance(KeyStore.getDefaultType)
-    val trustStorePassword = APIUtil.getPropsValue("keystore.password.redis")
+    val trustStorePassword = APIUtil.getPropsValue("truststore.password.redis")
       .getOrElse(APIUtil.initPasswd).toCharArray
     val truststorePath = APIUtil.getPropsValue("truststore.path.redis").getOrElse("")
     val trustStoreStream = new FileInputStream(truststorePath)

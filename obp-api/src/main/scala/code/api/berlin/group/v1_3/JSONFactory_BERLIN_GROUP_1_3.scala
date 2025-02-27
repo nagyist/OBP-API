@@ -49,8 +49,8 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
   )
   
   case class CoreAccountLinksJsonV13(
-    balances: LinkHrefJson //,
-//    trasactions: LinkHrefJson // These links are only supported, when the corresponding consent has been already granted.
+    balances: LinkHrefJson,
+    transactions: Option[LinkHrefJson] = None // These links are only supported, when the corresponding consent has been already granted.
   )
   
   case class CoreAccountBalancesJson(
@@ -308,10 +308,17 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
   )
   
   
-  def createAccountListJson(bankAccounts: List[BankAccount], user: User): CoreAccountsJsonV13 = {
+  def createAccountListJson(bankAccounts: List[BankAccount],
+                            canReadBalancesAccounts:  List[BankIdAccountId],
+                            canReadTransactionsAccounts:  List[BankIdAccountId],
+                            user: User): CoreAccountsJsonV13 = {
     CoreAccountsJsonV13(bankAccounts.map {
       x =>
         val (iBan: String, bBan: String) = getIbanAndBban(x)
+        val commonPath = s"${OBP_BERLIN_GROUP_1_3.apiVersion.urlPrefix}/${OBP_BERLIN_GROUP_1_3.version}/accounts/${x.accountId.value}"
+        val balanceRef = LinkHrefJson(s"/$commonPath/accounts/${x.accountId.value}/balances")
+        val transactionRef = LinkHrefJson(s"/$commonPath/accounts/${x.accountId.value}/transactions")
+        val canReadTransactions = canReadTransactionsAccounts.map(_.accountId.value).contains(x.accountId.value)
 
       
         CoreAccountJsonV13(
@@ -323,7 +330,10 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
           bic = getBicFromBankId(x.bankId.value),
           cashAccountType = x.accountType,
           product = x.accountType,
-          _links = CoreAccountLinksJsonV13(LinkHrefJson(s"/${OBP_BERLIN_GROUP_1_3.apiVersion.urlPrefix}/${OBP_BERLIN_GROUP_1_3.version}/accounts/${x.accountId.value}/balances")) 
+          _links = CoreAccountLinksJsonV13(
+            balances = balanceRef,
+            transactions = if(canReadTransactions) Some(transactionRef) else None,
+          )
         )
      }
     )

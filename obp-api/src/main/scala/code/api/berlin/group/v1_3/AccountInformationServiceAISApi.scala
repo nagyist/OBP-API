@@ -311,6 +311,8 @@ of the PSU at this ASPSP.
             (Full(u), callContext) <- authenticatedAccess(cc)
             _ <- passesPsd2Aisp(callContext)
             (availablePrivateAccounts, callContext) <- NewStyle.function.getAccountListOfBerlinGroup(u, callContext)
+            (canReadBalancesAccounts, callContext) <- NewStyle.function.getAccountCanReadBalancesOfBerlinGroup(u, callContext)
+            (canReadTransactionsAccounts, callContext) <- NewStyle.function.getAccountCanReadTransactionsOfBerlinGroup(u, callContext)
             (accounts, callContext) <- NewStyle.function.getBankAccounts(availablePrivateAccounts, callContext)
             bankAccountsFiltered = accounts.filter(bankAccount =>
               bankAccount.attributes.toList.flatten.find(attribute =>
@@ -320,7 +322,12 @@ of the PSU at this ASPSP.
               ).isEmpty)
             
           } yield {
-            (JSONFactory_BERLIN_GROUP_1_3.createAccountListJson(bankAccountsFiltered, u), callContext)
+            (JSONFactory_BERLIN_GROUP_1_3.createAccountListJson(
+              bankAccountsFiltered,
+              canReadBalancesAccounts,
+              canReadTransactionsAccounts,
+              u
+            ), callContext)
           }
          }
        }

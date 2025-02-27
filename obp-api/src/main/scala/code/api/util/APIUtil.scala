@@ -2354,15 +2354,6 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
     }
   }
 
-  // Function checks does a consumer specified by a parameter consumerId has at least one role provided by a parameter roles at a bank specified by a parameter bankId
-  // i.e. does consumer has assigned at least one role from the list
-  def hasAtLeastOneScope(bankId: String, consumerId: String, roles: List[ApiRole]): Boolean = {
-    val list: List[Boolean] = for (role <- roles) yield {
-      !Scope.scope.vend.getScope(if (role.requiresBankId == true) bankId else "", consumerId, role.toString).isEmpty
-    }
-    list.exists(_ == true)
-  }
-
   def hasEntitlement(bankId: String, userId: String, apiRole: ApiRole): Boolean = apiRole match {
     case RoleCombination(roles) => roles.forall(hasEntitlement(bankId, userId, _))
     case role =>
@@ -3685,7 +3676,12 @@ object APIUtil extends MdcLoggable with CustomJsonFormats{
   }
 
   final def checkAuthorisationToCreateTransactionRequest(viewId: ViewId, bankAccountId: BankIdAccountId, user: User, callContext: Option[CallContext]): Box[Boolean] = {
-    lazy val hasCanCreateAnyTransactionRequestRole = APIUtil.hasEntitlement(bankAccountId.bankId.value, user.userId, canCreateAnyTransactionRequest)
+    lazy val hasCanCreateAnyTransactionRequestRole = APIUtil.handleEntitlementsAndScopes(
+      bankAccountId.bankId.value,
+      user.userId,
+      APIUtil.getConsumerPrimaryKey(callContext),
+      List(canCreateAnyTransactionRequest)
+    )
 
     lazy val view = APIUtil.checkViewAccessAndReturnView(viewId, bankAccountId, Some(user), callContext)
 

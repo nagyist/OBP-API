@@ -12,39 +12,48 @@
     "logo":"https://static.openbankproject.com/images/sandbox/bank_y.png",
     "website":"https://www.example.com"
   }],
-  "users":[{
-    "email":"robert.x.0.gh@example.com",
-    "password":"X!d1edcafd",
-    "user_name":"Robert.X.0.GH"
-  },{
-    "email":"susan.x.0.gh@example.com",
-    "password":"X!90e4e3e4",
-    "user_name":"Susan.X.0.GH"
-  },{
-    "email":"anil.x.0.gh@example.com",
-    "password":"X!eb06b005",
-    "user_name":"Anil.X.0.GH"
-  },{
-    "email":"ellie.x.0.gh@example.com",
-    "password":"X!5bc94405",
-    "user_name":"Ellie.X.0.GH"
-  },{
-    "email":"robert.y.9.gh@example.com",
-    "password":"X!039941de",
-    "user_name":"Robert.Y.9.GH"
-  },{
-    "email":"susan.y.9.gh@example.com",
-    "password":"X!bb4efa3d",
-    "user_name":"Susan.Y.9.GH"
-  },{
-    "email":"anil.y.9.gh@example.com",
-    "password":"X!098915cd",
-    "user_name":"Anil.Y.9.GH"
-  },{
-    "email":"ellie.y.9.gh@example.com",
-    "password":"X!6170b37b",
-    "user_name":"Ellie.Y.9.GH"
-  }],
+  "users": [
+    {
+      "email": "robert.x.0.gh@example.com",
+      "password": "V8%Ktssl(L",
+      "user_name": "Robert.X.0.GH"
+    },
+    {
+      "email": "susan.x.0.gh@example.com",
+      "password": "naW9u3C%bh",
+      "user_name": "Susan.X.0.GH"
+    },
+    {
+      "email": "anil.x.0.gh@example.com",
+      "password": "9W0RIrX-6f",
+      "user_name": "Anil.X.0.GH"
+    },
+    {
+      "email": "ellie.x.0.gh@example.com",
+      "password": "rMf_OHM0dW",
+      "user_name": "Ellie.X.0.GH"
+    },
+    {
+      "email": "robert.y.9.gh@example.com",
+      "password": "%1Z43kzt2L",
+      "user_name": "Robert.Y.9.GH"
+    },
+    {
+      "email": "susan.y.9.gh@example.com",
+      "password": "oITehM!B2V",
+      "user_name": "Susan.Y.9.GH"
+    },
+    {
+      "email": "anil.y.9.gh@example.com",
+      "password": "TuKaNO8oI-",
+      "user_name": "Anil.Y.9.GH"
+    },
+    {
+      "email": "ellie.y.9.gh@example.com",
+      "password": "SkJDH+ds2_",
+      "user_name": "Ellie.Y.9.GH"
+    }
+  ],
   "accounts":[{
     "id":"f65e28a5-9abe-428f-85bb-6c3c38122adb",
     "bank":"obp-bank-x-gh",

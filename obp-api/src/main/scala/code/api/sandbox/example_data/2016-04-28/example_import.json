@@ -12,47 +12,48 @@
     "logo":"https://static.openbankproject.com/images/sandbox/bank_y.png",
     "website":"https://www.example.com"
   }],
-  "users":[{
-    "email":"robert.xuk.x@example.com",
-    "user_name": "robert.xuk.x@example.com",
-    "password":"5232e7",
-    "display_name":"Robert XUk X"
-  },{
-    "email":"susan.xuk.x@example.com",
-    "user_name": "susan.xuk.x@example.com",
-    "password":"43ca4d",
-    "display_name":"Susan XUk X"
-  },{
-    "email":"anil.xuk.x@example.com",
-    "user_name": "anil.xuk.x@example.com",
-    "password":"d8c716",
-    "display_name":"Anil XUk X"
-  },{
-    "email":"ellie.xuk.x@example.com",
-    "user_name": "ellie.xuk.x@example.com",
-    "password":"6187b9",
-    "display_name":"Ellie XUk X"
-  },{
-    "email":"robert.yuk.y@example.com",
-    "user_name": "robert.yuk.y@example.com",
-    "password":"e5046a",
-    "display_name":"Robert YUk Y"
-  },{
-    "email":"susan.yuk.y@example.com",
-    "user_name": "susan.yuk.y@example.com",
-    "password":"5b38a6",
-    "display_name":"Susan YUk Y"
-  },{
-    "email":"anil.yuk.y@example.com",
-    "user_name": "anil.yuk.y@example.com",
-    "password":"dcf03d",
-    "display_name":"Anil YUk Y"
-  },{
-    "email":"ellie.yuk.y@example.com",
-    "user_name": "ellie.yuk.y@example.com",
-    "password":"4f9eaa",
-    "display_name":"Ellie YUk Y"
-  }],
+  "users": [
+    {
+      "email": "robert.x.0.gh@example.com",
+      "password": "V8%Ktssl(L",
+      "user_name": "Robert.X.0.GH"
+    },
+    {
+      "email": "susan.x.0.gh@example.com",
+      "password": "naW9u3C%bh",
+      "user_name": "Susan.X.0.GH"
+    },
+    {
+      "email": "anil.x.0.gh@example.com",
+      "password": "9W0RIrX-6f",
+      "user_name": "Anil.X.0.GH"
+    },
+    {
+      "email": "ellie.x.0.gh@example.com",
+      "password": "rMf_OHM0dW",
+      "user_name": "Ellie.X.0.GH"
+    },
+    {
+      "email": "robert.y.9.gh@example.com",
+      "password": "%1Z43kzt2L",
+      "user_name": "Robert.Y.9.GH"
+    },
+    {
+      "email": "susan.y.9.gh@example.com",
+      "password": "oITehM!B2V",
+      "user_name": "Susan.Y.9.GH"
+    },
+    {
+      "email": "anil.y.9.gh@example.com",
+      "password": "TuKaNO8oI-",
+      "user_name": "Anil.Y.9.GH"
+    },
+    {
+      "email": "ellie.y.9.gh@example.com",
+      "password": "SkJDH+ds2_",
+      "user_name": "Ellie.Y.9.GH"
+    }
+  ],
   "accounts":[{
     "id":"05237266-b334-4704-a087-5b460a2ecf04",
     "bank":"psd201-bank-x--uk",

@@ -69,7 +69,6 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
                                  product: String,
                                  cashAccountType: String,
 //                                 status: String="enabled",
-                                 bic: String,
 //                                 linkedAccounts: String ="string",
 //                                 usage: String ="PRIV",
 //                                 details: String ="",
@@ -327,7 +326,6 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
           bban = bBan,
           currency = x.currency,
           name = x.name,
-          bic = getBicFromBankId(x.bankId.value),
           cashAccountType = x.accountType,
           product = x.accountType,
           _links = CoreAccountLinksJsonV13(
@@ -350,7 +348,6 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
           bban = bBan,
           currency = x.currency,
           name = x.name,
-          bic = getBicFromBankId(x.bankId.value),
           cashAccountType = x.accountType,
           product = x.accountType,
           _links = CoreAccountLinksJsonV13(LinkHrefJson(s"/${OBP_BERLIN_GROUP_1_3.apiVersion.urlPrefix}/${OBP_BERLIN_GROUP_1_3.version}/accounts/${x.accountId.value}/balances"))

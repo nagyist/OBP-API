@@ -4,8 +4,9 @@ import java.text.SimpleDateFormat
 import java.util.{Date, UUID}
 import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{ConsentAccessJson, PostConsentJson}
 import code.api.util.ApiRole.{canCreateEntitlementAtAnyBank, canCreateEntitlementAtOneBank}
-import code.api.util.ErrorMessages.{InvalidConnectorResponse, NoViewReadAccountsBerlinGroup, CouldNotAssignAccountAccess}
+import code.api.util.ErrorMessages.{CouldNotAssignAccountAccess, InvalidConnectorResponse, NoViewReadAccountsBerlinGroup}
 import code.api.v3_1_0.{PostConsentBodyCommonJson, PostConsentEntitlementJsonV310, PostConsentViewJsonV310}
+import code.api.v5_0_0.HelperInfoJson
 import code.api.{APIFailure, Constant, RequestHeader}
 import code.bankconnectors.Connector
 import code.consent
@@ -71,7 +72,8 @@ case class Role(role_name: String,
                )
 case class ConsentView(bank_id: String, 
                        account_id: String,
-                       view_id : String
+                       view_id : String,
+                       helper_info: Option[HelperInfoJson]
                       )
 
 case class Consent(createdByUserId: String,
@@ -593,7 +595,9 @@ object Consent extends MdcLoggable {
                        consentId: String,
                        consumerId: Option[String],
                        validFrom: Option[Date],
-                       timeToLive: Long): String = {
+                       timeToLive: Long,
+                       helperInfo: Option[HelperInfoJson]
+  ): String = {
     
     lazy val currentConsumerId = Consumer.findAll(By(Consumer.createdByUserId, user.userId)).map(_.consumerId.get).headOption.getOrElse("")
     val currentTimeInSeconds = System.currentTimeMillis / 1000
@@ -621,12 +625,13 @@ object Consent extends MdcLoggable {
     val viewsToAdd: Seq[ConsentView] = 
       for {
         view <- views
-        if consent.everything || consent.views.exists(_ == PostConsentViewJsonV310(view.bankId.value,view.accountId.value, view.viewId.value))
+        if consent.everything || consent.views.exists(_ == PostConsentViewJsonV310(view.bankId.value,view.accountId.value, view.viewId.value, helperInfo))
       } yield  {
         ConsentView(
           bank_id = view.bankId.value,
           account_id = view.accountId.value,
-          view_id = view.viewId.value
+          view_id = view.viewId.value,
+          helper_info = helperInfo
         )
       }
     // 2. Add Roles
@@ -701,7 +706,8 @@ object Consent extends MdcLoggable {
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
           account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
-          view_id = Constant.SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID
+          view_id = Constant.SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID,
+          None
         )
       }
     }
@@ -712,7 +718,8 @@ object Consent extends MdcLoggable {
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
           account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
-          view_id = Constant.SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID
+          view_id = Constant.SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID,
+          None
         )
       }
     }
@@ -723,7 +730,8 @@ object Consent extends MdcLoggable {
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
           account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
-          view_id = Constant.SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID
+          view_id = Constant.SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID,
+          None
         )
       }
     }
@@ -767,7 +775,8 @@ object Consent extends MdcLoggable {
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
           account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
-          view_id = Constant.SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID
+          view_id = Constant.SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID,
+          None
         )
       }
     }
@@ -778,7 +787,8 @@ object Consent extends MdcLoggable {
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
           account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
-          view_id = Constant.SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID
+          view_id = Constant.SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID,
+          None
         )
       }
     }
@@ -789,7 +799,8 @@ object Consent extends MdcLoggable {
         ConsentView(
           bank_id = bankAccount._1.map(_.bankId.value).getOrElse(""),
           account_id = bankAccount._1.map(_.accountId.value).openOrThrowException(error),
-          view_id = Constant.SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID
+          view_id = Constant.SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID,
+          None
         )
       }
     }
@@ -853,7 +864,8 @@ object Consent extends MdcLoggable {
               ConsentView(
                 bank_id = bankId.getOrElse(null),
                 account_id = accountId,
-                view_id = permission
+                view_id = permission,
+                None
               ))
       }.flatten
     } else {
@@ -862,7 +874,8 @@ object Consent extends MdcLoggable {
           ConsentView(
             bank_id = null,
             account_id = null,
-            view_id = permission
+            view_id = permission,
+            None
           )
       }
     }

@@ -739,7 +739,7 @@ trait APIMethods500 {
       nameOf(getConsentByConsentRequestId),
       "GET",
       "/consumer/consent-requests/CONSENT_REQUEST_ID/consents",
-      "Get Consent By Consent Request Id",
+      "Get Consent By Consent Request Id via Consumner",
       s"""
          |
          |This endpoint gets the Consent By consent request id.
@@ -762,16 +762,44 @@ trait APIMethods500 {
             consent <- Future { Consents.consentProvider.vend.getConsentByConsentRequestId(consentRequestId)} map {
               unboxFullOrFail(_, callContext, ConsentRequestNotFound)
             }
-            _ <- Helper.booleanToFuture(failMsg = ConsentNotFound, cc = cc.callContext) {
-              consent.mUserId == cc.userId
+            _ <- Helper.booleanToFuture(failMsg = ConsentNotFound, failCode = 404, cc = cc.callContext) {
+              consent.mConsumerId.get == cc.consumer.map(_.consumerId.get).getOrElse("None")
+            }
+            (bankId, accountId, viewId, helperInfo) <- NewStyle.function.tryons(failMsg = Oauth2BadJWTException, 400, callContext) {
+              val jsonWebTokenAsJValue = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken).map(json.parse(_).extract[ConsentJWT])
+              val viewsFromJwtToken = jsonWebTokenAsJValue.head.views
+              //at the moment,we only support VRP consent to show `ConsentAccountAccessJson` in the response. Because the TPP need them for payments.
+              val isVrpConsent = (viewsFromJwtToken.length == 1 )&& (viewsFromJwtToken.head.bank_id.nonEmpty)&& (viewsFromJwtToken.head.account_id.nonEmpty)&& (viewsFromJwtToken.head.view_id.startsWith("_vrp-"))
+              
+              if(isVrpConsent){
+                val bankId = BankId(viewsFromJwtToken.head.bank_id)
+                val accountId = AccountId(viewsFromJwtToken.head.account_id)
+                val viewId = ViewId(viewsFromJwtToken.head.view_id)
+                val helperInfoFromJwtToken = viewsFromJwtToken.head.helper_info
+                val viewCanGetCounterparty = Views.views.vend.customView(viewId, BankIdAccountId(bankId, accountId)).map(_.canGetCounterparty)
+                val helperInfo = if(viewCanGetCounterparty==Full(true)) helperInfoFromJwtToken else None
+                (Some(bankId), Some(accountId), Some(viewId), helperInfo)
+              }else{
+                (None, None, None, None)
+              }
             }
           } yield {
             (
               ConsentJsonV500(
-              consent.consentId, 
-              consent.jsonWebToken, 
-              consent.status, 
-              Some(consent.consentRequestId)
+                consent.consentId, 
+                consent.jsonWebToken, 
+                consent.status, 
+                Some(consent.consentRequestId),
+                if (bankId.isDefined && accountId.isDefined && viewId.isDefined) {
+                  Some(ConsentAccountAccessJson(
+                    bank_id = bankId.get.value,
+                    account_id = accountId.get.value,
+                    view_id = viewId.get.value,
+                    helper_info = helperInfo
+                  ))
+                } else {
+                  None
+                }
               ), 
               HttpCode.`200`(cc)
             )
@@ -936,8 +964,10 @@ trait APIMethods500 {
             _ <- Helper.booleanToFuture(ConsentAllowedScaMethods, cc=callContext){
               List(StrongCustomerAuthentication.SMS.toString(), StrongCustomerAuthentication.EMAIL.toString(), StrongCustomerAuthentication.IMPLICIT.toString()).exists(_ == scaMethod)
             }
+            // If the payload contains "to_account` , it mean it is a VRP consent.
+            isVrpConsent = createdConsentRequest.payload.contains("to_account")
             (consentRequestJson, isVRPConsentRequest) <-
-              if(createdConsentRequest.payload.contains("to_account")) {
+              if(isVrpConsent) {
                 val failMsg = s"$InvalidJsonFormat The vrp consent request json body should be the $PostVRPConsentRequestJsonV510 "
                 NewStyle.function.tryons(failMsg, 400, callContext) {
                   json.parse(createdConsentRequest.payload).extract[code.api.v5_1_0.PostVRPConsentRequestJsonInternalV510]
@@ -1123,11 +1153,12 @@ trait APIMethods500 {
                   )
                 )
             }
-            postConsentViewJsons <- if(createdConsentRequest.payload.contains("to_account")) {
+            postConsentViewJsons <- if(isVrpConsent) {
             Future.successful(List(PostConsentViewJsonV310(
                 bankId.value,
                 accountId.value,
-                viewId.value
+                viewId.value,
+                Some(HelperInfoJson(List(counterpartyId.value)))
               )))
             }else{
               Future.sequence(
@@ -1137,7 +1168,8 @@ trait APIMethods500 {
                       .map(result =>PostConsentViewJsonV310(
                         result._1.bankId.value,
                         result._1.accountId.value,
-                        access.view_id
+                        access.view_id,
+                        None,
                       ))
                 )
               )
@@ -1198,7 +1230,8 @@ trait APIMethods500 {
               createdConsent.consentId,
               consumerId,
               postConsentBodyCommonJson.valid_from,
-              postConsentBodyCommonJson.time_to_live.getOrElse(3600)
+              postConsentBodyCommonJson.time_to_live.getOrElse(3600),
+              Some(HelperInfoJson(List(counterpartyId.value)))
               )
             _ <- Future(Consents.consentProvider.vend.setJsonWebToken(createdConsent.consentId, consentJWT)) map {
               i => connectorEmptyResponse(i, callContext)
@@ -1251,7 +1284,14 @@ trait APIMethods500 {
               consentJWT,
               mappedConsent.status,
               Some(mappedConsent.consentRequestId),
-              if (isVRPConsentRequest) Some(ConsentAccountAccessJson(bankId.value, accountId.value, viewId.value, HelperInfoJson(List(counterpartyId.value)))) else None
+              if (isVRPConsentRequest) Some(
+                ConsentAccountAccessJson(
+                  bankId.value, 
+                  accountId.value,
+                  viewId.value, 
+                  Some(HelperInfoJson(List(counterpartyId.value))))
+              ) 
+              else None
             ), HttpCode.`201`(callContext))
           }
       }
@@ -2148,7 +2188,7 @@ trait APIMethods500 {
             _ <- NewStyle.function.systemView(ViewId(viewId), cc.callContext)
             updatedView <- NewStyle.function.updateSystemView(ViewId(viewId), updateJson.toUpdateViewJson, cc.callContext)
           } yield {
-            (JSONFactory310.createViewJSON(updatedView), HttpCode.`200`(cc.callContext))
+            (createViewJsonV500(updatedView), HttpCode.`200`(cc.callContext))
           }
       }
     }

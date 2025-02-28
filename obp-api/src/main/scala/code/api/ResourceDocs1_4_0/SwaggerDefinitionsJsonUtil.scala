@@ -22,6 +22,7 @@ object SwaggerDefinitionsJsonUtil {
         "iat": 1730373271,
         "nbf": 1730373271,
         "exp": 1730937600,
+        "request_headers":[],
         "entitlements": [],
         "views": [ {
           "bank_id": "nlbkb",

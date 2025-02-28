@@ -215,7 +215,7 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
       val consentRequestBankId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.bank_id
       val consentRequestAccountId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.account_id
       val consentRequestViewId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.view_id
-      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.counterparty_id
+      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.head.counterparty_ids
       
       val createTransReqRequest = (v4_0_0_Request / "banks" / consentRequestBankId / "accounts" / consentRequestAccountId /
         consentRequestViewId / "transaction-request-types" / "COUNTERPARTY" / "transaction-requests").POST
@@ -326,7 +326,7 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
       val consentRequestBankId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.bank_id
       val consentRequestAccountId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.account_id
       val consentRequestViewId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.view_id
-      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.counterparty_id
+      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.head.counterparty_ids
 
       val createTransReqRequest = (v4_0_0_Request / "banks" / consentRequestBankId / "accounts" / consentRequestAccountId /
         consentRequestViewId / "transaction-request-types" / "COUNTERPARTY" / "transaction-requests").POST
@@ -421,7 +421,7 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
       val consentRequestBankId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.bank_id
       val consentRequestAccountId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.account_id
       val consentRequestViewId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.view_id
-      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.counterparty_id
+      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.head.counterparty_ids
 
       val createTransReqRequest = (v4_0_0_Request / "banks" / consentRequestBankId / "accounts" / consentRequestAccountId /
         consentRequestViewId / "transaction-request-types" / "COUNTERPARTY" / "transaction-requests").POST
@@ -509,7 +509,7 @@ class VRPConsentRequestTest extends V510ServerSetup with PropsReset{
       val consentRequestBankId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.bank_id
       val consentRequestAccountId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.account_id
       val consentRequestViewId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.view_id
-      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.counterparty_id
+      val consentRequestCounterpartyId = createConsentByRequestResponse.body.extract[ConsentJsonV500].account_access.get.helper_info.head.counterparty_ids
 
       val createTransReqRequest = (v4_0_0_Request / "banks" / consentRequestBankId / "accounts" / consentRequestAccountId /
         consentRequestViewId / "transaction-request-types" / "COUNTERPARTY" / "transaction-requests").POST

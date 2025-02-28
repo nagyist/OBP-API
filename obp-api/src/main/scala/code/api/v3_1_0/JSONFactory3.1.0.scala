@@ -28,7 +28,6 @@ package code.api.v3_1_0
 
 import java.lang
 import java.util.Date
-
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
 import code.api.util.APIUtil.{stringOptionOrNull, stringOrNull}
 import code.api.util.RateLimitingPeriod.LimitCallPeriod
@@ -44,6 +43,7 @@ import code.api.v2_1_0.{CounterpartyIdJson, CustomerCreditRatingJSON, ResourceUs
 import code.api.v2_2_0._
 import code.api.v3_0_0.{AccountRuleJsonV300, CustomerAttributeResponseJsonV300, JSONFactory300, ViewBasicV300, ViewJsonV300}
 import code.api.v3_0_0.JSONFactory300.{createAccountRoutingsJSON, createAccountRulesJSON}
+import code.api.v5_0_0.HelperInfoJson
 import code.consent.MappedConsent
 import code.entitlement.Entitlement
 import code.loginattempts.BadLoginAttempt
@@ -518,7 +518,7 @@ case class MeetingsJsonV310(
   meetings: List[MeetingJsonV310]
 )
 case class PostConsentEntitlementJsonV310(bank_id: String, role_name: String)
-case class PostConsentViewJsonV310(bank_id: String, account_id: String, view_id: String)
+case class PostConsentViewJsonV310(bank_id: String, account_id: String, view_id: String, helper_info: Option[HelperInfoJson])
 trait PostConsentCommonBody{
   val everything: Boolean
   val views: List[PostConsentViewJsonV310]

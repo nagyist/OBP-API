@@ -232,18 +232,24 @@ case class PostConsentRequestJsonV500(
   time_to_live: Option[Long]
 )
 case class HelperInfoJson(
-  counterparty_id:List[String]
+  counterparty_ids:List[String]
 )
 
 case class ConsentAccountAccessJson(
   bank_id:String,
   account_id:String,
   view_id:String,
-  helper_info: HelperInfoJson
+  helper_info: Option[HelperInfoJson]
 )
 
 
-case class ConsentJsonV500(consent_id: String, jwt: String, status: String, consent_request_id: Option[String], account_access:Option[ConsentAccountAccessJson] = None)
+case class ConsentJsonV500(
+  consent_id: String, 
+  jwt: String, 
+  status: String, 
+  consent_request_id: Option[String], 
+  account_access:Option[ConsentAccountAccessJson] = None
+)
 
 case class CreatePhysicalCardJsonV500(
   card_number: String,
@@ -819,6 +825,7 @@ object JSONFactory500 {
       metadata_view= view.metadataView,
       is_public = view.isPublic,
       is_system = view.isSystem,
+      is_firehose = Some(view.isFirehose),
       alias = alias,
       hide_metadata_if_alias_used = view.hideOtherAccountMetadataIfAlias,
       can_add_comment = view.canAddComment,

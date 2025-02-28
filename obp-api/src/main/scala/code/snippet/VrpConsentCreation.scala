@@ -70,12 +70,12 @@ class VrpConsentCreation extends MdcLoggable with RestHelper with APIMethods510 
               |
               |The transfers governed by this consent must respect the following rules:
               |
-              |  1) The grand total amount will not exceed {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_total_amount").extract[String]})}
-              |  2) Any single amount will not exceed {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_single_amount").extract[String]})}
-              |  3) The maximum amount per month that can be transferred is {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_monthly_amount").extract[String]})} over {limit (${(jsonAst \ "to_account" \ "limit" \ "max_number_of_monthly_transactions").extract[String]}) transactions.
-              |  4) The maximum amount per year that can be transferred is {limit ($currency), (${(jsonAst \ "to_account" \ "limit" \ "max_yearly_amount").extract[String]})} over {limit (${(jsonAst \ "to_account" \ "limit" \ "max_number_of_yearly_transactions").extract[String]}) transactions.
+              |  1) The grand total amount will not exceed $currency ${(jsonAst \ "to_account" \ "limit" \ "max_total_amount").extract[String]}.
+              |  2) Any single amount will not exceed $currency ${(jsonAst \ "to_account" \ "limit" \ "max_single_amount").extract[String]}.
+              |  3) The maximum amount per month that can be transferred is $currency ${(jsonAst \ "to_account" \ "limit" \ "max_monthly_amount").extract[String]} over ${(jsonAst \ "to_account" \ "limit" \ "max_number_of_monthly_transactions").extract[String]} transactions.
+              |  4) The maximum amount per year that can be transferred is $currency ${(jsonAst \ "to_account" \ "limit" \ "max_yearly_amount").extract[String]} over ${(jsonAst \ "to_account" \ "limit" \ "max_number_of_yearly_transactions").extract[String]} transactions.
               |
-              |This consent will start on date {${(jsonAst \ "valid_from").extract[String]}} and be valid for ${DateTimeUtil.formatDuration(ttl)}.
+              |This consent will start on date ${(jsonAst \ "valid_from").extract[String].replace("T"," ").replace("Z","")} and be valid for ${DateTimeUtil.formatDuration(ttl)}.
               |
               |I understand that I can revoke this consent at any time.
               |""".stripMargin

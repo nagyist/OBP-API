@@ -7,10 +7,9 @@ Thank you for your interest in contributing to the Open Bank Project!
 
 ## Pull requests
 
-If submitting a pull request please read and sign our [CLA](http://github.com/OpenBankProject/OBP-API/blob/develop/Harmony_Individual_Contributor_Assignment_Agreement.txt) and send it to contact@tesobe.com - We'll send you back a code to include in the comment section of subsequent pull requests.
-
-Please reference Issue Numbers in your commits.
-
+If submitting a pull request please read and sign our [CLA](http://github.com/OpenBankProject/OBP-API/blob/develop/Harmony_Individual_Contributor_Assignment_Agreement.txt) first. 
+In the first instance it is sufficient if you create a text file of the CLA with your name and include that in a git commit description.  
+If you end up making large changes to the source code, we might ask for a paper signed copy of your CLA sent by email to contact@tesobe.com 
 
 ## Git commit messages
 

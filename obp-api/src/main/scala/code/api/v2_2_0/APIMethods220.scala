@@ -1,7 +1,6 @@
 package code.api.v2_2_0
 
 import java.util.Date
-
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON._
 import code.api.util.APIUtil._
 import code.api.util.ApiRole.{canCreateBranch, _}
@@ -14,6 +13,8 @@ import code.api.v1_2_1.{CreateViewJsonV121, JSONFactory, UpdateViewJsonV121}
 import code.api.v2_0_0.OBPAPI2_0_0
 import code.api.v2_1_0._
 import code.api.v2_2_0.JSONFactory220.transformV220ToBranch
+import code.api.v3_1_0.{JSONFactory310, PostPutProductJsonV310}
+import code.api.v4_0_0.{AtmJsonV400, JSONFactory400}
 import code.bankconnectors._
 import code.consumer.Consumers
 import code.entitlement.Entitlement
@@ -26,6 +27,7 @@ import code.util.Helper
 import code.util.Helper._
 import code.views.Views
 import code.views.system.ViewDefinition
+import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.model._
 import net.liftweb.common.{Empty, Full}
 import net.liftweb.http.rest.RestHelper
@@ -51,7 +53,7 @@ trait APIMethods220 {
     val resourceDocs = ArrayBuffer[ResourceDoc]()
     val apiRelations = ArrayBuffer[ApiRelation]()
 
-    val emptyObjectJson = EmptyClassJson()
+    
     val implementedInApiVersion = ApiVersion.v2_2_0
 
     val codeContext = CodeContext(resourceDocs, apiRelations)
@@ -69,7 +71,7 @@ trait APIMethods220 {
         |* API version
         |* Hosted by information
         |* Git Commit""",
-      emptyObjectJson,
+      EmptyBody,
       apiInfoJSON,
       List(UnknownError, "no connector set"),
       apiTagApi :: Nil)
@@ -97,7 +99,8 @@ trait APIMethods220 {
       s"""#Views
         |
         |
-        |Views in Open Bank Project provide a mechanism for fine grained access control and delegation to Accounts and Transactions. Account holders use the 'owner' view by default. Delegated access is made through other views for example 'accountants', 'share-holders' or 'tagging-application'. Views can be created via the API and each view has a list of entitlements.
+        |Views in Open Bank Project provide a mechanism for fine grained access control and delegation to Accounts and Transactions. Account holders use the 'owner' view by default. 
+        |Delegated access is made through other views for example 'accountants', 'share-holders' or 'tagging-application'. Views can be created via the API and each view has a list of entitlements.
         |
         |Views on accounts and transactions filter the underlying data to redact certain fields for certain users. For instance the balance on an account may be hidden from the public. The way to know what is possible on a view is determined in the following JSON.
         |
@@ -117,8 +120,8 @@ trait APIMethods220 {
         |
         |Returns the list of the views created for account ACCOUNT_ID at BANK_ID.
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
-      emptyObjectJson,
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
+      EmptyBody,
       viewsJSONV220,
       List(
         UserNotLoggedIn,
@@ -137,7 +140,7 @@ trait APIMethods220 {
             permission <- NewStyle.function.permission(bankId, accountId, u, callContext)
             anyViewContainsCanSeeAvailableViewsForBankAccountPermission = permission.views.map(_.canSeeAvailableViewsForBankAccount).find(_.==(true)).getOrElse(false)
             _ <- Helper.booleanToFuture(
-              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canSeeAvailableViewsForBankAccount_.dbColumnName).dropRight(1)}` permission on any your views",
+              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeAvailableViewsForBankAccount_)).dropRight(1)}` permission on any your views",
               cc= callContext
             ){
               anyViewContainsCanSeeAvailableViewsForBankAccountPermission
@@ -160,11 +163,11 @@ trait APIMethods220 {
       "Create View",
       s"""#Create a view on bank account
         |
-        | ${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        | ${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         | The 'alias' field in the JSON can take one of three values:
         |
         | * _public_: to use the public alias if there is one specified for the other account.
-        | * _private_: to use the public alias if there is one specified for the other account.
+        | * _private_: to use the private alias if there is one specified for the other account.
         |
         | * _''(empty string)_: to use no alias; the view shows the real name of the other account.
         |
@@ -207,7 +210,7 @@ trait APIMethods220 {
               .map(_.views.map(_.canCreateCustomView).find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- booleanToBox(
               anyViewContainsCanCreateCustomViewPermission,
-              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(ViewDefinition.canCreateCustomView_.dbColumnName).dropRight(1)}` permission on any your views"
+              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canCreateCustomView_)).dropRight(1)}` permission on any your views"
             )
             view <- Views.views.vend.createCustomView(BankIdAccountId(bankId, accountId), createViewJson) ?~ CreateCustomViewError
           } yield {
@@ -227,7 +230,7 @@ trait APIMethods220 {
       "Update View",
       s"""Update an existing view on a bank account
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         |
         |The json sent is the same as during view creation (above), with one difference: the 'name' field
         |of a view is not editable (it is only set when a view is created)""",
@@ -266,7 +269,7 @@ trait APIMethods220 {
               .map(_.views.map(_.canUpdateCustomView).find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- booleanToBox(
               anyViewContainsCancanUpdateCustomViewPermission,
-              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(ViewDefinition.canUpdateCustomView_.dbColumnName).dropRight(1)}` permission on any your views"
+              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canUpdateCustomView_)).dropRight(1)}` permission on any your views"
             )
             updatedView <- Views.views.vend.updateCustomView(BankIdAccountId(bankId, accountId), viewId, updateViewJson) ?~ CreateCustomViewError
           } yield {
@@ -302,7 +305,7 @@ trait APIMethods220 {
         |![FX Flow](https://user-images.githubusercontent.com/485218/60005085-1eded600-966e-11e9-96fb-798b102d9ad0.png)
         |
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       fXRateJSON,
       List(InvalidISOCurrencyCode,UserNotLoggedIn,FXCurrencyCodeCombinationsNotSupported, UnknownError),
       List(apiTagFx))
@@ -335,17 +338,19 @@ trait APIMethods220 {
     }
 
     resourceDocs += ResourceDoc(
-      getExplictCounterpartiesForAccount,
+      getExplicitCounterpartiesForAccount,
       implementedInApiVersion,
-      "getExplictCounterpartiesForAccount",
+      "getExplicitCounterpartiesForAccount",
       "GET",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties",
       "Get Counterparties (Explicit)",
-      s"""Get the Counterparties (Explicit) for the account / view.
+      s"""This endpoints gets the explicit Counterparties on an Account / View.
           |
-          |${authenticationRequiredMessage(true)}
+          |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
+          |
+          |${userAuthenticationMessage(true)}
           |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       counterpartiesJsonV220,
       List(
         UserNotLoggedIn,
@@ -357,7 +362,7 @@ trait APIMethods220 {
       ),
       List(apiTagCounterparty, apiTagPSD2PIS, apiTagAccount, apiTagPsd2))
 
-    lazy val getExplictCounterpartiesForAccount : OBPEndpoint = {
+    lazy val getExplicitCounterpartiesForAccount : OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "counterparties" :: Nil JsonGet req => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
@@ -391,23 +396,23 @@ trait APIMethods220 {
 
   
     resourceDocs += ResourceDoc(
-      getExplictCounterpartyById,
+      getExplicitCounterpartyById,
       implementedInApiVersion,
-      "getExplictCounterpartyById",
+      "getExplicitCounterpartyById",
       "GET",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties/COUNTERPARTY_ID",
       "Get Counterparty by Counterparty Id (Explicit)",
       s"""Information returned about the Counterparty specified by COUNTERPARTY_ID:
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       counterpartyWithMetadataJson,
       List(UserNotLoggedIn, BankNotFound, UnknownError),
       List(apiTagCounterparty, apiTagPSD2PIS, apiTagCounterpartyMetaData, apiTagPsd2)
     )
   
-    lazy val getExplictCounterpartyById : OBPEndpoint = {
+    lazy val getExplicitCounterpartyById : OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "counterparties" :: CounterpartyId(counterpartyId) :: Nil JsonGet req => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
@@ -440,7 +445,7 @@ trait APIMethods220 {
         | 
         | `CONNECTOR`: kafka_vSept2018, stored_procedure_vDec2019 ...
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       messageDocsJson,
       List(InvalidConnector, UnknownError),
       List(apiTagDocumentation, apiTagApi)
@@ -472,7 +477,7 @@ trait APIMethods220 {
       "/banks",
       "Create Bank",
       s"""Create a new bank (Authenticated access).
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |""",
       bankJSONV220,
       bankJSONV220,
@@ -512,7 +517,8 @@ trait APIMethods220 {
               bank.swift_bic,
               bank.national_identifier,
               bank.bank_routing.scheme,
-              bank.bank_routing.address
+              bank.bank_routing.address,
+              Some(cc)
             )
             entitlements <- Entitlement.entitlement.vend.getEntitlementsByUserId(u.userId)
             
@@ -555,7 +561,7 @@ trait APIMethods220 {
       "Create Branch",
       s"""Create Branch for the Bank.
          |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |
          |""",
       branchJsonV220,
@@ -566,31 +572,34 @@ trait APIMethods220 {
         InsufficientAuthorisationToCreateBranch,
         UnknownError
       ),
-      List(apiTagBranch, apiTagOpenData, apiTagOldStyle),
+      List(apiTagBranch, apiTagOpenData),
       Some(List(canCreateBranch,canCreateBranchAtAnyBank))
     )
 
     lazy val createBranch: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "branches" ::  Nil JsonPost json -> _ => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            canCreateBranch <- NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, canCreateBranch::Nil, canCreateBranchAtAnyBank::Nil, callContext)
-
-            branchJsonV220 <- tryo {json.extract[BranchJsonV220]} ?~! ErrorMessages.InvalidJsonFormat
-            branch <- transformV220ToBranch(branchJsonV220)
-            success <- Connector.connector.vend.createOrUpdateBranch(branch)
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            _ <- Future(
+              NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, canCreateBranch::Nil, canCreateBranchAtAnyBank::Nil, cc.callContext)
+            )
+            branchJsonV220 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonV300", 400, callContext) {
+              json.extract[BranchJsonV220]
+            }
+            _ <- Helper.booleanToFuture(failMsg = "BANK_ID has to be the same in the URL and Body", 400, callContext) {
+              branchJsonV220.bank_id == bank.bankId.value
+            }
+            branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
+              transformV220ToBranch(branchJsonV220).head
+            }
+            (success, callContext)  <- NewStyle.function.createOrUpdateBranch(branch, callContext)
           } yield {
-            val json = JSONFactory220.createBranchJson(success)
-            createdJsonResponse(Extraction.decompose(json))
+            (JSONFactory220.createBranchJson(success), HttpCode.`201`(callContext))
           }
       }
     }
-
-
-    val createAtmEntitlementsRequiredForSpecificBank = canCreateAtm ::  Nil
-    val createAtmEntitlementsRequiredForAnyBank = canCreateAtmAtAnyBank ::  Nil
 
     resourceDocs += ResourceDoc(
       createAtm,
@@ -601,7 +610,7 @@ trait APIMethods220 {
       "Create ATM",
       s"""Create ATM for the Bank.
           |
-          |${authenticationRequiredMessage(true) }
+          |${userAuthenticationMessage(true) }
           |
           |""",
       atmJsonV220,
@@ -612,7 +621,7 @@ trait APIMethods220 {
         UserHasMissingRoles,
         UnknownError
       ),
-      List(apiTagATM, apiTagOldStyle),
+      List(apiTagATM),
       Some(List(canCreateAtm,canCreateAtmAtAnyBank))
     )
 
@@ -620,17 +629,20 @@ trait APIMethods220 {
 
     lazy val createAtm: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "atms" ::  Nil JsonPost json -> _ => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            _ <- NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, createAtmEntitlementsRequiredForSpecificBank, createAtmEntitlementsRequiredForAnyBank, callContext)
-            atmJson <- tryo {json.extract[AtmJsonV220]} ?~! ErrorMessages.InvalidJsonFormat
-            atm <- JSONFactory220.transformToAtmFromV220(atmJson) ?~! {ErrorMessages.CouldNotTransformJsonToInternalModel + " Atm"}
-            success <- Connector.connector.vend.createOrUpdateAtmLegacy(atm)
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            atmJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[AtmJsonV400]}", 400, callContext) {
+              json.extract[AtmJsonV220]
+            }
+            _ <- NewStyle.function.hasAtLeastOneEntitlement(failMsg = createAtmEntitlementsRequiredText)(bankId.value, u.userId, createAtmEntitlements, callContext)
+            _ <- Helper.booleanToFuture(s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body", 400, callContext){atmJsonV400.bank_id == bankId.value}
+            atm <- NewStyle.function.tryons(ErrorMessages.CouldNotTransformJsonToInternalModel + " Atm", 400, callContext) {
+              JSONFactory220.transformToAtmFromV220(atmJson).head
+            }
+            (atm, callContext) <- NewStyle.function.createOrUpdateAtm(atm, callContext)
           } yield {
-            val json = JSONFactory220.createAtmJson(success)
-            createdJsonResponse(Extraction.decompose(json))
+            (JSONFactory220.createAtmJson(atm), HttpCode.`201`(callContext))
           }
       }
     }
@@ -649,7 +661,7 @@ trait APIMethods220 {
       "Create Product",
       s"""Create or Update Product for the Bank.
           |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
           |
           |""",
       productJsonV220,
@@ -660,7 +672,7 @@ trait APIMethods220 {
         UserHasMissingRoles,
         UnknownError
       ),
-      List(apiTagProduct, apiTagOldStyle),
+      List(apiTagProduct),
       Some(List(canCreateProduct, canCreateProductAtAnyBank))
     )
 
@@ -669,29 +681,33 @@ trait APIMethods220 {
     lazy val createProduct: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "products" ::  Nil JsonPut json -> _ => {
         cc =>
+          implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            _ <- NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, createProductEntitlementsRequiredForSpecificBank, createProductEntitlementsRequiredForAnyBank, callContext)
-              product <- tryo {json.extract[ProductJsonV220]} ?~! ErrorMessages.InvalidJsonFormat
-            success <- Connector.connector.vend.createOrUpdateProduct(
-                bankId = product.bank_id,
-                code = product.code,
-                parentProductCode = None, 
-                name = product.name,
-                category = product.category,
-                family = product.family,
-                superFamily = product.super_family,
-                moreInfoUrl = product.more_info_url,
-                termsAndConditionsUrl = null,
-                details = product.details,
-                description = product.description,
-                metaLicenceId = product.meta.license.id,
-                metaLicenceName = product.meta.license.name
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            _ <- NewStyle.function.hasAtLeastOneEntitlement(failMsg = createProductEntitlementsRequiredText)(bankId.value, u.userId, createProductEntitlements, callContext)
+            (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            failMsg = s"$InvalidJsonFormat The Json body should be the $PostPutProductJsonV310 "
+            product <- NewStyle.function.tryons(failMsg, 400, callContext) {
+              json.extract[ProductJsonV220]
+            }
+            (success, callContext) <- NewStyle.function.createOrUpdateProduct(
+              bankId = bankId.value,
+              code = product.code,
+              parentProductCode = None,
+              name = product.name,
+              category = product.category,
+              family = product.family,
+              superFamily = product.super_family,
+              moreInfoUrl = product.more_info_url,
+              termsAndConditionsUrl = null,
+              details = product.details,
+              description = product.description,
+              metaLicenceId = product.meta.license.id,
+              metaLicenceName = product.meta.license.name,
+              callContext
             )
           } yield {
-            val json = JSONFactory220.createProductJson(success)
-            createdJsonResponse(Extraction.decompose(json))
+            (JSONFactory220.createProductJson(success), HttpCode.`201`(callContext))
           }
       }
     }
@@ -722,7 +738,7 @@ trait APIMethods220 {
           | 1 US Dollar = 0.8800 Euro
           |
           |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
           |
           |""",
       fxJsonV220,
@@ -759,7 +775,7 @@ trait APIMethods220 {
             }
             _ <- NewStyle.function.isValidCurrencyISOCode(fx.from_currency_code, callContext)
             _ <- NewStyle.function.isValidCurrencyISOCode(fx.to_currency_code, callContext)
-            fxRate <- NewStyle.function.createOrUpdateFXRate(
+            (fxRate, callContext)<- NewStyle.function.createOrUpdateFXRate(
               bankId = fx.bank_id,
               fromCurrencyCode = fx.from_currency_code,
               toCurrencyCode = fx.to_currency_code,
@@ -904,7 +920,7 @@ trait APIMethods220 {
         |* Akka ports
         |* Elastic search ports
         |* Cached function """,
-      emptyObjectJson,
+      EmptyBody,
       configurationJSON,
       List(
         UserNotLoggedIn,
@@ -963,7 +979,7 @@ trait APIMethods220 {
         |7 correlation_id (if null ignore)
         |
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       connectorMetricsJson,
       List(
         InvalidDateFormat,
@@ -1050,7 +1066,9 @@ trait APIMethods220 {
                                                                 Some(postedJson.developer_email),
                                                                 Some(postedJson.redirect_url),
                                                                 Some(u.userId),
-                                                                Some(postedJson.clientCertificate)
+                                                                Some(postedJson.clientCertificate),
+                                                                None,
+                                                                None,
                                                                )
           } yield {
             // Format the data as json
@@ -1143,7 +1161,7 @@ trait APIMethods220 {
          |  "bespoke": []
          |}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       postCounterpartyJSON,
@@ -1175,11 +1193,11 @@ trait APIMethods220 {
               json.extract[PostCounterpartyJSON]
             }
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-           
+
             _ <- Helper.booleanToFuture(s"$NoViewPermission can_add_counterparty. Please use a view with that permission or add the permission to this view.", cc=callContext) {view.canAddCounterparty}
 
             (counterparty, callContext) <- Connector.connector.vend.checkCounterpartyExists(postJson.name, bankId.value, accountId.value, viewId.value, callContext)
-              
+
             _ <- Helper.booleanToFuture(CounterpartyAlreadyExists.replace("value for BANK_ID or ACCOUNT_ID or VIEW_ID or NAME.",
               s"COUNTERPARTY_NAME(${postJson.name}) for the BANK_ID(${bankId.value}) and ACCOUNT_ID(${accountId.value}) and VIEW_ID($viewId)"), cc=callContext){
               counterparty.isEmpty
@@ -1189,7 +1207,7 @@ trait APIMethods220 {
             }
 
             //If other_account_routing_scheme=="OBP" or other_account_secondary_routing_address=="OBP" we will check if it is a real obp bank account.
-            (_, callContext)<- if (postJson.other_bank_routing_scheme == "OBP" && postJson.other_account_routing_scheme =="OBP"){
+            (_, callContext)<- if (postJson.other_bank_routing_scheme.equalsIgnoreCase("OBP") && postJson.other_account_routing_scheme.equalsIgnoreCase("OBP")){
               for{
                 (_, callContext) <- NewStyle.function.getBank(BankId(postJson.other_bank_routing_address), Some(cc))
                 (account, callContext) <- NewStyle.function.checkBankAccountExists(BankId(postJson.other_bank_routing_address), AccountId(postJson.other_account_routing_address), callContext)
@@ -1197,7 +1215,7 @@ trait APIMethods220 {
               } yield {
                 (account, callContext)
               }
-            } else if (postJson.other_bank_routing_scheme == "OBP" && postJson.other_account_secondary_routing_scheme=="OBP"){
+            } else if (postJson.other_bank_routing_scheme.equalsIgnoreCase("OBP") && postJson.other_account_secondary_routing_scheme.equalsIgnoreCase("OBP")){
               for{
                 (_, callContext) <- NewStyle.function.getBank(BankId(postJson.other_bank_routing_address), Some(cc))
                 (account, callContext) <- NewStyle.function.checkBankAccountExists(BankId(postJson.other_bank_routing_address), AccountId(postJson.other_account_secondary_routing_address), callContext)
@@ -1205,10 +1223,23 @@ trait APIMethods220 {
               } yield {
                 (account, callContext)
               }
-            }
-            else
+            }else if (postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NO")) {
+              for {
+                bankIdOption <- Future.successful(if (postJson.other_bank_routing_address.isEmpty) None else Some(postJson.other_bank_routing_address))
+                (account, callContext) <- NewStyle.function.getBankAccountByNumber(
+                  bankIdOption.map(BankId(_)),
+                  postJson.other_bank_routing_address,
+                  callContext)
+              } yield {
+                (account, callContext)
+              }
+            }else
               Future{(Full(), Some(cc))}
 
+
+            otherAccountRoutingSchemeOBPFormat = if(postJson.other_account_routing_scheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(postJson.other_account_routing_scheme).toUpperCase
+
+            
             (counterparty, callContext) <- NewStyle.function.createCounterparty(
               name=postJson.name,
               description=postJson.description,
@@ -1217,7 +1248,7 @@ trait APIMethods220 {
               thisBankId=bankId.value,
               thisAccountId=accountId.value,
               thisViewId = viewId.value,
-              otherAccountRoutingScheme=postJson.other_account_routing_scheme,
+              otherAccountRoutingScheme=otherAccountRoutingSchemeOBPFormat,
               otherAccountRoutingAddress=postJson.other_account_routing_address,
               otherAccountSecondaryRoutingScheme=postJson.other_account_secondary_routing_scheme,
               otherAccountSecondaryRoutingAddress=postJson.other_account_secondary_routing_address,
@@ -1253,7 +1284,7 @@ trait APIMethods220 {
           |* View: view_id
           |
          |${authenticationRequiredMessage(true)}""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       customerViewsJsonV220,
       List(
         UserNotLoggedIn,

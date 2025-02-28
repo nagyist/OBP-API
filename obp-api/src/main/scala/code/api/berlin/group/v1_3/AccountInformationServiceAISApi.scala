@@ -23,7 +23,7 @@ import code.views.Views
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.model._
-import com.openbankproject.commons.model.enums.{ChallengeType, StrongCustomerAuthentication, StrongCustomerAuthenticationStatus}
+import com.openbankproject.commons.model.enums.{ChallengeType, StrongCustomerAuthentication, StrongCustomerAuthenticationStatus, SuppliedAnswerType}
 import com.openbankproject.commons.util.ApiVersion
 import net.liftweb.common.{Empty, Full}
 import net.liftweb.http.js.JE.JsRaw
@@ -75,7 +75,7 @@ object APIMethods_AccountInformationServiceAISApi extends RestHelper {
       Future {
         Helper.booleanToBox(u.hasViewAccess(BankIdAccountId(account.bankId, account.accountId), viewId, callContext))
       } map {
-        unboxFullOrFail(_, callContext, NoViewReadAccountsBerlinGroup + " userId : " + u.userId + ". account : " + account.accountId, 403)
+        unboxFullOrFail(_, callContext, s"$NoViewReadAccountsBerlinGroup ${viewId.value} userId : ${u.userId}. account : ${account.accountId}", 403)
       }
     }
             
@@ -130,7 +130,7 @@ As a last option, an ASPSP might in addition accept a command with access rights
        PostConsentResponseJson(
          consentId = "1234-wertiq-983",
          consentStatus = "received",
-         _links = ConsentLinksV13("/v1.3/consents/1234-wertiq-983/authorisations")
+         _links = ConsentLinksV13(Some(Href("/v1.3/consents/1234-wertiq-983/authorisations")))
        ),
        List(UserNotLoggedIn, UnknownError),
        ApiTag("Account Information Service (AIS)") :: apiTagBerlinGroupM :: Nil
@@ -186,8 +186,11 @@ As a last option, an ASPSP might in addition accept a command with access rights
                createdConsent.secret,
                createdConsent.consentId,
                callContext.flatMap(_.consumer).map(_.consumerId.get),
-               Some(validUntil)
-             )
+               Some(validUntil),
+               callContext
+             ) map {
+               i => connectorEmptyResponse(i, callContext)
+             }
              _ <- Future(Consents.consentProvider.vend.setJsonWebToken(createdConsent.consentId, consentJWT)) map {
                i => connectorEmptyResponse(i, callContext)
              }
@@ -217,8 +220,8 @@ As a last option, an ASPSP might in addition accept a command with access rights
        "Delete Consent",
        s"""${mockedDataText(false)}
             The TPP can delete an account information consent object if needed.""",
-       emptyObjectJson,
-       emptyObjectJson,
+       EmptyBody,
+       EmptyBody,
        List(UserNotLoggedIn, UnknownError),
        ApiTag("Account Information Service (AIS)")   :: apiTagBerlinGroupM :: Nil
      )
@@ -266,7 +269,7 @@ payment accounts of a PSU.
 In this case, this endpoint will deliver the information about all available payment accounts 
 of the PSU at this ASPSP.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
                     |  "accounts": [
                     |    {
@@ -308,6 +311,8 @@ of the PSU at this ASPSP.
             (Full(u), callContext) <- authenticatedAccess(cc)
             _ <- passesPsd2Aisp(callContext)
             (availablePrivateAccounts, callContext) <- NewStyle.function.getAccountListOfBerlinGroup(u, callContext)
+            (canReadBalancesAccounts, callContext) <- NewStyle.function.getAccountCanReadBalancesOfBerlinGroup(u, callContext)
+            (canReadTransactionsAccounts, callContext) <- NewStyle.function.getAccountCanReadTransactionsOfBerlinGroup(u, callContext)
             (accounts, callContext) <- NewStyle.function.getBankAccounts(availablePrivateAccounts, callContext)
             bankAccountsFiltered = accounts.filter(bankAccount =>
               bankAccount.attributes.toList.flatten.find(attribute =>
@@ -317,7 +322,12 @@ of the PSU at this ASPSP.
               ).isEmpty)
             
           } yield {
-            (JSONFactory_BERLIN_GROUP_1_3.createAccountListJson(bankAccountsFiltered, u), callContext)
+            (JSONFactory_BERLIN_GROUP_1_3.createAccountListJson(
+              bankAccountsFiltered,
+              canReadBalancesAccounts,
+              canReadTransactionsAccounts,
+              u
+            ), callContext)
           }
          }
        }
@@ -338,7 +348,7 @@ This account-id then can be retrieved by the "GET Account List" call.
 
 The account-id is constant at least throughout the lifecycle of a given consent.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "account":{
     "iban":"DE91 1000 0000 0123 4567 89"
@@ -387,7 +397,7 @@ It is assumed that a consent of the PSU to this access is already given and stor
 The addressed list of card accounts depends then on the PSU ID and the stored consent addressed by consentId, 
 respectively the OAuth2 access token. 
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "cardAccounts": [
     {
@@ -454,7 +464,7 @@ logged on intermediary servers within the ASPSP sphere.
 This account-id then can be retrieved by the 
 "GET Card Account List" call
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "cardAccount":{
     "iban":"DE91 1000 0000 0123 4567 89"
@@ -499,7 +509,7 @@ This account-id then can be retrieved by the
        s"""${mockedDataText(false)}
 Reads account data from a given card account addressed by "account-id".
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
                       "cardAccount": {
                         "maskedPan": "525412******3241"
@@ -569,7 +579,7 @@ Reads account data from a given card account addressed by "account-id".
              _ <- passesPsd2Aisp(callContext)
              (bankAccount: BankAccount, callContext) <- NewStyle.function.getBankAccountByAccountId(accountId, callContext)
              (bank, callContext) <- NewStyle.function.getBank(bankAccount.bankId, callContext)
-             viewId = ViewId(SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID)
+             viewId = ViewId(SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID)
              bankIdAccountId = BankIdAccountId(bankAccount.bankId, bankAccount.accountId)
              view <- NewStyle.function.checkAccountAccessAndGetView(viewId, bankIdAccountId, Full(u), callContext)
              params <- Future { createQueriesByHttpParams(callContext.get.requestHeaders)} map {
@@ -599,7 +609,7 @@ Return a list of all authorisation subresources IDs which have been created.
 
 This function returns an array of hyperlinks to all generated authorisation sub-resources.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "authorisationIds" : "faa3657e-13f0-4feb-a6c3-34bf21a9ae8e"
 }"""),
@@ -632,7 +642,7 @@ Returns the content of an account information consent object.
 This is returning the data for the TPP especially in cases, 
 where the consent was directly managed between ASPSP and PSU e.g. in a re-direct SCA Approach.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
                       "access": {
                         "accounts": [
@@ -661,7 +671,7 @@ where the consent was directly managed between ASPSP and PSU e.g. in a re-direct
                       "lastActionDate": "2019-06-30",
                       "consentStatus": "received"
                     }"""),
-       List(UserNotLoggedIn, UnknownError),
+       List(UserNotLoggedIn, ConsentNotFound, UnknownError),
        ApiTag("Account Information Service (AIS)") :: apiTagBerlinGroupM :: Nil
      )
 
@@ -669,11 +679,14 @@ where the consent was directly managed between ASPSP and PSU e.g. in a re-direct
        case "consents" :: consentId :: Nil JsonGet _ => {
          cc =>
            for {
-             (Full(u), callContext) <- authenticatedAccess(cc)
+             (_, callContext) <- applicationAccess(cc)
              _ <- passesPsd2Aisp(callContext)
              consent <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
                unboxFullOrFail(_, callContext, s"$ConsentNotFound ($consentId)")
-               }
+             }
+             _ <- Helper.booleanToFuture(failMsg = s"${consent.mConsumerId.get} != ${cc.consumer.map(_.consumerId.get).getOrElse("None")}", failCode = 404, cc = cc.callContext) {
+               consent.mConsumerId.get == callContext.map(_.consumer.map(_.consumerId.get).getOrElse("None")).getOrElse("None")
+             }
            } yield {
              (createGetConsentResponseJson(consent), HttpCode.`200`(callContext))
            }
@@ -700,7 +713,7 @@ where the consent was directly managed between ASPSP and PSU e.g. in a re-direct
        s"""${mockedDataText(false)}
 This method returns the SCA status of a consent initiation's authorisation sub-resource.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "scaStatus" : "started"
 }"""),
@@ -735,7 +748,7 @@ This method returns the SCA status of a consent initiation's authorisation sub-r
        "Consent status request",
        s"""${mockedDataText(false)}
             Read the status of an account information consent resource.""",
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
                       "consentStatus": "received"
                      }"""),
@@ -776,7 +789,7 @@ by "account-id". This call is only available on transactions as reported in a JS
 of the "Read Transaction List" call within the _links subfield.
 
             """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "description": "Example for transaction details",
   "value": {
@@ -832,7 +845,7 @@ Read transaction reports or transaction lists of a given account ddressed by "ac
 depending on the steering parameter "bookingStatus" together with balances.
 For a given account, additional parameters are e.g. the attributes "dateFrom" and "dateTo".
 The ASPSP might add balance information, if transaction lists without balances are not supported. """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
                       "account": {
                         "iban": "DE2310010010123456788"
@@ -936,7 +949,7 @@ In this case the currency code is set to "XXX". Give detailed information about 
 Give detailed information about the addressed account together with balance information
 
             """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "account": {
     "resourceId": "3dc3d5b3-7023-4848-9853-f5400a64e80f",
@@ -986,7 +999,7 @@ It is assumed that a consent of the PSU to this access is already given and stor
 The addressed details of this account depends then on the stored consent addressed by consentId, 
 respectively the OAuth2 access token.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
                     |  "cardAccount": {
                     |    "resourceId": "3d9a81b3-a47d-4130-8765-a9c0ff861b99",
@@ -1255,16 +1268,14 @@ Maybe in a later version the access path will change.
              updateJson <- NewStyle.function.tryons(failMsg, 400, callContext) {
                jsonPut.extract[TransactionAuthorisation]
              }
-             (challenges, callContext) <-  NewStyle.function.getChallengesByConsentId(consentId, callContext)
-             _ <- NewStyle.function.tryons(s"$AuthorisationNotFound Current AUTHORISATION_ID($authorisationId)", 400, callContext) {
-               challenges.filter(_.challengeId == authorisationId).size == 1
-             }
-             (challenge, callContext) <- NewStyle.function.validateChallengeAnswerC2(
+             (_, callContext) <- NewStyle.function.getChallenge(authorisationId, callContext)
+             (challenge, callContext) <- NewStyle.function.validateChallengeAnswerC4(
                ChallengeType.BERLIN_GROUP_CONSENT_CHALLENGE,
                None,
                Some(consentId),
-               challenges.filter(_.challengeId == authorisationId).head.challengeId,
+               authorisationId,
                updateJson.scaAuthenticationData,
+               SuppliedAnswerType.PLAIN_TEXT_VALUE,
                callContext
              )
              consent <- challenge.scaStatus match {

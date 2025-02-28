@@ -1,9 +1,7 @@
 package code.api.builder.PaymentInitiationServicePISApi
 
-import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON.sepaCreditTransfersBerlinGroupV13
-import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{CancelPaymentResponseJson,
-  CancelPaymentResponseLinks, LinkHrefJson, UpdatePaymentPsuDataJson, checkUpdatePsuAuthentication,checkAuthorisationConfirmation,
-  checkTransactionAuthorisation, checkSelectPsuAuthenticationMethod, createCancellationTransactionRequestJson}
+import code.api.Constant
+import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{CancelPaymentResponseJson, CancelPaymentResponseLinks, LinkHrefJson, UpdatePaymentPsuDataJson, checkAuthorisationConfirmation, checkSelectPsuAuthenticationMethod, checkTransactionAuthorisation, checkUpdatePsuAuthentication, createCancellationTransactionRequestJson}
 import code.api.berlin.group.v1_3.{JSONFactory_BERLIN_GROUP_1_3, JvalueCaseClass, OBP_BERLIN_GROUP_1_3}
 import code.api.util.APIUtil._
 import code.api.util.ApiTag._
@@ -14,8 +12,6 @@ import code.api.berlin.group.v1_3.model._
 import code.bankconnectors.Connector
 import code.fx.fx
 import code.api.Constant._
-import code.transactionrequests.TransactionRequests.TransactionRequestTypes.SEPA_CREDIT_TRANSFERS
-import code.transactionrequests.TransactionRequests.{PaymentServiceTypes, TransactionRequestTypes}
 import code.util.Helper
 import code.views.Views
 import com.github.dwickern.macros.NameOf.nameOf
@@ -23,7 +19,9 @@ import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.model._
 import com.openbankproject.commons.model.enums.ChallengeType.BERLIN_GROUP_PAYMENT_CHALLENGE
 import com.openbankproject.commons.model.enums.TransactionRequestStatus._
-import com.openbankproject.commons.model.enums.{ChallengeType, StrongCustomerAuthenticationStatus, TransactionRequestStatus}
+import com.openbankproject.commons.model.enums.{ChallengeType, StrongCustomerAuthenticationStatus, SuppliedAnswerType, TransactionRequestStatus,TransactionRequestTypes,PaymentServiceTypes}
+import com.openbankproject.commons.model.enums.TransactionRequestTypes._
+import com.openbankproject.commons.model.enums.PaymentServiceTypes._
 import com.openbankproject.commons.util.ApiVersion
 import net.liftweb
 import net.liftweb.common.Box.tryo
@@ -44,9 +42,9 @@ object APIMethods_PaymentInitiationServicePISApi extends RestHelper {
     val apiRelations = ArrayBuffer[ApiRelation]()
     protected implicit def JvalueToSuper(what: JValue): JvalueCaseClass = JvalueCaseClass(what)
 
-  def checkPaymentServerError(paymentService: String) = {
+  def checkPaymentServerTypeError(paymentService: String) = {
     val ccc = ""
-    s"${InvalidTransactionRequestType.replaceAll("TRANSACTION_REQUEST_TYPE", "PAYMENT_SERVICE in the URL.")}: '${paymentService}'.It should be `payments` for now, will support (bulk-payments, periodic-payments) soon"
+    s"${InvalidTransactionRequestType.replaceAll("TRANSACTION_REQUEST_TYPE", "PAYMENT_SERVICE in the URL.")}: '${paymentService}'.It should be `payments` or `periodic-payments` for now, will support `bulk-payments` soon"
   }
   def checkPaymentProductError(paymentProduct: String) = s"${InvalidTransactionRequestType.replaceAll("TRANSACTION_REQUEST_TYPE", "PAYMENT_PRODUCT in the URL.")}: '${paymentProduct}'.It should be `sepa-credit-transfers`for now, will support (instant-sepa-credit-transfers, target-2-payments, cross-border-credit-transfers) soon."
 
@@ -99,7 +97,7 @@ for scheduled payments of the last business day before the scheduled execution d
 DELETE command will tell the TPP whether the * access method was rejected * access method was successful, 
 or * access method is generally applicable, but further authorisation processes are needed.
 """,
-       emptyObjectJson,
+       EmptyBody,
        CancelPaymentResponseJson(
          "ACTC",
          _links = CancelPaymentResponseLinks(
@@ -118,7 +116,7 @@ or * access method is generally applicable, but further authorisation processes 
            for {
              (Full(u), callContext) <- authenticatedAccess(cc)
              _ <- passesPsd2Pisp(callContext)
-             _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService),400, callContext) {
+             _ <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService),400, callContext) {
                PaymentServiceTypes.withName(paymentService.replaceAll("-","_"))
              }
              transactionRequestTypes <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct),400, callContext) {
@@ -141,18 +139,18 @@ or * access method is generally applicable, but further authorisation processes 
                    case "COMPLETED" =>
                      NewStyle.function.cancelPaymentV400(TransactionId(transactionRequest.transaction_ids), callContext) map {
                        x => x._1 match {
-                         case CancelPayment(true, Some(startSca)) if startSca == true => 
-                           Connector.connector.vend.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLATION_PENDING.toString)
+                         case CancelPayment(true, Some(startSca)) if startSca == true =>
+                           NewStyle.function.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLATION_PENDING.toString, callContext)
                            (true, x._2, Some(startSca))
                          case CancelPayment(true, Some(startSca)) if startSca == false =>
-                           Connector.connector.vend.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLED.toString)
+                           NewStyle.function.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLED.toString, callContext)
                            (true, x._2, Some(startSca))
                          case CancelPayment(false, _) =>
                            (false, x._2, Some(false))
                        }
                      }
-                   case "INITIATED" => 
-                     Connector.connector.vend.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLED.toString)
+                   case "INITIATED" =>
+                     NewStyle.function.saveTransactionRequestStatusImpl(transactionRequest.id, CANCELLED.toString, callContext)
                      Future(true, callContext, Some(false))
                    case "CANCELLED" => 
                      Future(true, callContext, Some(false))
@@ -180,7 +178,7 @@ or * access method is generally applicable, but further authorisation processes 
        s"""${mockedDataText(false)}
 This method returns the SCA status of a payment initiation's authorisation sub-resource.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "scaStatus" : "psuAuthenticated"
 }"""),
@@ -194,7 +192,7 @@ This method returns the SCA status of a payment initiation's authorisation sub-r
            for {
              (_, callContext) <- authenticatedAccess(cc)
              _ <- passesPsd2Pisp(callContext)
-             _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService),400, callContext) {
+             _ <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService),400, callContext) {
                PaymentServiceTypes.withName(paymentService.replaceAll("-","_"))
              }
              _ <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct),400, callContext) {
@@ -217,7 +215,7 @@ This method returns the SCA status of a payment initiation's authorisation sub-r
        "Get Payment Information",
        s"""${mockedDataText(false)}
 Returns the content of a payment object""",
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
                       "debtorAccount":{
                         "iban":"GR12 1234 5123 4511 3981 4475 477"
@@ -241,7 +239,7 @@ Returns the content of a payment object""",
            for {
              (Full(u), callContext) <- authenticatedAccess(cc)
              _ <- passesPsd2Pisp(callContext)
-             _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService),400, callContext) {
+             _ <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService),400, callContext) {
                PaymentServiceTypes.withName(paymentService.replaceAll("-","_"))
              }
              transactionRequestTypes <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct),400, callContext) {
@@ -271,7 +269,7 @@ Read a list of all authorisation subresources IDs which have been created.
 
 This function returns an array of hyperlinks to all generated authorisation sub-resources.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""[
                        {
                            "scaStatus": "received",
@@ -300,7 +298,7 @@ This function returns an array of hyperlinks to all generated authorisation sub-
            for {
              (_, callContext) <- authenticatedAccess(cc)
              _ <- passesPsd2Pisp(callContext)
-             _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService),400, callContext) {
+             _ <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService),400, callContext) {
                PaymentServiceTypes.withName(paymentService.replaceAll("-","_"))
              }
              _ <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct),400, callContext) {
@@ -324,7 +322,7 @@ This function returns an array of hyperlinks to all generated authorisation sub-
        s"""${mockedDataText(false)}
 Retrieve a list of all created cancellation authorisation sub-resources.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "cancellationIds" : ["faa3657e-13f0-4feb-a6c3-34bf21a9ae8e]"
 }"""),
@@ -338,7 +336,7 @@ Retrieve a list of all created cancellation authorisation sub-resources.
            for {
              (_, callContext) <- authenticatedAccess(cc)
              _ <- passesPsd2Pisp(callContext)
-             _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService),400, callContext) {
+             _ <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService),400, callContext) {
                PaymentServiceTypes.withName(paymentService.replaceAll("-","_"))
              }
              _ <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct),400, callContext) {
@@ -361,7 +359,7 @@ Retrieve a list of all created cancellation authorisation sub-resources.
        s"""${mockedDataText(false)}
 This method returns the SCA status of a payment initiation's authorisation sub-resource.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "scaStatus" : "psuAuthenticated"
 }"""),
@@ -375,7 +373,7 @@ This method returns the SCA status of a payment initiation's authorisation sub-r
            for {
              (Full(u), callContext) <- authenticatedAccess(cc)
              _ <- passesPsd2Pisp(callContext)
-             _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService),400, callContext) {
+             _ <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService),400, callContext) {
                PaymentServiceTypes.withName(paymentService.replaceAll("-","_"))
              }
              _ <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct),400, callContext) {
@@ -400,7 +398,7 @@ This method returns the SCA status of a payment initiation's authorisation sub-r
        "Payment initiation status request",
        s"""${mockedDataText(false)}
 Check the transaction status of a payment initiation.""",
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
                       "transactionStatus": "ACCP"
                      }"""),
@@ -414,7 +412,7 @@ Check the transaction status of a payment initiation.""",
            for {
              (Full(u), callContext) <- authenticatedAccess(cc)
              _ <- passesPsd2Pisp(callContext)
-             _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService),400, callContext) {
+             _ <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService),400, callContext) {
                PaymentServiceTypes.withName(paymentService.replaceAll("-","_"))
              }
              transactionRequestTypes <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct),400, callContext) {
@@ -443,7 +441,7 @@ Check the transaction status of a payment initiation.""",
 
 
              //From change from requestAccount Currency to currentBankAccount Currency
-             rate = fx.exchangeRate(transactionRequestCurrency, fromAccountCurrency)
+             rate = fx.exchangeRate(transactionRequestCurrency, fromAccountCurrency, None, callContext)
              _ <- Helper.booleanToFuture(s"$InvalidCurrency The requested currency conversion (${transactionRequestCurrency} to ${fromAccountCurrency}) is not supported.", cc=callContext) {
                rate.isDefined
              }
@@ -476,8 +474,8 @@ Check the transaction status of a payment initiation.""",
     """.stripMargin
 
 
-    private val generalPaymentSummary =
-      s"""${mockedDataText(false)}
+  def generalPaymentSummary (isMockedData :Boolean) =
+      s"""${mockedDataText(isMockedData)}
   This method is used to initiate a payment at the ASPSP.
 
   ## Variants of Payment Initiation Requests
@@ -530,23 +528,29 @@ Check the transaction status of a payment initiation.""",
     for {
       (Full(u), callContext) <- authenticatedAccess(cc)
       _ <- passesPsd2Pisp(callContext)
-      _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService), 400, callContext) {
+
+      paymentServiceType <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService), 400, callContext) {
         PaymentServiceTypes.withName(paymentService.replaceAll("-", "_"))
       }
-      transactionRequestTypes <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct), 400, callContext) {
+
+      //Berlin Group PaymentProduct is OBP transaction request type
+      transacitonRequestType <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct), 400, callContext) {
         TransactionRequestTypes.withName(paymentProduct.replaceAll("-", "_").toUpperCase)
       }
 
-      transDetailsJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $SepaCreditTransfersBerlinGroupV13 ", 400, callContext) {
-        json.extract[SepaCreditTransfersBerlinGroupV13]
+      sepaCreditTransfersBerlinGroupV13 <- if(paymentServiceType.equals(PaymentServiceTypes.payments)){
+        NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $SepaCreditTransfersBerlinGroupV13 ", 400, callContext) {
+          json.extract[SepaCreditTransfersBerlinGroupV13]
+        }
+      } else if(paymentServiceType.equals(PaymentServiceTypes.periodic_payments)){
+        NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PeriodicSepaCreditTransfersBerlinGroupV13 ", 400, callContext) {
+          json.extract[PeriodicSepaCreditTransfersBerlinGroupV13]
+        }
+      }else{
+        Future{throw new RuntimeException(checkPaymentServerTypeError(paymentServiceType.toString))}
       }
-
-      transDetailsSerialized <- NewStyle.function.tryons(s"$UnknownError Can not serialize in request Json ", 400, callContext) {
-        write(transDetailsJson)(Serialization.formats(NoTypeHints))
-      }
-
-      isValidAmountNumber <- NewStyle.function.tryons(s"$InvalidNumber Current input is  ${transDetailsJson.instructedAmount.amount} ", 400, callContext) {
-        BigDecimal(transDetailsJson.instructedAmount.amount)
+      isValidAmountNumber <- NewStyle.function.tryons(s"$InvalidNumber Current input is ${sepaCreditTransfersBerlinGroupV13.instructedAmount.amount} ", 400, callContext) {
+        BigDecimal(sepaCreditTransfersBerlinGroupV13.instructedAmount.amount)
       }
 
       _ <- Helper.booleanToFuture(s"${NotPositiveAmount} Current input is: '${isValidAmountNumber}'", cc = callContext) {
@@ -554,58 +558,23 @@ Check the transaction status of a payment initiation.""",
       }
 
       // Prevent default value for transaction request type (at least).
-      _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${transDetailsJson.instructedAmount.currency}'", cc = callContext) {
-        isValidCurrencyISOCode(transDetailsJson.instructedAmount.currency)
+      _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${sepaCreditTransfersBerlinGroupV13.instructedAmount.currency}'", cc = callContext) {
+        isValidCurrencyISOCode(sepaCreditTransfersBerlinGroupV13.instructedAmount.currency)
       }
 
       _ <- NewStyle.function.isEnabledTransactionRequests(callContext)
-      fromAccountIban = transDetailsJson.debtorAccount.iban
-      toAccountIban = transDetailsJson.creditorAccount.iban
 
-      (fromAccount, callContext) <- NewStyle.function.getBankAccountByIban(fromAccountIban, callContext)
-      (ibanChecker, callContext) <- NewStyle.function.validateAndCheckIbanNumber(toAccountIban, callContext)
-      _ <- Helper.booleanToFuture(invalidIban, cc = callContext) {
-        ibanChecker.isValid == true
-      }
-      (toAccount, callContext) <- NewStyle.function.getToBankAccountByIban(toAccountIban, callContext)
 
-      viewId = ViewId(SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID)
-      bankIdAccountId = BankIdAccountId(fromAccount.bankId, fromAccount.accountId)
-      view <- NewStyle.function.checkAccountAccessAndGetView(viewId, bankIdAccountId, Full(u), callContext)
-
-      _ <- if (view.canAddTransactionRequestToAnyAccount)
-        Future.successful(Full(Unit))
-      else
-        NewStyle.function.hasEntitlement(fromAccount.bankId.value, u.userId, ApiRole.canCreateAnyTransactionRequest, callContext, InsufficientAuthorisationToCreateTransactionRequest)
-
-      // Prevent default value for transaction request type (at least).
-      _ <- Helper.booleanToFuture(s"From Account Currency is ${fromAccount.currency}, but Requested Transaction Currency is: ${transDetailsJson.instructedAmount.currency}", cc = callContext) {
-        transDetailsJson.instructedAmount.currency == fromAccount.currency
-      }
-
-      amountOfMoneyJSON = transDetailsJson.instructedAmount
-
-      (createdTransactionRequest, callContext) <- transactionRequestTypes match {
+      (createdTransactionRequest, callContext) <- transacitonRequestType match {
         case TransactionRequestTypes.SEPA_CREDIT_TRANSFERS => {
           for {
-            (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(
-              u,
-              ViewId("Owner"), //This is the default
-              fromAccount,
-              toAccount,
-              TransactionRequestType(transactionRequestTypes.toString),
-              TransactionRequestCommonBodyJSONCommons(
-                amountOfMoneyJSON,
-                ""
-              ),
-              transDetailsSerialized,
-              "",
-              Some(BERLIN_GROUP_PAYMENT_CHALLENGE),
-              None,
-              None,
-              Some(transDetailsJson),
+            (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestBGV1(
+              initiator = u,
+              paymentServiceType,
+              transacitonRequestType,
+              transactionRequestBody = sepaCreditTransfersBerlinGroupV13,
               callContext
-            ) //in SANDBOX_TAN, ChargePolicy set default "SHARED"
+            )
           } yield (createdTransactionRequest, callContext)
         }
       }
@@ -622,8 +591,20 @@ Check the transaction status of a payment initiation.""",
       "POST",
       "/payments/PAYMENT_PRODUCT",
       "Payment initiation request(payments)",
-      generalPaymentSummary,
-      sepaCreditTransfersBerlinGroupV13,
+      generalPaymentSummary(false),
+      json.parse(s"""{
+                      "debtorAccount": {
+                          "iban": "DE123456987480123"
+                      },
+                      "instructedAmount": {
+                          "currency": "EUR",
+                          "amount": "100"
+                      },
+                      "creditorAccount": {
+                          "iban": "UK12 1234 5123 4517 2948 6166 077"
+                      },
+                      "creditorName": "70charname"
+                  }"""),
       json.parse(s"""{
                     "transactionStatus": "RCVD",
                     "paymentId": "1234-wertiq-983",
@@ -654,7 +635,7 @@ Check the transaction status of a payment initiation.""",
       "POST",
       "/periodic-payments/PAYMENT_PRODUCT",
       "Payment initiation request(periodic-payments)",
-      generalPaymentSummary,
+      generalPaymentSummary(false),
       json.parse(s"""{
                     "instructedAmount": {
                       "currency": "EUR",
@@ -702,7 +683,7 @@ Check the transaction status of a payment initiation.""",
       "POST",
       "/bulk-payments/PAYMENT_PRODUCT",
       "Payment initiation request(bulk-payments)",
-      generalPaymentSummary,
+      generalPaymentSummary(true),
       json.parse(s"""{
                     "batchBookingPreferred": "true",
                     "debtorAccount": {
@@ -916,7 +897,7 @@ This applies in the following scenarios:
           for {
             (Full(u), callContext) <- authenticatedAccess(cc)
             _ <- passesPsd2Pisp(callContext)
-            _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService), 400, callContext) {
+            _ <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService), 400, callContext) {
               PaymentServiceTypes.withName(paymentService.replaceAll("-", "_"))
             }
             _ <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct), 400, callContext) {
@@ -934,7 +915,7 @@ This applies in the following scenarios:
               None,
               callContext
             )
-            //NOTE: in OBP it support multiple challenges, but in Berlin Group it has only one challenge. The following guard is to make sure it return the 1st challenge properly.
+            //NOTE: in OBP it support multiple challenges, but in Berlin Group it has only one challenge. The following guard is to make sure it returns the 1st challenge properly.
             challenge <- NewStyle.function.tryons(InvalidConnectorResponseForCreateChallenge, 400, callContext) {
               challenges.head
             }
@@ -1009,7 +990,7 @@ This applies in the following scenarios:
            for {
              (Full(u), callContext) <- authenticatedAccess(cc)
              _ <- passesPsd2Pisp(callContext)
-             _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService),400, callContext) {
+             _ <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService),400, callContext) {
                PaymentServiceTypes.withName(paymentService.replaceAll("-","_"))
              }
              _ <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct),400, callContext) {
@@ -1211,7 +1192,7 @@ There are the following request types on this access path:
                json.extract[TransactionAuthorisation]
              }
 
-             _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService),400, callContext) {
+             _ <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService),400, callContext) {
                PaymentServiceTypes.withName(paymentService.replaceAll("-","_"))
              }
              _ <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct),400, callContext) {
@@ -1226,12 +1207,13 @@ There are the following request types on this access path:
                existingTransactionRequest.status == TransactionRequestStatus.COMPLETED.toString
              }
              (_, callContext) <- NewStyle.function.getTransactionRequestImpl(TransactionRequestId(paymentId), callContext)
-             (challenge, callContext) <- NewStyle.function.validateChallengeAnswerC2(
+             (challenge, callContext) <- NewStyle.function.validateChallengeAnswerC4(
                ChallengeType.BERLIN_GROUP_PAYMENT_CHALLENGE,
                Some(paymentId),
                None,
                authorisationId,
                transactionAuthorisation.scaAuthenticationData,
+               SuppliedAnswerType.PLAIN_TEXT_VALUE,
                callContext
              )
 
@@ -1242,9 +1224,9 @@ There are the following request types on this access path:
              )
              _ <- challenge.scaStatus match {
                case Some(status) if status == StrongCustomerAuthenticationStatus.finalised => // finalised
-                 Future(Connector.connector.vend.saveTransactionRequestStatusImpl(existingTransactionRequest.id, CANCELLED.toString))
+                 NewStyle.function.saveTransactionRequestStatusImpl(existingTransactionRequest.id, CANCELLED.toString, callContext)
                case Some(status) if status == StrongCustomerAuthenticationStatus.failed => // failed
-                 Future(Connector.connector.vend.saveTransactionRequestStatusImpl(existingTransactionRequest.id, REJECTED.toString))
+                 NewStyle.function.saveTransactionRequestStatusImpl(existingTransactionRequest.id, REJECTED.toString, callContext)
                case _ => // all other cases
                  Future(Full(true))
              }
@@ -1447,7 +1429,7 @@ There are the following request types on this access path:
      )
 
      lazy val updatePaymentPsuDataTransactionAuthorisation : OBPEndpoint = {
-       case paymentService :: paymentProduct :: paymentId:: "authorisations" :: authorisationid :: Nil JsonPut json -> _ if checkTransactionAuthorisation(json) =>  {
+       case paymentService :: paymentProduct :: paymentId:: "authorisations" :: authorisationId :: Nil JsonPut json -> _ if checkTransactionAuthorisation(json) =>  {
          cc =>
            for {
              (Full(u), callContext) <- authenticatedAccess(cc)
@@ -1457,7 +1439,7 @@ There are the following request types on this access path:
                json.extract[TransactionAuthorisation]
              }
 
-             _ <- NewStyle.function.tryons(checkPaymentServerError(paymentService),400, callContext) {
+             _ <- NewStyle.function.tryons(checkPaymentServerTypeError(paymentService),400, callContext) {
                PaymentServiceTypes.withName(paymentService.replaceAll("-","_"))
              }
              _ <- NewStyle.function.tryons(checkPaymentProductError(paymentProduct),400, callContext) {
@@ -1469,12 +1451,14 @@ There are the following request types on this access path:
              _ <- Helper.booleanToFuture(failMsg= CannotUpdatePSUData, cc=callContext) {
                existingTransactionRequest.status == TransactionRequestStatus.INITIATED.toString
              }
-             (challenge, callContext) <- NewStyle.function.validateChallengeAnswerC2(
+             (_, callContext) <- NewStyle.function.getChallenge(authorisationId, callContext)
+             (challenge, callContext) <- NewStyle.function.validateChallengeAnswerC4(
                ChallengeType.BERLIN_GROUP_PAYMENT_CHALLENGE,
                Some(paymentId),
                None,
-               authorisationid,
+               authorisationId,
                transactionAuthorisationJson.scaAuthenticationData,
+               SuppliedAnswerType.PLAIN_TEXT_VALUE,
                callContext
              )
              
@@ -1486,11 +1470,11 @@ There are the following request types on this access path:
              _ <- challenge.scaStatus match {
                case Some(status) if status == StrongCustomerAuthenticationStatus.finalised => // finalised
                  NewStyle.function.createTransactionAfterChallengeV210(fromAccount, existingTransactionRequest, callContext) map {
-                   response => 
-                     Connector.connector.vend.saveTransactionRequestStatusImpl(existingTransactionRequest.id, COMPLETED.toString)
+                   response =>
+                     NewStyle.function.saveTransactionRequestStatusImpl(existingTransactionRequest.id, COMPLETED.toString, callContext)
                  }
                case Some(status) if status == StrongCustomerAuthenticationStatus.failed => // failed
-                 Future(Connector.connector.vend.saveTransactionRequestStatusImpl(existingTransactionRequest.id, REJECTED.toString))
+                 NewStyle.function.saveTransactionRequestStatusImpl(existingTransactionRequest.id, REJECTED.toString, callContext)
                case _ => // started and all other cases
                  Future(Full(true))
              }

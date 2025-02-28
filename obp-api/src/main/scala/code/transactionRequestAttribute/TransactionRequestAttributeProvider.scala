@@ -1,7 +1,7 @@
 package code.transactionRequestAttribute
 
 import com.openbankproject.commons.model.enums.TransactionRequestAttributeType
-import com.openbankproject.commons.model.{BankId, TransactionRequestAttributeTrait, TransactionRequestId, ViewId}
+import com.openbankproject.commons.model.{BankId, TransactionRequestAttributeJsonV400, TransactionRequestAttributeTrait, TransactionRequestId, ViewId}
 import net.liftweb.common.{Box, Logger}
 
 import scala.collection.immutable.List
@@ -22,8 +22,10 @@ trait TransactionRequestAttributeProvider {
 
   def getTransactionRequestAttributeById(transactionRequestAttributeId: String): Future[Box[TransactionRequestAttributeTrait]]
 
-  def getTransactionRequestIdsByAttributeNameValues(bankId: BankId, params: Map[String, List[String]]): Future[Box[List[String]]]
-
+  def getTransactionRequestIdsByAttributeNameValues(bankId: BankId, params: Map[String, List[String]], isPersonal: Boolean): Future[Box[List[String]]]
+  
+  def getByAttributeNameValues(bankId: BankId, params: Map[String, List[String]], isPersonal: Boolean): Future[Box[List[TransactionRequestAttributeTrait]]]
+  
   def createOrUpdateTransactionRequestAttribute(bankId: BankId,
                                                 transactionRequestId: TransactionRequestId,
                                                 transactionRequestAttributeId: Option[String],
@@ -33,7 +35,8 @@ trait TransactionRequestAttributeProvider {
 
   def createTransactionRequestAttributes(bankId: BankId,
                                          transactionRequestId: TransactionRequestId,
-                                         transactionRequestAttributes: List[TransactionRequestAttributeTrait]): Future[Box[List[TransactionRequestAttributeTrait]]]
+                                         transactionRequestAttributes: List[TransactionRequestAttributeJsonV400],
+                                         isPersonal: Boolean): Future[Box[List[TransactionRequestAttributeTrait]]]
 
   def deleteTransactionRequestAttribute(transactionRequestAttributeId: String): Future[Box[Boolean]]
 

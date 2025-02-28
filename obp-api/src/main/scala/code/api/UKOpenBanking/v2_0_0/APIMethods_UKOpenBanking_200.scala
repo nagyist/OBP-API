@@ -39,11 +39,11 @@ object APIMethods_UKOpenBanking_200 extends RestHelper{
          |Reads a list of bank accounts, with balances where required.
          |It is assumed that a consent of the PSU to this access is already given and stored on the ASPSP system.
          |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |This call is work in progress - Experimental!
          |""",
-      emptyObjectJson,
+      EmptyBody,
       SwaggerDefinitionsJSON.accountsJsonUKOpenBanking_v200,
       List(ErrorMessages.UserNotLoggedIn,ErrorMessages.UnknownError),
       List(apiTagUKOpenBanking, apiTagAccount, apiTagPrivateData))
@@ -73,11 +73,11 @@ object APIMethods_UKOpenBanking_200 extends RestHelper{
       "UK Open Banking: Get Account Transactions",
       s"""
          |Reads account data from a given account addressed by “account-id”. 
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |This call is work in progress - Experimental!
          |""",
-      emptyObjectJson,
+      EmptyBody,
       SwaggerDefinitionsJSON.transactionsJsonUKV200,
       List(UserNotLoggedIn,UnknownError),
       List(apiTagUKOpenBanking, apiTagTransaction, apiTagPrivateData, apiTagPsd2))
@@ -123,11 +123,11 @@ object APIMethods_UKOpenBanking_200 extends RestHelper{
          |Reads a bank account, with balances where required.
          |It is assumed that a consent of the PSU to this access is already given and stored on the ASPSP system.
          |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |This call is work in progress - Experimental!
          |""",
-      emptyObjectJson,
+      EmptyBody,
       SwaggerDefinitionsJSON.accountsJsonUKOpenBanking_v200,
       List(ErrorMessages.UserNotLoggedIn,ErrorMessages.UnknownError),
       List(apiTagUKOpenBanking, apiTagAccount, apiTagPrivateData))
@@ -161,11 +161,11 @@ object APIMethods_UKOpenBanking_200 extends RestHelper{
          |An AISP may retrieve the account balance information resource for a specific AccountId 
          |(which is retrieved in the call to GET /accounts).
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |This call is work in progress - Experimental!
          |""",
-      emptyObjectJson,
+      EmptyBody,
       SwaggerDefinitionsJSON.accountBalancesUKV200,
       List(ErrorMessages.UserNotLoggedIn,ErrorMessages.UnknownError),
       List(apiTagUKOpenBanking, apiTagAccount, apiTagPrivateData))
@@ -206,11 +206,11 @@ object APIMethods_UKOpenBanking_200 extends RestHelper{
          |an AISP may optionally retrieve the account information resources in bulk.
          |This will retrieve the resources for all authorised accounts linked to the account-request.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |This call is work in progress - Experimental!
          |""",
-      emptyObjectJson,
+      EmptyBody,
       SwaggerDefinitionsJSON.accountBalancesUKV200,
       List(ErrorMessages.UserNotLoggedIn,ErrorMessages.UnknownError),
       List(apiTagUKOpenBanking, apiTagAccount, apiTagPrivateData))

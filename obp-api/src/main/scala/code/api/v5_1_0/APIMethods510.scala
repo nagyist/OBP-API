@@ -1,8 +1,9 @@
 package code.api.v5_1_0
 
 
-import code.api.{Constant, UserNotFound}
+import code.api.Constant
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON._
+import code.api.berlin.group.v1_3.JSONFactory_BERLIN_GROUP_1_3.{ConsentAccessAccountsJson, ConsentAccessJson}
 import code.api.util.APIUtil._
 import code.api.util.ApiRole._
 import code.api.util.ApiTag._
@@ -10,28 +11,33 @@ import code.api.util.ErrorMessages.{$UserNotLoggedIn, BankNotFound, ConsentNotFo
 import code.api.util.FutureUtil.{EndpointContext, EndpointTimeout}
 import code.api.util.JwtUtil.{getSignedPayloadAsJson, verifyJwt}
 import code.api.util.NewStyle.HttpCode
+import code.api.util.NewStyle.function.extractQueryParams
 import code.api.util.X509.{getCommonName, getEmailAddress, getOrganization}
 import code.api.util._
 import code.api.util.newstyle.BalanceNewStyle
 import code.api.util.newstyle.Consumer.createConsumerNewStyle
 import code.api.util.newstyle.RegulatedEntityNewStyle.{createRegulatedEntityNewStyle, deleteRegulatedEntityNewStyle, getRegulatedEntitiesNewStyle, getRegulatedEntityByEntityIdNewStyle}
+import code.api.v2_0_0.AccountsHelper.{accountTypeFilterText, getFilteredCoreAccounts}
 import code.api.v2_1_0.{ConsumerRedirectUrlJSON, JSONFactory210}
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_0_0.JSONFactory300.createAggregateMetricJson
-import code.api.v3_1_0.ConsentJsonV310
-import code.api.v3_1_0.JSONFactory310.createBadLoginStatusJson
+import code.api.v3_1_0.{ConsentChallengeJsonV310, ConsentJsonV310, PostConsentBodyCommonJson, PostConsentEmailJsonV310, PostConsentPhoneJsonV310}
+import code.api.v3_1_0.JSONFactory310.{createBadLoginStatusJson, createConsumerJSON, createRefreshUserJson}
 import code.api.v4_0_0.JSONFactory400.{createAccountBalancesJson, createBalancesJson, createNewCoreBankAccountJson}
-import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, RevokedJsonV400}
-import code.api.v5_1_0.JSONFactory510.{createRegulatedEntitiesJson, createRegulatedEntityJson}
+import code.api.v4_0_0.{JSONFactory400, PostAccountAccessJsonV400, PostApiCollectionJson400, PutConsentStatusJsonV400, PutConsentUserJsonV400, RevokedJsonV400}
+import code.api.v5_0_0.JSONFactory500
+import code.api.v5_1_0.JSONFactory510.{createConsentsInfoJsonV510, createConsentsJsonV510, createRegulatedEntitiesJson, createRegulatedEntityJson}
 import code.atmattribute.AtmAttribute
 import code.bankconnectors.Connector
-import code.consent.Consents
+import code.consent.{ConsentRequests, ConsentStatus, Consents, MappedConsent}
+import code.consumer.Consumers
+import code.entitlement.Entitlement
 import code.loginattempts.LoginAttempt
 import code.metrics.APIMetrics
+import code.metrics.MappedMetric.userId
 import code.model.AppType
-import code.model.dataAccess.MappedBankAccount
+import code.model.dataAccess.{AuthUser, MappedBankAccount}
 import code.regulatedentities.MappedRegulatedEntityProvider
-import code.transactionrequests.TransactionRequests.TransactionRequestTypes.{apply => _}
 import code.userlocks.UserLocksProvider
 import code.users.Users
 import code.util.Helper
@@ -40,20 +46,23 @@ import code.views.Views
 import code.views.system.{AccountAccess, ViewDefinition}
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.ExecutionContext.Implicits.global
-import com.openbankproject.commons.model.enums.{AtmAttributeType, UserAttributeType}
 import com.openbankproject.commons.model._
+import com.openbankproject.commons.model.enums.{AtmAttributeType, ConsentType, StrongCustomerAuthentication, TransactionRequestStatus, UserAttributeType}
 import com.openbankproject.commons.util.{ApiVersion, ScannedApiVersion}
 import net.liftweb.common.Full
 import net.liftweb.http.rest.RestHelper
-import net.liftweb.json.{compactRender, parse, prettyRender}
+import net.liftweb.json
+import net.liftweb.json.{Extraction, compactRender, parse, prettyRender}
 import net.liftweb.mapper.By
-import net.liftweb.util.Helpers
 import net.liftweb.util.Helpers.tryo
+import net.liftweb.util.{Helpers, Props, StringHelpers}
 
+import java.text.SimpleDateFormat
+import java.time.{LocalDate, ZoneId}
+import java.util.Date
 import scala.collection.immutable.{List, Nil}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
-
 
 trait APIMethods510 {
   self: RestHelper =>
@@ -189,7 +198,7 @@ trait APIMethods510 {
       "Create Regulated Entity",
       s"""Create Regulated Entity
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       regulatedEntityPostJsonV510,
@@ -246,7 +255,7 @@ trait APIMethods510 {
       "Delete Regulated Entity",
       s"""Delete Regulated Entity specified by REGULATED_ENTITY_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       EmptyBody,
@@ -318,7 +327,7 @@ trait APIMethods510 {
       "Get All API Collections",
       s"""Get All API Collections.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionsJson400,
@@ -340,6 +349,153 @@ trait APIMethods510 {
           }
       }
     }
+
+    staticResourceDocs += ResourceDoc(
+      createAgent,
+      implementedInApiVersion,
+      nameOf(createAgent),
+      "POST",
+      "/banks/BANK_ID/agents",
+      "Create Agent",
+      s"""
+         |${userAuthenticationMessage(true)}
+         |""",
+      postAgentJsonV510,
+      agentJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        InvalidJsonFormat,
+        AgentNumberAlreadyExists,
+        CreateAgentError,
+        UnknownError
+      ),
+      List(apiTagCustomer, apiTagPerson)
+    )
+    
+    lazy val createAgent : OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents" :: Nil JsonPost json -> _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            putData <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PostAgentJsonV510 ", 400, cc.callContext) {
+              json.extract[PostAgentJsonV510]
+            }
+            (agentNumberIsAvailable, callContext) <- NewStyle.function.checkAgentNumberAvailable(bankId, putData.agent_number, cc.callContext)
+            _ <- Helper.booleanToFuture(failMsg= s"$AgentNumberAlreadyExists Current agent_number(${putData.agent_number}) and Current bank_id(${bankId.value})", cc=callContext) {agentNumberIsAvailable}
+            (agent, callContext) <- NewStyle.function.createAgent(
+              bankId = bankId.value,
+              legalName = putData.legal_name,
+              mobileNumber = putData.mobile_phone_number,
+              agentNumber = putData.agent_number,
+              callContext,
+            )
+            (bankAccount, callContext) <- NewStyle.function.createBankAccount(
+              bankId,
+              AccountId(APIUtil.generateUUID()),
+              "AGENT",
+              "AGENT",
+              putData.currency,
+              0,
+              putData.legal_name,
+              null,
+              Nil,
+              callContext
+            )
+            (_, callContext) <- NewStyle.function.createAgentAccountLink(agent.agentId, bankAccount.bankId.value, bankAccount.accountId.value, callContext)
+            
+          } yield {
+            (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`201`(callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      updateAgentStatus,
+      implementedInApiVersion,
+      nameOf(updateAgentStatus),
+      "PUT",
+      "/banks/BANK_ID/agents/AGENT_ID",
+      "Update Agent status",
+      s"""
+         |${userAuthenticationMessage(true)}
+         |""",
+      putAgentJsonV510,
+      agentJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        InvalidJsonFormat,
+        AgentNotFound,
+        AgentAccountLinkNotFound,
+        UnknownError
+      ),
+      List(apiTagCustomer, apiTagPerson),
+      Some(canUpdateAgentStatusAtAnyBank :: canUpdateAgentStatusAtOneBank :: Nil)
+    )
+    
+    lazy val updateAgentStatus : OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents"  :: agentId  :: Nil JsonPut json -> _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            postedData <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PostAgentJsonV510 ", 400, cc.callContext) {
+              json.extract[PutAgentJsonV510]
+            }
+            (agent, callContext) <- NewStyle.function.getAgentByAgentId(agentId, cc.callContext)
+            (agentAccountLinks, callContext) <- NewStyle.function.getAgentAccountLinksByAgentId(agentId, callContext)
+            agentAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              agentAccountLinks.head
+            }
+            (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(agentAccountLink.bankId), AccountId(agentAccountLink.accountId), callContext)
+            (agent, callContext) <- NewStyle.function.updateAgentStatus(
+              agentId,
+              postedData.is_pending_agent,
+              postedData.is_confirmed_agent,
+              callContext)
+          } yield {
+            (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`200`(callContext))
+          }
+      }
+    }
+    
+    staticResourceDocs += ResourceDoc(
+      getAgent,
+      implementedInApiVersion,
+      nameOf(getAgent),
+      "GET",
+      "/banks/BANK_ID/agents/AGENT_ID",
+      "Get Agent",
+      s"""Get Agent.
+         |
+         |${userAuthenticationMessage(true)}
+         |""".stripMargin,
+      EmptyBody,
+      agentJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        AgentNotFound,
+        AgentAccountLinkNotFound,
+        UnknownError
+      ),
+      List(apiTagAccount)
+    )
+
+    lazy val getAgent: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents" :: agentId  :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (agent, callContext) <- NewStyle.function.getAgentByAgentId(agentId, cc.callContext)
+            (agentAccountLinks, callContext) <- NewStyle.function.getAgentAccountLinksByAgentId(agentId, callContext)
+            agentAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              agentAccountLinks.head
+            }
+            (bankAccount, callContext) <- NewStyle.function.getBankAccount(BankId(agentAccountLink.bankId), AccountId(agentAccountLink.accountId), callContext)
+          } yield {
+            (JSONFactory510.createAgentJson(agent, bankAccount), HttpCode.`200`(callContext))
+          }
+      }
+    }
+    
     staticResourceDocs += ResourceDoc(
       createNonPersonalUserAttribute,
       implementedInApiVersion,
@@ -351,7 +507,7 @@ trait APIMethods510 {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       userAttributeJsonV510,
@@ -404,7 +560,7 @@ trait APIMethods510 {
       "Delete Non Personal User Attribute",
       s"""Delete the Non Personal User Attribute specified by ENTITLEMENT_REQUEST_ID for a user specified by USER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       EmptyBody,
@@ -444,7 +600,7 @@ trait APIMethods510 {
       "Get Non Personal User Attributes",
       s"""Get Non Personal User Attribute for a user specified by USER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       EmptyBody,
@@ -469,6 +625,142 @@ trait APIMethods510 {
             ) 
           } yield {
             (JSONFactory510.createUserAttributesJson(userAttributes), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+
+
+    staticResourceDocs += ResourceDoc(
+      syncExternalUser,
+      implementedInApiVersion,
+      nameOf(syncExternalUser),
+      "POST",
+      "/users/PROVIDER/PROVIDER_ID/sync",
+      "Sync User",
+      s"""The endpoint is used to create or sync an OBP User with User from an external identity provider.
+      |PROVIDER is the host of the provider e.g. a Keycloak Host.
+      |PROVIDER_ID is the unique identifier for the User at the PROVIDER.
+      |At the end of the process, a User will exist in OBP with the Account Access records defined by the CBS.
+      |
+      |${userAuthenticationMessage(true)}
+      |
+      |""",
+      EmptyBody,
+      refresUserJson,
+      List(
+        $UserNotLoggedIn,
+        UserHasMissingRoles,
+        UnknownError
+      ),
+      List(apiTagUser),
+      Some(List(canSyncUser))
+    )
+
+    lazy val syncExternalUser : OBPEndpoint = {
+      case "users" :: provider :: providerId :: "sync" :: Nil JsonPost _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (user: User, callContext) <- NewStyle.function.getOrCreateResourceUser(provider, providerId, cc.callContext)
+            _ <- AuthUser.refreshUser(user, callContext)
+          } yield {
+            (JSONFactory510.getSyncedUser(user), HttpCode.`201`(callContext))
+          }
+      }
+    }
+
+
+
+    staticResourceDocs += ResourceDoc(
+      getAccountsHeldByUserAtBank,
+      implementedInApiVersion,
+      nameOf(getAccountsHeldByUserAtBank),
+      "GET",
+      "/users/USER_ID/banks/BANK_ID/accounts-held",
+      "Get Accounts Held By User",
+      s"""Get Accounts held by the User if even the User has not been assigned the owner View yet.
+         |
+         |Can be used to onboard the account to the API - since all other account and transaction endpoints require views to be assigned.
+         |
+         |${accountTypeFilterText("/users/USER_ID/banks/BANK_ID/accounts-held")}
+         |
+         |
+         |
+        """.stripMargin,
+      EmptyBody,
+      coreAccountsHeldJsonV300,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        UserNotFoundByUserId,
+        UnknownError
+      ),
+      List(apiTagAccount),
+      Some(List(canGetAccountsHeldAtOneBank, canGetAccountsHeldAtAnyBank))
+    )
+
+    lazy val getAccountsHeldByUserAtBank: OBPEndpoint = {
+      case "users" :: userId :: "banks" :: BankId(bankId) :: "accounts-held" :: Nil JsonGet req => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (u, callContext) <- NewStyle.function.getUserByUserId(userId, cc.callContext)
+            (availableAccounts, callContext) <- NewStyle.function.getAccountsHeld(bankId, u, callContext)
+            (accounts, callContext) <- NewStyle.function.getBankAccountsHeldFuture(availableAccounts.toList, callContext)
+
+            accountHelds <- getFilteredCoreAccounts(availableAccounts, req, callContext).map { it =>
+              val coreAccountIds: List[String] = it._1.map(_.id)
+              accounts.filter(accountHeld => coreAccountIds.contains(accountHeld.id))
+            }
+          } yield {
+            (JSONFactory300.createCoreAccountsByCoreAccountsJSON(accountHelds), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      getAccountsHeldByUser,
+      implementedInApiVersion,
+      nameOf(getAccountsHeldByUser),
+      "GET",
+      "/users/USER_ID/accounts-held",
+      "Get Accounts Held By User",
+      s"""Get Accounts held by the User if even the User has not been assigned the owner View yet.
+         |
+         |Can be used to onboard the account to the API - since all other account and transaction endpoints require views to be assigned.
+         |
+         |${accountTypeFilterText("/users/USER_ID/accounts-held")}
+         |
+         |
+         |
+        """.stripMargin,
+      EmptyBody,
+      coreAccountsHeldJsonV300,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        UserNotFoundByUserId,
+        UnknownError
+      ),
+      List(apiTagAccount),
+      Some(List(canGetAccountsHeldAtAnyBank))
+    )
+
+    lazy val getAccountsHeldByUser: OBPEndpoint = {
+      case "users" :: userId :: "accounts-held" :: Nil JsonGet req => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (u, callContext) <- NewStyle.function.getUserByUserId(userId, cc.callContext)
+            (availableAccounts, callContext) <- NewStyle.function.getAccountsHeldByUser(u, callContext)
+            (accounts, callContext) <- NewStyle.function.getBankAccountsHeldFuture(availableAccounts, callContext)
+
+            accountHelds <- getFilteredCoreAccounts(availableAccounts, req, callContext).map { it =>
+              val coreAccountIds: List[String] = it._1.map(_.id)
+              accounts.filter(accountHeld => coreAccountIds.contains(accountHeld.id))
+            }
+          } yield {
+            (JSONFactory300.createCoreAccountsByCoreAccountsJSON(accountHelds), HttpCode.`200`(callContext))
           }
       }
     }
@@ -520,7 +812,7 @@ trait APIMethods510 {
       "Check Custom View Names",
       s"""Check custom view names.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       CheckSystemIntegrityJsonV510(true),
@@ -556,7 +848,7 @@ trait APIMethods510 {
       "Check System View Names",
       s"""Check system view names.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       CheckSystemIntegrityJsonV510(true),
@@ -593,7 +885,7 @@ trait APIMethods510 {
       "Check Unique Index at Account Access",
       s"""Check unique index at account access table.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       CheckSystemIntegrityJsonV510(true),
@@ -629,7 +921,7 @@ trait APIMethods510 {
       "Check for Sensible Currencies",
       s"""Check for sensible currencies at Bank Account model
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       CheckSystemIntegrityJsonV510(true),
@@ -667,7 +959,7 @@ trait APIMethods510 {
       """Get Currencies specified by BANK_ID
         |
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       currenciesJsonV510,
       List(
         $UserNotLoggedIn,
@@ -703,7 +995,7 @@ trait APIMethods510 {
       "Check for Orphaned Accounts",
       s"""Check for orphaned accounts at Bank Account model
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       CheckSystemIntegrityJsonV510(true),
@@ -753,7 +1045,7 @@ trait APIMethods510 {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       atmAttributeJsonV510,
@@ -797,6 +1089,40 @@ trait APIMethods510 {
           }
       }
     }
+    staticResourceDocs += ResourceDoc(
+      getAgents,
+      implementedInApiVersion,
+      nameOf(getAgents),
+      "GET",
+      "/banks/BANK_ID/agents",
+      "Get Agents at Bank",
+      s"""Get Agents at Bank.
+         |
+         |${userAuthenticationMessage(false)}
+         |
+         |${urlParametersDocument(true, true)}
+         |""".stripMargin,
+      EmptyBody,
+      minimalAgentsJsonV510,
+      List(
+        $BankNotFound,
+        AgentsNotFound,
+        UnknownError
+      ),
+      List(apiTagAccount)
+    )
+
+    lazy val getAgents: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "agents"  :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (requestParams, callContext) <- extractQueryParams(cc.url, List("limit","offset","sort_direction"), cc.callContext)
+            (agents, callContext) <- NewStyle.function.getAgents(bankId.value, requestParams, callContext)
+          } yield {
+            (JSONFactory510.createMinimalAgentsJson(agents), HttpCode.`200`(callContext))
+          }
+      }
+    }
 
     staticResourceDocs += ResourceDoc(
       getAtmAttributes,
@@ -807,7 +1133,7 @@ trait APIMethods510 {
       "Get ATM Attributes",
       s""" Get ATM Attributes
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -843,7 +1169,7 @@ trait APIMethods510 {
       "Get ATM Attribute By ATM_ATTRIBUTE_ID",
       s""" Get ATM Attribute By ATM_ATTRIBUTE_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -882,7 +1208,7 @@ trait APIMethods510 {
          |
          |Update an ATM Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       atmAttributeJsonV510,
@@ -940,7 +1266,7 @@ trait APIMethods510 {
          |
          |Delete a Atm Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -969,17 +1295,430 @@ trait APIMethods510 {
 
 
     staticResourceDocs += ResourceDoc(
+      updateConsentStatusByConsent,
+      implementedInApiVersion,
+      nameOf(updateConsentStatusByConsent),
+      "PUT",
+      "/management/banks/BANK_ID/consents/CONSENT_ID",
+      "Update Consent Status by CONSENT_ID",
+      s"""
+         |
+         |
+         |This endpoint is used to update the Status of Consent.
+         |
+         |Each Consent has one of the following states: ${ConsentStatus.values.toList.sorted.mkString(", ")}.
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |""",
+      PutConsentStatusJsonV400(status = "AUTHORISED"),
+      ConsentChallengeJsonV310(
+        consent_id = "9d429899-24f5-42c8-8565-943ffa6a7945",
+        jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiJhYjY1MzlhOS1iMTA1LTQ0ODktYTg4My0wYWQ4ZDZjNjE2NTciLCJzdWIiOiIyMWUxYzhjYy1mOTE4LTRlYWMtYjhlMy01ZTVlZWM2YjNiNGIiLCJhdWQiOiJlanpuazUwNWQxMzJyeW9tbmhieDFxbXRvaHVyYnNiYjBraWphanNrIiwibmJmIjoxNTUzNTU0ODk5LCJpc3MiOiJodHRwczpcL1wvd3d3Lm9wZW5iYW5rcHJvamVjdC5jb20iLCJleHAiOjE1NTM1NTg0OTksImlhdCI6MTU1MzU1NDg5OSwianRpIjoiMDlmODhkNWYtZWNlNi00Mzk4LThlOTktNjYxMWZhMWNkYmQ1Iiwidmlld3MiOlt7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAxIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifSx7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAyIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifV19.8cc7cBEf2NyQvJoukBCmDLT7LXYcuzTcSYLqSpbxLp4",
+        status = "AUTHORISED"
+      ),
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        InvalidJsonFormat,
+        ConsentNotFound,
+        InvalidConnectorResponse,
+        UnknownError
+      ),
+      apiTagConsent :: apiTagPSD2AIS :: Nil,
+      Some(List(canUpdateConsentStatusAtOneBank, canUpdateConsentStatusAtAnyBank))
+    )
+
+    lazy val updateConsentStatusByConsent: OBPEndpoint = {
+      case "management" :: "banks" :: BankId(bankId) :: "consents" :: consentId :: Nil JsonPut json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            consentJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PutConsentStatusJsonV400 ", 400, cc.callContext) {
+              json.extract[PutConsentStatusJsonV400]
+            }
+            _ <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
+              unboxFullOrFail(_, cc.callContext, s"$ConsentNotFound ($consentId)", 404)
+            }
+            status = ConsentStatus.withName(consentJson.status)
+            consent <- Future(Consents.consentProvider.vend.updateConsentStatus(consentId, status)) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+          } yield {
+            (ConsentJsonV310(consent.consentId, consent.jsonWebToken, consent.status), HttpCode.`200`(cc.callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      updateConsentAccountAccessByConsentId,
+      implementedInApiVersion,
+      nameOf(updateConsentAccountAccessByConsentId),
+      "PUT",
+      "/management/banks/BANK_ID/consents/CONSENT_ID/account-access",
+      "Update Consent Account Access by CONSENT_ID",
+      s"""
+         |
+         |This endpoint is used to update the Account Access of Consent.
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |""",
+      PutConsentPayloadJsonV510(
+        access = ConsentAccessJson(
+          accounts = Option(List(ConsentAccessAccountsJson(
+            iban = Some(ExampleValue.ibanExample.value),
+            bban = None,
+            pan = None,
+            maskedPan = None,
+            msisdn = None,
+            currency = None,
+          )))
+        )
+      ),
+      ConsentChallengeJsonV310(
+        consent_id = "9d429899-24f5-42c8-8565-943ffa6a7945",
+        jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiJhYjY1MzlhOS1iMTA1LTQ0ODktYTg4My0wYWQ4ZDZjNjE2NTciLCJzdWIiOiIyMWUxYzhjYy1mOTE4LTRlYWMtYjhlMy01ZTVlZWM2YjNiNGIiLCJhdWQiOiJlanpuazUwNWQxMzJyeW9tbmhieDFxbXRvaHVyYnNiYjBraWphanNrIiwibmJmIjoxNTUzNTU0ODk5LCJpc3MiOiJodHRwczpcL1wvd3d3Lm9wZW5iYW5rcHJvamVjdC5jb20iLCJleHAiOjE1NTM1NTg0OTksImlhdCI6MTU1MzU1NDg5OSwianRpIjoiMDlmODhkNWYtZWNlNi00Mzk4LThlOTktNjYxMWZhMWNkYmQ1Iiwidmlld3MiOlt7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAxIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifSx7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAyIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifV19.8cc7cBEf2NyQvJoukBCmDLT7LXYcuzTcSYLqSpbxLp4",
+        status = "AUTHORISED"
+      ),
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        InvalidJsonFormat,
+        ConsentNotFound,
+        InvalidConnectorResponse,
+        UnknownError
+      ),
+      apiTagConsent :: apiTagPSD2AIS :: Nil,
+      Some(List(canUpdateConsentAccountAccessAtOneBank, canUpdateConsentAccountAccessAtAnyBank))
+    )
+
+    lazy val updateConsentAccountAccessByConsentId: OBPEndpoint = {
+      case "management" :: "banks" :: BankId(bankId) :: "consents" :: consentId :: "account-access" :: Nil JsonPut json -> _ =>
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            consent: MappedConsent <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
+              unboxFullOrFail(_, cc.callContext, s"$ConsentNotFound ($consentId)", 404)
+            }
+            consentJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PutConsentPayloadJsonV510 ", 400, cc.callContext) {
+              json.extract[PutConsentPayloadJsonV510]
+            }
+            _ <- Helper.booleanToFuture(s"$InvalidJsonFormat The Json body should be the $PutConsentPayloadJsonV510 ",400, cc.callContext) {
+              // Add custom validation
+              !{
+                consentJson.access.accounts.isEmpty &&
+                consentJson.access.balances.isEmpty &&
+                consentJson.access.transactions.isEmpty
+            }
+            }
+            consentJWT <- Consent.updateAccountAccessOfBerlinGroupConsentJWT(
+                consentJson.access,
+              consent,
+              cc.callContext
+            ) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+            updatedConsent <- Future(Consents.consentProvider.vend.setJsonWebToken(consent.consentId, consentJWT)) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+          } yield {
+            (
+              ConsentJsonV310(
+                updatedConsent.consentId,
+                updatedConsent.jsonWebToken,
+                updatedConsent.status
+              ),
+              HttpCode.`200`(cc.callContext)
+            )
+          }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      updateConsentUserIdByConsentId,
+      implementedInApiVersion,
+      nameOf(updateConsentUserIdByConsentId),
+      "PUT",
+      "/management/banks/BANK_ID/consents/CONSENT_ID/created-by-user",
+      "Update Consent Created by User by CONSENT_ID",
+      s"""
+         |
+         |This endpoint is used to Update the User bound to a consent.
+         |
+         |In general we would not expect for a management user to set the User bound to a consent, but there may be
+         |some use cases where this workflow is useful.
+         |
+         |If successful, the "Created by User ID" field in the OBP Consent table will be updated.
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |""",
+      PutConsentUserJsonV400(user_id = "ed7a7c01-db37-45cc-ba12-0ae8891c195c"),
+      ConsentChallengeJsonV310(
+        consent_id = "9d429899-24f5-42c8-8565-943ffa6a7945",
+        jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiJhYjY1MzlhOS1iMTA1LTQ0ODktYTg4My0wYWQ4ZDZjNjE2NTciLCJzdWIiOiIyMWUxYzhjYy1mOTE4LTRlYWMtYjhlMy01ZTVlZWM2YjNiNGIiLCJhdWQiOiJlanpuazUwNWQxMzJyeW9tbmhieDFxbXRvaHVyYnNiYjBraWphanNrIiwibmJmIjoxNTUzNTU0ODk5LCJpc3MiOiJodHRwczpcL1wvd3d3Lm9wZW5iYW5rcHJvamVjdC5jb20iLCJleHAiOjE1NTM1NTg0OTksImlhdCI6MTU1MzU1NDg5OSwianRpIjoiMDlmODhkNWYtZWNlNi00Mzk4LThlOTktNjYxMWZhMWNkYmQ1Iiwidmlld3MiOlt7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAxIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifSx7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAyIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifV19.8cc7cBEf2NyQvJoukBCmDLT7LXYcuzTcSYLqSpbxLp4",
+        status = "AUTHORISED"
+      ),
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        InvalidJsonFormat,
+        ConsentNotFound,
+        InvalidConnectorResponse,
+        UnknownError
+      ),
+      apiTagConsent :: apiTagPSD2AIS :: Nil,
+      Some(List(canUpdateConsentUserAtOneBank, canUpdateConsentUserAtAnyBank))
+    )
+
+    lazy val updateConsentUserIdByConsentId: OBPEndpoint = {
+      case "management" :: "banks" :: BankId(bankId) :: "consents" :: consentId :: "created-by-user" :: Nil JsonPut json -> _ =>
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            consent: MappedConsent <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
+              unboxFullOrFail(_, cc.callContext, s"$ConsentNotFound ($consentId)", 404)
+            }
+            consentJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PutConsentUserJsonV400 ", 400, cc.callContext) {
+              json.extract[PutConsentUserJsonV400]
+            }
+            user <- Users.users.vend.getUserByUserIdFuture(consentJson.user_id) map {
+              x => unboxFullOrFail(x, cc.callContext, s"$UserNotFoundByUserId Current UserId(${consentJson.user_id})")
+            }
+            consent <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+            _ <- Helper.booleanToFuture(ConsentUserAlreadyAdded, cc = cc.callContext) {
+              consent.userId != null
+            }
+            consent <- Future(Consents.consentProvider.vend.updateConsentUser(consentId, user)) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+            consentJWT <- Consent.updateUserIdOfBerlinGroupConsentJWT(
+              consentJson.user_id,
+              consent,
+              cc.callContext
+            ) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+            updatedConsent <- Future(Consents.consentProvider.vend.setJsonWebToken(consent.consentId, consentJWT)) map {
+              i => connectorEmptyResponse(i, cc.callContext)
+            }
+          } yield {
+            (
+              ConsentJsonV310(
+                updatedConsent.consentId,
+                updatedConsent.jsonWebToken,
+                updatedConsent.status
+              ),
+              HttpCode.`200`(cc.callContext)
+            )
+          }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
+      getMyConsents,
+      implementedInApiVersion,
+      nameOf(getMyConsents),
+      "GET",
+      "/banks/BANK_ID/my/consents",
+      "Get My Consents",
+      s"""
+         |
+         |This endpoint gets the Consents created by a current User.
+         |
+         |${userAuthenticationMessage(true)}
+         |
+      """.stripMargin,
+      EmptyBody,
+      consentsJsonV400,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        UnknownError
+      ),
+      List(apiTagConsent, apiTagPSD2AIS, apiTagPsd2))
+
+    lazy val getMyConsents: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "my" :: "consents" :: Nil JsonGet _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            consents <- Future {
+              Consents.consentProvider.vend.getConsentsByUser(cc.userId)
+                .sortBy(i => (i.creationDateTime, i.apiStandard)).reverse
+            }
+          } yield {
+            val consentsOfBank = Consent.filterByBankId(consents, bankId)
+            (createConsentsInfoJsonV510(consentsOfBank), HttpCode.`200`(cc))
+          }
+      }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
+      getConsentsAtBank,
+      implementedInApiVersion,
+      nameOf(getConsentsAtBank),
+      "GET",
+      "/management/consents/banks/BANK_ID",
+      "Get Consents at Bank",
+      s"""
+         |
+         |This endpoint gets the Consents at Bank by BANK_ID.
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |1 limit (for pagination: defaults to 50)  eg:limit=200
+         |
+         |2 offset (for pagination: zero index, defaults to 0) eg: offset=10
+         |
+         |3 consumer_id  (ignore if omitted)
+         |
+         |4 user_id  (ignore if omitted)
+         |
+         |5 status  (ignore if omitted)
+         |
+         |eg: /management/consents/banks/BANK_ID?&consumer_id=78&limit=10&offset=10
+         |
+      """.stripMargin,
+      EmptyBody,
+      consentsJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        UnknownError
+      ),
+      List(apiTagConsent, apiTagPSD2AIS, apiTagPsd2),
+      Some(List(canGetConsentsAtOneBank, canGetConsentsAtAnyBank)),
+    )
+
+    lazy val getConsentsAtBank: OBPEndpoint = {
+      case "management" :: "consents" :: "banks" :: BankId(bankId) :: Nil JsonGet _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            httpParams <- NewStyle.function.extractHttpParamsFromUrl(cc.url)
+            (obpQueryParams, callContext) <- createQueriesByHttpParamsFuture(httpParams, cc.callContext)
+            consents <- Future {
+              Consents.consentProvider.vend.getConsents(obpQueryParams)
+            }
+          } yield {
+            val consentsOfBank = Consent.filterByBankId(consents, bankId)
+            (createConsentsJsonV510(consentsOfBank), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      getConsents,
+      implementedInApiVersion,
+      nameOf(getConsents),
+      "GET",
+      "/management/consents",
+      "Get Consents",
+      s"""
+         |
+         |This endpoint gets the Consents.
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |1 limit (for pagination: defaults to 50)  eg:limit=200
+         |
+         |2 offset (for pagination: zero index, defaults to 0) eg: offset=10
+         |
+         |3 consumer_id  (ignore if omitted)
+         |
+         |4 consent_id  (ignore if omitted)
+         |
+         |5 user_id  (ignore if omitted)
+         |
+         |6 status  (ignore if omitted)
+         |
+         |7 bank_id  (ignore if omitted)
+         |
+         |eg:/management/consents?consumer_id=78&limit=10&offset=10
+         |
+      """.stripMargin,
+      EmptyBody,
+      consentsJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        UnknownError
+      ),
+      List(apiTagConsent, apiTagPSD2AIS, apiTagPsd2),
+      Some(List(canGetConsentsAtAnyBank)),
+    )
+
+    lazy val getConsents: OBPEndpoint = {
+      case "management" :: "consents" :: Nil JsonGet _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            httpParams <- NewStyle.function.extractHttpParamsFromUrl(cc.url)
+            (obpQueryParams, callContext) <- createQueriesByHttpParamsFuture(httpParams, cc.callContext)
+            consents <- Future {
+              Consents.consentProvider.vend.getConsents(obpQueryParams)
+            }
+          } yield {
+            (createConsentsJsonV510(consents), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
       getConsentByConsentId,
       implementedInApiVersion,
       nameOf(getConsentByConsentId),
       "GET",
-      "/consumer/consents/CONSENT_ID",
-      "Get Consent By Consent Id",
+      "/user/current/consents/CONSENT_ID",
+      "Get Consent By Consent Id via User",
       s"""
          |
          |This endpoint gets the Consent By consent id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
+         |
+      """.stripMargin,
+      EmptyBody,
+      consentJsonV510,
+      List(
+        $UserNotLoggedIn,
+        UnknownError
+      ),
+      List(apiTagConsent, apiTagPSD2AIS, apiTagPsd2))
+    lazy val getConsentByConsentId: OBPEndpoint = {
+      case "user" :: "current" :: "consents" :: consentId :: Nil  JsonGet _  => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            consent <- Future { Consents.consentProvider.vend.getConsentByConsentId(consentId)} map {
+              unboxFullOrFail(_, cc.callContext, ConsentNotFound, 404)
+            }
+            _ <- Helper.booleanToFuture(failMsg = ConsentNotFound, failCode = 404, cc = cc.callContext) {
+              consent.mUserId == cc.userId
+            }
+          } yield {
+            (JSONFactory510.getConsentInfoJson(consent), HttpCode.`200`(cc))
+          }
+      }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
+      getConsentByConsentIdViaConsumer,
+      implementedInApiVersion,
+      nameOf(getConsentByConsentIdViaConsumer),
+      "GET",
+      "/consumer/current/consents/CONSENT_ID",
+      "Get Consent By Consent Id via Consumer",
+      s"""
+         |
+         |This endpoint gets the Consent By consent id.
+         |
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -989,15 +1728,15 @@ trait APIMethods510 {
         UnknownError
       ),
       List(apiTagConsent, apiTagPSD2AIS, apiTagPsd2))
-    lazy val getConsentByConsentId: OBPEndpoint = {
-      case "consumer" :: "consents" :: consentId :: Nil  JsonGet _  => {
+    lazy val getConsentByConsentIdViaConsumer: OBPEndpoint = {
+      case "consumer" :: "current"  :: "consents" :: consentId :: Nil  JsonGet _  => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
             consent <- Future { Consents.consentProvider.vend.getConsentByConsentId(consentId)} map {
-              unboxFullOrFail(_, cc.callContext, ConsentNotFound)
+              unboxFullOrFail(_, cc.callContext, ConsentNotFound, 404)
             }
-            _ <- Helper.booleanToFuture(failMsg = ConsentNotFound, cc = cc.callContext) {
-              consent.mUserId == cc.userId
+            _ <- Helper.booleanToFuture(failMsg = s"${consent.mConsumerId.get} != ${cc.consumer.map(_.consumerId.get).getOrElse("None")}", failCode = 404, cc = cc.callContext) {
+              consent.mConsumerId.get == cc.consumer.map(_.consumerId.get).getOrElse("None")
             }
           } yield {
             (JSONFactory510.getConsentInfoJson(consent), HttpCode.`200`(cc))
@@ -1023,7 +1762,7 @@ trait APIMethods510 {
          |OBP as a resource server stores access tokens in a database, then it is relatively easy to revoke some token that belongs to a particular user.
          |The status of the token is changed to "REVOKED" so the next time the revoked client makes a request, their token will fail to validate.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1076,7 +1815,7 @@ trait APIMethods510 {
          |OBP as a resource server stores access tokens in a database, then it is relatively easy to revoke some token that belongs to a particular user.
          |The status of the token is changed to "REVOKED" so the next time the revoked client makes a request, their token will fail to validate.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1095,7 +1834,7 @@ trait APIMethods510 {
             (Full(user), callContext) <- authenticatedAccess(cc)
             consentId = getConsentIdRequestHeaderValue(cc.requestHeaders).getOrElse("")
             _ <- Future(Consents.consentProvider.vend.getConsentByConsentId(consentId)) map {
-              unboxFullOrFail(_, callContext, ConsentNotFound)
+              unboxFullOrFail(_, callContext, ConsentNotFound, 404)
             }
             consent <- Future(Consents.consentProvider.vend.revoke(consentId)) map {
               i => connectorEmptyResponse(i, callContext)
@@ -1105,7 +1844,306 @@ trait APIMethods510 {
           }
       }
     }
-    
+
+
+    val generalObpConsentText: String =
+      s"""
+         |
+         |An OBP Consent allows the holder of the Consent to call one or more endpoints.
+         |
+         |Consents must be created and authorisied using SCA (Strong Customer Authentication).
+         |
+         |That is, Consents can be created by an authorised User via the OBP REST API but they must be confirmed via an out of band (OOB) mechanism such as a code sent to a mobile phone.
+         |
+         |Each Consent has one of the following states: ${ConsentStatus.values.toList.sorted.mkString(", ")}.
+         |
+         |Each Consent is bound to a consumer i.e. you need to identify yourself over request header value Consumer-Key.
+         |For example:
+         |GET /obp/v4.0.0/users/current HTTP/1.1
+         |Host: 127.0.0.1:8080
+         |Consent-JWT: eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOlt7InJvbGVfbmFtZSI6IkNhbkdldEFueVVzZXIiLCJiYW5rX2lkIjoiIn
+         |1dLCJjcmVhdGVkQnlVc2VySWQiOiJhYjY1MzlhOS1iMTA1LTQ0ODktYTg4My0wYWQ4ZDZjNjE2NTciLCJzdWIiOiIzNDc1MDEzZi03YmY5LTQyNj
+         |EtOWUxYy0xZTdlNWZjZTJlN2UiLCJhdWQiOiI4MTVhMGVmMS00YjZhLTQyMDUtYjExMi1lNDVmZDZmNGQzYWQiLCJuYmYiOjE1ODA3NDE2NjcsIml
+         |zcyI6Imh0dHA6XC9cLzEyNy4wLjAuMTo4MDgwIiwiZXhwIjoxNTgwNzQ1MjY3LCJpYXQiOjE1ODA3NDE2NjcsImp0aSI6ImJkYzVjZTk5LTE2ZTY
+         |tNDM4Yi1hNjllLTU3MTAzN2RhMTg3OCIsInZpZXdzIjpbXX0.L3fEEEhdCVr3qnmyRKBBUaIQ7dk1VjiFaEBW8hUNjfg
+         |
+         |Consumer-Key: ejznk505d132ryomnhbx1qmtohurbsbb0kijajsk
+         |cache-control: no-cache
+         |
+         |Maximum time to live of the token is specified over props value consents.max_time_to_live. In case isn't defined default value is 3600 seconds.
+         |
+         |Example of POST JSON:
+         |{
+         |  "everything": false,
+         |  "views": [
+         |    {
+         |      "bank_id": "GENODEM1GLS",
+         |      "account_id": "8ca8a7e4-6d02-40e3-a129-0b2bf89de9f0",
+         |      "view_id": "${Constant.SYSTEM_OWNER_VIEW_ID}"
+         |    }
+         |  ],
+         |  "entitlements": [
+         |    {
+         |      "bank_id": "GENODEM1GLS",
+         |      "role_name": "CanGetCustomer"
+         |    }
+         |  ],
+         |  "consumer_id": "7uy8a7e4-6d02-40e3-a129-0b2bf89de8uh",
+         |  "email": "eveline@example.com",
+         |  "valid_from": "2020-02-07T08:43:34Z",
+         |  "time_to_live": 3600
+         |}
+         |Please note that only optional fields are: consumer_id, valid_from and time_to_live.
+         |In case you omit they the default values are used:
+         |consumer_id = consumer of current user
+         |valid_from = current time
+         |time_to_live = consents.max_time_to_live
+         |
+      """.stripMargin
+
+    staticResourceDocs += ResourceDoc(
+      createConsentImplicit,
+      implementedInApiVersion,
+      nameOf(createConsentImplicit),
+      "POST",
+      "/my/consents/IMPLICIT",
+      "Create Consent (IMPLICIT)",
+      s"""
+         |
+         |This endpoint starts the process of creating a Consent.
+         |
+         |The Consent is created in an ${ConsentStatus.INITIATED} state.
+         |
+         |A One Time Password (OTP) (AKA security challenge) is sent Out of Band (OOB) to the User via the transport defined in SCA_METHOD
+         |SCA_METHOD is typically "SMS","EMAIL" or "IMPLICIT". "EMAIL" is used for testing purposes. OBP mapped mode "IMPLICIT" is "EMAIL".
+         |Other mode, bank can decide it in the connector method 'getConsentImplicitSCA'.
+         |
+         |When the Consent is created, OBP (or a backend system) stores the challenge so it can be checked later against the value supplied by the User with the Answer Consent Challenge endpoint.
+         |
+         |$generalObpConsentText
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |Example 1:
+         |{
+         |  "everything": true,
+         |  "views": [],
+         |  "entitlements": [],
+         |  "consumer_id": "7uy8a7e4-6d02-40e3-a129-0b2bf89de8uh",
+         |}
+         |
+         |Please note that consumer_id is optional field
+         |Example 2:
+         |{
+         |  "everything": true,
+         |  "views": [],
+         |  "entitlements": [],
+         |}
+         |
+         |Please note if everything=false you need to explicitly specify views and entitlements
+         |Example 3:
+         |{
+         |  "everything": false,
+         |  "views": [
+         |    {
+         |      "bank_id": "GENODEM1GLS",
+         |      "account_id": "8ca8a7e4-6d02-40e3-a129-0b2bf89de9f0",
+         |      "view_id": "${Constant.SYSTEM_OWNER_VIEW_ID}"
+         |    }
+         |  ],
+         |  "entitlements": [
+         |    {
+         |      "bank_id": "GENODEM1GLS",
+         |      "role_name": "CanGetCustomer"
+         |    }
+         |  ],
+         |  "consumer_id": "7uy8a7e4-6d02-40e3-a129-0b2bf89de8uh",
+         |}
+         |
+         |""",
+      postConsentImplicitJsonV310,
+      consentJsonV310,
+      List(
+        UserNotLoggedIn,
+        BankNotFound,
+        InvalidJsonFormat,
+        ConsentAllowedScaMethods,
+        RolesAllowedInConsent,
+        ViewsAllowedInConsent,
+        ConsumerNotFoundByConsumerId,
+        ConsumerIsDisabled,
+        MissingPropsValueAtThisInstance,
+        SmsServerNotResponding,
+        InvalidConnectorResponse,
+        UnknownError
+      ),
+      apiTagConsent :: apiTagPSD2AIS :: apiTagPsd2 :: Nil)
+
+    lazy val createConsentImplicit = createConsent
+
+    lazy val createConsent: OBPEndpoint = {
+      case "my" :: "consents" :: scaMethod :: Nil JsonPost json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (Full(user), callContext) <- authenticatedAccess(cc)
+            _ <- Helper.booleanToFuture(ConsentAllowedScaMethods, cc = callContext) {
+              List(StrongCustomerAuthentication.SMS.toString(), StrongCustomerAuthentication.EMAIL.toString(), StrongCustomerAuthentication.IMPLICIT.toString()).exists(_ == scaMethod)
+            }
+            failMsg = s"$InvalidJsonFormat The Json body should be the $PostConsentBodyCommonJson "
+            consentJson <- NewStyle.function.tryons(failMsg, 400, callContext) {
+              json.extract[PostConsentBodyCommonJson]
+            }
+            maxTimeToLive = APIUtil.getPropsAsIntValue(nameOfProperty = "consents.max_time_to_live", defaultValue = 3600)
+            _ <- Helper.booleanToFuture(s"$ConsentMaxTTL ($maxTimeToLive)", cc = callContext) {
+              consentJson.time_to_live match {
+                case Some(ttl) => ttl <= maxTimeToLive
+                case _ => true
+              }
+            }
+            requestedEntitlements = consentJson.entitlements
+            myEntitlements <- Entitlement.entitlement.vend.getEntitlementsByUserIdFuture(user.userId)
+            _ <- Helper.booleanToFuture(RolesAllowedInConsent, cc = callContext) {
+              requestedEntitlements.forall(
+                re => myEntitlements.getOrElse(Nil).exists(
+                  e => e.roleName == re.role_name && e.bankId == re.bank_id
+                )
+              )
+            }
+            requestedViews = consentJson.views
+            (_, assignedViews) <- Future(Views.views.vend.privateViewsUserCanAccess(user))
+            _ <- Helper.booleanToFuture(ViewsAllowedInConsent, cc = callContext) {
+              requestedViews.forall(
+                rv => assignedViews.exists {
+                  e =>
+                    e.view_id == rv.view_id &&
+                      e.bank_id == rv.bank_id &&
+                      e.account_id == rv.account_id
+                }
+              )
+            }
+            (consumerId, applicationText) <- consentJson.consumer_id match {
+              case Some(id) => NewStyle.function.checkConsumerByConsumerId(id, callContext) map {
+                c => (Some(c.consumerId.get), c.description)
+              }
+              case None => Future(None, "Any application")
+            }
+
+
+            challengeAnswer = Props.mode match {
+              case Props.RunModes.Test => Consent.challengeAnswerAtTestEnvironment
+              case _ => SecureRandomUtil.numeric()
+            }
+            createdConsent <- Future(Consents.consentProvider.vend.createObpConsent(user, challengeAnswer, None)) map {
+              i => connectorEmptyResponse(i, callContext)
+            }
+            consentJWT =
+              Consent.createConsentJWT(
+                user,
+                consentJson,
+                createdConsent.secret,
+                createdConsent.consentId,
+                consumerId,
+                consentJson.valid_from,
+                consentJson.time_to_live.getOrElse(3600),
+                None,
+              )
+            _ <- Future(Consents.consentProvider.vend.setJsonWebToken(createdConsent.consentId, consentJWT)) map {
+              i => connectorEmptyResponse(i, callContext)
+            }
+
+            //we need to check `skip_consent_sca_for_consumer_id_pairs` props, to see if we really need the SCA flow. 
+            //this is from callContext
+            grantorConsumerId = callContext.map(_.consumer.toOption.map(_.consumerId.get)).flatten.getOrElse("Unknown")
+            //this is from json body
+            granteeConsumerId = consentJson.consumer_id.getOrElse("Unknown")
+            
+            shouldSkipConsentScaForConsumerIdPair = APIUtil.skipConsentScaForConsumerIdPairs.contains(
+              APIUtil.ConsumerIdPair(
+                grantorConsumerId,
+                granteeConsumerId
+            ))
+            mappedConsent <- if (shouldSkipConsentScaForConsumerIdPair) {
+              Future{
+                 MappedConsent.find(By(MappedConsent.mConsentId, createdConsent.consentId)).map(_.mStatus(ConsentStatus.ACCEPTED.toString).saveMe()).head
+              }
+            } else {
+              val challengeText = s"Your consent challenge : ${challengeAnswer}, Application: $applicationText"
+              scaMethod match {
+                case v if v == StrongCustomerAuthentication.EMAIL.toString => // Send the email
+                  for {
+                    failMsg <- Future {
+                      s"$InvalidJsonFormat The Json body should be the $PostConsentEmailJsonV310"
+                    }
+                    postConsentEmailJson <- NewStyle.function.tryons(failMsg, 400, callContext) {
+                      json.extract[PostConsentEmailJsonV310]
+                    }
+                    (status, callContext) <- NewStyle.function.sendCustomerNotification(
+                      StrongCustomerAuthentication.EMAIL,
+                      postConsentEmailJson.email,
+                      Some("OBP Consent Challenge"),
+                      challengeText,
+                      callContext
+                    )
+                  } yield  {
+                    createdConsent
+                  }
+                case v if v == StrongCustomerAuthentication.SMS.toString =>
+                  for {
+                    failMsg <- Future {
+                      s"$InvalidJsonFormat The Json body should be the $PostConsentPhoneJsonV310"
+                    }
+                    postConsentPhoneJson <- NewStyle.function.tryons(failMsg, 400, callContext) {
+                      json.extract[PostConsentPhoneJsonV310]
+                    }
+                    phoneNumber = postConsentPhoneJson.phone_number
+                    (status, callContext) <- NewStyle.function.sendCustomerNotification(
+                      StrongCustomerAuthentication.SMS,
+                      phoneNumber,
+                      None,
+                      challengeText,
+                      callContext
+                    )
+                  } yield  {
+                    createdConsent
+                  }
+                case v if v == StrongCustomerAuthentication.IMPLICIT.toString =>
+                  for {
+                    (consentImplicitSCA, callContext) <- NewStyle.function.getConsentImplicitSCA(user, callContext)
+                    status <- consentImplicitSCA.scaMethod match {
+                      case v if v == StrongCustomerAuthentication.EMAIL => // Send the email
+                        NewStyle.function.sendCustomerNotification(
+                          StrongCustomerAuthentication.EMAIL,
+                          consentImplicitSCA.recipient,
+                          Some("OBP Consent Challenge"),
+                          challengeText,
+                          callContext
+                        )
+                      case v if v == StrongCustomerAuthentication.SMS =>
+                        NewStyle.function.sendCustomerNotification(
+                          StrongCustomerAuthentication.SMS,
+                          consentImplicitSCA.recipient,
+                          None,
+                          challengeText,
+                          callContext
+                        )
+                      case _ => Future {
+                        "Success"
+                      }
+                    }} yield {
+                    createdConsent
+                  }
+                case _ => Future {
+                  createdConsent
+                }
+              }
+            }
+          } yield {
+            (ConsentJsonV310(mappedConsent.consentId, consentJWT, mappedConsent.status), HttpCode.`201`(callContext))
+          }
+      }
+    }
+
     
    staticResourceDocs += ResourceDoc(
      mtlsClientCertificateInfo,
@@ -1117,7 +2155,7 @@ trait APIMethods510 {
       s"""
          |Provide client's certificate info of a current call specified by PSD2-CERT value at Request Header
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1153,7 +2191,7 @@ trait APIMethods510 {
       "Update My Api Collection By API_COLLECTION_ID",
       s"""Update Api Collection for logged in user.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       postApiCollectionJson400,
       apiCollectionJson400,
@@ -1197,7 +2235,7 @@ trait APIMethods510 {
       "Get User by USERNAME",
       s"""Get user by PROVIDER and USERNAME
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |CanGetAnyUser entitlement is required,
          |
@@ -1233,7 +2271,7 @@ trait APIMethods510 {
       "Get User Lock Status",
       s"""
          |Get User Login Status.
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -1275,7 +2313,7 @@ trait APIMethods510 {
          |
          |(Perhaps the user was locked due to multiple failed login attempts)
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -1320,7 +2358,7 @@ trait APIMethods510 {
       s"""
          |Lock a User.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -1340,6 +2378,41 @@ trait APIMethods510 {
             }
           } yield {
             (JSONFactory400.createUserLockStatusJson(userLocks), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      validateUserByUserId,
+      implementedInApiVersion,
+      nameOf(validateUserByUserId),
+      "PUT",
+      "/management/users/USER_ID",
+      "Validate a user",
+      s"""
+         |Validate the User by USER_ID.
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |""".stripMargin,
+      EmptyBody,
+      userLockStatusJson,
+      List(
+        $UserNotLoggedIn,
+        UserNotFoundByUserId,
+        UserHasMissingRoles,
+        UnknownError
+      ),
+      List(apiTagUser),
+      Some(List(canValidateUser)))
+    lazy val validateUserByUserId: OBPEndpoint = {
+      case "management" :: "users" :: userId :: Nil JsonPut req => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (user, callContext) <- NewStyle.function.findByUserId(userId, cc.callContext)
+            (userValidated, callContext) <- NewStyle.function.validateUser(user.userPrimaryKey, callContext)
+          } yield {
+            (UserValidatedJson(userValidated.validated.get), HttpCode.`200`(callContext))
           }
       }
     }
@@ -1389,7 +2462,7 @@ trait APIMethods510 {
          |
          |14 include_implemented_by_partial_functions (if null ignore).eg: &include_implemented_by_partial_functions=getMetrics,getConnectorMetrics,getAggregateMetrics
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1490,7 +2563,7 @@ trait APIMethods510 {
          |16 duration (if null ignore) non digit chars will be silently omitted
          |
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       metricsJsonV510,
       List(
         UserNotLoggedIn,
@@ -1529,7 +2602,7 @@ trait APIMethods510 {
       s"""Gets all Customers Ids that are linked to a User.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1554,6 +2627,50 @@ trait APIMethods510 {
             (JSONFactory510.createCustomersIds(customers), HttpCode.`200`(callContext))
           }
         }
+      }
+    }
+
+
+    resourceDocs += ResourceDoc(
+      getCustomersByLegalName,
+      implementedInApiVersion,
+      nameOf(getCustomersByLegalName),
+      "POST",
+      "/banks/BANK_ID/customers/legal-name",
+      "Get Customers by Legal Name",
+      s"""Gets the Customers specified by Legal Name.
+         |
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |""",
+      postCustomerLegalNameJsonV510,
+      customerJsonV310,
+      List(
+        UserNotLoggedIn,
+        UserCustomerLinksNotFoundForUser,
+        UnknownError
+      ),
+      List(apiTagCustomer, apiTagKyc),
+      Some(List(canGetCustomer))
+    )
+
+    lazy val getCustomersByLegalName: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "customers" :: "legal-name" :: Nil JsonPost json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            _ <- NewStyle.function.hasEntitlement(bankId.value, u.userId, canGetCustomer, callContext)
+            failMsg = s"$InvalidJsonFormat The Json body should be the $PostCustomerLegalNameJsonV510 "
+            postedData <- NewStyle.function.tryons(failMsg, 400, callContext) {
+              json.extract[PostCustomerLegalNameJsonV510]
+            }
+            (customer, callContext) <- NewStyle.function.getCustomersByCustomerLegalName(bank.bankId, postedData.legal_name, callContext)
+          } yield {
+            (JSONFactory300.createCustomersJson(customer), HttpCode.`200`(callContext))
+          }
       }
     }
     
@@ -1659,7 +2776,7 @@ trait APIMethods510 {
          |
          |You can use the url query parameters *limit* and *offset* for pagination
          |
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmsJsonV510,
       List(
@@ -1722,7 +2839,7 @@ trait APIMethods510 {
          |
          |
          |
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmJsonV510,
       List(UserNotLoggedIn, BankNotFound, AtmNotFoundByAtmId, UnknownError),
@@ -1781,12 +2898,12 @@ trait APIMethods510 {
 
 
     staticResourceDocs += ResourceDoc(
-      createConsumer,
+      createConsumerDynamicRegistraion,
       implementedInApiVersion,
-      "createConsumer",
+      nameOf(createConsumerDynamicRegistraion),
       "POST",
       "/dynamic-registration/consumers",
-      "Create a Consumer",
+      "Create a Consumer(Dynamic Registration)",
       s"""Create a Consumer (mTLS access).
          |
          | JWT payload:
@@ -1800,7 +2917,7 @@ trait APIMethods510 {
          |     "developer_email": "marko@tesobe.com",
          |     "redirect_url": "http://localhost:8082"
          |    }
-         | Please note that JWT must be signed with the counterpart private kew of the public key used to establish mTLS
+         | Please note that JWT must be signed with the counterpart private key of the public key used to establish mTLS
          |
          |""",
       ConsumerJwtPostJsonV510("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXNjcmlwdGlvbiI6IlRQUCBkZXNjcmlwdGlvbiJ9.c5gPPsyUmnVW774y7h2xyLXg0wdtu25nbU2AvOmyzcWa7JTdCKuuy3CblxueGwqYkQDDQIya1Qny4blyAvh_a1Q28LgzEKBcH7Em9FZXerhkvR9v4FWbCC5AgNLdQ7sR8-rUQdShmJcGDKdVmsZjuO4XhY2Zx0nFnkcvYfsU9bccoAvkKpVJATXzwBqdoEOuFlplnbxsMH1wWbAd3hbcPPWTdvO43xavNZTB5ybgrXVDEYjw8D-98_ZkqxS0vfvhJ4cGefHViaFzp6zXm7msdBpcE__O9rFbdl9Gvup_bsMbrHJioIrmc2d15Yc-tTNTF9J4qjD_lNxMRlx5o2TZEw"),
@@ -1813,7 +2930,7 @@ trait APIMethods510 {
       Some(Nil))
 
 
-    lazy val createConsumer: OBPEndpoint = {
+    lazy val createConsumerDynamicRegistraion: OBPEndpoint = {
       case "dynamic-registration" :: "consumers" :: Nil JsonPost json -> _ => {
         cc =>
           implicit val ec = EndpointContext(Some(cc))
@@ -1847,6 +2964,7 @@ trait APIMethods510 {
               redirectURL = postedJson.redirect_url,
               createdByUserId = None,
               clientCertificate = pem,
+              logoURL = None,
               cc.callContext
             )
           } yield {
@@ -1858,7 +2976,6 @@ trait APIMethods510 {
       }
     }
 
-
     private def consumerDisabledText() = {
       if(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false) == false) {
         "Please note: Your consumer may be disabled as a result of this action."
@@ -1867,13 +2984,82 @@ trait APIMethods510 {
       }
     }
 
+
     staticResourceDocs += ResourceDoc(
-      updateConsumerRedirectUrl,
+      createConsumer,
+      implementedInApiVersion,
+      nameOf(createConsumer),
+      "POST",
+      "/management/consumers",
+      "Create a Consumer",
+      s"""Create a Consumer (Authenticated access).
+         |
+         |""",
+      CreateConsumerRequestJsonV510(
+        "Test",
+        "Test",
+        "Description",
+        "some@email.com",
+        "company",
+        "redirecturl",
+        "createdby",
+        true,
+        new Date(),
+        """-----BEGIN CERTIFICATE-----
+          |client_certificate_content
+          |-----END CERTIFICATE-----""".stripMargin,
+        Some("logoUrl")
+      ),
+      consumerJsonV510,
+      List(
+        UserNotLoggedIn,
+        UserHasMissingRoles,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagConsumer),
+      Some(List(canCreateConsumer))
+    )
+    
+    lazy val createConsumer: OBPEndpoint = {
+      case "management" :: "consumers" :: Nil JsonPost json -> _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (Full(u), callContext) <- SS.user
+            (postedJson, appType)<- NewStyle.function.tryons(InvalidJsonFormat, 400, callContext) {
+              val createConsumerRequestJsonV510 = json.extract[CreateConsumerRequestJsonV510]
+              val appType = if(createConsumerRequestJsonV510.app_type.equals("Confidential")) AppType.valueOf("Confidential") else AppType.valueOf("Public")
+              (createConsumerRequestJsonV510,appType)
+            }
+            (consumer, callContext) <- createConsumerNewStyle(
+              key = Some(Helpers.randomString(40).toLowerCase),
+              secret = Some(Helpers.randomString(40).toLowerCase),
+              isActive = Some(postedJson.enabled),
+              name = Some(postedJson.app_name),
+              appType = Some(appType),
+              description = Some(postedJson.description),
+              developerEmail = Some(postedJson.developer_email),
+              company = Some(postedJson.company),
+              redirectURL = Some(postedJson.redirect_url),
+              createdByUserId = Some(u.userId),
+              clientCertificate = Some(postedJson.client_certificate),
+              logoURL = postedJson.logo_url,
+              callContext
+            )
+          } yield {
+            (JSONFactory510.createConsumerJSON(consumer, None), HttpCode.`201`(callContext))
+          }
+      }
+    }
+    
+    
+    staticResourceDocs += ResourceDoc(
+      updateConsumerRedirectURL,
       implementedInApiVersion,
       "updateConsumerRedirectUrl",
       "PUT",
       "/management/consumers/CONSUMER_ID/consumer/redirect_url",
-      "Update Consumer RedirectUrl",
+      "Update Consumer RedirectURL",
       s"""Update an existing redirectUrl for a Consumer specified by CONSUMER_ID.
          |
          | ${consumerDisabledText()}
@@ -1894,7 +3080,7 @@ trait APIMethods510 {
       Some(List(canUpdateConsumerRedirectUrl))
     )
 
-    lazy val updateConsumerRedirectUrl: OBPEndpoint = {
+    lazy val updateConsumerRedirectURL: OBPEndpoint = {
       case "management" :: "consumers" :: consumerId :: "consumer" :: "redirect_url" :: Nil JsonPut json -> _ => {
         cc =>
           implicit val ec = EndpointContext(Some(cc))
@@ -1913,10 +3099,138 @@ trait APIMethods510 {
               consumer.createdByUserId.equals(u.userId)
             }
             //update the redirectURL and isactive (set to false when change redirectUrl) field in consumer table
-            updatedConsumer <- NewStyle.function.updateConsumer(consumer.id.get, None, None, Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false)), None, None, None, None, Some(postJson.redirect_url), None, callContext)
+            updatedConsumer <- NewStyle.function.updateConsumer(
+              id = consumer.id.get,
+              isActive = Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", defaultValue = false)),
+              redirectURL = Some(postJson.redirect_url),
+              callContext = callContext
+            )
           } yield {
             val json = JSONFactory510.createConsumerJSON(updatedConsumer)
             (json, HttpCode.`200`(callContext))
+          }
+      }
+    }   
+    
+    staticResourceDocs += ResourceDoc(
+      updateConsumerLogoURL,
+      implementedInApiVersion,
+      nameOf(updateConsumerLogoURL),
+      "PUT",
+      "/management/consumers/CONSUMER_ID/consumer/logo_url",
+      "Update Consumer LogoURL",
+      s"""Update an existing logoURL for a Consumer specified by CONSUMER_ID.
+         |
+         | ${consumerDisabledText()}
+         |
+         | CONSUMER_ID can be obtained after you register the application.
+         |
+         | Or use the endpoint 'Get Consumers' to get it
+         |
+       """.stripMargin,
+      consumerLogoUrlJson,
+      consumerJsonV510,
+      List(
+        $UserNotLoggedIn,
+        UserHasMissingRoles,
+        UnknownError
+      ),
+      List(apiTagConsumer),
+      Some(List(canUpdateConsumerLogoUrl))
+    )
+
+    lazy val updateConsumerLogoURL: OBPEndpoint = {
+      case "management" :: "consumers" :: consumerId :: "consumer" :: "logo_url" :: Nil JsonPut json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            postJson <- NewStyle.function.tryons(InvalidJsonFormat, 400, callContext) {
+              json.extract[ConsumerLogoUrlJson]
+            }
+            consumer <- NewStyle.function.getConsumerByConsumerId(consumerId, callContext)
+            updatedConsumer <- NewStyle.function.updateConsumer(
+              id = consumer.id.get,
+              logoURL = Some(postJson.logo_url),
+              callContext = callContext
+            )
+          } yield {
+            (JSONFactory510.createConsumerJSON(updatedConsumer), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
+      getConsumer,
+      implementedInApiVersion,
+      nameOf(getConsumer),
+      "GET",
+      "/management/consumers/CONSUMER_ID",
+      "Get Consumer",
+      s"""Get the Consumer specified by CONSUMER_ID.
+         |
+         |""",
+      EmptyBody,
+      consumerJSON,
+      List(
+        $UserNotLoggedIn,
+        UserHasMissingRoles,
+        ConsumerNotFoundByConsumerId,
+        UnknownError
+      ),
+      List(apiTagConsumer),
+      Some(List(canGetConsumers)))
+
+
+    lazy val getConsumer: OBPEndpoint = {
+      case "management" :: "consumers" :: consumerId :: Nil JsonGet _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            consumer <- NewStyle.function.getConsumerByConsumerId(consumerId, cc.callContext)
+            user <- Users.users.vend.getUserByUserIdFuture(consumer.createdByUserId.get)
+          } yield {
+            (createConsumerJSON(consumer, user), HttpCode.`200`(cc.callContext))
+          }
+      }
+    }
+
+    resourceDocs += ResourceDoc(
+      getConsumers,
+      implementedInApiVersion,
+      nameOf(getConsumers),
+      "GET",
+      "/management/consumers",
+      "Get Consumers",
+      s"""Get the all Consumers.
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |${urlParametersDocument(true, true)}
+         |
+         |""",
+      EmptyBody,
+      consumersJsonV510,
+      List(
+        $UserNotLoggedIn,
+        UserHasMissingRoles,
+        UnknownError
+      ),
+      List(apiTagConsumer),
+      Some(List(canGetConsumers))
+    )
+
+
+    lazy val getConsumers: OBPEndpoint = {
+      case "management" :: "consumers" :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            httpParams <- NewStyle.function.extractHttpParamsFromUrl(cc.url)
+            (obpQueryParams, callContext) <- createQueriesByHttpParamsFuture(httpParams, Some(cc))
+            consumers <- Consumers.consumers.vend.getConsumersFuture(obpQueryParams, callContext)
+          } yield {
+            (JSONFactory510.createConsumersJson(consumers), HttpCode.`200`(callContext))
           }
       }
     }
@@ -1930,7 +3244,7 @@ trait APIMethods510 {
       "Grant User access to View",
       s"""Grants the User identified by USER_ID access to the view identified.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to be account holder.
+         |${userAuthenticationMessage(true)} and the user needs to be account holder.
          |
          |""",
       postAccountAccessJsonV510,
@@ -1991,7 +3305,7 @@ trait APIMethods510 {
       "Revoke User access to View",
       s"""Revoke the User identified by USER_ID access to the view identified.
          |
-         |${authenticationRequiredMessage(true)}.
+         |${userAuthenticationMessage(true)}.
          |
          |""",
       postAccountAccessJsonV510,
@@ -2061,7 +3375,7 @@ trait APIMethods510 {
          |
          |This endpoint will create the (DAuth) User with username and provider if the User does not already exist.
          |
-         |${authenticationRequiredMessage(true)} and the logged in user needs to be account holder.
+         |${userAuthenticationMessage(true)} and the logged in user needs to be account holder.
          |
          |For information about DAuth see below:
          |
@@ -2123,6 +3437,163 @@ trait APIMethods510 {
 
 
     staticResourceDocs += ResourceDoc(
+      getTransactionRequestById,
+      implementedInApiVersion,
+      nameOf(getTransactionRequestById),
+      "GET",
+      "/management/transaction-requests/TRANSACTION_REQUEST_ID",
+      "Get Transaction Request by ID.",
+      """Returns transaction request for transaction specified by TRANSACTION_REQUEST_ID.
+        |
+      """.stripMargin,
+      EmptyBody,
+      transactionRequestWithChargeJSON210,
+      List(
+        $UserNotLoggedIn,
+        GetTransactionRequestsException,
+        UnknownError
+      ),
+      List(apiTagTransactionRequest, apiTagPSD2PIS, apiTagPsd2),
+      Some(List(canGetTransactionRequestAtAnyBank))
+    )
+
+    lazy val getTransactionRequestById: OBPEndpoint = {
+      case "management" :: "transaction-requests" :: TransactionRequestId(requestId) :: Nil JsonGet _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (transactionRequest, callContext) <- NewStyle.function.getTransactionRequestImpl(requestId, cc.callContext)
+          } yield {
+            val json = JSONFactory210.createTransactionRequestWithChargeJSON(transactionRequest)
+            (json, HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+
+
+    resourceDocs += ResourceDoc(
+      getTransactionRequests,
+      implementedInApiVersion,
+      nameOf(getTransactionRequests),
+      "GET",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-requests",
+      "Get Transaction Requests." ,
+      """Returns transaction requests for account specified by ACCOUNT_ID at bank specified by BANK_ID.
+        |
+        |The VIEW_ID specified must be 'owner' and the user must have access to this view.
+        |
+        |Version 2.0.0 now returns charge information.
+        |
+        |Transaction Requests serve to initiate transactions that may or may not proceed. They contain information including:
+        |
+        |* Transaction Request Id
+        |* Type
+        |* Status (INITIATED, COMPLETED)
+        |* Challenge (in order to confirm the request)
+        |* From Bank / Account
+        |* Details including Currency, Value, Description and other initiation information specific to each type. (Could potentialy include a list of future transactions.)
+        |* Related Transactions
+        |
+        |PSD2 Context: PSD2 requires transparency of charges to the customer.
+        |This endpoint provides the charge that would be applied if the Transaction Request proceeds - and a record of that charge there after.
+        |The customer can proceed with the Transaction by answering the security challenge.
+        |
+        |We support query transaction request by attribute 
+        |URL params example:/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-requests?invoiceNumber=123&referenceNumber=456
+        |
+      """.stripMargin,
+      EmptyBody,
+      transactionRequestWithChargeJSONs210,
+      List(
+        UserNotLoggedIn,
+        BankNotFound,
+        BankAccountNotFound,
+        UserNoPermissionAccessView,
+        ViewDoesNotPermitAccess,
+        GetTransactionRequestsException,
+        UnknownError
+      ),
+      List(apiTagTransactionRequest, apiTagPSD2PIS))
+
+    lazy val getTransactionRequests: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-requests" :: Nil JsonGet req => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            _ <- NewStyle.function.isEnabledTransactionRequests(callContext)
+            (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            (fromAccount, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
+            view <- NewStyle.function.checkAccountAccessAndGetView(viewId, BankIdAccountId(bankId, accountId), Full(u), callContext)
+            _ <- Helper.booleanToFuture(
+              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeTransactionRequests_)).dropRight(1)}` permission on the View(${viewId.value})",
+              cc=callContext){
+              view.canSeeTransactionRequests
+            }
+            (transactionRequests, callContext) <- Future(Connector.connector.vend.getTransactionRequests210(u, fromAccount, callContext)) map {
+              unboxFullOrFail(_, callContext, GetTransactionRequestsException)
+            }
+            (transactionRequestAttributes, callContext) <- NewStyle.function.getByAttributeNameValues(bankId, req.params, true, callContext) 
+            transactionRequestIds = transactionRequestAttributes.map(_.transactionRequestId) 
+            
+            transactionRequestsFiltered = if(req.params.isEmpty)
+              transactionRequests
+            else
+              transactionRequests.filter(transactionRequest => transactionRequestIds.contains(transactionRequest.id)) 
+              
+          } yield {
+            val json = JSONFactory510.createTransactionRequestJSONs(transactionRequestsFiltered, transactionRequestAttributes)
+            
+            (json, HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
+      updateTransactionRequestStatus,
+      implementedInApiVersion,
+      nameOf(updateTransactionRequestStatus),
+      "PUT",
+      "/management/transaction-requests/TRANSACTION_REQUEST_ID",
+      "Update Transaction Request Status",
+      s""" Update Transaction Request Status
+         |
+         |${userAuthenticationMessage(true)}
+         |
+         |""",
+      PostTransactionRequestStatusJsonV510(TransactionRequestStatus.COMPLETED.toString),
+      PostTransactionRequestStatusJsonV510(TransactionRequestStatus.COMPLETED.toString),
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagTransactionRequest),
+      Some(List(canUpdateTransactionRequestStatusAtAnyBank))
+    )
+
+    lazy val updateTransactionRequestStatus : OBPEndpoint = {
+      case "management" :: "transaction-requests" :: TransactionRequestId(transactionRequestId) :: Nil JsonPut json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          val failMsg = s"$InvalidJsonFormat The Json body should be the $PostTransactionRequestStatusJsonV510"
+          for {
+            postedData <- NewStyle.function.tryons(failMsg, 400, cc.callContext) {
+              json.extract[PostTransactionRequestStatusJsonV510]
+            }
+            _ <- NewStyle.function.saveTransactionRequestStatusImpl(transactionRequestId, postedData.status, cc.callContext)
+            (transactionRequest, callContext) <- NewStyle.function.getTransactionRequestImpl(transactionRequestId, cc.callContext)
+          } yield {
+            (TransactionRequestStatusJsonV510(transactionRequest.id.value, transactionRequest.status), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+    
+    staticResourceDocs += ResourceDoc(
       getAccountAccessByUserId,
       implementedInApiVersion,
       nameOf(getAccountAccessByUserId),
@@ -2131,7 +3602,7 @@ trait APIMethods510 {
       "Get Account Access by USER_ID",
       s"""Get Account Access by USER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2152,6 +3623,36 @@ trait APIMethods510 {
             (_, accountAccess) <- Future(Views.views.vend.privateViewsUserCanAccess(user))
           } yield {
             (JSONFactory400.createAccountsMinimalJson400(accountAccess), HttpCode.`200`(callContext))
+          }
+    }
+    
+    
+    staticResourceDocs += ResourceDoc(
+      getApiTags,
+      implementedInApiVersion,
+      nameOf(getApiTags),
+      "GET",
+      "/tags",
+      "Get API Tags",
+      s"""Get API TagsGet API Tags
+         |
+         |${userAuthenticationMessage(false)}
+         |
+         |""",
+      EmptyBody,
+      accountsMinimalJson400,
+      List(
+        UnknownError
+      ),
+      List(apiTagApi))
+
+    lazy val getApiTags : OBPEndpoint = {
+      case "tags" ::  Nil JsonGet _ =>
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            _ <- Future.successful() // Just start async call
+          } yield {
+            (APITags(ApiTag.allDisplayTagNames.toList), HttpCode.`200`(cc.callContext))
           }
     }
 
@@ -2213,8 +3714,8 @@ trait APIMethods510 {
             (Full(u), callContext) <- SS.user
             bankIdAccountId = BankIdAccountId(bankId, accountId)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, bankIdAccountId, Full(u), callContext)
-            // Note we do one explicit check here rather than use moderated account because this provide an explicit message
-            failMsg = ViewDoesNotPermitAccess + " You need the permission canSeeBankAccountBalance."
+            // Note we do one explicit check here rather than use moderated account because this provides an explicit message
+            failMsg = ViewDoesNotPermitAccess + s" You need the `${StringHelpers.snakify(nameOf(view.canSeeBankAccountBalance))}` permission on VIEW_ID(${viewId.value})"
             _ <- Helper.booleanToFuture(failMsg, 403, cc = callContext) {
               view.canSeeBankAccountBalance
             }
@@ -2288,8 +3789,725 @@ trait APIMethods510 {
     }
 
 
+    lazy val counterPartyLimitIntro: String =
+      """Counter Party Limits can be used to restrict the Transaction Request amounts and frequencies (per month and year) that can be made to a Counterparty (Beneficiary).
+        |
+        |In order to implement VRP (Variable Recurring Payments) perform the following steps:
+        |1) Create a Custom View named e.g. VRP1.
+        |2) Place a Beneficiary Counterparty on that view.
+        |3) Add Counterparty Limits for that Counterparty.
+        |4) Generate a Consent containing the bank, account and view (e.g. VRP1)
+        |5) Let the App use the consent to trigger Transaction Requests.
+        |""".stripMargin
+
+    staticResourceDocs += ResourceDoc(
+      createCounterpartyLimit,
+      implementedInApiVersion,
+      nameOf(createCounterpartyLimit),
+      "POST",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/counterparties/COUNTERPARTY_ID/limits",
+      "Create Counterparty Limit",
+      s"""Create limits (for single or recurring payments) for a counterparty specified by the COUNTERPARTY_ID.
+         |
+         |Using this endpoint, we can attach a limit record to a Counterparty referenced by its counterparty_id (a UUID).
+         |
+         |For more information on Counterparty Limits, see ${Glossary.getGlossaryItemLink("Counterparty-Limits")}
+         |
+         |For an introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
+         |
+         |You can automate the process of creating counterparty limits and consents for VRP with this ${Glossary.getApiExplorerLink("endpoint", "OBPv5.1.0-createVRPConsentRequest")}.
+         |
+         |
+         |
+         |""".stripMargin,
+      postCounterpartyLimitV510,
+      counterpartyLimitV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        $UserNoPermissionAccessView,
+        $CounterpartyNotFoundByCounterpartyId,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagCounterpartyLimits),
+    )
+    lazy val createCounterpartyLimit: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limits" :: Nil JsonPost json -> _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            postCounterpartyLimitV510 <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[PostCounterpartyLimitV510]}", 400, cc.callContext) {
+              json.extract[PostCounterpartyLimitV510]
+            }
+            _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${postCounterpartyLimitV510.currency}'", cc=cc.callContext) {
+              isValidCurrencyISOCode(postCounterpartyLimitV510.currency)
+            }
+            (counterpartyLimitBox, callContext) <- Connector.connector.vend.getCounterpartyLimit(
+              bankId.value,
+              accountId.value,
+              viewId.value,
+              counterpartyId.value,
+              cc.callContext
+            )
+            failMsg = s"$CounterpartyLimitAlreadyExists Current BANK_ID($bankId), ACCOUNT_ID($accountId), VIEW_ID($viewId),COUNTERPARTY_ID($counterpartyId)"
+            _ <- Helper.booleanToFuture(failMsg, cc = callContext) {
+              counterpartyLimitBox.isEmpty
+            }
+            (counterpartyLimit,callContext) <- NewStyle.function.createOrUpdateCounterpartyLimit(
+              bankId.value,
+              accountId.value,
+              viewId.value,
+              counterpartyId.value,
+              postCounterpartyLimitV510.currency,
+              BigDecimal(postCounterpartyLimitV510.max_single_amount),
+              BigDecimal(postCounterpartyLimitV510.max_monthly_amount),
+              postCounterpartyLimitV510.max_number_of_monthly_transactions,
+              BigDecimal(postCounterpartyLimitV510.max_yearly_amount),
+              postCounterpartyLimitV510.max_number_of_yearly_transactions,
+              BigDecimal(postCounterpartyLimitV510.max_total_amount),
+              postCounterpartyLimitV510.max_number_of_transactions,
+              cc.callContext
+            )
+          } yield {
+            (counterpartyLimit.toJValue, HttpCode.`201`(callContext))
+          }
+      }
+    }
+    
+    staticResourceDocs += ResourceDoc(
+      updateCounterpartyLimit,
+      implementedInApiVersion,
+      nameOf(updateCounterpartyLimit),
+      "PUT",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/counterparties/COUNTERPARTY_ID/limits",
+      "Update Counterparty Limit",
+      s"""Update Counterparty Limit.""",
+      postCounterpartyLimitV510,
+      counterpartyLimitV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        $UserNoPermissionAccessView,
+        $CounterpartyNotFoundByCounterpartyId,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagCounterpartyLimits),
+    )
+    lazy val updateCounterpartyLimit: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limits" :: Nil JsonPut json -> _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            postCounterpartyLimitV510 <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[PostCounterpartyLimitV510]}", 400, cc.callContext) {
+              json.extract[PostCounterpartyLimitV510]
+            }
+            _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${postCounterpartyLimitV510.currency}'", cc=cc.callContext) {
+              isValidCurrencyISOCode(postCounterpartyLimitV510.currency)
+            }
+            (counterpartyLimit,callContext) <- NewStyle.function.createOrUpdateCounterpartyLimit(
+              bankId.value,
+              accountId.value,
+              viewId.value,
+              counterpartyId.value,
+              postCounterpartyLimitV510.currency,
+              BigDecimal(postCounterpartyLimitV510.max_single_amount),
+              BigDecimal(postCounterpartyLimitV510.max_monthly_amount),
+              postCounterpartyLimitV510.max_number_of_monthly_transactions,
+              BigDecimal(postCounterpartyLimitV510.max_yearly_amount),
+              postCounterpartyLimitV510.max_number_of_yearly_transactions,
+              BigDecimal(postCounterpartyLimitV510.max_total_amount),
+              postCounterpartyLimitV510.max_number_of_transactions,
+              cc.callContext
+            )
+          } yield {
+            (counterpartyLimit.toJValue, HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      getCounterpartyLimit,
+      implementedInApiVersion,
+      nameOf(getCounterpartyLimit),
+      "GET",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/counterparties/COUNTERPARTY_ID/limits",
+      "Get Counterparty Limit",
+      s"""Get Counterparty Limit.""",
+      EmptyBody,
+      counterpartyLimitV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        $UserNoPermissionAccessView,
+        $CounterpartyNotFoundByCounterpartyId,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagCounterpartyLimits),
+    )
+    lazy val getCounterpartyLimit: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limits" :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (counterpartyLimit, callContext) <- NewStyle.function.getCounterpartyLimit(
+              bankId.value,
+              accountId.value,
+              viewId.value,
+              counterpartyId.value,
+              cc.callContext
+            )
+          } yield {
+            (counterpartyLimit.toJValue, HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
+      getCounterpartyLimitStatus,
+      implementedInApiVersion,
+      nameOf(getCounterpartyLimitStatus),
+      "GET",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/counterparties/COUNTERPARTY_ID/limit-status",
+      "Get Counterparty Limit Status",
+      s"""Get Counterparty Limit Status.""",
+      EmptyBody,
+      counterpartyLimitStatusV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        $UserNoPermissionAccessView,
+        $CounterpartyNotFoundByCounterpartyId,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagCounterpartyLimits),
+    )
+    lazy val getCounterpartyLimitStatus: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limit-status" :: Nil JsonGet _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (counterpartyLimit, callContext) <- NewStyle.function.getCounterpartyLimit(
+              bankId.value,
+              accountId.value,
+              viewId.value,
+              counterpartyId.value,
+              cc.callContext
+            )
+            // Get the first day of the current month
+            firstDayOfMonth: LocalDate = LocalDate.now().withDayOfMonth(1)
+
+            // Get the last day of the current month
+            lastDayOfMonth: LocalDate = LocalDate.now().withDayOfMonth(
+              LocalDate.now().lengthOfMonth()
+            )
+            // Get the first day of the current year
+            firstDayOfYear: LocalDate = LocalDate.now().withDayOfYear(1)
+
+            // Get the last day of the current year
+            lastDayOfYear: LocalDate = LocalDate.now().withDayOfYear(
+              LocalDate.now().lengthOfYear()
+            )
+
+            (fromBankAccount, callContext) <- NewStyle.function.getBankAccount(bankId, accountId, callContext)
+            // Convert LocalDate to Date
+            zoneId: ZoneId = ZoneId.systemDefault()
+            firstCurrentMonthDate: Date = Date.from(firstDayOfMonth.atStartOfDay(zoneId).toInstant)
+            // Adjust to include 23:59:59.999
+            lastCurrentMonthDate: Date = Date.from(
+              lastDayOfMonth
+                .atTime(23, 59, 59, 999000000)
+                .atZone(zoneId)
+                .toInstant
+            )
+
+            firstCurrentYearDate: Date = Date.from(firstDayOfYear.atStartOfDay(zoneId).toInstant)
+            // Adjust to include 23:59:59.999
+            lastCurrentYearDate: Date = Date.from(
+              lastDayOfYear
+                .atTime(23, 59, 59, 999000000)
+                .atZone(zoneId)
+                .toInstant
+            )
+
+            defaultFromDate: Date = theEpochTime
+            defaultToDate: Date = APIUtil.ToDateInFuture
+
+            (sumOfTransactionsFromAccountToCounterpartyMonthly, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              firstCurrentMonthDate: Date,
+              lastCurrentMonthDate: Date,
+              callContext: Option[CallContext]
+            )
+
+            (countOfTransactionsFromAccountToCounterpartyMonthly, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              firstCurrentMonthDate: Date,
+              lastCurrentMonthDate: Date,
+              callContext: Option[CallContext]
+            )
+
+            (sumOfTransactionsFromAccountToCounterpartyYearly, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              firstCurrentYearDate: Date,
+              lastCurrentYearDate: Date,
+              callContext: Option[CallContext]
+            )
+
+            (countOfTransactionsFromAccountToCounterpartyYearly, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              firstCurrentYearDate: Date,
+              lastCurrentYearDate: Date,
+              callContext: Option[CallContext]
+            )
+
+            (sumOfAllTransactionsFromAccountToCounterparty, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              defaultFromDate: Date,
+              defaultToDate: Date,
+              callContext: Option[CallContext]
+            )
+
+            (countOfAllTransactionsFromAccountToCounterparty, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+              bankId,
+              accountId,
+              counterpartyId,
+              defaultFromDate: Date,
+              defaultToDate: Date,
+              callContext: Option[CallContext]
+            )
+            
+          } yield {
+            (CounterpartyLimitStatusV510(
+              counterparty_limit_id = counterpartyLimit.counterpartyLimitId: String,
+              bank_id = counterpartyLimit.bankId: String,
+              account_id = counterpartyLimit.accountId: String,
+              view_id = counterpartyLimit.viewId: String,
+              counterparty_id = counterpartyLimit.counterpartyId: String,
+              currency = counterpartyLimit.currency: String,
+              max_single_amount = counterpartyLimit.maxSingleAmount.toString(),
+              max_monthly_amount = counterpartyLimit.maxMonthlyAmount.toString(),
+              max_number_of_monthly_transactions = counterpartyLimit.maxNumberOfMonthlyTransactions: Int,
+              max_yearly_amount = counterpartyLimit.maxYearlyAmount.toString(),
+              max_number_of_yearly_transactions = counterpartyLimit.maxNumberOfYearlyTransactions: Int,
+              max_total_amount = counterpartyLimit.maxTotalAmount.toString(),
+              max_number_of_transactions = counterpartyLimit.maxNumberOfTransactions: Int,
+              status = CounterpartyLimitStatus(
+                currency_status = fromBankAccount.currency,
+                max_monthly_amount_status = sumOfTransactionsFromAccountToCounterpartyMonthly.amount,
+                max_number_of_monthly_transactions_status = countOfTransactionsFromAccountToCounterpartyMonthly,
+                max_yearly_amount_status = sumOfTransactionsFromAccountToCounterpartyYearly.amount,
+                max_number_of_yearly_transactions_status = countOfTransactionsFromAccountToCounterpartyYearly,
+                max_total_amount_status = sumOfAllTransactionsFromAccountToCounterparty.amount,
+                max_number_of_transactions_status = countOfAllTransactionsFromAccountToCounterparty
+              )
+            ), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      deleteCounterpartyLimit,
+      implementedInApiVersion,
+      nameOf(deleteCounterpartyLimit),
+      "DELETE",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/counterparties/COUNTERPARTY_ID/limits",
+      "Delete Counterparty Limit",
+      s"""Delete Counterparty Limit.""",
+      EmptyBody,
+      EmptyBody,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        $UserNoPermissionAccessView,
+        $CounterpartyNotFoundByCounterpartyId,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagCounterpartyLimits),
+    )
+    lazy val deleteCounterpartyLimit: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"counterparties" :: CounterpartyId(counterpartyId) ::"limits" :: Nil JsonDelete _ => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (counterpartyLimit, callContext)<- NewStyle.function.deleteCounterpartyLimit(
+              bankId.value,
+              accountId.value,
+              viewId.value,
+              counterpartyId.value,
+              cc.callContext
+            )
+          } yield {
+            (Full(counterpartyLimit), HttpCode.`204`(cc.callContext))
+          }
+      }
+    }
+
+    resourceDocs += ResourceDoc(
+      createCustomView,
+      implementedInApiVersion,
+      nameOf(createCustomView),
+      "POST",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/target-views",
+      "Create Custom View",
+      s"""Create a custom view on bank account
+         |
+         | ${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
+         | The 'alias' field in the JSON can take one of three values:
+         |
+         | * _public_: to use the public alias if there is one specified for the other account.
+         | * _private_: to use the private alias if there is one specified for the other account.
+         |
+         | * _''(empty string)_: to use no alias; the view shows the real name of the other account.
+         |
+         | The 'hide_metadata_if_alias_used' field in the JSON can take boolean values. If it is set to `true` and there is an alias on the other account then the other accounts' metadata (like more_info, url, image_url, open_corporates_url, etc.) will be hidden. Otherwise the metadata will be shown.
+         |
+         | The 'allowed_actions' field is a list containing the name of the actions allowed on this view, all the actions contained will be set to `true` on the view creation, the rest will be set to `false`.
+         |
+         | You MUST use a leading _ (underscore) in the view name because other view names are reserved for OBP [system views](/index#group-View-System).
+         | """,
+      createCustomViewJson,
+      customViewJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        $UserNoPermissionAccessView,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagView, apiTagAccount)
+    )
+    lazy val createCustomView: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) ::"target-views" ::  Nil JsonPost json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (_, _, _, view, callContext) <- SS.userBankAccountView
+            createCustomViewJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[CreateViewJson]}", 400, cc.callContext) {
+              json.extract[CreateCustomViewJson]
+            }
+            //customer views are started ith `_`,eg _life, _work, and System views startWith letter, eg: owner
+            _ <- Helper.booleanToFuture(failMsg = InvalidCustomViewFormat + s"Current view_name (${createCustomViewJson.name})", cc = callContext) {
+              isValidCustomViewName(createCustomViewJson.name)
+            }
+
+            permissionsFromSource = APIUtil.getViewPermissions(view.asInstanceOf[ViewDefinition])
+            permissionsFromTarget = createCustomViewJson.allowed_permissions
+
+            _ <- Helper.booleanToFuture(failMsg = SourceViewHasLessPermission + s"Current source viewId($viewId) permissions ($permissionsFromSource), target viewName${createCustomViewJson.name} permissions ($permissionsFromTarget)", cc = callContext) {
+              permissionsFromTarget.toSet.subsetOf(permissionsFromSource)
+            }
+
+            failMsg = s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(view.canCreateCustomView))}` permission on VIEW_ID(${viewId.value})"
+
+            _ <- Helper.booleanToFuture(failMsg, cc = callContext) {
+              view.canCreateCustomView
+            }
+            (view, callContext) <- NewStyle.function.createCustomView(BankIdAccountId(bankId, accountId), createCustomViewJson.toCreateViewJson, callContext)
+          } yield {
+            (JSONFactory510.createViewJson(view), HttpCode.`201`(callContext))
+          }
+      }
+    }
+
+    resourceDocs += ResourceDoc(
+      updateCustomView,
+      implementedInApiVersion,
+      nameOf(updateCustomView),
+      "PUT",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/target-views/TARGET_VIEW_ID",
+      "Update Custom View",
+      s"""Update an existing custom view on a bank account
+         |
+         |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
+         |
+         |The json sent is the same as during view creation (above), with one difference: the 'name' field
+         |of a view is not editable (it is only set when a view is created)""",
+      updateCustomViewJson,
+      customViewJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        $UserNoPermissionAccessView,
+        InvalidJsonFormat,
+        UnknownError
+      ),
+      List(apiTagView, apiTagAccount)
+    )
+    lazy val updateCustomView: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) :: "target-views" :: ViewId(targetViewId) :: Nil JsonPut json -> _ => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          for {
+            (_, _, _, view, callContext) <- SS.userBankAccountView
+            targetCreateCustomViewJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[UpdateCustomViewJson]}", 400, cc.callContext) {
+              json.extract[UpdateCustomViewJson]
+            }
+            //customer views are started ith `_`,eg _life, _work, and System views startWith letter, eg: owner
+            _ <- Helper.booleanToFuture(failMsg = InvalidCustomViewFormat + s"Current TARGET_VIEW_ID (${targetViewId})", cc = callContext) {
+              isValidCustomViewId(targetViewId.value)
+            }
+            permissionsFromSource = APIUtil.getViewPermissions(view.asInstanceOf[ViewDefinition])
+            permissionsFromTarget = targetCreateCustomViewJson.allowed_permissions
+
+            _ <- Helper.booleanToFuture(failMsg = SourceViewHasLessPermission + s"Current source view permissions ($permissionsFromSource), target view permissions ($permissionsFromTarget)", cc = callContext) {
+              permissionsFromTarget.toSet.subsetOf(permissionsFromSource)
+            }
+
+            failmsg = s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(view.canUpdateCustomView))}` permission on VIEW_ID(${viewId.value})"
+
+            _ <- Helper.booleanToFuture(failmsg, cc = callContext) {
+              view.canCreateCustomView
+            }
+
+            (view, callContext) <- NewStyle.function.updateCustomView(BankIdAccountId(bankId, accountId), targetViewId, targetCreateCustomViewJson.toUpdateViewJson, callContext)
+          } yield {
+            (JSONFactory510.createViewJson(view), HttpCode.`200`(callContext))
+          }
+      }
+    }
+
+    staticResourceDocs += ResourceDoc(
+      getCustomView,
+      implementedInApiVersion,
+      nameOf(getCustomView),
+      "GET",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/target-views/TARGET_VIEW_ID",
+      "Get Custom View",
+      s"""#Views
+         |
+         |
+         |Views in Open Bank Project provide a mechanism for fine grained access control and delegation to Accounts and Transactions. Account holders use the 'owner' view by default. Delegated access is made through other views for example 'accountants', 'share-holders' or 'tagging-application'. Views can be created via the API and each view has a list of entitlements.
+         |
+         |Views on accounts and transactions filter the underlying data to redact certain fields for certain users. For instance the balance on an account may be hidden from the public. The way to know what is possible on a view is determined in the following JSON.
+         |
+         |**Data:** When a view moderates a set of data, some fields my contain the value `null` rather than the original value. This indicates either that the user is not allowed to see the original data or the field is empty.
+         |
+         |There is currently one exception to this rule; the 'holder' field in the JSON contains always a value which is either an alias or the real name - indicated by the 'is_alias' field.
+         |
+         |**Action:** When a user performs an action like trying to post a comment (with POST API call), if he is not allowed, the body response will contain an error message.
+         |
+         |**Metadata:**
+         |Transaction metadata (like images, tags, comments, etc.) will appears *ONLY* on the view where they have been created e.g. comments posted to the public view only appear on the public view.
+         |
+         |The other account metadata fields (like image_URL, more_info, etc.) are unique through all the views. Example, if a user edits the 'more_info' field in the 'team' view, then the view 'authorities' will show the new value (if it is allowed to do it).
+         |
+         |# All
+         |*Optional*
+         |
+         |Returns the list of the views created for account ACCOUNT_ID at BANK_ID.
+         |
+         |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
+      EmptyBody,
+      customViewJsonV510,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        $UserNoPermissionAccessView,
+        UnknownError
+      ),
+      List(apiTagView, apiTagAccount)
+    )
+    lazy val getCustomView: OBPEndpoint = {
+      //get the available views on an bank account
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: ViewId(viewId) :: "target-views" :: ViewId(targetViewId):: Nil JsonGet req => {
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+            for {
+              (_, _, _, view, callContext) <- SS.userBankAccountView
+              //customer views are started ith `_`,eg _life, _work, and System views startWith letter, eg: owner
+              _ <- Helper.booleanToFuture(failMsg = InvalidCustomViewFormat + s"Current TARGET_VIEW_ID (${targetViewId.value})", cc = callContext) {
+                isValidCustomViewId(targetViewId.value)
+              }
+              failmsg = s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(view.canGetCustomView))}`permission on any your views. Current VIEW_ID (${viewId.value})"
+              _ <- Helper.booleanToFuture(failmsg, cc = callContext) {
+                view.canGetCustomView
+              }
+              targetView <- NewStyle.function.customView(targetViewId, BankIdAccountId(bankId, accountId), callContext)
+            } yield {
+              (JSONFactory510.createViewJson(targetView), HttpCode.`200`(callContext))
+            }
+      }
+    }
+
+
+    staticResourceDocs += ResourceDoc(
+      deleteCustomView,
+      implementedInApiVersion,
+      nameOf(deleteCustomView),
+      "DELETE",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID/target-views/TARGET_VIEW_ID",
+      "Delete Custom View",
+      "Deletes the custom view specified by VIEW_ID on the bank account specified by ACCOUNT_ID at bank BANK_ID",
+      EmptyBody,
+      EmptyBody,
+      List(
+        $UserNotLoggedIn,
+        $BankNotFound,
+        $BankAccountNotFound,
+        $UserNoPermissionAccessView,
+        UnknownError
+      ),
+      List(apiTagView, apiTagAccount)
+    )
+
+    lazy val deleteCustomView: OBPEndpoint = {
+      //deletes a view on an bank account
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId ) :: "views" :: ViewId(viewId) :: "target-views" :: ViewId(targetViewId) :: Nil JsonDelete req => {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (_, _, _, view, callContext) <- SS.userBankAccountView
+            //customer views are started ith `_`,eg _life, _work, and System views startWith letter, eg: owner
+            _ <- Helper.booleanToFuture(failMsg = InvalidCustomViewFormat + s"Current TARGET_VIEW_ID (${targetViewId.value})", cc = callContext) {
+              isValidCustomViewId(targetViewId.value)
+            }
+            failMsg = s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(view.canDeleteCustomView))}` permission on any your views.Current VIEW_ID (${viewId.value})"
+            _ <- Helper.booleanToFuture(failMsg, cc = callContext) {
+              view.canDeleteCustomView
+            }
+            _ <- NewStyle.function.customView(targetViewId, BankIdAccountId(bankId, accountId), callContext)
+            deleted <- NewStyle.function.removeCustomView(targetViewId, BankIdAccountId(bankId, accountId), callContext)
+          } yield {
+            (Full(deleted), HttpCode.`204`(callContext))
+          }
+      }
+    }
+
+
+
+    staticResourceDocs += ResourceDoc(
+      createVRPConsentRequest,
+      implementedInApiVersion,
+      nameOf(createVRPConsentRequest),
+      "POST",
+      "/consumer/vrp-consent-requests",
+      "Create Consent Request VRP",
+      s"""
+         |This endpoint is used to begin the process of creating a consent that may be used for Variable Recurring Payments (VRPs).
+         |
+         |VRPs are useful in situations when a beneficiary needs to be paid different amounts on a regular basis.
+         |
+         |Once granted, the consent allows its holder to initiate multiple Transaction Requests to the Counterparty defined in this endpoint as long as the
+         |Counterparty Limits linked to this particular consent are respected.
+         |
+         |Client, Consumer or Application Authentication is mandatory for this endpoint.
+         |
+         |i.e. the caller of this endpoint is the API Client, Consumer or Application rather than a specific User.
+         |
+         |At the end of the process the following objects are created in OBP or connected backend systems:
+         | - An automatically generated View which controls access.
+         | - A Counterparty that is the Beneficiary of the Variable Recurring Payments. The Counterparty specifies the Bank Account number or other routing address.
+         | - Limits for the Counterparty which constrain the amount of money that can be sent to it in various periods (yearly, monthly, weekly).
+         |
+         |The Account holder may modify the Counterparty or Limits e.g. to increase or decrease the maximum possible payment amounts or the frequencey of the payments.
+         |
+         |
+         |In the case of a public client we use the client_id and private key to obtain an access token, otherwise we use the client_id and client_secret.
+         |The obtained access token is used in the HTTP Authorization header of the request as follows:
+         |
+         |Example:
+         |Authorization: Bearer eXtneO-THbQtn3zvK_kQtXXfvOZyZFdBCItlPDbR2Bk.dOWqtXCtFX-tqGTVR0YrIjvAolPIVg7GZ-jz83y6nA0
+         |
+         |After successfully creating the VRP consent request, you need to call the `Create Consent By CONSENT_REQUEST_ID` endpoint to finalize the consent using the CONSENT_REQUEST_ID returned by this endpoint.
+         |
+         |${applicationAccessMessage(true)}
+         |
+         |${userAuthenticationMessage(false)}
+         |
+         |
+         |""".stripMargin,
+      postVRPConsentRequestJsonV510,
+      vrpConsentRequestResponseJson,
+      List(
+        InvalidJsonFormat,
+        ConsentMaxTTL,
+        X509CannotGetCertificate,
+        X509GeneralError,
+        InvalidConnectorResponse,
+        UnknownError
+      ),
+      apiTagConsent :: apiTagVrp :: apiTagTransactionRequest  :: Nil
+    )
+
+    lazy val createVRPConsentRequest : OBPEndpoint = {
+      case  "consumer" :: "vrp-consent-requests" :: Nil JsonPost postJson -> _  =>  {
+        cc => implicit val ec = EndpointContext(Some(cc))
+          for {
+            (_, callContext) <- applicationAccess(cc)
+            _ <- passesPsd2Aisp(callContext)
+            failMsg = s"$InvalidJsonFormat The Json body should be the $PostVRPConsentRequestJsonV510 "
+            postConsentRequestJsonV510: PostVRPConsentRequestJsonV510 <- NewStyle.function.tryons(failMsg, 400, callContext) {
+              postJson.extract[PostVRPConsentRequestJsonV510]
+            }
+            maxTimeToLive = APIUtil.getPropsAsIntValue(nameOfProperty = "consents.max_time_to_live", defaultValue = 3600)
+            _ <- Helper.booleanToFuture(s"$ConsentMaxTTL ($maxTimeToLive)", cc = callContext) {
+              postConsentRequestJsonV510.time_to_live match {
+                case Some(ttl) => ttl <= maxTimeToLive
+                case _ => true
+              }
+            }
+            // we will first transfer AccountNumber or AccountNo to ACCOUNT_NUMBER, we will store ACCOUNT_NUMBER in the database.
+            fromAccountRoutingScheme = postConsentRequestJsonV510.from_account.account_routing.scheme
+            fromAccountRoutingSchemeOBPFormat = if(fromAccountRoutingScheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(fromAccountRoutingScheme).toUpperCase
+            fromAccountRouting = postConsentRequestJsonV510.from_account.account_routing.copy(scheme =fromAccountRoutingSchemeOBPFormat)
+            fromAccountTweaked = postConsentRequestJsonV510.from_account.copy(account_routing = fromAccountRouting)
+              
+            toAccountRoutingScheme = postConsentRequestJsonV510.to_account.account_routing.scheme
+            toAccountRoutingSchemeOBPFormat = if(toAccountRoutingScheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(toAccountRoutingScheme).toUpperCase
+            toAccountRouting = postConsentRequestJsonV510.to_account.account_routing.copy(scheme =toAccountRoutingSchemeOBPFormat)
+            toAccountTweaked = postConsentRequestJsonV510.to_account.copy(account_routing = toAccountRouting)
+
+            
+            
+            fromBankAccountRoutings = BankAccountRoutings(
+              bank = BankRoutingJson(postConsentRequestJsonV510.from_account.bank_routing.scheme, postConsentRequestJsonV510.from_account.bank_routing.address),
+              account = BranchRoutingJsonV141(fromAccountRoutingSchemeOBPFormat, postConsentRequestJsonV510.from_account.account_routing.address),
+              branch = AccountRoutingJsonV121(postConsentRequestJsonV510.from_account.branch_routing.scheme, postConsentRequestJsonV510.from_account.branch_routing.address)
+            )
+
+            // we need to add the consent_type internally, the user does not need to know it.
+            consentType = json.parse(s"""{"consent_type": "${ConsentType.VRP}"}""")
+
+            (_, callContext) <- NewStyle.function.getBankAccountByRoutings(fromBankAccountRoutings, callContext)
+
+            postConsentRequestJsonTweaked = postConsentRequestJsonV510.copy(
+              from_account = fromAccountTweaked, 
+              to_account = toAccountTweaked
+            )
+            createdConsentRequest <- Future(ConsentRequests.consentRequestProvider.vend.createConsentRequest(
+              callContext.flatMap(_.consumer),
+              Some(compactRender(Extraction.decompose(postConsentRequestJsonTweaked) merge consentType))
+            )) map {
+              i => connectorEmptyResponse(i, callContext)
+            }
+          } yield {
+            (JSONFactory500.createConsentRequestResponseJson(createdConsentRequest), HttpCode.`201`(callContext))
+          }
+      }
+    }
+
   }
 }
+
+
 
 object APIMethods510 extends RestHelper with APIMethods510 {
   lazy val newStyleEndpoints: List[(String, String)] = Implementations5_1_0.resourceDocs.map {

@@ -41,10 +41,6 @@ object ErrorMessages {
 
   val PublicViewsNotAllowedOnThisInstance = "OBP-00005: Public views not allowed on this instance. Please set allow_public_views = true in props files. "
 
-
-  val RemoteDataSecretMatchError = "OBP-00006: Remote data secret cannot be matched! Check OBP-API and OBP-Storage Props values for remotedata.hostname, remotedata.port and remotedata.secret." // (was OBP-20021)
-  val RemoteDataSecretObtainError = "OBP-00007: Remote data secret cannot be obtained! Check OBP-API and OBP-Storage Props values for remotedata.hostname, remotedata.port and remotedata.secret." // (was OBP-20022)
-
   val ApiVersionNotSupported = "OBP-00008: The API version you called is not enabled on this server. Please contact your API administrator or use another version."
 
   val AccountFirehoseNotAllowedOnThisInstance = "OBP-00009: Account firehose is not allowed on this instance. Please set allow_account_firehose = true in props files. "
@@ -116,7 +112,7 @@ object ErrorMessages {
   val InvalidHttpMethod = "OBP-10037: Incorrect http_method."
   val InvalidHttpProtocol = "OBP-10038: Incorrect http_protocol."
   val ServiceIsTooBusy = "OBP-10040: The Service is too busy, please try it later."
-  val InvalidLocale = "OBP-10041: This locale is not supported. Only the following can be used: en_GB , es_ES." 
+  val InvalidLocale = "OBP-10041: This locale is not supported. Only the following can be used: en_GB, es_ES, ro_RO."
   
   // General Sort and Paging
   val FilterSortDirectionError = "OBP-10023: obp_sort_direction parameter can only take two values: DESC or ASC!" // was OBP-20023
@@ -198,6 +194,8 @@ object ErrorMessages {
     s"OBP-20048: If target viewId is system view,  the current view.can_revoke_access_to_views does not contains it. Or" +
       s"if target viewId is custom view, the current view.can_revoke_access_to_custom_views is false."
       
+  val SourceViewHasLessPermission = "OBP-20049: Source view contains less permissions than target view."
+  
   val UserNotSuperAdmin = "OBP-20050: Current User is not a Super Admin!"
 
   val ElasticSearchIndexNotFound = "OBP-20051: Elasticsearch index or indices not found."
@@ -208,8 +206,8 @@ object ErrorMessages {
   val ElasticSearchDisabled  = "OBP-20056: Elasticsearch is disabled for this API instance."
   val UserNotFoundByUserId = "OBP-20057: User not found by userId."
   val ConsumerIsDisabled = "OBP-20058: Consumer is disabled."
-  val CouldNotGetUserLockStatus = "OBP-20059: Could not get the lock status of the user."
-  val NoViewReadAccountsBerlinGroup = s"OBP-20060: User does not have access to the view $SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID."
+  val CouldNotAssignAccountAccess = "OBP-20059: Could not assign account access. "
+  val NoViewReadAccountsBerlinGroup = s"OBP-20060: User does not have access to the view:"
   val FrequencyPerDayError = "OBP-20062: Frequency per day must be greater than 0."
   val FrequencyPerDayMustBeOneError = "OBP-20063: Frequency per day must be equal to 1 in case of one-off access."
 
@@ -263,9 +261,12 @@ object ErrorMessages {
   val Oauth2TokenHaveNoConsumer = "OBP-20209: The token have no linked consumer. "
   val Oauth2TokenMatchCertificateFail = "OBP-20210: The token is linked with a different client certificate. "
   val Oauth2TokenEndpointAuthMethodForbidden = "OBP-20213: The Token Endpoint Auth Method is not supported at this instance: "
-
   val OneTimePasswordExpired = "OBP-20211: The One Time Password (OTP) has expired. "
-  
+  val Oauth2IsNotRecognized = "OBP-20214: OAuth2 Access Token is not recognised at this instance."
+  val Oauth2ValidateAccessTokenError = "OBP-20215: There was a problem validating the OAuth2 access token. "
+
+  val AuthorizationHeaderAmbiguity = "OBP-20250: Request headers used for authorization are ambiguous. "
+
   // X.509
   val X509GeneralError = "OBP-20300: PEM Encoded Certificate issue."
   val X509ParsingFailed = "OBP-20301: Parsing failed for PEM Encoded Certificate."
@@ -278,6 +279,7 @@ object ErrorMessages {
   val X509ThereAreNoPsd2Roles = "OBP-20308: PEM Encoded Certificate does not contain PSD2 roles."
   val X509CannotGetPublicKey = "OBP-20309: Public key cannot be found in the PEM Encoded Certificate."
   val X509PublicKeyCannotVerify = "OBP-20310: Certificate's public key cannot be used to verify signed request."
+  val X509PublicKeyCannotBeValidated = "OBP-20312: Certificate's public key cannot be validated."
   val X509RequestIsNotSigned = "OBP-20311: The Request is not signed."
   
   // OpenID Connect
@@ -330,20 +332,15 @@ object ErrorMessages {
   val DeleteAtmError = "OBP-30120: Could not delete the ATM"
   val UpdateAtmError = "OBP-30029: Could not update the ATM"
 
-  val CreateProductError = "OBP-30030: Could not insert the Product"
-  val UpdateProductError = "OBP-30031: Could not update the Product"
+  val CreateProductError = "OBP-30030: Could not insert the Product."
+  val UpdateProductError = "OBP-30031: Could not update the Product."
+  val GetProductError = "OBP-30320: Could not get the Product."
+  val GetProductTreeError = "OBP-30321: Could not get the Product Tree."
 
   val CreateCardError = "OBP-30032: Could not insert the Card"
   val UpdateCardError = "OBP-30033: Could not update the Card"
 
-  val ViewIdNotSupported = s"OBP-30034: This ViewId is not supported. Only the following can be used: " +
-    s"$SYSTEM_OWNER_VIEW_ID, " +
-    s"$SYSTEM_ACCOUNTANT_VIEW_ID, " +
-    s"$SYSTEM_AUDITOR_VIEW_ID, " +
-    s"$SYSTEM_STAGE_ONE_VIEW_ID, " +
-    s"$SYSTEM_STANDARD_VIEW_ID, " +
-    s"$SYSTEM_MANAGE_CUSTOM_VIEWS_VIEW_ID, " +
-    s"$CUSTOM_PUBLIC_VIEW_ID."
+  val ViewIdNotSupported = s"OBP-30034: This ViewId is not supported. Only the following can be used: " 
 
   val UserCustomerLinkNotFound = "OBP-30035: User Customer Link not found"
 
@@ -394,6 +391,7 @@ object ErrorMessages {
   val BankAccountNotFoundByAccountRouting = "OBP-30073: Bank Account not found. Please specify valid values for account routing scheme and address."
   val BankAccountNotFoundByIban = "OBP-30074: Bank Account not found. Please specify a valid value for iban."
   val AccountRoutingNotFound = "OBP-30075: Account routing not found, Please specify valid values for account routing scheme and address"
+  val AccountRoutingNotUnique = "OBP-31075: Routing is not unique at this instance"
   val BankAccountNotFoundByAccountId = "OBP-30076: Bank Account not found. Please specify a valid value for ACCOUNT_ID."
 
   val TransactionRequestAttributeNotFound = "OBP-30078: Transaction Request Attribute not found. Please specify a valid value for TRANSACTION_REQUEST_ATTRIBUTE_ID."
@@ -406,8 +404,8 @@ object ErrorMessages {
   val ApiCollectionEndpointNotFound = "OBP-30082: ApiCollectionEndpoint not found."
   val CreateApiCollectionEndpointError = "OBP-30083: Could not create ApiCollectionEndpoint."
   val DeleteApiCollectionEndpointError = "OBP-30084: Could not delete ApiCollectionEndpoint."
-  val ApiCollectionEndpointAlreadyExisting = "OBP-30085: The ApiCollectionEndpoint is already Existing."
-  val ApiCollectionAlreadyExisting = "OBP-30086: The ApiCollection is already Existing."
+  val ApiCollectionEndpointAlreadyExists = "OBP-30085: The ApiCollectionEndpoint is already exists."
+  val ApiCollectionAlreadyExists = "OBP-30086: The ApiCollection is already exists."
 
   val DoubleEntryTransactionNotFound = "OBP-30087: Double Entry Transaction not found."
   
@@ -458,6 +456,9 @@ object ErrorMessages {
   val UpdateProductFeeError = "OBP-30119: Could not update the Product Fee."
   
   val InvalidCardNumber = "OBP-30200: Card not found. Please specify a valid value for CARD_NUMBER. "
+  val AgentNotFound = "OBP-30201: Agent not found. Please specify a valid value for AGENT_ID. "
+  val CreateAgentError = "OBP-30202: Could not create Agent."
+  val UpdateAgentError = "OBP-30203: Could not update Agent."
 
   val CustomerAccountLinkNotFound = "OBP-30204: Customer Account Link not found"
 
@@ -499,13 +500,24 @@ object ErrorMessages {
   val DeleteSystemViewError = "OBP-30251: Could not delete the system view"
   val SystemViewNotFound = "OBP-30252: System view not found. Please specify a valid value for VIEW_ID"
   val UpdateSystemViewError = "OBP-30253: Could not update the system view"
-  val ExistingSystemViewError = "OBP-30254: There is already a view with permalink"
+  val SystemViewAlreadyExistsError = "OBP-30254: The system view is already exists."
   val EmptyNameOfSystemViewError = "OBP-30255: You cannot create a View with an empty Name"
   val DeleteCustomViewError = "OBP-30256: Could not delete the custom view"
   val CannotFindCustomViewError = "OBP-30257: Could not find the custom view"
   val SystemViewCannotBePublicError = "OBP-30258: System view cannot be public"
   val CreateCustomViewError = "OBP-30259: Could not create the custom view"
   val UpdateCustomViewError = "OBP-30260: Could not update the custom view"
+  val CreateCounterpartyLimitError = "OBP-30261: Could not create the counterparty limit."
+  val UpdateCounterpartyLimitError = "OBP-30262: Could not update the counterparty limit."
+  val GetCounterpartyLimitError = "OBP-30263: Counterparty limit not found. Please specify a valid value for BANK_ID, ACCOUNT_ID, VIEW_ID or COUNTERPARTY_ID."
+  val CounterpartyLimitAlreadyExists = "OBP-30264: Counterparty limit already exists. Please specify a different value for BANK_ID, ACCOUNT_ID, VIEW_ID or COUNTERPARTY_ID."
+  val DeleteCounterpartyLimitError = "OBP-30265: Could not delete the counterparty limit."
+  val CustomViewAlreadyExistsError = "OBP-30266: The custom view is already exists."
+  val UserDoesNotHavePermission = "OBP-30267: The user does not have the permission:"
+  val CounterpartyLimitValidationError = "OBP-30268: Counterparty Limit Validation Error."
+  val AccountNumberNotUniqueError = "OBP-30269: Finding an account by the accountNumber is ambiguous."
+  val InvalidAccountNumber = "OBP-30270: Account not found. Please specify a valid value for ACCOUNT_NUMBER."
+  val BankAccountNotFoundByRoutings = "OBP-30271: Bank Account not found. Please specify valid values for routing schemes and addresses."
 
   val TaxResidenceNotFound = "OBP-30300: Tax Residence not found by TAX_RESIDENCE_ID. "
   val CustomerAddressNotFound = "OBP-30310: Customer's Address not found by CUSTOMER_ADDRESS_ID. "
@@ -519,6 +531,15 @@ object ErrorMessages {
   val DeleteCounterpartyError = "OBP-30317: Could not delete the Counterparty."
   val DeleteCounterpartyMetadataError = "OBP-30318: Could not delete CounterpartyMetadata"
   val UpdateBankAccountLabelError = "OBP-30319: Could not update Bank Account Label."
+
+  val GetChargeValueError = "OBP-30323: Could not get the Charge Value."
+  val GetTransactionRequestTypeChargesError = "OBP-30324: Could not get Transaction Request Type Charges."
+  val AgentAccountLinkNotFound = "OBP-30325: Agent Account Link not found."
+  val AgentsNotFound = "OBP-30326: Agents not found."
+  val CreateAgentAccountLinkError = "OBP-30327: Could not create the agent account link."
+  val AgentNumberAlreadyExists = "OBP-30328: Agent Number already exists. Please specify a different value for BANK_ID or AGENT_NUMBER."
+  val GetAgentAccountLinksError = "OBP-30329: Could not get the agent account links."
+  val AgentBeneficiaryPermit = "OBP-30330: The account can not send money to the Agent. Please set the Agent 'is_confirmed_agent' true  and `is_pending_agent` false."
   
   // Branch related messages
   val BranchesNotFoundLicense = "OBP-32001: No branches available. License may not be set."
@@ -540,7 +561,7 @@ object ErrorMessages {
 
   // Consents
   val ConsentNotFound = "OBP-35001: Consent not found by CONSENT_ID. "
-  val ConsentNotBeforeIssue = "OBP-35002: The time Consent-ID token was issued is set in the future. "
+  val ConsentNotBeforeIssue = "OBP-35002: The Consent Not Before time (nbf) is in the future. Not Before (nbf) should be in the past. Please make sure the Consent nbf is before the current date time of the OBP API server. "
   val ConsentExpiredIssue = "OBP-35003: Consent-Id is expired. "
   val ConsentVerificationIssue = "OBP-35004: Consent-Id JWT value couldn't be verified. "
   val ConsentStatusIssue = "OBP-35005: Consent-Id is not in status "
@@ -598,7 +619,8 @@ object ErrorMessages {
     "because the login user doesn't have access to the view of the from account " +
     "or the consumer doesn't have the access to the view of the from account " +
     s"or the login user does not have the `${CanCreateAnyTransactionRequest.toString()}` role " +
-    s"or the view does not have the permission ${StringHelpers.snakify(ViewDefinition.canAddTransactionRequestToAnyAccount_.dbColumnName).dropRight(1)}."
+    s"or the view does not have the permission can_add_transaction_request_to_any_account " +
+    s"or the view does not have the permission can_add_transaction_request_to_beneficiary."
   val InvalidTransactionRequestCurrency = "OBP-40003: Transaction Request Currency must be the same as From Account Currency."
   val InvalidTransactionRequestId = "OBP-40004: Transaction Request Id not found."
   val InsufficientAuthorisationToCreateTransactionType  = "OBP-40005: Insufficient authorisation to Create Transaction Type offered by the bank. The Request could not be created because you don't have access to CanCreateTransactionType."
@@ -691,7 +713,6 @@ object ErrorMessages {
   val InvalidConnectorResponseForGetChargeLevel = "OBP-50207: Connector did not return the set of challenge level we requested."
   val InvalidConnectorResponseForCreateTransactionRequestImpl210 = "OBP-50208: Connector did not return the set of transactions requests we requested."
   val InvalidConnectorResponseForMakePayment = "OBP-50209: Connector did not return the set of transactions we requested."
-  val InvalidConnectorResponseForMakePaymentv200 = "OBP-50210: Connector did not return the set of transaction id we requested."
   val InvalidConnectorResponseForGetCheckbookOrdersFuture = "OBP-50211: Connector did not return the set of check book."
   val InvalidConnectorResponseForGetStatusOfCreditCardOrderFuture = "OBP-50212: Connector did not return the set of status of credit card."
   val InvalidConnectorResponseForCreateTransactionAfterChallengev300 = "OBP-50213: The Connector did not return a valid response for payments."
@@ -702,6 +723,8 @@ object ErrorMessages {
   val InvalidConnectorResponseForGetEndpointTags = "OBP-50218: Connector did not return the set of endpoint tags we requested."
   val InvalidConnectorResponseForGetBankAccountsWithAttributes = "OBP-50219: Connector did not return the bank accounts we requested."
   val InvalidConnectorResponseForGetPaymentLimit = "OBP-50220: Connector did not return the payment limit we requested."
+  val InvalidConnectorResponseForCreateTransactionRequestBGV1 = "OBP-50221: CreateTransactionRequestBGV1 Connector did not return the data we requested."
+  val InvalidConnectorResponseForGetStatus = "OBP-50222: Connector method getStatus did not return the data we requested."
   
   // Adapter Exceptions (OBP-6XXXX)
   // Reserved for adapter (south of Kafka) messages
@@ -726,7 +749,7 @@ object ErrorMessages {
   // MethodRouting Exceptions (OBP-7XXXX)
   val InvalidBankIdRegex = "OBP-70001: Incorrect regex for bankIdPattern."
   val MethodRoutingNotFoundByMethodRoutingId = "OBP-70002: MethodRouting not found. Please specify a valid value for method_routing_id."
-  val ExistingMethodRoutingError = "OBP-70003: Method Routing is already existing."
+  val MethodRoutingAlreadyExistsError = "OBP-70003: Method Routing is already exists."
 
   // Cascade Deletion Exceptions (OBP-8XXXX)
   val CouldNotDeleteCascade = "OBP-80001: Could not delete cascade."
@@ -848,6 +871,11 @@ object ErrorMessages {
    *  validate method: NewStyle.function.checkViewAccessAndReturnView
    */
   def $UserNoPermissionAccessView = UserNoPermissionAccessView
+  
+  /**
+   *  validate method: NewStyle.function.getCounterpartyByCounterpartyId
+   */
+  def $CounterpartyNotFoundByCounterpartyId = CounterpartyNotFoundByCounterpartyId
 
 
   def getDuplicatedMessageNumbers = {

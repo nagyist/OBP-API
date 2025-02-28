@@ -23,14 +23,15 @@ Osloerstrasse 16/17
 Berlin 13359, Germany
 */
 
+import code.api.Constant
+
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.UUID.randomUUID
-
 import code.api.APIFailure
 import code.api.Constant._
 import code.api.JSONFactoryGateway.PayloadOfJwtJSON
-import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
+import code.api.ResourceDocs1_4_0.{MessageDocsSwaggerDefinitions, SwaggerDefinitionsJSON}
 import code.api.cache.Caching
 import code.api.util.APIUtil._
 import code.api.util.ErrorMessages._
@@ -44,6 +45,7 @@ import code.customer._
 import code.kafka.{KafkaHelper, Topics}
 import code.model._
 import code.model.dataAccess._
+import code.transactionrequests.TransactionRequests
 import code.users.Users
 import code.util.Helper.MdcLoggable
 import code.views.Views
@@ -60,7 +62,10 @@ import scala.collection.immutable.{List, Nil}
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.model.enums.AccountRoutingScheme
 import com.openbankproject.commons.util.{ApiVersion, RequiredFieldValidation}
-
+import com.openbankproject.commons.ExecutionContext.Implicits.global
+import com.openbankproject.commons.dto.{InBoundTrait, _}
+import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
+import com.openbankproject.commons.model.enums._
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -102,7 +107,7 @@ trait KafkaMappedConnector_vSept2018 extends Connector with KafkaHelper with Mdc
       basicUserAuthContexts <- cc.gatewayLoginRequestPayload match {
         case None => 
           for{
-            user <- Users.users.vend.getUserByUserName(provider,username) ?~! "getAuthInfoFirstCbsCall: can not get user object here."
+            user <- Users.users.vend.getUserByProviderAndUsername(provider,username) ?~! "getAuthInfoFirstCbsCall: can not get user object here."
             userAuthContexts<- UserAuthContextProvider.userAuthContextProvider.vend.getUserAuthContextsBox(user.userId)?~! "getAuthInfoFirstCbsCall: can not get userAuthContexts object here."
             basicUserAuthContexts = JsonFactory_vSept2018.createBasicUserAuthContextJson(userAuthContexts)
           } yield
@@ -193,7 +198,7 @@ trait KafkaMappedConnector_vSept2018 extends Connector with KafkaHelper with Mdc
     generalContext = Option(List(BasicGeneralContext(key = "string",
       value = "string"))))
   
-  val viewBasicExample = ViewBasic("owner","Owner", "This is the owner view")
+  val viewBasicExample = ViewBasic(Constant.SYSTEM_OWNER_VIEW_ID,Constant.SYSTEM_OWNER_VIEW_ID, "This is the owner view")
 
   val internalBasicCustomerExample = InternalBasicCustomer(
     bankId = ExampleValue.bankIdExample.value,
@@ -295,56 +300,6 @@ trait KafkaMappedConnector_vSept2018 extends Connector with KafkaHelper with Mdc
       inbound.map(_.data).map(inboundAdapterInfoInternal =>(inboundAdapterInfoInternal, callContext))
     }
   }
-
-  messageDocs += MessageDoc(
-    process = "obp.getUser",
-    messageFormat = messageFormat,
-    description = "Gets the User as identifiedgetAdapterInfo by the the credentials (username and password) supplied.",
-    outboundTopic = Some(Topics.createTopicByClassName(OutboundGetUserByUsernamePassword.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutboundGetUserByUsernamePassword.getClass.getSimpleName).response),
-    exampleOutboundMessage = (
-      OutboundGetUserByUsernamePassword(
-        authInfoExample,
-        password = "2b78e8"
-      )
-    ),
-    exampleInboundMessage = (
-      InboundGetUserByUsernamePassword(
-        inboundAuthInfoExample,
-        InboundValidatedUser(
-          errorCodeExample,
-          inboundStatusMessagesExample,
-          email = "susan.uk.29@example.com",
-          displayName = "susan"
-        )
-      )
-    ),
-    outboundAvroSchema = Some(parse(SchemaFor[OutboundGetUserByUsernamePassword]().toString(true))),
-    inboundAvroSchema = Some(parse(SchemaFor[InboundGetUserByUsernamePassword]().toString(true))),
-    adapterImplementation = Some(AdapterImplementation("User", 1))
-
-  )
-  //TODO This method  is not used in api level, so not CallContext here for now..
-  override def getUser(username: String, password: String): Box[InboundUser] = writeMetricEndpointTiming {
-    /**
-      * Please note that "var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)"
-      * is just a temporary value field with UUID values in order to prevent any ambiguity.
-      * The real value will be assigned by Macro during compile time at this line of a code:
-      * https://github.com/OpenBankProject/scala-macros/blob/master/macros/src/main/scala/com/tesobe/CacheKeyFromArgumentsMacro.scala#L49
-      */
-    var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)
-    CacheKeyFromArguments.buildCacheKey {
-      Caching.memoizeSyncWithProvider(Some(cacheKey.toString()))(userTTL second) {
-
-        val req = OutboundGetUserByUsernamePassword(AuthInfo("", username, ""), password = password)
-        val InboundFuture = processRequest[InboundGetUserByUsernamePassword](req) map { inbound =>
-          inbound.map(_.data).map(inboundValidatedUser =>(InboundUser(inboundValidatedUser.email, password, inboundValidatedUser.displayName)))
-        }
-        getValueFromFuture(InboundFuture)
-      }
-    }
-  }("getUser")
-
 
   messageDocs += MessageDoc(
     process = s"obp.getBanks",
@@ -1201,7 +1156,8 @@ trait KafkaMappedConnector_vSept2018 extends Connector with KafkaHelper with Mdc
             val transactionRequest = for{
               adapterTransactionRequests <- Full(data)
               //TODO, this will cause performance issue, we need limit the number of transaction requests.
-              obpTransactionRequests <- LocalMappedConnector.getTransactionRequestsImpl210(fromAccount) ?~! s"$InvalidConnectorResponse, error on LocalMappedConnector.getTransactionRequestsImpl210"
+              obpTransactionRequests <- TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId) ?~! s"$InvalidConnectorResponse, error on TransactionRequests.transactionRequestProvider.vend.getTransactionRequests"
+              obpTransactionRequests <- TransactionRequests.transactionRequestProvider.vend.getTransactionRequests(fromAccount.bankId, fromAccount.accountId) ?~! s"$InvalidConnectorResponse, error on TransactionRequests.transactionRequestProvider.vend.getTransactionRequests"
             } yield {
               adapterTransactionRequests ::: obpTransactionRequests
             }
@@ -3050,789 +3006,62 @@ trait KafkaMappedConnector_vSept2018 extends Connector with KafkaHelper with Mdc
 
 
 //---------------- dynamic start -------------------please don't modify this line
-// ---------- created on Mon May 13 22:38:20 CST 2019
+// ---------- created on 2024-10-30T12:18:17Z
 
-  messageDocs += MessageDoc(
+  messageDocs += createBankAccountDoc
+  def createBankAccountDoc = MessageDoc(
     process = "obp.createBankAccount",
     messageFormat = messageFormat,
     description = "Create Bank Account",
-    outboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateBankAccount.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateBankAccount.getClass.getSimpleName).response),
+    outboundTopic = Some(Topics.createTopicByClassName("OutBoundCreateBankAccount").request),
+    inboundTopic = Some(Topics.createTopicByClassName("OutBoundCreateBankAccount").request),
     exampleOutboundMessage = (
-     OutBoundCreateBankAccount(outboundAdapterCallContext= OutboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      consumerId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string"))),
-      outboundAdapterAuthInfo=Option( OutboundAdapterAuthInfo(userId=Option("string"),
-      username=Option("string"),
-      linkedCustomers=Option(List( BasicLinkedCustomer(customerId="string",
-      customerNumber="string",
-      legalName="string"))),
-      userAuthContext=Option(List( BasicUserAuthContext(key="string",
-      value="string"))),
-      authViews=Option(List( AuthView(view= ViewBasic(id="string",
-      name="string",
-      description="string"),
-      account= AccountBasic(id="string",
-      accountRoutings=List( AccountRouting(scheme="string",
-      address="string")),
-      customerOwners=List( InternalBasicCustomer(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      legalName="string",
-      dateOfBirth=new Date())),
-      userOwners=List( InternalBasicUser(userId="string",
-      emailAddress="string",
-      name="string"))))))))),
-      bankId= BankId(value="string"),
-      accountId= AccountId(value="string"),
-      accountType="string",
+     OutBoundCreateBankAccount(outboundAdapterCallContext=MessageDocsSwaggerDefinitions.outboundAdapterCallContext,
+      bankId=BankId(bankIdExample.value),
+      accountId=AccountId(accountIdExample.value),
+      accountType=accountTypeExample.value,
       accountLabel="string",
-      currency="string",
+      currency=currencyExample.value,
       initialBalance=BigDecimal("123.321"),
       accountHolderName="string",
-      branchId="string",
-      accountRoutings=List(AccountRouting(accountRoutingSchemeExample.value, accountRoutingAddressExample.value))
-     )
+      branchId=branchIdExample.value,
+      accountRoutings=List( AccountRouting(scheme=accountRoutingSchemeExample.value,
+      address=accountRoutingAddressExample.value)))
     ),
     exampleInboundMessage = (
-     InBoundCreateBankAccount(inboundAdapterCallContext= InboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string")))),
-      status= Status(errorCode="",
-      backendMessages=List( InboundStatusMessage(source="string",
-      status="string",
-      errorCode="",
-      text="string"))),
-      data= BankAccountCommons(accountId= AccountId(value="string"),
-      accountType="string",
-      balance=BigDecimal("123.321"),
-      currency="string",
-      name="string",
-      label="string",
-      number="string",
-      bankId= BankId(value="string"),
-      lastUpdate=new Date(),
-      branchId="string",
-      accountRoutings=List( AccountRouting(scheme="string",
-      address="string")),
-      accountRules=List( AccountRule(scheme="string",
-      value="string")),
-      accountHolder="string"))
+     InBoundCreateBankAccount(inboundAdapterCallContext=MessageDocsSwaggerDefinitions.inboundAdapterCallContext,
+      status=MessageDocsSwaggerDefinitions.inboundStatus,
+      data= BankAccountCommons(accountId=AccountId(accountIdExample.value),
+      accountType=accountTypeExample.value,
+      balance=BigDecimal(balanceExample.value),
+      currency=currencyExample.value,
+      name=bankAccountNameExample.value,
+      label=labelExample.value,
+      number=bankAccountNumberExample.value,
+      bankId=BankId(bankIdExample.value),
+      lastUpdate=toDate(bankAccountLastUpdateExample),
+      branchId=branchIdExample.value,
+      accountRoutings=List( AccountRouting(scheme=accountRoutingSchemeExample.value,
+      address=accountRoutingAddressExample.value)),
+      accountRules=List( AccountRule(scheme=accountRuleSchemeExample.value,
+      value=accountRuleValueExample.value)),
+      accountHolder=bankAccountAccountHolderExample.value,
+      attributes=Some(List( Attribute(name=attributeNameExample.value,
+      `type`=attributeTypeExample.value,
+      value=attributeValueExample.value)))))
     ),
-    adapterImplementation = Some(AdapterImplementation("Account", 1))
+    adapterImplementation = Some(AdapterImplementation("- Core", 1))
   )
+
   override def createBankAccount(bankId: BankId, accountId: AccountId, accountType: String, accountLabel: String, currency: String, initialBalance: BigDecimal, accountHolderName: String, branchId: String, accountRoutings: List[AccountRouting], callContext: Option[CallContext]): OBPReturnType[Box[BankAccount]] = {
-    import com.openbankproject.commons.dto.{OutBoundCreateBankAccount => OutBound, InBoundCreateBankAccount => InBound}
-
-    val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).get , bankId, accountId, accountType, accountLabel, currency, initialBalance, accountHolderName, branchId, accountRoutings)
-    logger.debug(s"Kafka createBankAccount Req is: $req")
-    processRequest[InBound](req) map (convertToTuple(callContext))
+        import com.openbankproject.commons.dto.{InBoundCreateBankAccount => InBound, OutBoundCreateBankAccount => OutBound}  
+        val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).orNull, bankId, accountId, accountType, accountLabel, currency, initialBalance, accountHolderName, branchId, accountRoutings)
+        val response: Future[Box[InBound]] = processRequest[InBound](req)
+        response.map(convertToTuple[BankAccountCommons](callContext))        
   }
-    
-    
-  messageDocs += MessageDoc(
-    process = "obp.createCustomer",
-    messageFormat = messageFormat,
-    description = "Create Customer",
-    outboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateCustomer.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateCustomer.getClass.getSimpleName).response),
-    exampleOutboundMessage = (
-     OutBoundCreateCustomer(outboundAdapterCallContext= OutboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      consumerId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string"))),
-      outboundAdapterAuthInfo=Option( OutboundAdapterAuthInfo(userId=Option("string"),
-      username=Option("string"),
-      linkedCustomers=Option(List( BasicLinkedCustomer(customerId="string",
-      customerNumber="string",
-      legalName="string"))),
-      userAuthContext=Option(List( BasicUserAuthContext(key="string",
-      value="string"))),
-      authViews=Option(List( AuthView(view= ViewBasic(id="string",
-      name="string",
-      description="string"),
-      account= AccountBasic(id="string",
-      accountRoutings=List( AccountRouting(scheme="string",
-      address="string")),
-      customerOwners=List( InternalBasicCustomer(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      legalName="string",
-      dateOfBirth=new Date())),
-      userOwners=List( InternalBasicUser(userId="string",
-      emailAddress="string",
-      name="string"))))))))),
-      bankId= BankId(value="string"),
-      legalName="string",
-      mobileNumber="string",
-      email="string",
-      faceImage= CustomerFaceImage(date=new Date(),
-      url="string"),
-      dateOfBirth=new Date(),
-      relationshipStatus="string",
-      dependents=123,
-      dobOfDependents=List(new Date()),
-      highestEducationAttained="string",
-      employmentStatus="string",
-      kycStatus=true,
-      lastOkDate=new Date(),
-      creditRating=Option( CreditRating(rating="string",
-      source="string")),
-      creditLimit=Option( AmountOfMoney(currency="string",
-      amount="string")),
-      title="string",
-      branchId="string",
-      nameSuffix="string")
-    ),
-    exampleInboundMessage = (
-     InBoundCreateCustomer(inboundAdapterCallContext= InboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string")))),
-      status= Status(errorCode="",
-      backendMessages=List( InboundStatusMessage(source="string",
-      status="string",
-      errorCode="",
-      text="string"))),
-      data= CustomerCommons(customerId="string",
-      bankId="string",
-      number="string",
-      legalName="string",
-      mobileNumber="string",
-      email="string",
-      faceImage= CustomerFaceImage(date=new Date(),
-      url="string"),
-      dateOfBirth=new Date(),
-      relationshipStatus="string",
-      dependents=123,
-      dobOfDependents=List(new Date()),
-      highestEducationAttained="string",
-      employmentStatus="string",
-      creditRating= CreditRating(rating="string",
-      source="string"),
-      creditLimit= CreditLimit(currency="string",
-      amount="string"),
-      kycStatus=true,
-      lastOkDate=new Date(),
-      title="string",
-      branchId="string",
-      nameSuffix="string"))
-    ),
-    adapterImplementation = Some(AdapterImplementation("Customer", 1))
-  )
-  override def createCustomer(bankId: BankId, legalName: String, mobileNumber: String, email: String, faceImage: CustomerFaceImageTrait, dateOfBirth: Date, relationshipStatus: String, dependents: Int, dobOfDependents: List[Date], highestEducationAttained: String, employmentStatus: String, kycStatus: Boolean, lastOkDate: Date, creditRating: Option[CreditRatingTrait], creditLimit: Option[AmountOfMoneyTrait], title: String, branchId: String, nameSuffix: String, callContext: Option[CallContext]): OBPReturnType[Box[Customer]] = {
-    import com.openbankproject.commons.dto.{OutBoundCreateCustomer => OutBound, InBoundCreateCustomer => InBound}
-
-    val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).get , bankId, legalName, mobileNumber, email, faceImage, dateOfBirth, relationshipStatus, dependents, dobOfDependents, highestEducationAttained, employmentStatus, kycStatus, lastOkDate, creditRating, creditLimit, title, branchId, nameSuffix)
-    logger.debug(s"Kafka createCustomer Req is: $req")
-    processRequest[InBound](req) map (convertToTuple(callContext))
-  }
-    
-    
-  messageDocs += MessageDoc(
-    process = "obp.createOrUpdateKycCheck",
-    messageFormat = messageFormat,
-    description = "Create Or Update Kyc Check",
-    outboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateOrUpdateKycCheck.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateOrUpdateKycCheck.getClass.getSimpleName).response),
-    exampleOutboundMessage = (
-     OutBoundCreateOrUpdateKycCheck(outboundAdapterCallContext= OutboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      consumerId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string"))),
-      outboundAdapterAuthInfo=Option( OutboundAdapterAuthInfo(userId=Option("string"),
-      username=Option("string"),
-      linkedCustomers=Option(List( BasicLinkedCustomer(customerId="string",
-      customerNumber="string",
-      legalName="string"))),
-      userAuthContext=Option(List( BasicUserAuthContext(key="string",
-      value="string"))),
-      authViews=Option(List( AuthView(view= ViewBasic(id="string",
-      name="string",
-      description="string"),
-      account= AccountBasic(id="string",
-      accountRoutings=List( AccountRouting(scheme="string",
-      address="string")),
-      customerOwners=List( InternalBasicCustomer(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      legalName="string",
-      dateOfBirth=new Date())),
-      userOwners=List( InternalBasicUser(userId="string",
-      emailAddress="string",
-      name="string"))))))))),
-      bankId="string",
-      customerId="string",
-      id="string",
-      customerNumber="string",
-      date=new Date(),
-      how="string",
-      staffUserId="string",
-      mStaffName="string",
-      mSatisfied=true,
-      comments="string")
-    ),
-    exampleInboundMessage = (
-     InBoundCreateOrUpdateKycCheck(inboundAdapterCallContext= InboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string")))),
-      status= Status(errorCode="",
-      backendMessages=List( InboundStatusMessage(source="string",
-      status="string",
-      errorCode="",
-      text="string"))),
-      data= KycCheckCommons(bankId="string",
-      customerId="string",
-      idKycCheck="string",
-      customerNumber="string",
-      date=new Date(),
-      how="string",
-      staffUserId="string",
-      staffName="string",
-      satisfied=true,
-      comments="string"))
-    ),
-    adapterImplementation = Some(AdapterImplementation("KYC", 1))
-  )
-  override def createOrUpdateKycCheck(bankId: String, customerId: String, id: String, customerNumber: String, date: Date, how: String, staffUserId: String, mStaffName: String, mSatisfied: Boolean, comments: String, callContext: Option[CallContext]): OBPReturnType[Box[KycCheck]] = {
-    import com.openbankproject.commons.dto.{OutBoundCreateOrUpdateKycCheck => OutBound, InBoundCreateOrUpdateKycCheck => InBound}
-
-    val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).get , bankId, customerId, id, customerNumber, date, how, staffUserId, mStaffName, mSatisfied, comments)
-    logger.debug(s"Kafka createOrUpdateKycCheck Req is: $req")
-    processRequest[InBound](req) map (convertToTuple(callContext))
-  }
-    
-    
-  messageDocs += MessageDoc(
-    process = "obp.createOrUpdateKycDocument",
-    messageFormat = messageFormat,
-    description = "Create Or Update Kyc Document",
-    outboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateOrUpdateKycDocument.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateOrUpdateKycDocument.getClass.getSimpleName).response),
-    exampleOutboundMessage = (
-     OutBoundCreateOrUpdateKycDocument(outboundAdapterCallContext= OutboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      consumerId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string"))),
-      outboundAdapterAuthInfo=Option( OutboundAdapterAuthInfo(userId=Option("string"),
-      username=Option("string"),
-      linkedCustomers=Option(List( BasicLinkedCustomer(customerId="string",
-      customerNumber="string",
-      legalName="string"))),
-      userAuthContext=Option(List( BasicUserAuthContext(key="string",
-      value="string"))),
-      authViews=Option(List( AuthView(view= ViewBasic(id="string",
-      name="string",
-      description="string"),
-      account= AccountBasic(id="string",
-      accountRoutings=List( AccountRouting(scheme="string",
-      address="string")),
-      customerOwners=List( InternalBasicCustomer(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      legalName="string",
-      dateOfBirth=new Date())),
-      userOwners=List( InternalBasicUser(userId="string",
-      emailAddress="string",
-      name="string"))))))))),
-      bankId="string",
-      customerId="string",
-      id="string",
-      customerNumber="string",
-      `type`="string",
-      number="string",
-      issueDate=new Date(),
-      issuePlace="string",
-      expiryDate=new Date())
-    ),
-    exampleInboundMessage = (
-     InBoundCreateOrUpdateKycDocument(inboundAdapterCallContext= InboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string")))),
-      status= Status(errorCode="",
-      backendMessages=List( InboundStatusMessage(source="string",
-      status="string",
-      errorCode="",
-      text="string"))),
-      data= KycDocumentCommons(bankId="string",
-      customerId="string",
-      idKycDocument="string",
-      customerNumber="string",
-      `type`="string",
-      number="string",
-      issueDate=new Date(),
-      issuePlace="string",
-      expiryDate=new Date()))
-    ),
-    adapterImplementation = Some(AdapterImplementation("KYC", 1))
-  )
-  override def createOrUpdateKycDocument(bankId: String, customerId: String, id: String, customerNumber: String, `type`: String, number: String, issueDate: Date, issuePlace: String, expiryDate: Date, callContext: Option[CallContext]): OBPReturnType[Box[KycDocument]] = {
-    import com.openbankproject.commons.dto.{OutBoundCreateOrUpdateKycDocument => OutBound, InBoundCreateOrUpdateKycDocument => InBound}
-
-    val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).get , bankId, customerId, id, customerNumber, `type`, number, issueDate, issuePlace, expiryDate)
-    logger.debug(s"Kafka createOrUpdateKycDocument Req is: $req")
-    processRequest[InBound](req) map (convertToTuple(callContext))
-  }
-    
-    
-  messageDocs += MessageDoc(
-    process = "obp.createOrUpdateKycMedia",
-    messageFormat = messageFormat,
-    description = "Create Or Update Kyc Media",
-    outboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateOrUpdateKycMedia.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateOrUpdateKycMedia.getClass.getSimpleName).response),
-    exampleOutboundMessage = (
-     OutBoundCreateOrUpdateKycMedia(outboundAdapterCallContext= OutboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      consumerId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string"))),
-      outboundAdapterAuthInfo=Option( OutboundAdapterAuthInfo(userId=Option("string"),
-      username=Option("string"),
-      linkedCustomers=Option(List( BasicLinkedCustomer(customerId="string",
-      customerNumber="string",
-      legalName="string"))),
-      userAuthContext=Option(List( BasicUserAuthContext(key="string",
-      value="string"))),
-      authViews=Option(List( AuthView(view= ViewBasic(id="string",
-      name="string",
-      description="string"),
-      account= AccountBasic(id="string",
-      accountRoutings=List( AccountRouting(scheme="string",
-      address="string")),
-      customerOwners=List( InternalBasicCustomer(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      legalName="string",
-      dateOfBirth=new Date())),
-      userOwners=List( InternalBasicUser(userId="string",
-      emailAddress="string",
-      name="string"))))))))),
-      bankId="string",
-      customerId="string",
-      id="string",
-      customerNumber="string",
-      `type`="string",
-      url="string",
-      date=new Date(),
-      relatesToKycDocumentId="string",
-      relatesToKycCheckId="string")
-    ),
-    exampleInboundMessage = (
-     InBoundCreateOrUpdateKycMedia(inboundAdapterCallContext= InboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string")))),
-      status= Status(errorCode="",
-      backendMessages=List( InboundStatusMessage(source="string",
-      status="string",
-      errorCode="",
-      text="string"))),
-      data= KycMediaCommons(bankId="string",
-      customerId="string",
-      idKycMedia="string",
-      customerNumber="string",
-      `type`="string",
-      url="string",
-      date=new Date(),
-      relatesToKycDocumentId="string",
-      relatesToKycCheckId="string"))
-    ),
-    adapterImplementation = Some(AdapterImplementation("KYC", 1))
-  )
-  override def createOrUpdateKycMedia(bankId: String, customerId: String, id: String, customerNumber: String, `type`: String, url: String, date: Date, relatesToKycDocumentId: String, relatesToKycCheckId: String, callContext: Option[CallContext]): OBPReturnType[Box[KycMedia]] = {
-    import com.openbankproject.commons.dto.{OutBoundCreateOrUpdateKycMedia => OutBound, InBoundCreateOrUpdateKycMedia => InBound}
-
-    val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).get , bankId, customerId, id, customerNumber, `type`, url, date, relatesToKycDocumentId, relatesToKycCheckId)
-    logger.debug(s"Kafka createOrUpdateKycMedia Req is: $req")
-    processRequest[InBound](req) map (convertToTuple(callContext))
-  }
-    
-    
-  messageDocs += MessageDoc(
-    process = "obp.createOrUpdateKycStatus",
-    messageFormat = messageFormat,
-    description = "Create Or Update Kyc Status",
-    outboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateOrUpdateKycStatus.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutBoundCreateOrUpdateKycStatus.getClass.getSimpleName).response),
-    exampleOutboundMessage = (
-     OutBoundCreateOrUpdateKycStatus(outboundAdapterCallContext= OutboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      consumerId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string"))),
-      outboundAdapterAuthInfo=Option( OutboundAdapterAuthInfo(userId=Option("string"),
-      username=Option("string"),
-      linkedCustomers=Option(List( BasicLinkedCustomer(customerId="string",
-      customerNumber="string",
-      legalName="string"))),
-      userAuthContext=Option(List( BasicUserAuthContext(key="string",
-      value="string"))),
-      authViews=Option(List( AuthView(view= ViewBasic(id="string",
-      name="string",
-      description="string"),
-      account= AccountBasic(id="string",
-      accountRoutings=List( AccountRouting(scheme="string",
-      address="string")),
-      customerOwners=List( InternalBasicCustomer(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      legalName="string",
-      dateOfBirth=new Date())),
-      userOwners=List( InternalBasicUser(userId="string",
-      emailAddress="string",
-      name="string"))))))))),
-      bankId="string",
-      customerId="string",
-      customerNumber="string",
-      ok=true,
-      date=new Date())
-    ),
-    exampleInboundMessage = (
-     InBoundCreateOrUpdateKycStatus(inboundAdapterCallContext= InboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string")))),
-      status= Status(errorCode="",
-      backendMessages=List( InboundStatusMessage(source="string",
-      status="string",
-      errorCode="",
-      text="string"))),
-      data= KycStatusCommons(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      ok=true,
-      date=new Date()))
-    ),
-    adapterImplementation = Some(AdapterImplementation("KYC", 1))
-  )
-  override def createOrUpdateKycStatus(bankId: String, customerId: String, customerNumber: String, ok: Boolean, date: Date, callContext: Option[CallContext]): OBPReturnType[Box[KycStatus]] = {
-    import com.openbankproject.commons.dto.{OutBoundCreateOrUpdateKycStatus => OutBound, InBoundCreateOrUpdateKycStatus => InBound}
-
-    val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).get , bankId, customerId, customerNumber, ok, date)
-    logger.debug(s"Kafka createOrUpdateKycStatus Req is: $req")
-    processRequest[InBound](req) map (convertToTuple(callContext))
-  }
-    
-    
-  messageDocs += MessageDoc(
-    process = "obp.getKycChecks",
-    messageFormat = messageFormat,
-    description = "Get Kyc Checks",
-    outboundTopic = Some(Topics.createTopicByClassName(OutBoundGetKycChecks.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutBoundGetKycChecks.getClass.getSimpleName).response),
-    exampleOutboundMessage = (
-     OutBoundGetKycChecks(outboundAdapterCallContext= OutboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      consumerId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string"))),
-      outboundAdapterAuthInfo=Option( OutboundAdapterAuthInfo(userId=Option("string"),
-      username=Option("string"),
-      linkedCustomers=Option(List( BasicLinkedCustomer(customerId="string",
-      customerNumber="string",
-      legalName="string"))),
-      userAuthContext=Option(List( BasicUserAuthContext(key="string",
-      value="string"))),
-      authViews=Option(List( AuthView(view= ViewBasic(id="string",
-      name="string",
-      description="string"),
-      account= AccountBasic(id="string",
-      accountRoutings=List( AccountRouting(scheme="string",
-      address="string")),
-      customerOwners=List( InternalBasicCustomer(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      legalName="string",
-      dateOfBirth=new Date())),
-      userOwners=List( InternalBasicUser(userId="string",
-      emailAddress="string",
-      name="string"))))))))),
-      customerId="string")
-    ),
-    exampleInboundMessage = (
-     InBoundGetKycChecks(inboundAdapterCallContext= InboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string")))),
-      status= Status(errorCode="",
-      backendMessages=List( InboundStatusMessage(source="string",
-      status="string",
-      errorCode="",
-      text="string"))),
-      data=List( KycCheckCommons(bankId="string",
-      customerId="string",
-      idKycCheck="string",
-      customerNumber="string",
-      date=new Date(),
-      how="string",
-      staffUserId="string",
-      staffName="string",
-      satisfied=true,
-      comments="string")))
-    ),
-    adapterImplementation = Some(AdapterImplementation("KYC", 1))
-  )
-  override def getKycChecks(customerId: String, @CacheKeyOmit callContext: Option[CallContext]): OBPReturnType[Box[List[KycCheck]]] = writeMetricEndpointTiming {
-    /**
-      * Please note that "var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)"
-      * is just a temporary value filed with UUID values in order to prevent any ambiguity.
-      * The real value will be assigned by Macro during compile time at this line of a code:
-      * https://github.com/OpenBankProject/scala-macros/blob/master/macros/src/main/scala/com/tesobe/CacheKeyFromArgumentsMacro.scala#L49
-      */
-    var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)
-    CacheKeyFromArguments.buildCacheKey {
-      Caching.memoizeWithProvider(Some(cacheKey.toString()))(accountTTL second) {
-        import com.openbankproject.commons.dto.{OutBoundGetKycChecks => OutBound, InBoundGetKycChecks => InBound}
-
-        val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).get , customerId)
-        logger.debug(s"Kafka getKycChecks Req is: $req")
-        processRequest[InBound](req) map (convertToTuple(callContext))
-      }
-        
-    }
-  }("getKycChecks")
-    
-    
-  messageDocs += MessageDoc(
-    process = "obp.getKycDocuments",
-    messageFormat = messageFormat,
-    description = "Get Kyc Documents",
-    outboundTopic = Some(Topics.createTopicByClassName(OutBoundGetKycDocuments.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutBoundGetKycDocuments.getClass.getSimpleName).response),
-    exampleOutboundMessage = (
-     OutBoundGetKycDocuments(outboundAdapterCallContext= OutboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      consumerId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string"))),
-      outboundAdapterAuthInfo=Option( OutboundAdapterAuthInfo(userId=Option("string"),
-      username=Option("string"),
-      linkedCustomers=Option(List( BasicLinkedCustomer(customerId="string",
-      customerNumber="string",
-      legalName="string"))),
-      userAuthContext=Option(List( BasicUserAuthContext(key="string",
-      value="string"))),
-      authViews=Option(List( AuthView(view= ViewBasic(id="string",
-      name="string",
-      description="string"),
-      account= AccountBasic(id="string",
-      accountRoutings=List( AccountRouting(scheme="string",
-      address="string")),
-      customerOwners=List( InternalBasicCustomer(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      legalName="string",
-      dateOfBirth=new Date())),
-      userOwners=List( InternalBasicUser(userId="string",
-      emailAddress="string",
-      name="string"))))))))),
-      customerId="string")
-    ),
-    exampleInboundMessage = (
-     InBoundGetKycDocuments(inboundAdapterCallContext= InboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string")))),
-      status= Status(errorCode="",
-      backendMessages=List( InboundStatusMessage(source="string",
-      status="string",
-      errorCode="",
-      text="string"))),
-      data=List( KycDocumentCommons(bankId="string",
-      customerId="string",
-      idKycDocument="string",
-      customerNumber="string",
-      `type`="string",
-      number="string",
-      issueDate=new Date(),
-      issuePlace="string",
-      expiryDate=new Date())))
-    ),
-    adapterImplementation = Some(AdapterImplementation("KYC", 1))
-  )
-  override def getKycDocuments(customerId: String, @CacheKeyOmit callContext: Option[CallContext]): OBPReturnType[Box[List[KycDocument]]] = writeMetricEndpointTiming {
-    /**
-      * Please note that "var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)"
-      * is just a temporary value filed with UUID values in order to prevent any ambiguity.
-      * The real value will be assigned by Macro during compile time at this line of a code:
-      * https://github.com/OpenBankProject/scala-macros/blob/master/macros/src/main/scala/com/tesobe/CacheKeyFromArgumentsMacro.scala#L49
-      */
-    var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)
-    CacheKeyFromArguments.buildCacheKey {
-      Caching.memoizeWithProvider(Some(cacheKey.toString()))(accountTTL second) {
-        import com.openbankproject.commons.dto.{OutBoundGetKycDocuments => OutBound, InBoundGetKycDocuments => InBound}
-
-        val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).get , customerId)
-        logger.debug(s"Kafka getKycDocuments Req is: $req")
-        processRequest[InBound](req) map (convertToTuple(callContext))
-      }
-        
-    }
-  }("getKycDocuments")
-    
-    
-  messageDocs += MessageDoc(
-    process = "obp.getKycMedias",
-    messageFormat = messageFormat,
-    description = "Get Kyc Medias",
-    outboundTopic = Some(Topics.createTopicByClassName(OutBoundGetKycMedias.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutBoundGetKycMedias.getClass.getSimpleName).response),
-    exampleOutboundMessage = (
-     OutBoundGetKycMedias(outboundAdapterCallContext= OutboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      consumerId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string"))),
-      outboundAdapterAuthInfo=Option( OutboundAdapterAuthInfo(userId=Option("string"),
-      username=Option("string"),
-      linkedCustomers=Option(List( BasicLinkedCustomer(customerId="string",
-      customerNumber="string",
-      legalName="string"))),
-      userAuthContext=Option(List( BasicUserAuthContext(key="string",
-      value="string"))),
-      authViews=Option(List( AuthView(view= ViewBasic(id="string",
-      name="string",
-      description="string"),
-      account= AccountBasic(id="string",
-      accountRoutings=List( AccountRouting(scheme="string",
-      address="string")),
-      customerOwners=List( InternalBasicCustomer(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      legalName="string",
-      dateOfBirth=new Date())),
-      userOwners=List( InternalBasicUser(userId="string",
-      emailAddress="string",
-      name="string"))))))))),
-      customerId="string")
-    ),
-    exampleInboundMessage = (
-     InBoundGetKycMedias(inboundAdapterCallContext= InboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string")))),
-      status= Status(errorCode="",
-      backendMessages=List( InboundStatusMessage(source="string",
-      status="string",
-      errorCode="",
-      text="string"))),
-      data=List( KycMediaCommons(bankId="string",
-      customerId="string",
-      idKycMedia="string",
-      customerNumber="string",
-      `type`="string",
-      url="string",
-      date=new Date(),
-      relatesToKycDocumentId="string",
-      relatesToKycCheckId="string")))
-    ),
-    adapterImplementation = Some(AdapterImplementation("KYC", 1))
-  )
-  override def getKycMedias(customerId: String, @CacheKeyOmit callContext: Option[CallContext]): OBPReturnType[Box[List[KycMedia]]] = writeMetricEndpointTiming {
-    /**
-      * Please note that "var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)"
-      * is just a temporary value filed with UUID values in order to prevent any ambiguity.
-      * The real value will be assigned by Macro during compile time at this line of a code:
-      * https://github.com/OpenBankProject/scala-macros/blob/master/macros/src/main/scala/com/tesobe/CacheKeyFromArgumentsMacro.scala#L49
-      */
-    var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)
-    CacheKeyFromArguments.buildCacheKey {
-      Caching.memoizeWithProvider(Some(cacheKey.toString()))(accountTTL second) {
-        import com.openbankproject.commons.dto.{OutBoundGetKycMedias => OutBound, InBoundGetKycMedias => InBound}
-
-        val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).get , customerId)
-        logger.debug(s"Kafka getKycMedias Req is: $req")
-        processRequest[InBound](req) map (convertToTuple(callContext))
-      }
-        
-    }
-  }("getKycMedias")
-    
-    
-  messageDocs += MessageDoc(
-    process = "obp.getKycStatuses",
-    messageFormat = messageFormat,
-    description = "Get Kyc Statuses",
-    outboundTopic = Some(Topics.createTopicByClassName(OutBoundGetKycStatuses.getClass.getSimpleName).request),
-    inboundTopic = Some(Topics.createTopicByClassName(OutBoundGetKycStatuses.getClass.getSimpleName).response),
-    exampleOutboundMessage = (
-     OutBoundGetKycStatuses(outboundAdapterCallContext= OutboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      consumerId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string"))),
-      outboundAdapterAuthInfo=Option( OutboundAdapterAuthInfo(userId=Option("string"),
-      username=Option("string"),
-      linkedCustomers=Option(List( BasicLinkedCustomer(customerId="string",
-      customerNumber="string",
-      legalName="string"))),
-      userAuthContext=Option(List( BasicUserAuthContext(key="string",
-      value="string"))),
-      authViews=Option(List( AuthView(view= ViewBasic(id="string",
-      name="string",
-      description="string"),
-      account= AccountBasic(id="string",
-      accountRoutings=List( AccountRouting(scheme="string",
-      address="string")),
-      customerOwners=List( InternalBasicCustomer(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      legalName="string",
-      dateOfBirth=new Date())),
-      userOwners=List( InternalBasicUser(userId="string",
-      emailAddress="string",
-      name="string"))))))))),
-      customerId="string")
-    ),
-    exampleInboundMessage = (
-     InBoundGetKycStatuses(inboundAdapterCallContext= InboundAdapterCallContext(correlationId="string",
-      sessionId=Option("string"),
-      generalContext=Option(List( BasicGeneralContext(key="string",
-      value="string")))),
-      status= Status(errorCode="",
-      backendMessages=List( InboundStatusMessage(source="string",
-      status="string",
-      errorCode="",
-      text="string"))),
-      data=List( KycStatusCommons(bankId="string",
-      customerId="string",
-      customerNumber="string",
-      ok=true,
-      date=new Date())))
-    ),
-    adapterImplementation = Some(AdapterImplementation("KYC", 1))
-  )
-  override def getKycStatuses(customerId: String, @CacheKeyOmit callContext: Option[CallContext]): OBPReturnType[Box[List[KycStatus]]] = writeMetricEndpointTiming {
-    /**
-      * Please note that "var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)"
-      * is just a temporary value filed with UUID values in order to prevent any ambiguity.
-      * The real value will be assigned by Macro during compile time at this line of a code:
-      * https://github.com/OpenBankProject/scala-macros/blob/master/macros/src/main/scala/com/tesobe/CacheKeyFromArgumentsMacro.scala#L49
-      */
-    var cacheKey = (randomUUID().toString, randomUUID().toString, randomUUID().toString)
-    CacheKeyFromArguments.buildCacheKey {
-      Caching.memoizeWithProvider(Some(cacheKey.toString()))(accountTTL second) {
-        import com.openbankproject.commons.dto.{OutBoundGetKycStatuses => OutBound, InBoundGetKycStatuses => InBound}
-
-        val req = OutBound(callContext.map(_.toOutboundAdapterCallContext).get , customerId)
-        logger.debug(s"Kafka getKycStatuses Req is: $req")
-        processRequest[InBound](req) map (convertToTuple(callContext))
-      }
-        
-    }
-  }("getKycStatuses")
-    
-    
-//---------------- dynamic end ---------------------please don't modify this line
+          
+// ---------- created on 2024-10-30T12:18:17Z
+//---------------- dynamic end ---------------------please don't modify this line 
 }
 
 
@@ -3847,24 +3076,27 @@ object KafkaMappedConnector_vSept2018 extends KafkaMappedConnector_vSept2018{
     )
   }
   def createObpCustomer(customer : InternalCustomer) : Customer = {
-    ObpCustomer(
+    CustomerCommons(
       customerId = customer.customerId,
       bankId = customer.bankId,
       number = customer.number,
       legalName = customer.legalName,
       mobileNumber = customer.mobileNumber,
       email = customer.email,
-      faceImage = customer.faceImage,
+      faceImage = CustomerFaceImage(customer.faceImage.date,customer.faceImage.url),
       dateOfBirth = customer.dateOfBirth,
       relationshipStatus = customer.relationshipStatus,
       dependents = customer.dependents,
       dobOfDependents = customer.dobOfDependents,
       highestEducationAttained = customer.highestEducationAttained,
       employmentStatus = customer.employmentStatus,
-      creditRating = customer.creditRating,
-      creditLimit = customer.creditLimit,
+      creditRating = CreditRating(customer.creditRating.rating, customer.creditRating.source),
+      creditLimit = CreditLimit(customer.creditLimit.amount,customer.creditLimit.currency),
       kycStatus = customer.kycStatus,
       lastOkDate = customer.lastOkDate,
+      title = "",
+      branchId = "",
+      nameSuffix = ""
     )
   }
 

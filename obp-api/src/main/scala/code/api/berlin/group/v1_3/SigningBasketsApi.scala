@@ -15,7 +15,7 @@ import code.util.Helper.booleanToFuture
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.model.enums.TransactionRequestStatus.{COMPLETED, REJECTED}
-import com.openbankproject.commons.model.enums.{ChallengeType, StrongCustomerAuthenticationStatus}
+import com.openbankproject.commons.model.enums.{ChallengeType, StrongCustomerAuthenticationStatus,SuppliedAnswerType}
 import com.openbankproject.commons.model.{ChallengeTrait, TransactionRequestId}
 import com.openbankproject.commons.util.ApiVersion
 import net.liftweb.common.{Box, Empty, Full}
@@ -52,7 +52,7 @@ object APIMethods_SigningBasketsApi extends RestHelper {
        "POST",
        "/signing-baskets",
        "Create a signing basket resource",
-       s"""${mockedDataText(true)}
+       s"""${mockedDataText(false)}
 Create a signing basket resource for authorising several transactions with one SCA method. 
 The resource identifications of these transactions are contained in the  payload of this access method
 """,
@@ -111,7 +111,7 @@ The resource identifications of these transactions are contained in the  payload
                jsonPost.extract[PostSigningBasketJsonV13]
              }
              _ <- booleanToFuture(failMsg, cc = callContext) {
-               // One of them MUST be defined. Otherwise post json is treated as empty one.
+               // One of them MUST be defined. Otherwise, post json is treated as empty one.
                !(jsonPost.extract[PostSigningBasketJsonV13].paymentIds.isEmpty &&
                  jsonPost.extract[PostSigningBasketJsonV13].consentIds.isEmpty)
              }
@@ -136,15 +136,15 @@ The resource identifications of these transactions are contained in the  payload
        "DELETE",
        "/signing-baskets/BASKETID",
        "Delete the signing basket",
-       s"""${mockedDataText(true)}
+       s"""${mockedDataText(false)}
 Delete the signing basket structure as long as no (partial) authorisation has yet been applied. 
 The undlerying transactions are not affected by this deletion.
 
 Remark: The signing basket as such is not deletable after a first (partial) authorisation has been applied. 
 Nevertheless, single transactions might be cancelled on an individual basis on the XS2A interface.
 """,
-       emptyObjectJson,
-       emptyObjectJson,
+       EmptyBody,
+       EmptyBody,
        List(UserNotLoggedIn, UnknownError),
        apiTagSigningBaskets :: Nil
      )
@@ -173,9 +173,9 @@ Nevertheless, single transactions might be cancelled on an individual basis on t
        "GET",
        "/signing-baskets/BASKETID",
        "Returns the content of an signing basket object.",
-       s"""${mockedDataText(true)}
+       s"""${mockedDataText(false)}
 Returns the content of an signing basket object.""",
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "transactionStatus" : "ACCP",
   "payments" : "",
@@ -209,12 +209,12 @@ Returns the content of an signing basket object.""",
        "GET",
        "/signing-baskets/BASKETID/authorisations",
        "Get Signing Basket Authorisation Sub-Resources Request",
-       s"""${mockedDataText(true)}
+       s"""${mockedDataText(false)}
 Read a list of all authorisation subresources IDs which have been created.
 
 This function returns an array of hyperlinks to all generated authorisation sub-resources.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "authorisationIds" : ""
 }"""),
@@ -242,10 +242,10 @@ This function returns an array of hyperlinks to all generated authorisation sub-
        "GET",
        "/signing-baskets/BASKETID/authorisations/AUTHORISATIONID",
        "Read the SCA status of the signing basket authorisation",
-       s"""${mockedDataText(true)}
+       s"""${mockedDataText(false)}
 This method returns the SCA status of a signing basket's authorisation sub-resource.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "scaStatus" : "psuAuthenticated"
 }"""),
@@ -278,10 +278,10 @@ This method returns the SCA status of a signing basket's authorisation sub-resou
        "GET",
        "/signing-baskets/BASKETID/status",
        "Read the status of the signing basket",
-       s"""${mockedDataText(true)}
+       s"""${mockedDataText(false)}
 Returns the status of a signing basket object. 
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "transactionStatus" : "RCVD"
 }"""),
@@ -312,7 +312,7 @@ Returns the status of a signing basket object.
        "POST",
        "/signing-baskets/BASKETID/authorisations",
        "Start the authorisation process for a signing basket",
-       s"""${mockedDataText(true)}
+       s"""${mockedDataText(false)}
 Create an authorisation sub-resource and start the authorisation process of a signing basket. 
 The message might in addition transmit authentication and authorisation related data.
 
@@ -346,7 +346,7 @@ This applies in the following scenarios:
     executing the cancellation.
   * The signing basket needs to be authorised yet.
 """,
-       emptyObjectJson,
+       EmptyBody,
        json.parse("""{
   "challengeData" : {
     "otpMaxLength" : 0,
@@ -409,7 +409,7 @@ This applies in the following scenarios:
        "PUT",
        "/signing-baskets/BASKETID/authorisations/AUTHORISATIONID",
        "Update PSU Data for signing basket",
-       s"""${mockedDataText(true)}
+       s"""${mockedDataText(false)}
 This method update PSU data on the signing basket resource if needed. 
 It may authorise a igning basket within the Embedded SCA Approach where needed.
 
@@ -476,13 +476,14 @@ There are the following request types on this access path:
              }
              _ <- SigningBasketNewStyle.checkSigningBasketPayments(basketId, callContext)
              // Validate a challenge answer and get an error if any
-             (boxedChallenge: Box[ChallengeTrait], callContext) <- NewStyle.function.validateChallengeAnswerC3(
+             (boxedChallenge: Box[ChallengeTrait], callContext) <- NewStyle.function.validateChallengeAnswerC5(
                ChallengeType.BERLIN_GROUP_SIGNING_BASKETS_CHALLENGE,
                None,
                None,
                Some(basketId),
                authorisationId,
                updateBasketPsuDataJson.scaAuthenticationData,
+               SuppliedAnswerType.PLAIN_TEXT_VALUE,
                callContext
              )
              // Get the challenge after validation
@@ -496,14 +497,14 @@ There are the following request types on this access path:
                    if (existAll.getOrElse(false)) {
                      basket.map { i =>
                        i.payments.map(_.map { i =>
-                         Connector.connector.vend.saveTransactionRequestStatusImpl(TransactionRequestId(i), COMPLETED.toString)
+                         NewStyle.function.saveTransactionRequestStatusImpl(TransactionRequestId(i), COMPLETED.toString, callContext)
                          Connector.connector.vend.getTransactionRequestImpl(TransactionRequestId(i), callContext) map { t =>
                            Connector.connector.vend.makePaymentV400(t._1, None, callContext)
                          }
                        })
                      }
                      SigningBasketX.signingBasketProvider.vend.saveSigningBasketStatus(basketId, ConstantsBG.SigningBasketsStatus.ACTC.toString)
-                     unboxFullOrFail(boxedChallenge, callContext, s"$InvalidConnectorResponse ")
+                     unboxFullOrFail(boxedChallenge, callContext, s"$InvalidConnectorResponse validateChallengeAnswerC5")
                    } else { // Fail due to unexisting payment
                      val paymentIds = basket.flatMap(_.payments).getOrElse(Nil).mkString(",")
                      unboxFullOrFail(Empty, callContext, s"$InvalidConnectorResponse Some of paymentIds [${paymentIds}] are invalid")
@@ -515,14 +516,14 @@ There are the following request types on this access path:
                    val basket = SigningBasketX.signingBasketProvider.vend.getSigningBasketByBasketId(basketId)
                    basket.map { i =>
                      i.payments.map(_.map { i =>
-                       Connector.connector.vend.saveTransactionRequestStatusImpl(TransactionRequestId(i), REJECTED.toString)
+                       NewStyle.function.saveTransactionRequestStatusImpl(TransactionRequestId(i), REJECTED.toString, callContext)
                      })
                    }
                    // Fail in case of an error message
-                   unboxFullOrFail(boxedChallenge, callContext, s"$InvalidConnectorResponse ")
+                   unboxFullOrFail(boxedChallenge, callContext, s"$InvalidConnectorResponse validateChallengeAnswerC5")
                  }
                case _ => // Fail in case of an error message
-                 Future(unboxFullOrFail(Empty, callContext, s"$InvalidConnectorResponse "))
+                 Future(unboxFullOrFail(Empty, callContext, s"$InvalidConnectorResponse getChallenge"))
              }
            } yield {
              (JSONFactory_BERLIN_GROUP_1_3.createStartPaymentAuthorisationJson(challenge), callContext)

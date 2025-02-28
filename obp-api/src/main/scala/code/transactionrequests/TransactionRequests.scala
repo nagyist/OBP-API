@@ -1,27 +1,12 @@
 package code.transactionrequests
 
 
-import code.api.util.APIUtil
-import code.remotedata.RemotedataTransactionRequests
+import code.api.util.{APIUtil, CallContext}
 import com.openbankproject.commons.model.{TransactionRequest, TransactionRequestChallenge, TransactionRequestCharge, _}
 import net.liftweb.common.{Box, Logger}
 import net.liftweb.util.SimpleInjector
 
 object TransactionRequests extends SimpleInjector {
-  
-  //These are berlin Group Standard
-  object PaymentServiceTypes extends Enumeration {
-    type PaymentServiceTypes = Value
-    val payments, bulk_payments, periodic_payments = Value
-  }
-  
-  object TransactionRequestTypes extends Enumeration {
-    type TransactionRequestTypes = Value
-    val SANDBOX_TAN, ACCOUNT, ACCOUNT_OTP, COUNTERPARTY, SEPA, FREE_FORM, SIMPLE, CARD,
-    TRANSFER_TO_PHONE, TRANSFER_TO_ATM, TRANSFER_TO_ACCOUNT, TRANSFER_TO_REFERENCE_ACCOUNT, 
-    //The following are BerlinGroup Standard 
-    SEPA_CREDIT_TRANSFERS, INSTANT_SEPA_CREDIT_TRANSFERS, TARGET_2_PAYMENTS, CROSS_BORDER_CREDIT_TRANSFERS, REFUND = Value
-  }
 
   def updatestatus(newStatus: String) = {}
 
@@ -29,10 +14,7 @@ object TransactionRequests extends SimpleInjector {
 
   def buildOne: TransactionRequestProvider  =
     APIUtil.getPropsValue("transactionRequests_connector", "mapped") match {
-      case "mapped" => APIUtil.getPropsAsBoolValue("use_akka", false) match {
-        case false  => MappedTransactionRequestProvider
-        case true => RemotedataTransactionRequests     // We will use Akka as a middleware
-      }
+      case "mapped" =>MappedTransactionRequestProvider
       case tc: String => throw new IllegalArgumentException("No such connector for Transaction Requests: " + tc)
     }
 
@@ -70,6 +52,20 @@ trait TransactionRequestProvider {
                                    body: TransactionRequestBody,
                                    status: String,
                                    charge: TransactionRequestCharge) : Box[TransactionRequest]
+
+  /**
+   *
+   * @param transactionRequestId
+   * @param transactionRequestType Support Types: SANDBOX_TAN, FREE_FORM, SEPA and COUNTERPARTY
+   * @param fromAccount
+   * @param toAccount
+   * @param transactionRequestCommonBody Body from http request: should have common fields:
+   * @param details  This is the details / body of the request (contains all fields in the body)
+   * @param status   "INITIATED" "PENDING" "FAILED"  "COMPLETED"
+   * @param charge
+   * @param chargePolicy  SHARED, SENDER, RECEIVER
+   * @return  Always create a new Transaction Request in mapper, and return all the fields
+   */
   def createTransactionRequestImpl210(transactionRequestId: TransactionRequestId,
                                       transactionRequestType: TransactionRequestType,
                                       fromAccount: BankAccount,
@@ -78,7 +74,11 @@ trait TransactionRequestProvider {
                                       details: String,
                                       status: String,
                                       charge: TransactionRequestCharge,
-                                      chargePolicy: String): Box[TransactionRequest]
+                                      chargePolicy: String,
+                                      paymentService: Option[String],
+                                      berlinGroupPayments: Option[BerlinGroupTransactionRequestCommonBodyJson],
+                                      callContext: Option[CallContext]): Box[TransactionRequest]
+  
   def saveTransactionRequestTransactionImpl(transactionRequestId: TransactionRequestId, transactionId: TransactionId): Box[Boolean]
   def saveTransactionRequestChallengeImpl(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge): Box[Boolean]
   def saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String): Box[Boolean]
@@ -87,33 +87,4 @@ trait TransactionRequestProvider {
   def bulkDeleteTransactionRequests(): Boolean
 }
 
-class RemotedataTransactionRequestsCaseClasses {
-  case class getMappedTransactionRequest(transactionRequestId: TransactionRequestId)
-  case class getTransactionRequestsFromProvider(bankId : BankId, accountId: AccountId)
-  case class getTransactionRequestFromProvider(transactionRequestId : TransactionRequestId)
-  case class updateAllPendingTransactionRequests()
-  case class createTransactionRequestImpl(transactionRequestId: TransactionRequestId,
-                                          transactionRequestType: TransactionRequestType,
-                                          account : BankAccount,
-                                          counterparty : BankAccount,
-                                          body: TransactionRequestBody,
-                                          status: String,
-                                          charge: TransactionRequestCharge)
-  case class createTransactionRequestImpl210(transactionRequestId: TransactionRequestId,
-                                             transactionRequestType: TransactionRequestType,
-                                             fromAccount: BankAccount, 
-                                             toAccount: BankAccount,
-                                             transactionRequestCommonBody: TransactionRequestCommonBodyJSON,
-                                             details: String,
-                                             status: String,
-                                             charge: TransactionRequestCharge,
-                                             chargePolicy: String)
-  case class saveTransactionRequestTransactionImpl(transactionRequestId: TransactionRequestId, transactionId: TransactionId)
-  case class saveTransactionRequestChallengeImpl(transactionRequestId: TransactionRequestId, challenge: TransactionRequestChallenge)
-  case class saveTransactionRequestStatusImpl(transactionRequestId: TransactionRequestId, status: String)
-  case class saveTransactionRequestDescriptionImpl(transactionRequestId: TransactionRequestId, description: String)
-  case class bulkDeleteTransactionRequestsByTransactionId(transactionId: TransactionId)
-  case class bulkDeleteTransactionRequests()
-}
 
-object RemotedataTransactionRequestsCaseClasses extends RemotedataTransactionRequestsCaseClasses

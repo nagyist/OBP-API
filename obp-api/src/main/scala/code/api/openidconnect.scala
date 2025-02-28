@@ -141,22 +141,38 @@ object OpenIdConnect extends OBPRestHelper with MdcLoggable {
                           saveAuthorizationToken(tokenType, accessToken, idToken, refreshToken, scope, expiresIn, authUser.id.get) match {
                             case Full(token) => (200, "OK", Some(authUser))
                             case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotHandleOpenIDConnectData+ "saveAuthorizationToken") 
-                            case _ => (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "saveAuthorizationToken", Some(authUser))
+                            case everythingElse =>
+                              logger.debug("Error at saveAuthorizationToken: " + everythingElse)
+                              (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "saveAuthorizationToken", Some(authUser))
                           }
                         case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateConsumer")
-                        case _ => (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateConsumer", Some(authUser))
+                        case everythingElse =>
+                          logger.debug("Error at getOrCreateConsumer: " + everythingElse)
+                          (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateConsumer", Some(authUser))
                       }
                     case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateAuthUser")
-                    case _ => (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateAuthUser", None)
+                    case everythingElse =>
+                      logger.debug("Error at getOrCreateAuthUser: " + everythingElse)
+                      (401, ErrorMessages.CouldNotHandleOpenIDConnectData + "getOrCreateAuthUser", None)
                   }
                 case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotSaveOpenIDConnectUser)
-                case _ => (401, ErrorMessages.CouldNotSaveOpenIDConnectUser, None)
+                case everythingElse =>
+                  logger.debug("Error at getOrCreateResourceUser: " + everythingElse)
+                  (401, ErrorMessages.CouldNotSaveOpenIDConnectUser, None)
               }
-            case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotValidateIDToken)
-            case _ => (401, ErrorMessages.CouldNotValidateIDToken, None)
+            case badObj@Failure(_, _, _) =>
+              logger.debug("Error at JwtUtil.validateIdToken: " + badObj)
+              chainErrorMessage(badObj, ErrorMessages.CouldNotValidateIDToken)
+            case everythingElse =>
+              logger.debug("Error at JwtUtil.validateIdToken: " + everythingElse)
+              (401, ErrorMessages.CouldNotValidateIDToken, None)
           }
-        case badObj@Failure(_, _, _) => chainErrorMessage(badObj, ErrorMessages.CouldNotExchangeAuthorizationCodeForTokens)
-        case _ => (401, ErrorMessages.CouldNotExchangeAuthorizationCodeForTokens, None)
+        case badObj@Failure(_, _, _) =>
+          logger.debug("Error at exchangeAuthorizationCodeForTokens: " + badObj)
+          chainErrorMessage(badObj, ErrorMessages.CouldNotExchangeAuthorizationCodeForTokens)
+        case everythingElse =>
+          logger.debug("Error at exchangeAuthorizationCodeForTokens: " + everythingElse)
+          (401, ErrorMessages.CouldNotExchangeAuthorizationCodeForTokens, None)
       }
     } else {
       (401, ErrorMessages.InvalidOpenIDConnectState, None)
@@ -183,8 +199,9 @@ object OpenIdConnect extends OBPRestHelper with MdcLoggable {
   }
 
   private def extractParams(s: S): (String, String, String) = {
-    val code = ObpS.param("code")
-    val state = ObpS.param("state")
+    // TODO Figure out why ObpS does not contain response parameter code
+    val code = s.param("code")
+    val state = s.param("state")
     val sessionState = OpenIDConnectSessionState.get
     (code.getOrElse(""), state.getOrElse("0"), sessionState.map(_.toString).getOrElse("1"))
   }
@@ -199,10 +216,11 @@ object OpenIdConnect extends OBPRestHelper with MdcLoggable {
   private def getOrCreateResourceUser(idToken: String): Box[User] = {
     val uniqueIdGivenByProvider = JwtUtil.getSubject(idToken)
     val provider = Hydra.resolveProvider(idToken)
+    val preferredUsername = JwtUtil.getOptionalClaim("preferred_username", idToken)
     Users.users.vend.getUserByProviderId(provider = provider, idGivenByProvider = uniqueIdGivenByProvider.getOrElse("")).or { // Find a user
       Users.users.vend.createResourceUser( // Otherwise create a new one
         provider = provider,
-        providerId = uniqueIdGivenByProvider,
+        providerId = preferredUsername.orElse(uniqueIdGivenByProvider),
         createdByConsentId = None,
         name = uniqueIdGivenByProvider,
         email = getClaim(name = "email", idToken = idToken),
@@ -258,10 +276,15 @@ object OpenIdConnect extends OBPRestHelper with MdcLoggable {
           refreshToken <- tryo{(tokenResponse \ "refresh_token").extractOrElse[String]("")}
           scope <- tryo{(tokenResponse \ "scope").extractOrElse[String]("")}
         } yield {
+          logger.debug(s"(idToken: $idToken, accessToken: $accessToken, tokenType: $tokenType, expiresIn.toLong: ${expiresIn.toLong}, refreshToken: $refreshToken, scope: $scope)")
           (idToken, accessToken, tokenType, expiresIn.toLong, refreshToken, scope)
         }
-      case badObject@Failure(_, _, _) => badObject
-      case _ => Failure(ErrorMessages.InternalServerError + " - exchangeAuthorizationCodeForTokens")
+      case badObject@Failure(_, _, _) =>
+        logger.debug("Error at exchangeAuthorizationCodeForTokens: " + badObject)
+        badObject
+      case everythingElse =>
+        logger.debug("Error at exchangeAuthorizationCodeForTokens: " + everythingElse)
+        Failure(ErrorMessages.InternalServerError + " - exchangeAuthorizationCodeForTokens")
     }
   }
 

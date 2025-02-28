@@ -3,6 +3,38 @@
 ### Most recent changes at top of file
 ```
 Date          Commit        Action
+17/02/2025    5877d2f2      Bootstrap Super User
+                            Added props super_admin_username=TomWilliams
+                            Added props super_admin_inital_password=681aeeb9f681aeeb9f681aeeb9 
+                            Added props super_admin_email=tom@tesobe.com
+24/01/2025    ad68f054      Added props skip_consent_sca_for_consumer_id_pairs .
+03/02/2024    7bcb6bc5      Added props oauth2.keycloak.source_of_truth, default is false.
+                            oauth2.keycloak.source_of_truth = true turns sync ON.
+                            It is used to sync IAM of OBP-API and IAM of Keycloak.
+                            In case that access token issued by Keycloak contains roles assiggned to a consumer, for instance:
+                            "open-bank-project": {
+                              "roles": [
+                                "CanGetConsentsAtAnyBank",
+                                "uma_protection"
+                              ]
+                            }
+                            OBP-API add the role CanGetConsentsAtAnyBank to the consumer "open-bank-project" via Scopes feature.
+                            The role "uma_protection" is ignored because there is no such a role at OBP-API side.
+12/11/2024    d2e711b4      Added props rabbitmq_connector.virtual_host, default is /.
+                            If you need to set it, please make sure you already add the virtual_host to the rabbitmq and grant the access to the user:
+                            eg: run `rabbitmqctl add_vhost /obp/` => create the `/obp/` 
+                            and run `rabbitmqctl set_permissions -p /obp/ obp ".*" ".*" ".*"` => grant user `obp` the access permissions.
+12/11/2024    d2e711b4      Added props rabbitmq.adapter.enabled, default is false
+12/11/2024    a5253b4e      Added props rabbitmq.use.ssl, default is false
+30/10/2024    e69161b6      set V121, V130 and V200 status to DEPRECATED
+29/10/2024    c83032f0      added the props for RabbitMq connector:
+                            Added props rabbitmq_connector.host=localhost
+                            Added props rabbitmq_connector.port=5672
+                            Added props rabbitmq_connector.username=obp
+                            Added props rabbitmq_connector.password=obp                                                       
+24/10/2024    dce8cd0b      removed both v140 and v200 payments endpoints: createTransactionRequest, getTransactionRequests and answerTransactionRequestChallenge
+11/09/2024    c7398e2e      Unfreeze and freeze the connector meta to pass the tests, because 5 new fields were added to the transactionRequest class: 
+                            payment_start_date, payment_end_date, payment_execution_Rule, payment_frequency, and payment_day_of_execution.
 12/01/2024    e14946b8      Renamed table MappedExpectedChallengeAnswer => ExpectedChallengeAnswer and removed prefix 'm' from fields. 
 16/11/2023    2b8811dc      Added show_used_connector_methods, default is false. 
 30/10/2023    4e82c66c      Added createLocalisedResourceDocJson.cache.ttl.seconds, default is 3600 

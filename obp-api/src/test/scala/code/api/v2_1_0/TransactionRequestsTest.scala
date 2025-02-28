@@ -17,7 +17,8 @@ import code.fx.fx
 import code.model.BankAccountX
 import code.setup.{APIResponse, DefaultUsers}
 import com.openbankproject.commons.model.enums.TransactionRequestStatus
-import code.transactionrequests.TransactionRequests.TransactionRequestTypes._
+import com.openbankproject.commons.model.enums.TransactionRequestTypes._
+import com.openbankproject.commons.model.enums.TransactionRequestTypes
 import com.openbankproject.commons.model.{AccountId, BankAccount, TransactionRequestId}
 import net.liftweb.json.Serialization.write
 import org.scalatest.Tag
@@ -77,7 +78,7 @@ class TransactionRequestsTest extends V210ServerSetup with DefaultUsers {
 
       //we expected transfer amount
       val zero: BigDecimal = BigDecimal(0)
-      var expectedAmtTo = fx.exchangeRate(fromCurrency, toCurrency, Some(fromAccount.bankId.value)) match {
+      var expectedAmtTo = fx.exchangeRate(fromCurrency, toCurrency, Some(fromAccount.bankId.value), None) match {
         case Some(exchangeRate) => amt * exchangeRate
         case _ => amt * BigDecimal("0")
       }
@@ -231,7 +232,7 @@ class TransactionRequestsTest extends V210ServerSetup with DefaultUsers {
       def checkBankAccountBalance(finishedTranscation: Boolean): Unit = {
         val toAccount = getToAccount
         val fromAccount = getFromAccount
-        val rate = fx.exchangeRate(fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value))
+        val rate = fx.exchangeRate(fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value), None)
         val convertedAmount = fx.convert(amt, rate)
         val fromAccountBalance = fromAccount.balance
         val toAccountBalance = toAccount.balance

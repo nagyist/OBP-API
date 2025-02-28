@@ -3,7 +3,6 @@ package code.api.util
 import java.net.{URI, URL}
 import java.nio.file.{Files, Paths}
 import java.text.ParseException
-
 import code.api.util.RSAUtil.logger
 import code.util.Helper.MdcLoggable
 import com.nimbusds.jose.JWSAlgorithm
@@ -15,6 +14,7 @@ import com.nimbusds.jose.util.{DefaultResourceRetriever, JSONObjectUtils}
 import com.nimbusds.jwt.proc.{BadJWTException, DefaultJWTProcessor}
 import com.nimbusds.jwt.{JWTClaimsSet, SignedJWT}
 import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet
+import dispatch.Future
 import net.liftweb.common.{Box, Empty, Failure, Full}
 
 object JwtUtil extends MdcLoggable {
@@ -58,9 +58,14 @@ object JwtUtil extends MdcLoggable {
     * @return True or False
     */
   def verifyHmacSignedJwt(jwtToken: String, sharedSecret: String): Boolean = {
+    logger.debug(s"code.api.util.JwtUtil.verifyHmacSignedJwt beginning:: jwtToken($jwtToken), sharedSecret($sharedSecret)")
     val signedJWT = SignedJWT.parse(jwtToken)
     val verifier = new MACVerifier(sharedSecret)
-    signedJWT.verify(verifier)
+    logger.debug(s"code.api.util.JwtUtil.verifyHmacSignedJwt beginning:: signedJWT($signedJWT)")
+    logger.debug(s"code.api.util.JwtUtil.verifyHmacSignedJwt beginning:: verifier($verifier)")
+    val result = signedJWT.verify(verifier)
+    logger.debug(s"code.api.util.JwtUtil.verifyHmacSignedJwt result:: result($verifier)")
+    result
   }
 
   /**
@@ -138,6 +143,24 @@ object JwtUtil extends MdcLoggable {
         ""
     }
   }
+  /**
+    * This fuction gets an arbitrary claim
+    * @param name The name of the claim we want to get
+    * @param jwtToken JSON Web Token (JWT) as a String value
+    * @return The claim we requested
+    */
+  def getOptionalClaim(name: String, jwtToken: String): Option[String] = {
+    try {
+      val signedJWT = SignedJWT.parse(jwtToken)
+      // claims extraction...
+      Some(signedJWT.getJWTClaimsSet.getStringClaim(name))
+    } catch {
+      case e: Exception =>
+        logger.debug(msg = s"code.api.util.JwtUtil.getClaim: $name")
+        logger.debug(e)
+        None
+    }
+  }
 
   /**
     * The Issuer Identifier for the Issuer of the response. 
@@ -194,7 +217,9 @@ object JwtUtil extends MdcLoggable {
     } catch {
       case e: BadJWTException => Failure(ErrorMessages.Oauth2BadJWTException + e.getMessage, Full(e), Empty)
       case e: ParseException  => Failure(ErrorMessages.Oauth2ParseException + e.getMessage, Full(e), Empty)
-      case e: Exception       => Failure(e.getMessage, Full(e), Empty)
+      case e: Exception       =>
+        logger.debug(s"remoteJWKSetUrl: $remoteJWKSetUrl")
+        Failure(ErrorMessages.Oauth2ValidateAccessTokenError + e.getMessage, Full(e), Empty)
     }
   }
 

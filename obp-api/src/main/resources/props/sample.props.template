@@ -153,6 +153,9 @@ jwt.use.ssl=false
 ## Enable SSL for kafka, if set to true must set paths for the keystore locations
 #kafka.use.ssl=true
 
+## Enable SSL for rabbitmq, if set to true must set paths for the keystore locations
+#rabbitmq.use.ssl=false
+
 # Paths to the SSL keystore files - has to be jks    
 #keystore.path=/path/to/api.keystore.jks
 #keystore password
@@ -161,6 +164,24 @@ jwt.use.ssl=false
 #keystore.passphrase = redf1234
 #keystore.alias = localhost
 #truststore.path=/path/to/api.truststore.jks
+
+
+## Enable mTLS for Redis, if set to true must set paths for the keystore and truststore locations
+# redis.use.ssl=false
+## Client
+## PKCS#12 Format: combine private keys and certificates into .p12 files for easier transport
+# keystore.path.redis = path/to/client-keystore.p12
+# keystore.password.redis = keystore-password
+## Trust stores is a list of trusted CA certificates
+## Public certificate for the CA (used by clients and servers to validate signatures)
+# truststore.path.redis = path/to/ca.p12
+# truststore.password.redis = truststore-password
+
+
+## Trust stores is a list of trusted CA certificates
+## Public certificate for the CA (used by clients and servers to validate signatures)
+# truststore.path.tpp_signature = path/to/ca.p12
+# truststore.password.tpp_signature = truststore-password
 
 
 ## Enable writing API metrics (which APIs are called) to RDBMS
@@ -215,21 +236,6 @@ db.url=jdbc:h2:./lift_proto.db;NON_KEYWORDS=VALUE;DB_CLOSE_ON_EXIT=FALSE
 ## of remote machine
 #remotedata.loglevel=INFO
 #remotedata.timeout=2
-#remotedata.enable=true
-#remotedata.hostname=127.0.0.1
-#remotedata.port=2662
-## Arbitrary value used in order to assure us that
-## remote and local sides are paired well
-## Only needed when remotedata.enable=true
-#remotedata.secret=CHANGE_ME
-
-## Set separate database for data split
-## If remotedata is disabled, bd has to be accessible from local machine
-## If remotedata is enabled, db has to be accessible from remote machine
-#remotedata.db.driver=org.h2.Driver
-#remotedata.db.url=jdbc:h2:./lift_proto.db.remotedata;DB_CLOSE_ON_EXIT=FALSE
-#remotedata.db.username=user
-#remotedata.db.password=secret
 
 
 ## Our own remotely accessible URL
@@ -575,7 +581,7 @@ webui_register_consumer_success_message_email = Thank you for registering to use
 
 # Please note that depricated name ot this props is: language_tag
 default_locale = en_GB
-supported_locales = en_GB,es_ES
+supported_locales = en_GB,es_ES,ro_RO
 
 
 ## API Options
@@ -697,7 +703,11 @@ consumers_enabled_by_default=true
 # Autocomplete for login form has to be explicitly set
 autocomplete_at_login_form_enabled=false
 
-# Skip Auth User Email validation (defaults to false as of 29 June 2021)
+# Skip Auth User validation ( Email validation ) (defaults to false as of 29 June 2021)
+# By default, users have to confirm their email address for their user account to become active.
+# This involves this OBP-API sending an email to the newly registered email provided by the User and the User clicking on a link in that email
+# which results in a field being changed in the database.
+# To BYPASS this security features (for local development only), set this property to true to skip the email address validation.
 #authUser.skipEmailValidation=false
 
 # If using Kafka but want to get counterparties from OBP, set this to true
@@ -716,7 +726,7 @@ autocomplete_at_login_form_enabled=false
 # In case isn't defined default value is false
 # allow_gateway_login=false
 # Define secret used to validate JWT token
-# jwt.token_secret=your-at-least-256-bit-secret-token
+# jwt_token_secret=your-at-least-256-bit-secret-token
 # Define comma separated list of allowed IP addresses
 # gateway.host=127.0.0.1
 
@@ -731,9 +741,6 @@ jwt.public_key_rsa=path-to-the-pem-file
 dauth.host=127.0.0.1
 # -------------------------------------- DAuth--
 
-
-# Disable akka (Remote storage not possible)
-use_akka=false
 
 
 # -- Display internal errors --------------------------------------
@@ -762,10 +769,46 @@ display_internal_errors=false
 # allow_oauth2_login=false
 # URL of Public server JWK set used for validating bearer JWT access tokens
 # It can contain more than one URL i.e. list of uris. Values are comma separated.
-# If MITREId URL is present it must be at 1st place in the list
-# because MITREId URL can be an appropirate value and we cannot rely on it.
 # oauth2.jwk_set.url=http://localhost:8080/jwk.json,https://www.googleapis.com/oauth2/v3/certs
 # ------------------------------------------------------------------------------ OAuth 2 ------
+
+# -- Keycloak OAuth 2 ---------------------------------------------------------------------------
+# integrate_with_keycloak = false
+# Keycloak Identity Provider Host
+# oauth2.keycloak.host=http://localhost:7070
+# Keycloak access token to make a call to Admin APIs (This props is likely to change)
+# keycloak.admin.access_token =
+# Keycloak Identity Provider Realm (Multi-Tenancy Support)
+# oauth2.keycloak.realm = master
+# oauth2.keycloak.well_known=http://localhost:7070/realms/master/.well-known/openid-configuration
+# Used to sync IAM of OBP-API and IAM of Keycloak
+# oauth2.keycloak.source_of_truth = false
+# Resource access object allowed to sync IAM of OBP-API and IAM of Keycloak
+# oauth2.keycloak.resource_access_key_name_to_trust = open-bank-project
+# ------------------------------------------------------------------------ Keycloak OAuth 2 ------
+
+# -- PSU Authentication methods --------------------------------------------------------------
+# The EBA notes that there would appear to currently be three main ways or methods
+# of carrying out the authentication procedure of the PSU through a dedicated interface,
+# and APIs in particular, namely:
+# - redirection,
+# - embedded approaches and
+# - decoupled approaches (or a combination thereof).
+# In the cases of redirection and decoupled approaches,
+# PSU’s authentication data is exchanged directly between PSUs and ASPSPs,
+# as opposed to embedded approaches, in which PSU’s authentication data
+# is exchanged between TPPs and ASPSPs through the interface.
+####
+# psu_authentication_method = redirection_with_dedicated_start_of_authorization
+# Possible values:
+# - redirection
+# - redirection_with_dedicated_start_of_authorization
+# - embedded
+# - decoupled
+# In case that "psu_authentication_method = redirection" you must define
+# psu_authentication_method_sca_redirect_url = redirect_url_value
+# psu_make_payment_sca_redirect_url = redirect_url_value
+# -------------------------------------------------------------- Authentication methods --
 
 ## This property is used for documenting at Resource Doc. It may include the port also (but not /obp)
 ## (this needs to be a URL)
@@ -784,6 +827,8 @@ featured_apis=elasticSearchWarehouseV300
 # -- Redis cache -------------------------------------
 # cache.redis.url=127.0.0.1
 # cache.redis.port=6379
+# Default value is empty or omitted props
+# cache.redis.password =
 # ---------------------------------------------------------
 
 # -- New Style Endpoints -----------------------
@@ -847,6 +892,16 @@ featured_apis=elasticSearchWarehouseV300
 # If set it to `true`, it will add the x-sign (SHA256WithRSA) into each the rest connector http calls, 
 # please add the name of the field for the UserAuthContext and/or link to other documentation.. 
 #rest_connector_sends_x-sign_header=false
+
+# -- RabbitMQ connector --------------------------------------------
+# rabbitmq_connector.host=localhost
+# rabbitmq_connector.port=5672
+# rabbitmq_connector.username=obp
+# rabbitmq_connector.password=obp
+# rabbitmq_connector.virtual_host=/
+# -- RabbitMQ Adapter --------------------------------------------
+#rabbitmq.adapter.enabled=false
+
 
  
 # -- Scopes -----------------------------------------------------
@@ -954,7 +1009,8 @@ database_messages_scheduler_interval=3600
                                                     ReadTransactionsBasic,\
                                                     ReadTransactionsDebits,\
                                                     ReadTransactionsDetail, \
-                                                    ReadAccountsBerlinGroup
+                                                    ReadAccountsBerlinGroup, \
+                                                    InitiatePaymentsBerlinGroup
 # -----------------------------------------------------------------------------
                       
 
@@ -1198,6 +1254,11 @@ personal_data_collection_consent_country_waiver_list = Austria, Belgium, Bulgari
 # local_identity_provider=strongly recommended to use top level domain name so that all nodes in the cluster share same provider name
 
 
+# User Invitation Link Base URL
+# it defaults to the "portal_hostname" as a 1st choise and to the "hostname" props value as a 2nd choise
+# user_invitation_link_base_URL=strongly recommended to use top level domain name so that all nodes in the cluster share same URL
+
+
 # enable dynamic code sandbox, default is false, this will make sandbox works for code running in Future, will make performance lower than disable
 dynamic_code_sandbox_enable=false
 # Here is the default permissions if you set the dynamic_code_sandbox_enable = true. If you need more permission need to add it manually here.
@@ -1303,6 +1364,24 @@ validate_iban=false
 # This returns Regulated Entities
 # sample props regulated_entities = [{"certificate_authority_ca_owner_id":"CY_CBC","entity_certificate_public_key":"-----BEGIN CERTIFICATE-----MIICsjCCAZqgAwIBAgIGAYwQ62R0MA0GCSqGSIb3DQEBCwUAMBoxGDAWBgNVBAMMD2FwcC5leGFtcGxlLmNvbTAeFw0yMzExMjcxMzE1MTFaFw0yNTExMjYxMzE1MTFaMBoxGDAWBgNVBAMMD2FwcC5leGFtcGxlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAK9WIodZHWzKyCcf9YfWEhPURbfO6zKuMqzHN27GdqHsVVEGxP4F/J4mso+0ENcRr6ur4u81iREaVdCc40rHDHVJNEtniD8Icbz7tcsqAewIVhc/q6WXGqImJpCq7hA0m247dDsaZT0lb/MVBiMoJxDEmAE/GYYnWTEn84R35WhJsMvuQ7QmLvNg6RkChY6POCT/YKe9NKwa1NqI1U+oA5RFzAaFtytvZCE3jtp+aR0brL7qaGfgxm6B7dEpGyhg0NcVCV7xMQNq2JxZTVdAr6lcsRGaAFulakmW3aNnmK+L35Wu8uW+OxNxwUuC6f3b4FVBa276FMuUTRfu7gc+k6kCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAAU5CjEyAoyTn7PgFpQD48ZNPuUsEQ19gzYgJvHMzFIoZ7jKBodjO5mCzWBcR7A4mpeAsdyiNBl2sTiZscSnNqxk61jVzP5Ba1D7XtOjjr7+3iqowrThj6BY40QqhYh/6BSY9fDzVZQiHnvlo6ZUM5kUK6OavZOovKlp5DIl5sGqoP0qAJnpQ4nhB2WVVsKfPlOXc+2KSsbJ23g9l8zaTMr+X0umlvfEKqyEl1Fa2L1dO0y/KFQ+ILmxcZLpRdq1hRAjd0quq9qGC8ucXhRWDgM4hslVpau0da68g0aItWNez3mc5lB82b3dcZpFMzO41bgw7gvw10AvvTfQDqEYIuQ==-----END CERTIFICATE-----","entity_code":"PSD_PICY_CBC!12345","entity_type":"PSD_PI","entity_address":"EXAMPLE COMPANY LTD, 5 SOME STREET","entity_town_city":"SOME CITY","entity_post_code":"1060","entity_country":"CY","entity_web_site":"www.example.com","services":[{"CY":["PS_010","PS_020","PS_03C","PS_04C"]}]}]
 regulated_entities = []
+
+#In OBP Create Consent if the app that is creating the consent (grantor_consumer_id) wants to create a consent for the grantee_consumer_id App, then we should skip SCA.
+#The use case is API Explorer II giving a consent to Opey . In such a case API Explorer II and Opey are effectively the same App as far as the user is concerned.
+
+#skip_consent_sca_for_consumer_id_pairs=[{ \
+#    "grantor_consumer_id": "ef0a8fa4-3814-4a21-8ca9-8c553a43aa631", \
+#    "grantee_consumer_id": "fb327484-94d7-44d2-83e5-8d27301e8279" \
+#}]
+
+# Bootstrap Super User
+# Given the following credentials, OBP will create a user if they do not already exist.
+# This user's password will be valid for a limited time.
+# This user will be granted ONLY the CanCreateEntitlementAtAnyBank permission.
+# This feature can also be used in a "Break Glass" scenario.
+# If you want to use this feature, please set up all three values properly at the same time.
+# super_admin_username=TomWilliams
+# super_admin_inital_password=681aeeb9f681aeeb9f681aeeb9 
+# super_admin_email=tom@tesobe.com
 
 
 # Note: For secure and http only settings for cookies see resources/web.xml which is mentioned in the README.md

@@ -130,6 +130,7 @@ trait TestConnectorSetupWithStandardPermissions extends TestConnectorSetup {
               canSeeOtherAccountRoutingAddress_(true).
               canAddTransactionRequestToOwnAccount_(false). //added following two for payments
               canAddTransactionRequestToAnyAccount_(false).
+              canAddTransactionRequestToBeneficiary_(false).
               canSeeBankAccountCreditLimit_(true).
               saveMe
           }
@@ -151,6 +152,5 @@ trait TestConnectorSetupWithStandardPermissions extends TestConnectorSetup {
 
     //empty the relational db tables after each test
     ToSchemify.models.filterNot(exclusion).foreach(_.bulkDelete_!!())
-    ToSchemify.modelsRemotedata.filterNot(exclusion).foreach(_.bulkDelete_!!())
   }
 }

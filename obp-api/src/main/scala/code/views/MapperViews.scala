@@ -22,13 +22,8 @@ import com.openbankproject.commons.ExecutionContext.Implicits.global
 import scala.collection.immutable
 import scala.concurrent.Future
 
-//TODO: Replace BankAccountUIDs with bankPermalink + accountPermalink
-
 
 object MapperViews extends Views with MdcLoggable {
-
-  logger.debug("Run Schemifier.schemify in MapperViews object")
-  Schemifier.schemify(true, Schemifier.infoF _, ToSchemify.modelsRemotedata: _*)
   
   private def getViewsForUser(user: User): List[View] = {
     val accountAccessList = AccountAccess.findAll(
@@ -150,7 +145,7 @@ object MapperViews extends Views with MdcLoggable {
         getOrGrantAccessToViewCommon(user, v, bankIdAccountIdViewId.bankId.value, bankIdAccountIdViewId.accountId.value) //accountAccess already exists, no need to create one
       }
       case _ => {
-        Empty ~> APIFailure(s"View $bankIdAccountIdViewId. not found", 404) //TODO: move message + code logic to api level
+        Empty ~> APIFailure(s"View ${bankIdAccountIdViewId.viewId} not found", 404) //TODO: move message + code logic to api level
       }
     }
   }
@@ -399,7 +394,7 @@ object MapperViews extends Views with MdcLoggable {
 
           existing match {
             case true =>
-              Failure(s"$ExistingSystemViewError $viewId")
+              Failure(s"$SystemViewAlreadyExistsError Current VIEW_ID($viewId)")
             case false =>
               val createdView = ViewDefinition.create.name_(view.name).view_id(viewId)
               createdView.setFromViewData(view)
@@ -436,7 +431,7 @@ object MapperViews extends Views with MdcLoggable {
     ) == 1
 
     if (existing)
-      Failure(s"There is already a view with permalink $viewId on this bank account")
+      Failure(s"$CustomViewAlreadyExistsError Current BankId(${bankAccountId.bankId.value}), AccountId(${bankAccountId.accountId.value}), ViewId($viewId).")
     else {
       val createdView = ViewDefinition.create.
         name_(view.name).
@@ -618,34 +613,15 @@ object MapperViews extends Views with MdcLoggable {
   
   def getOrCreateSystemViewFromCbs(viewId: String): Box[View] = {
     logger.debug(s"-->getOrCreateSystemViewFromCbs--- start--${viewId}  ")
-    
-    val ownerView = SYSTEM_OWNER_VIEW_ID.equals(viewId.toLowerCase)
-    val accountantsView = SYSTEM_ACCOUNTANT_VIEW_ID.equals(viewId.toLowerCase)
-    val auditorsView = SYSTEM_AUDITOR_VIEW_ID.equals(viewId.toLowerCase)
-    val standardView = SYSTEM_STANDARD_VIEW_ID.equals(viewId.toLowerCase)
-    val stageOneView = SYSTEM_STAGE_ONE_VIEW_ID.toLowerCase.equals(viewId.toLowerCase)
-    val manageCustomViews = SYSTEM_MANAGE_CUSTOM_VIEWS_VIEW_ID.toLowerCase.equals(viewId.toLowerCase)
-    
-    val theView =
-      if (ownerView)
-        getOrCreateSystemView(SYSTEM_OWNER_VIEW_ID)
-      else if (accountantsView)
-        getOrCreateSystemView(SYSTEM_ACCOUNTANT_VIEW_ID)
-      else if (auditorsView)
-        getOrCreateSystemView(SYSTEM_AUDITOR_VIEW_ID)
-      else if (standardView)
-        getOrCreateSystemView(SYSTEM_STANDARD_VIEW_ID)
-      else if (stageOneView)
-        getOrCreateSystemView(SYSTEM_STAGE_ONE_VIEW_ID)
-      else if (manageCustomViews)
-        getOrCreateSystemView(SYSTEM_MANAGE_CUSTOM_VIEWS_VIEW_ID)
-      else {
-        logger.error(ViewIdNotSupported+ s"Your input viewId is :$viewId")
-        Failure(ViewIdNotSupported+ s"Your input viewId is :$viewId")
-      }
-    
+
+    val theView = if (VIEWS_GENERATED_FROM_CBS_WHITE_LIST.contains(viewId)) {
+      getOrCreateSystemView(viewId)
+    } else {
+      val errorMessage = ViewIdNotSupported + code.api.Constant.VIEWS_GENERATED_FROM_CBS_WHITE_LIST.mkString(", ") + s"Your input viewId is :$viewId"
+      logger.error(errorMessage)
+      Failure(errorMessage)
+    }
     logger.debug(s"-->getOrCreateSystemViewFromCbs --- finish.${viewId } : ${theView} ")
-    
     theView
   }
 
@@ -735,6 +711,7 @@ object MapperViews extends Views with MdcLoggable {
       "canCreateCustomView",
       "canDeleteCustomView",
       "canUpdateCustomView",
+      "canGetCustomView",
       "canSeeViewsWithPermissionsForAllUsers",
       "canSeeViewsWithPermissionsForOneUser"
     )
@@ -921,15 +898,16 @@ object MapperViews extends Views with MdcLoggable {
       .canSeeOtherBankRoutingAddress_(true)
       .canSeeOtherAccountRoutingScheme_(true)
       .canSeeOtherAccountRoutingAddress_(true)
+      
+      // TODO  Allow use only for certain cases
       .canAddTransactionRequestToOwnAccount_(true) //added following two for payments
       .canAddTransactionRequestToAnyAccount_(true)
+      .canAddTransactionRequestToBeneficiary_(true)
+      
       .canSeeAvailableViewsForBankAccount_(false)
       .canSeeTransactionRequests_(false)
       .canSeeTransactionRequestTypes_(false)
       .canUpdateBankAccountLabel_(false)
-      .canCreateCustomView_(false)
-      .canDeleteCustomView_(false)
-      .canUpdateCustomView_(false)
       .canSeeViewsWithPermissionsForOneUser_(false)
       .canSeeViewsWithPermissionsForAllUsers_(false)
       .canRevokeAccessToCustomViews_(false)
@@ -937,32 +915,67 @@ object MapperViews extends Views with MdcLoggable {
       .canCreateCustomView_(false)
       .canDeleteCustomView_(false)
       .canUpdateCustomView_(false)
+      .canGetCustomView_(false)
 
     viewId match {
       case SYSTEM_OWNER_VIEW_ID | SYSTEM_STANDARD_VIEW_ID =>
-        entity
+        entity // Make additional setup to the existing view
           .canSeeAvailableViewsForBankAccount_(true)
           .canSeeTransactionRequests_(true)
           .canSeeTransactionRequestTypes_(true)
           .canUpdateBankAccountLabel_(true)
           .canSeeViewsWithPermissionsForOneUser_(true)
           .canSeeViewsWithPermissionsForAllUsers_(true)
-          .canGrantAccessToViews_(ALL_SYSTEM_VIEWS_CREATED_FROM_BOOT.mkString(","))
-          .canRevokeAccessToViews_(ALL_SYSTEM_VIEWS_CREATED_FROM_BOOT.mkString(","))
+          .canGrantAccessToViews_(DEFAULT_CAN_GRANT_AND_REVOKE_ACCESS_TO_VIEWS.mkString(","))
+          .canRevokeAccessToViews_(DEFAULT_CAN_GRANT_AND_REVOKE_ACCESS_TO_VIEWS.mkString(","))
       case SYSTEM_STAGE_ONE_VIEW_ID =>
-        entity
+        entity // Make additional setup to the existing view
           .canSeeTransactionDescription_(false)
           .canAddTransactionRequestToAnyAccount_(false)
+          .canAddTransactionRequestToBeneficiary_(false)
       case SYSTEM_MANAGE_CUSTOM_VIEWS_VIEW_ID =>
-        entity
+        entity // Make additional setup to the existing view
           .canRevokeAccessToCustomViews_(true)
           .canGrantAccessToCustomViews_(true)
           .canCreateCustomView_(true)
           .canDeleteCustomView_(true)
           .canUpdateCustomView_(true)
+          .canGetCustomView_(true)
       case SYSTEM_FIREHOSE_VIEW_ID =>
-        entity
+        entity // Make additional setup to the existing view
           .isFirehose_(true)
+      case SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID | 
+           SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID =>
+        create // A new one
+          .isSystem_(true)
+          .isFirehose_(false)
+          .name_(StringHelpers.capify(viewId))
+          .view_id(viewId)
+          .description_(viewId)
+      case SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID =>
+        create // A new one
+          .isSystem_(true)
+          .isFirehose_(false)
+          .name_(StringHelpers.capify(viewId))
+          .view_id(viewId)
+          .description_(viewId)
+          .canSeeTransactionThisBankAccount_(true)
+          .canSeeTransactionOtherBankAccount_(true)
+          .canSeeTransactionAmount_(true)
+          .canSeeTransactionCurrency_(true)
+          .canSeeTransactionBalance_(true)
+          .canSeeTransactionStartDate_(true)
+          .canSeeTransactionFinishDate_(true)
+          .canSeeTransactionDescription_(true)
+      case SYSTEM_INITIATE_PAYMENTS_BERLIN_GROUP_VIEW_ID =>
+        create // A new one
+          .isSystem_(true)
+          .isFirehose_(false)
+          .name_(StringHelpers.capify(viewId))
+          .view_id(viewId)
+          .description_(viewId)
+          .canAddTransactionRequestToAnyAccount_(true)
+          .canAddTransactionRequestToBeneficiary_(true)
       case _ =>
         entity
     }
@@ -1059,9 +1072,15 @@ object MapperViews extends Views with MdcLoggable {
       canSeeOtherAccountRoutingAddress_(true).
       canAddTransactionRequestToOwnAccount_(false). //added following two for payments
       canAddTransactionRequestToAnyAccount_(false).
+      canAddTransactionRequestToBeneficiary_(false).
+      canAddTransactionRequestToBeneficiary_(false).
       canSeeTransactionRequests_(false).
       canSeeTransactionRequestTypes_(false).
-      canUpdateBankAccountLabel_(false)
+      canUpdateBankAccountLabel_(false).
+      canCreateCustomView_(false).
+      canDeleteCustomView_(false).
+      canUpdateCustomView_(false).
+      canGetCustomView_(false)
   }
 
   def createAndSaveDefaultPublicCustomView(bankId : BankId, accountId: AccountId, description: String) : Box[View] = {

@@ -1,8 +1,6 @@
 package code.bankconnectors
 
-import java.lang.reflect.Method
-
-import code.api.util.{CallContext, CustomJsonFormats, OptionalFieldSerializer, OBPQueryParam}
+import code.api.util.{CallContext, CustomJsonFormats, OBPQueryParam, OptionalFieldSerializer}
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.dto.{InBoundTrait, OutInBoundTransfer}
 import com.openbankproject.commons.model.TopicTrait
@@ -13,13 +11,13 @@ import net.liftweb.json.JsonDSL._
 import net.liftweb.json.{Formats, JObject, JValue}
 import net.sf.cglib.proxy.{Enhancer, MethodInterceptor, MethodProxy}
 import org.apache.commons.lang3.StringUtils
-
+import java.lang.reflect.Method
 import scala.concurrent.Future
-import scala.reflect.runtime.universe
 import scala.reflect.ManifestFactory
+import scala.reflect.runtime.universe
 
 object ConnectorUtils {
-
+  
   lazy val proxyConnector: Connector = {
     val excludeProxyMethods = Set("getDynamicEndpoints", "dynamicEntityProcess", "setAccountHolder", "updateUserAccountViewsOld")
 

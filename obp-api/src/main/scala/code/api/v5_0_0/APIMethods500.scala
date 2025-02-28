@@ -1,14 +1,12 @@
 package code.api.v5_0_0
 
-import java.util.concurrent.ThreadLocalRandom
-
 import code.accountattribute.AccountAttributeX
-import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON._
 import code.api.util.APIUtil._
 import code.api.util.ApiRole._
 import code.api.util.ApiTag._
 import code.api.util.ErrorMessages._
+import code.api.util.FutureUtil.EndpointContext
 import code.api.util.NewStyle.HttpCode
 import code.api.util.NewStyle.function.extractQueryParams
 import code.api.util._
@@ -16,22 +14,24 @@ import code.api.v2_1_0.JSONFactory210
 import code.api.v3_0_0.JSONFactory300
 import code.api.v3_1_0._
 import code.api.v4_0_0.JSONFactory400.createCustomersMinimalJson
-import code.api.v4_0_0.{JSONFactory400, OBPAPI4_0_0, PutProductJsonV400}
+import code.api.v4_0_0.{JSONFactory400, PostCounterpartyJson400}
 import code.api.v5_0_0.JSONFactory500.{createPhysicalCardJson, createViewJsonV500, createViewsIdsJsonV500, createViewsJsonV500}
+import code.api.v5_1_0.{CreateCustomViewJson, PostCounterpartyLimitV510, PostVRPConsentRequestJsonV510}
 import code.bankconnectors.Connector
-import code.consent.{ConsentRequest, ConsentRequests, Consents}
+import code.consent.{ConsentRequests, ConsentStatus, Consents, MappedConsent}
+import code.consumer.Consumers
 import code.entitlement.Entitlement
+import code.metadata.counterparties.MappedCounterparty
 import code.metrics.APIMetrics
-import code.model._
 import code.model.dataAccess.BankAccountCreation
-import code.transactionrequests.TransactionRequests.TransactionRequestTypes.{apply => _}
 import code.util.Helper
 import code.util.Helper.{SILENCE_IS_GOLDEN, booleanToFuture}
 import code.views.Views
+import code.views.system.ViewDefinition
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.ExecutionContext.Implicits.global
-import com.openbankproject.commons.model.enums.StrongCustomerAuthentication
 import com.openbankproject.commons.model._
+import com.openbankproject.commons.model.enums.StrongCustomerAuthentication
 import com.openbankproject.commons.util.ApiVersion
 import net.liftweb.common.{Empty, Full}
 import net.liftweb.http.Req
@@ -40,15 +40,10 @@ import net.liftweb.json
 import net.liftweb.json.{Extraction, compactRender, prettyRender}
 import net.liftweb.util.Helpers.tryo
 import net.liftweb.util.{Helpers, Props, StringHelpers}
+import net.liftweb.mapper.By
+
+import java.util.UUID
 import java.util.concurrent.ThreadLocalRandom
-
-import code.accountattribute.AccountAttributeX
-import code.api.Constant.SYSTEM_OWNER_VIEW_ID
-import code.api.util.FutureUtil.EndpointContext
-import code.consumer.Consumers
-import code.util.Helper.booleanToFuture
-import code.views.system.{AccountAccess, ViewDefinition}
-
 import scala.collection.immutable.{List, Nil}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
@@ -451,7 +446,7 @@ trait APIMethods500 {
       "Create User Auth Context",
       s"""Create User Auth Context. These key value pairs will be propagated over connector to adapter. Normally used for mapping OBP user and 
          | Bank User/Customer. 
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       postUserAuthContextJson,
       userAuthContextJsonV500,
@@ -492,7 +487,7 @@ trait APIMethods500 {
       s"""Get User Auth Contexts for a User.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -527,7 +522,7 @@ trait APIMethods500 {
       "/banks/BANK_ID/users/current/auth-context-updates/SCA_METHOD",
       "Create User Auth Context Update Request",
       s"""Create User Auth Context Update Request.
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |A One Time Password (OTP) (AKA security challenge) is sent Out of Band (OOB) to the User via the transport defined in SCA_METHOD
          |SCA_METHOD is typically "SMS" or "EMAIL". "EMAIL" is used for testing purposes.
@@ -643,11 +638,18 @@ trait APIMethods500 {
          |It is used when applications request an access token to access their own resources, not on behalf of a user.
          |
          |The client needs to authenticate themselves for this request.
-         |In case of public client we use client_id and private kew to obtain access token, otherwise we use client_id and client_secret.
+         |In case of public client we use client_id and private key to obtain access token, otherwise we use client_id and client_secret.
          |The obtained access token is used in the HTTP Bearer auth header of our request.
          |
          |Example:
          |Authorization: Bearer eXtneO-THbQtn3zvK_kQtXXfvOZyZFdBCItlPDbR2Bk.dOWqtXCtFX-tqGTVR0YrIjvAolPIVg7GZ-jz83y6nA0
+         |
+         |After successfully creating the VRP consent request, you need to call the `Create Consent By CONSENT_REQUEST_ID` endpoint to finalize the consent.
+         |
+         |${applicationAccessMessage(true)}
+         |
+         |${userAuthenticationMessage(false)}
+         |
          |
          |""".stripMargin,
       postConsentRequestJsonV500,
@@ -737,12 +739,12 @@ trait APIMethods500 {
       nameOf(getConsentByConsentRequestId),
       "GET",
       "/consumer/consent-requests/CONSENT_REQUEST_ID/consents",
-      "Get Consent By Consent Request Id",
+      "Get Consent By Consent Request Id via Consumner",
       s"""
          |
          |This endpoint gets the Consent By consent request id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -760,16 +762,44 @@ trait APIMethods500 {
             consent <- Future { Consents.consentProvider.vend.getConsentByConsentRequestId(consentRequestId)} map {
               unboxFullOrFail(_, callContext, ConsentRequestNotFound)
             }
-            _ <- Helper.booleanToFuture(failMsg = ConsentNotFound, cc = cc.callContext) {
-              consent.mUserId == cc.userId
+            _ <- Helper.booleanToFuture(failMsg = ConsentNotFound, failCode = 404, cc = cc.callContext) {
+              consent.mConsumerId.get == cc.consumer.map(_.consumerId.get).getOrElse("None")
+            }
+            (bankId, accountId, viewId, helperInfo) <- NewStyle.function.tryons(failMsg = Oauth2BadJWTException, 400, callContext) {
+              val jsonWebTokenAsJValue = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken).map(json.parse(_).extract[ConsentJWT])
+              val viewsFromJwtToken = jsonWebTokenAsJValue.head.views
+              //at the moment,we only support VRP consent to show `ConsentAccountAccessJson` in the response. Because the TPP need them for payments.
+              val isVrpConsent = (viewsFromJwtToken.length == 1 )&& (viewsFromJwtToken.head.bank_id.nonEmpty)&& (viewsFromJwtToken.head.account_id.nonEmpty)&& (viewsFromJwtToken.head.view_id.startsWith("_vrp-"))
+              
+              if(isVrpConsent){
+                val bankId = BankId(viewsFromJwtToken.head.bank_id)
+                val accountId = AccountId(viewsFromJwtToken.head.account_id)
+                val viewId = ViewId(viewsFromJwtToken.head.view_id)
+                val helperInfoFromJwtToken = viewsFromJwtToken.head.helper_info
+                val viewCanGetCounterparty = Views.views.vend.customView(viewId, BankIdAccountId(bankId, accountId)).map(_.canGetCounterparty)
+                val helperInfo = if(viewCanGetCounterparty==Full(true)) helperInfoFromJwtToken else None
+                (Some(bankId), Some(accountId), Some(viewId), helperInfo)
+              }else{
+                (None, None, None, None)
+              }
             }
           } yield {
             (
               ConsentJsonV500(
-              consent.consentId, 
-              consent.jsonWebToken, 
-              consent.status, 
-              Some(consent.consentRequestId)
+                consent.consentId, 
+                consent.jsonWebToken, 
+                consent.status, 
+                Some(consent.consentRequestId),
+                if (bankId.isDefined && accountId.isDefined && viewId.isDefined) {
+                  Some(ConsentAccountAccessJson(
+                    bank_id = bankId.get.value,
+                    account_id = accountId.get.value,
+                    view_id = viewId.get.value,
+                    helper_info = helperInfo
+                  ))
+                } else {
+                  None
+                }
               ), 
               HttpCode.`200`(cc)
             )
@@ -786,8 +816,11 @@ trait APIMethods500 {
       "Create Consent By CONSENT_REQUEST_ID (EMAIL)",
       s"""
          |
-         |This endpoint continues the process of creating a Consent. It starts the SCA flow which changes the status of the consent from INITIATED to ACCEPTED or REJECTED.
-         |Please note that the Consent cannot elevate the privileges logged in user already have.
+         |This endpoint continues the process of creating a Consent.
+         |
+         |It starts the SCA flow which changes the status of the consent from INITIATED to ACCEPTED or REJECTED.
+         |
+         |Please note that the Consent cannot elevate the privileges of the logged in user.
          |
          |""",
       EmptyBody,
@@ -804,7 +837,8 @@ trait APIMethods500 {
         InvalidConnectorResponse,
         UnknownError
         ),
-      apiTagConsent :: apiTagPSD2AIS :: apiTagPsd2  :: Nil)
+      apiTagConsent :: apiTagPSD2AIS :: apiTagPsd2  :: apiTagVrp :: Nil)
+
     staticResourceDocs += ResourceDoc(
       createConsentByConsentRequestIdSms,
       implementedInApiVersion,
@@ -815,7 +849,9 @@ trait APIMethods500 {
       s"""
          |
          |This endpoint continues the process of creating a Consent. It starts the SCA flow which changes the status of the consent from INITIATED to ACCEPTED or REJECTED.
-         |Please note that the Consent cannot elevate the privileges logged in user already have. 
+         |
+         |Please note that the Consent you are creating cannot exceed the entitlements that the User creating this consents already has.
+         |
          |
          |""",
       EmptyBody,
@@ -836,6 +872,7 @@ trait APIMethods500 {
         UnknownError
         ),
       apiTagConsent :: apiTagPSD2AIS :: apiTagPsd2  :: Nil)
+
     staticResourceDocs += ResourceDoc(
       createConsentByConsentRequestIdImplicit,
       implementedInApiVersion,
@@ -921,16 +958,177 @@ trait APIMethods500 {
               )) map {
               i => unboxFullOrFail(i,callContext, ConsentRequestNotFound)
             }
-            _ <- Helper.booleanToFuture(ConsentRequestIsInvalid, cc=callContext){
+            _ <- Helper.booleanToFuture(s"$ConsentRequestIsInvalid, the current CONSENT_REQUEST_ID($consentRequestId) is already used to create a consent, please provide another one!", cc=callContext){
               Consents.consentProvider.vend.getConsentByConsentRequestId(consentRequestId).isEmpty
             }
             _ <- Helper.booleanToFuture(ConsentAllowedScaMethods, cc=callContext){
               List(StrongCustomerAuthentication.SMS.toString(), StrongCustomerAuthentication.EMAIL.toString(), StrongCustomerAuthentication.IMPLICIT.toString()).exists(_ == scaMethod)
             }
-            failMsg = s"$InvalidJsonFormat The Json body should be the $PostConsentBodyCommonJson "
-            consentRequestJson <- NewStyle.function.tryons(failMsg, 400, callContext) {
-              json.parse(createdConsentRequest.payload).extract[PostConsentRequestJsonV500]
+            // If the payload contains "to_account` , it mean it is a VRP consent.
+            isVrpConsent = createdConsentRequest.payload.contains("to_account")
+            (consentRequestJson, isVRPConsentRequest) <-
+              if(isVrpConsent) {
+                val failMsg = s"$InvalidJsonFormat The vrp consent request json body should be the $PostVRPConsentRequestJsonV510 "
+                NewStyle.function.tryons(failMsg, 400, callContext) {
+                  json.parse(createdConsentRequest.payload).extract[code.api.v5_1_0.PostVRPConsentRequestJsonInternalV510]
+                }.map(postVRPConsentRequest => (postVRPConsentRequest.toPostConsentRequestJsonV500, true))
+              } else{
+                val failMsg = s"$InvalidJsonFormat The consent request Json body should be the $PostConsentRequestJsonV500 "
+                NewStyle.function.tryons(failMsg, 400, callContext) {
+                  json.parse(createdConsentRequest.payload).extract[PostConsentRequestJsonV500]
+                }.map(postVRPConsentRequest => (postVRPConsentRequest, false))
+              }
+
+            //Here are all the VRP consent request
+            (bankId, accountId, viewId, counterpartyId) <- if (isVRPConsentRequest) {
+              val postConsentRequestJsonV510 = json.parse(createdConsentRequest.payload).extract[code.api.v5_1_0.PostVRPConsentRequestJsonV510]
+              
+              val vrpViewId = s"_vrp-${UUID.randomUUID.toString}".dropRight(5)// to make sure the length of the viewId is 36.
+              val targetPermissions = List(//may need getTransactionRequest . so far only these payments.
+                "can_add_transaction_request_to_beneficiary",
+                "can_get_counterparty",
+                "can_see_transaction_requests"
+              )
+              
+              val targetCreateCustomViewJson = CreateCustomViewJson(
+                name = vrpViewId,
+                description = vrpViewId,
+                metadata_view = vrpViewId,
+                is_public = false,
+                which_alias_to_use = vrpViewId,
+                hide_metadata_if_alias_used = true,
+                allowed_permissions = targetPermissions
+              )
+              
+              val fromBankAccountRoutings = BankAccountRoutings(
+                bank = BankRoutingJson(postConsentRequestJsonV510.from_account.bank_routing.scheme, postConsentRequestJsonV510.from_account.bank_routing.address),
+                account = BranchRoutingJsonV141(postConsentRequestJsonV510.from_account.account_routing.scheme, postConsentRequestJsonV510.from_account.account_routing.address),
+                branch = AccountRoutingJsonV121(postConsentRequestJsonV510.from_account.branch_routing.scheme, postConsentRequestJsonV510.from_account.branch_routing.address)
+              )
+
+              for {
+                //1st: get the fromAccount by routings:
+                (fromAccount, callContext) <- NewStyle.function.getBankAccountByRoutings(fromBankAccountRoutings, callContext)
+                fromBankIdAccountId = BankIdAccountId(fromAccount.bankId, fromAccount.accountId)
+                
+                //2rd: create the Custom View for the fromAccount.
+                //we do not need sourceViewId so far, we need to get all the view access for the login user, and
+                permission <- NewStyle.function.permission(fromAccount.bankId, fromAccount.accountId, user, callContext)
+                permissionsFromSource = permission.views.map(view =>APIUtil.getViewPermissions(view.asInstanceOf[ViewDefinition]).toList).flatten.toSet
+                permissionsFromTarget = targetCreateCustomViewJson.allowed_permissions
+
+                //eg: permissionsFromTarget=List(1,2), permissionsFromSource = List(1,3,4) => userMissingPermissions = List(2)
+                //Here would find the missing permissions and show them in the error messages
+                userMissingPermissions = permissionsFromTarget.toSet diff permissionsFromSource
+
+                failMsg = s"${ErrorMessages.UserDoesNotHavePermission} ${userMissingPermissions.toString}"
+                _ <- Helper.booleanToFuture(failMsg, cc = callContext) {
+                  userMissingPermissions.isEmpty
+                }
+                (vrpView, callContext) <- NewStyle.function.createCustomView(fromBankIdAccountId, targetCreateCustomViewJson.toCreateViewJson, callContext)
+
+                _ <-NewStyle.function.grantAccessToCustomView(vrpView, user, callContext)
+
+                //3rd: Create a new counterparty on that view (_VRP-9d429899-24f5-42c8-8565-943ffa6a7945)
+                postJson = PostCounterpartyJson400(
+                  name = postConsentRequestJsonV510.to_account.counterparty_name,
+                  description = postConsentRequestJsonV510.to_account.counterparty_name,
+                  currency = postConsentRequestJsonV510.to_account.limit.currency,
+                  other_account_routing_scheme = StringHelpers.snakify(postConsentRequestJsonV510.to_account.account_routing.scheme).toUpperCase,
+                  other_account_routing_address = postConsentRequestJsonV510.to_account.account_routing.address,
+                  other_account_secondary_routing_scheme = "",
+                  other_account_secondary_routing_address = "",
+                  other_bank_routing_scheme = StringHelpers.snakify(postConsentRequestJsonV510.to_account.bank_routing.scheme).toUpperCase,
+                  other_bank_routing_address = postConsentRequestJsonV510.to_account.bank_routing.address,
+                  other_branch_routing_scheme = StringHelpers.snakify(postConsentRequestJsonV510.to_account.branch_routing.scheme).toUpperCase,
+                  other_branch_routing_address = postConsentRequestJsonV510.to_account.branch_routing.address,
+                  is_beneficiary = true,
+                  bespoke = Nil
+                )
+                _ <- Helper.booleanToFuture(s"$InvalidValueLength. The maximum length of `description` field is ${MappedCounterparty.mDescription.maxLen}", cc = callContext) {
+                  postJson.description.length <= 36
+                }
+
+
+                (counterparty, callContext) <- Connector.connector.vend.checkCounterpartyExists(postJson.name, fromBankIdAccountId.bankId.value, fromBankIdAccountId.accountId.value, vrpView.viewId.value, callContext)
+
+                _ <- Helper.booleanToFuture(CounterpartyAlreadyExists.replace("value for BANK_ID or ACCOUNT_ID or VIEW_ID or NAME.",
+                  s"COUNTERPARTY_NAME(${postJson.name}) for the BANK_ID(${fromBankIdAccountId.bankId.value}) and ACCOUNT_ID(${fromBankIdAccountId.accountId.value}) and VIEW_ID($vrpViewId)"), cc = callContext) {
+                  counterparty.isEmpty
+                }
+
+                _ <- Helper.booleanToFuture(s"$InvalidISOCurrencyCode Current input is: '${postJson.currency}'", cc = callContext) {
+                  isValidCurrencyISOCode(postJson.currency)
+                }
+
+                (counterparty, callContext) <- NewStyle.function.createCounterparty(
+                  name = postJson.name,
+                  description = postJson.description,
+                  currency = postJson.currency,
+                  createdByUserId = user.userId,
+                  thisBankId = fromBankIdAccountId.bankId.value,
+                  thisAccountId = fromBankIdAccountId.accountId.value,
+                  thisViewId = vrpViewId,
+                  otherAccountRoutingScheme = postJson.other_account_routing_scheme,
+                  otherAccountRoutingAddress = postJson.other_account_routing_address,
+                  otherAccountSecondaryRoutingScheme = postJson.other_account_secondary_routing_scheme,
+                  otherAccountSecondaryRoutingAddress = postJson.other_account_secondary_routing_address,
+                  otherBankRoutingScheme = postJson.other_bank_routing_scheme,
+                  otherBankRoutingAddress = postJson.other_bank_routing_address,
+                  otherBranchRoutingScheme = postJson.other_branch_routing_scheme,
+                  otherBranchRoutingAddress = postJson.other_branch_routing_address,
+                  isBeneficiary = postJson.is_beneficiary,
+                  bespoke = postJson.bespoke.map(bespoke => CounterpartyBespoke(bespoke.key, bespoke.value)),
+                  callContext
+                )
+
+                postCounterpartyLimitV510 = PostCounterpartyLimitV510(
+                  currency = postConsentRequestJsonV510.to_account.limit.currency,
+                  max_single_amount = postConsentRequestJsonV510.to_account.limit.max_single_amount,
+                  max_monthly_amount = postConsentRequestJsonV510.to_account.limit.max_monthly_amount,
+                  max_number_of_monthly_transactions = postConsentRequestJsonV510.to_account.limit.max_number_of_monthly_transactions,
+                  max_yearly_amount = postConsentRequestJsonV510.to_account.limit.max_yearly_amount,
+                  max_number_of_yearly_transactions = postConsentRequestJsonV510.to_account.limit.max_number_of_yearly_transactions,                   
+                  max_total_amount = postConsentRequestJsonV510.to_account.limit.max_total_amount,
+                  max_number_of_transactions = postConsentRequestJsonV510.to_account.limit.max_number_of_transactions
+                )
+                
+                //4th: create the counterparty limit
+                (counterpartyLimitBox, callContext) <- Connector.connector.vend.getCounterpartyLimit(
+                  fromBankIdAccountId.bankId.value,
+                  fromBankIdAccountId.accountId.value,
+                  vrpViewId,
+                  counterparty.counterpartyId,
+                  cc.callContext
+                )
+                failMsg = s"$CounterpartyLimitAlreadyExists Current BANK_ID(${fromBankIdAccountId.bankId.value}), " +
+                  s"ACCOUNT_ID(${fromBankIdAccountId.accountId.value}), VIEW_ID($vrpViewId),COUNTERPARTY_ID(${counterparty.counterpartyId})"
+                _ <- Helper.booleanToFuture(failMsg, cc = callContext) {
+                  counterpartyLimitBox.isEmpty
+                }
+                (counterpartyLimit, callContext) <- NewStyle.function.createOrUpdateCounterpartyLimit(
+                  bankId = counterparty.thisBankId,
+                  accountId = counterparty.thisAccountId,
+                  viewId = counterparty.thisViewId,
+                  counterpartyId = counterparty.counterpartyId,
+                  postCounterpartyLimitV510.currency,
+                  BigDecimal(postCounterpartyLimitV510.max_single_amount),
+                  BigDecimal(postCounterpartyLimitV510.max_monthly_amount),
+                  postCounterpartyLimitV510.max_number_of_monthly_transactions,
+                  BigDecimal(postCounterpartyLimitV510.max_yearly_amount),
+                  postCounterpartyLimitV510.max_number_of_yearly_transactions,
+                  BigDecimal(postCounterpartyLimitV510.max_total_amount),
+                  postCounterpartyLimitV510.max_number_of_transactions,
+                  cc.callContext
+                )
+
+              } yield {
+                (fromAccount.bankId, fromAccount.accountId, vrpView.viewId, CounterpartyId(counterparty.counterpartyId))
+              }
+            }else{
+              Future.successful(BankId(""), AccountId(""), ViewId(""),CounterpartyId(""))
             }
+        
             maxTimeToLive = APIUtil.getPropsAsIntValue(nameOfProperty="consents.max_time_to_live", defaultValue=3600)
             _ <- Helper.booleanToFuture(s"$ConsentMaxTTL ($maxTimeToLive)", cc=callContext){
               consentRequestJson.time_to_live match {
@@ -955,17 +1153,27 @@ trait APIMethods500 {
                   )
                 )
             }
-            postConsentViewJsons <- Future.sequence(
-              consentRequestJson.account_access.map(
-                access => 
-                  NewStyle.function.getBankAccountByRouting(None,access.account_routing.scheme, access.account_routing.address, cc.callContext)
-                    .map(result =>PostConsentViewJsonV310(
-                      result._1.bankId.value,
-                      result._1.accountId.value,
-                      access.view_id
-                    ))
+            postConsentViewJsons <- if(isVrpConsent) {
+            Future.successful(List(PostConsentViewJsonV310(
+                bankId.value,
+                accountId.value,
+                viewId.value,
+                Some(HelperInfoJson(List(counterpartyId.value)))
+              )))
+            }else{
+              Future.sequence(
+                consentRequestJson.account_access.map(
+                  access =>
+                    NewStyle.function.getBankAccountByRouting(consentRequestJson.bank_id.map(BankId(_)),access.account_routing.scheme, access.account_routing.address, cc.callContext)
+                      .map(result =>PostConsentViewJsonV310(
+                        result._1.bankId.value,
+                        result._1.accountId.value,
+                        access.view_id,
+                        None,
+                      ))
                 )
               )
+            }
   
             (_, assignedViews) <- Future(Views.views.vend.privateViewsUserCanAccess(user))
             _ <- Helper.booleanToFuture(ViewsAllowedInConsent, cc=callContext){
@@ -1022,35 +1230,69 @@ trait APIMethods500 {
               createdConsent.consentId,
               consumerId,
               postConsentBodyCommonJson.valid_from,
-              postConsentBodyCommonJson.time_to_live.getOrElse(3600)
+              postConsentBodyCommonJson.time_to_live.getOrElse(3600),
+              Some(HelperInfoJson(List(counterpartyId.value)))
               )
             _ <- Future(Consents.consentProvider.vend.setJsonWebToken(createdConsent.consentId, consentJWT)) map {
               i => connectorEmptyResponse(i, callContext)
             }
-            challengeText = s"Your consent challenge : ${challengeAnswer}, Application: $applicationText"
-            _ <- scaMethod match {
-              case v if v == StrongCustomerAuthentication.EMAIL.toString => // Send the email
-                sendEmailNotification(callContext, consentRequestJson, challengeText)
-              case v if v == StrongCustomerAuthentication.SMS.toString =>
-                sendSmsNotification(callContext, consentRequestJson, challengeText)
-              case v if v == StrongCustomerAuthentication.IMPLICIT.toString =>
-                for {
-                  (consentImplicitSCA, callContext) <- NewStyle.function.getConsentImplicitSCA(user, callContext)
-                  status <- consentImplicitSCA.scaMethod match {
-                    case v if v == StrongCustomerAuthentication.EMAIL => // Send the email
-                      sendEmailNotification(callContext, consentRequestJson.copy(email=Some(consentImplicitSCA.recipient)), challengeText)
-                    case v if v == StrongCustomerAuthentication.SMS =>
-                      sendSmsNotification(callContext, consentRequestJson.copy(phone_number=Some(consentImplicitSCA.recipient)), challengeText)
-                    case _ => Future {
-                      "Success"
-                    }
-                  }} yield {
-                  status
+            //we need to check `skip_consent_sca_for_consumer_id_pairs` props, to see if we really need the SCA flow. 
+            //this is from callContext
+            grantorConsumerId = callContext.map(_.consumer.toOption.map(_.consumerId.get)).flatten.getOrElse("Unknown")
+            //this is from json body
+            granteeConsumerId = postConsentBodyCommonJson.consumer_id.getOrElse("Unknown")
+
+            shouldSkipConsentScaForConsumerIdPair = APIUtil.skipConsentScaForConsumerIdPairs.contains(
+              APIUtil.ConsumerIdPair(
+                grantorConsumerId,
+                granteeConsumerId
+              ))
+            mappedConsent <- if (shouldSkipConsentScaForConsumerIdPair) {
+              Future{
+                MappedConsent.find(By(MappedConsent.mConsentId, createdConsent.consentId)).map(_.mStatus(ConsentStatus.ACCEPTED.toString).saveMe()).head
+              }
+            } else {
+              val challengeText = s"Your consent challenge : ${challengeAnswer}, Application: $applicationText"
+              scaMethod match {
+                case v if v == StrongCustomerAuthentication.EMAIL.toString => // Send the email
+                  sendEmailNotification(callContext, consentRequestJson, challengeText)
+                case v if v == StrongCustomerAuthentication.SMS.toString =>
+                  sendSmsNotification(callContext, consentRequestJson, challengeText)
+                case v if v == StrongCustomerAuthentication.IMPLICIT.toString =>
+                  for {
+                    (consentImplicitSCA, callContext) <- NewStyle.function.getConsentImplicitSCA(user, callContext)
+                    status <- consentImplicitSCA.scaMethod match {
+                      case v if v == StrongCustomerAuthentication.EMAIL => // Send the email
+                        sendEmailNotification(callContext, consentRequestJson.copy(email = Some(consentImplicitSCA.recipient)), challengeText)
+                      case v if v == StrongCustomerAuthentication.SMS =>
+                        sendSmsNotification(callContext, consentRequestJson.copy(phone_number = Some(consentImplicitSCA.recipient)), challengeText)
+                      case _ => Future {
+                        "Success"
+                      }
+                    }} yield {
+                    status
+                  }
+                case _ => Future {
+                  "Success"
                 }
-              case _ =>Future{"Success"}
+              }
+              Future{createdConsent}
             }
           } yield {
-            (ConsentJsonV500(createdConsent.consentId, consentJWT, createdConsent.status, Some(createdConsent.consentRequestId)), HttpCode.`201`(callContext))
+            (ConsentJsonV500(
+              mappedConsent.consentId,
+              consentJWT,
+              mappedConsent.status,
+              Some(mappedConsent.consentRequestId),
+              if (isVRPConsentRequest) Some(
+                ConsentAccountAccessJson(
+                  bankId.value, 
+                  accountId.value,
+                  viewId.value, 
+                  Some(HelperInfoJson(List(counterpartyId.value))))
+              ) 
+              else None
+            ), HttpCode.`201`(callContext))
           }
       }
     }
@@ -1101,7 +1343,7 @@ trait APIMethods500 {
          |
          |Note: If you need to set a specific customer number, use the Update Customer Number endpoint after this call.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       postCustomerJsonV500,
       customerJsonV310,
@@ -1122,7 +1364,7 @@ trait APIMethods500 {
       case "banks" :: BankId(bankId) :: "customers" :: Nil JsonPost json -> _ => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            postedData <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PostCustomerJsonV310 ", 400, cc.callContext) {
+            postedData <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $PostCustomerJsonV500 ", 400, cc.callContext) {
               json.extract[PostCustomerJsonV500]
             }
             _ <- Helper.booleanToFuture(failMsg =  InvalidJsonContent + s" The field dependants(${postedData.dependants.getOrElse(0)}) not equal the length(${postedData.dob_of_dependants.getOrElse(Nil).length }) of dob_of_dependants array", 400, cc.callContext) {
@@ -1176,7 +1418,7 @@ trait APIMethods500 {
       s"""Gets the Customer Overview specified by customer_number and bank_code.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       postCustomerOverviewJsonV500,
@@ -1225,7 +1467,7 @@ trait APIMethods500 {
       s"""Gets the Customer Overview Flat specified by customer_number and bank_code.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       postCustomerOverviewJsonV500,
@@ -1310,7 +1552,7 @@ trait APIMethods500 {
       s"""Returns a list of Customers at the Bank that are linked to the currently authenticated User.
          |
          |
-         |${authenticationRequiredMessage(true)}""".stripMargin,
+         |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       customerJSONs,
       List(
@@ -1353,7 +1595,7 @@ trait APIMethods500 {
       s"""Get Customers at Bank.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1438,7 +1680,7 @@ trait APIMethods500 {
          |$productHiearchyAndCollectionNote
          |
          |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |
          |
          |""",
@@ -1463,18 +1705,16 @@ trait APIMethods500 {
             product <- NewStyle.function.tryons(failMsg, 400, callContext) {
               json.extract[PutProductJsonV500]
             }
-            parentProductCode <- product.parent_product_code.trim.nonEmpty match {
+            (parentProduct, callContext) <- product.parent_product_code.trim.nonEmpty match {
               case false =>
-                Future(Empty)
+                Future((Empty, callContext))
               case true =>
-                Future(Connector.connector.vend.getProduct(bankId, ProductCode(product.parent_product_code))) map {
-                  getFullBoxOrFail(_, callContext, ParentProductNotFoundByProductCode + " {" + product.parent_product_code + "}", 400)
-                }
+                NewStyle.function.getProduct(bankId, ProductCode(product.parent_product_code), callContext).map(product => (Full(product._1),product._2))
             }
-            success <- Future(Connector.connector.vend.createOrUpdateProduct(
+            (success, callContext) <- NewStyle.function.createOrUpdateProduct(
               bankId = bankId.value,
               code = productCode.value,
-              parentProductCode = parentProductCode.map(_.code.value).toOption,
+              parentProductCode = parentProduct.map(_.code.value).toOption,
               name = product.name,
               category = null,
               family = null,
@@ -1484,10 +1724,9 @@ trait APIMethods500 {
               details = null,
               description = product.description.getOrElse(""),
               metaLicenceId = product.meta.map(_.license.id).getOrElse(""),
-              metaLicenceName = product.meta.map(_.license.name).getOrElse("")
-            )) map {
-              connectorEmptyResponse(_, callContext)
-            }
+              metaLicenceName = product.meta.map(_.license.name).getOrElse(""),
+              callContext
+            )
           } yield {
             (JSONFactory400.createProductJson(success), HttpCode.`201`(callContext))
           }
@@ -1505,7 +1744,7 @@ trait APIMethods500 {
       "Create Card",
       s"""Create Card at bank specified by BANK_ID .
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       createPhysicalCardJsonV500,
       physicalCardJsonV500,
@@ -1625,7 +1864,7 @@ trait APIMethods500 {
          |
          |Returns the list of the views created for account ACCOUNT_ID at BANK_ID.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
+         |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
       EmptyBody,
       viewsJsonV500,
       List(
@@ -1645,7 +1884,7 @@ trait APIMethods500 {
               permission <- NewStyle.function.permission(bankId, accountId, u, callContext)
               anyViewContainsCanSeeAvailableViewsForBankAccountPermission = permission.views.map(_.canSeeAvailableViewsForBankAccount).find(_.==(true)).getOrElse(false)
               _ <- Helper.booleanToFuture(
-                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canSeeAvailableViewsForBankAccount_.dbColumnName).dropRight(1)}` permission on any your views",
+                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeAvailableViewsForBankAccount_)).dropRight(1)}` permission on any your views",
                 cc = callContext
               ) {
                 anyViewContainsCanSeeAvailableViewsForBankAccountPermission
@@ -1791,7 +2030,7 @@ trait APIMethods500 {
       "Get System View",
       s"""Get System View
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1825,7 +2064,7 @@ trait APIMethods500 {
       "Get Ids of System Views",
       s"""Get Ids of System Views
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -1860,19 +2099,20 @@ trait APIMethods500 {
       "Create System View",
       s"""Create a system view
          |
-         | ${authenticationRequiredMessage(true)} and the user needs to have access to the $canCreateSystemView entitlement.
-         | The 'alias' field in the JSON can take one of two values:
+         | ${userAuthenticationMessage(true)} and the user needs to have access to the $canCreateSystemView entitlement.
+         |
+         | The 'allowed_actions' field is a list containing the names of the actions allowed through this view.
+         | All the actions contained in the list will be set to `true` on the view creation, the rest will be set to `false`.
+         |
+         | The 'alias' field in the JSON can take one of three values:
          |
          | * _public_: to use the public alias if there is one specified for the other account.
-         | * _private_: to use the public alias if there is one specified for the other account.
-         |
+         | * _private_: to use the private alias if there is one specified for the other account.
          | * _''(empty string)_: to use no alias; the view shows the real name of the other account.
          |
          | The 'hide_metadata_if_alias_used' field in the JSON can take boolean values. If it is set to `true` and there is an alias on the other account then the other accounts' metadata (like more_info, url, image_url, open_corporates_url, etc.) will be hidden. Otherwise the metadata will be shown.
          |
-         | The 'allowed_actions' field is a list containing the name of the actions allowed on this view, all the actions contained will be set to `true` on the view creation, the rest will be set to `false`.
-         | 
-         | Please note that system views cannot be public. In case you try to set it you will get the error $SystemViewCannotBePublicError
+         | System views cannot be public. In case you try to set it you will get the error $SystemViewCannotBePublicError
          | """,
       createSystemViewJsonV500,
       viewJsonV500,
@@ -1917,7 +2157,7 @@ trait APIMethods500 {
       "Update System View",
       s"""Update an existing view on a bank account
          |
-         |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+         |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
          |
          |The json sent is the same as during view creation (above), with one difference: the 'name' field
          |of a view is not editable (it is only set when a view is created)""",
@@ -1948,7 +2188,7 @@ trait APIMethods500 {
             _ <- NewStyle.function.systemView(ViewId(viewId), cc.callContext)
             updatedView <- NewStyle.function.updateSystemView(ViewId(viewId), updateJson.toUpdateViewJson, cc.callContext)
           } yield {
-            (JSONFactory310.createViewJSON(updatedView), HttpCode.`200`(cc.callContext))
+            (createViewJsonV500(updatedView), HttpCode.`200`(cc.callContext))
           }
       }
     }
@@ -1962,7 +2202,7 @@ trait APIMethods500 {
       "Create Customer Account Link",
       s"""Link a Customer to a Account
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       createCustomerAccountLinkJson,
@@ -2017,7 +2257,7 @@ trait APIMethods500 {
       "Get Customer Account Links by CUSTOMER_ID",
       s""" Get Customer Account Links by CUSTOMER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2055,7 +2295,7 @@ trait APIMethods500 {
       "Get Customer Account Links by ACCOUNT_ID",
       s""" Get Customer Account Links by ACCOUNT_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2090,7 +2330,7 @@ trait APIMethods500 {
       "Get Customer Account Link by Id",
       s""" Get Customer Account Link by CUSTOMER_ACCOUNT_LINK_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2124,7 +2364,7 @@ trait APIMethods500 {
       "Update Customer Account Link by Id",
       s""" Update Customer Account Link by CUSTOMER_ACCOUNT_LINK_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       updateCustomerAccountLinkJson,
@@ -2163,7 +2403,7 @@ trait APIMethods500 {
       "Delete Customer Account Link",
       s""" Delete Customer Account Link by CUSTOMER_ACCOUNT_LINK_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2198,7 +2438,7 @@ trait APIMethods500 {
       "Get Adapter Info",
       s"""Get basic information about the Adapter.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,

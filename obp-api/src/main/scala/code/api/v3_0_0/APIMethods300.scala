@@ -1,7 +1,6 @@
 package code.api.v3_0_0
 
 import java.util.regex.Pattern
-
 import code.accountattribute.AccountAttributeX
 import code.accountholders.AccountHolders
 import code.api.{APIFailureNewStyle, Constant}
@@ -46,7 +45,8 @@ import com.openbankproject.commons.ExecutionContext.Implicits.global
 
 import scala.concurrent.Future
 import code.api.v2_0_0.AccountsHelper._
-import code.api.v4_0_0.JSONFactory400
+import code.api.v2_2_0.{AtmJsonV220, JSONFactory220}
+import code.api.v4_0_0.{AtmJsonV400, JSONFactory400}
 import code.model
 import com.openbankproject.commons.dto.CustomerAndAttribute
 import com.openbankproject.commons.util.ApiVersion
@@ -80,7 +80,7 @@ trait APIMethods300 {
         |* API version
         |* Hosted by information
         |* Git Commit""",
-      emptyObjectJson,
+      EmptyBody,
       apiInfoJSON,
       List(UnknownError, "no connector set"),
       apiTagApi :: Nil)
@@ -127,7 +127,7 @@ trait APIMethods300 {
         |
         |Returns the list of the views created for account ACCOUNT_ID at BANK_ID.
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
       EmptyBody,
       viewsJsonV300,
       List(
@@ -148,8 +148,8 @@ trait APIMethods300 {
               permission <- NewStyle.function.permission(bankId, accountId, u, callContext)
               anyViewContainsCanSeeAvailableViewsForBankAccountPermission = permission.views.map(_.canSeeAvailableViewsForBankAccount).find(_.==(true)).getOrElse(false)
               _ <- Helper.booleanToFuture(
-                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${code.views.system.ViewDefinition.canSeeAvailableViewsForBankAccount.toString}` permission on any your views",
-                cc = callContext
+                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeAvailableViewsForBankAccount_)).dropRight(1)}` permission on any your views",
+                cc = callContext 
               ) {
                 anyViewContainsCanSeeAvailableViewsForBankAccountPermission
               }
@@ -174,11 +174,11 @@ trait APIMethods300 {
       "Create Custom View",
       s"""Create a custom view on bank account
         |
-        | ${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        | ${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         | The 'alias' field in the JSON can take one of three values:
         |
         | * _public_: to use the public alias if there is one specified for the other account.
-        | * _private_: to use the public alias if there is one specified for the other account.
+        | * _private_: to use the private alias if there is one specified for the other account.
         |
         | * _''(empty string)_: to use no alias; the view shows the real name of the other account.
         |
@@ -198,6 +198,7 @@ trait APIMethods300 {
       ),
       List(apiTagView, apiTagAccount))
 
+    //TODO. remove and replace it with V510.
     lazy val createViewForBankAccount : OBPEndpoint = {
       //creates a view on an bank account
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: "views" :: Nil JsonPost json -> _ => {
@@ -218,7 +219,7 @@ trait APIMethods300 {
                 .map(_.views.map(_.canCreateCustomView).find(_.==(true)).getOrElse(false)).getOrElse(false)
               
               _ <- Helper.booleanToFuture(
-                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canCreateCustomView_.dbColumnName).dropRight(1)}` permission on any your views",
+                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canCreateCustomView_)).dropRight(1)}` permission on any your views",
                 cc = callContext
               ) {anyViewContainsCanCreateCustomViewPermission}
               (view, callContext) <- NewStyle.function.createCustomView(BankIdAccountId(bankId, accountId), createViewJson, callContext)
@@ -238,7 +239,7 @@ trait APIMethods300 {
       s"""Returns the list of the views at BANK_ID for account ACCOUNT_ID that a user identified by PROVIDER_ID at their provider PROVIDER has access to.
          |All url parameters must be [%-encoded](http://en.wikipedia.org/wiki/Percent-encoding), which is often especially relevant for USER_ID and PROVIDER.
          |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         |The user needs to have access to the owner view.""",
       EmptyBody,
@@ -257,7 +258,7 @@ trait APIMethods300 {
             anyViewContainsCanSeePermissionForOneUserPermission = Views.views.vend.permission(BankIdAccountId(account.bankId, account.accountId), loggedInUser)
               .map(_.views.map(_.canSeeViewsWithPermissionsForOneUser).find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- Helper.booleanToFuture(
-              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canSeeViewsWithPermissionsForOneUser_.dbColumnName).dropRight(1)}` permission on any your views",
+              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeViewsWithPermissionsForOneUser_)).dropRight(1)}` permission on any your views",
               cc = callContext
             ) {
               anyViewContainsCanSeePermissionForOneUserPermission
@@ -281,7 +282,7 @@ trait APIMethods300 {
       "Update Custom View",
       s"""Update an existing custom view on a bank account
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         |
         |The json sent is the same as during view creation (above), with one difference: the 'name' field
         |of a view is not editable (it is only set when a view is created)""",
@@ -324,7 +325,7 @@ trait APIMethods300 {
                 .map(_.views.map(_.canUpdateCustomView).find(_.==(true)).getOrElse(false)).getOrElse(false)
 
               _ <- Helper.booleanToFuture(
-                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canUpdateCustomView_.dbColumnName).dropRight(1)}` permission on any your views",
+                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canUpdateCustomView_)).dropRight(1)}` permission on any your views",
                 cc = callContext
               ) {
                 anyViewContainsCancanUpdateCustomViewPermission
@@ -399,7 +400,7 @@ trait APIMethods300 {
         |PSD2 Context: PSD2 requires customers to have access to their account information via third party applications.
         |This call provides balance and other account information via delegated authentication using OAuth.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |
         |""".stripMargin,
       EmptyBody,
@@ -441,7 +442,7 @@ trait APIMethods300 {
         |This call returns the owner view and requires access to that view.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""".stripMargin,
       EmptyBody,
@@ -477,7 +478,7 @@ trait APIMethods300 {
          |
          |${accountTypeFilterText("/my/accounts")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       EmptyBody,
       coreAccountsJsonV300,
@@ -527,13 +528,13 @@ trait APIMethods300 {
          |
          |optional request parameters for filter with attributes
          |URL params example:
-         |  /banks/some-bank-id/firehose/accounts/views/owner?manager=John&count=8
+         |  /banks/some-bank-id/firehose/accounts/views/owner?&limit=50&offset=1
          |
          |to invalid Browser cache, add timestamp query parameter as follow, the parameter name must be `_timestamp_`
          |URL params example:
-         |  `/banks/some-bank-id/firehose/accounts/views/owner?manager=John&count=8&_timestamp_=1596762180358`
+         |  `/banks/some-bank-id/firehose/accounts/views/owner?&limit=50&offset=1&_timestamp_=1596762180358`
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -576,7 +577,7 @@ trait APIMethods300 {
               //2 each bankAccount object find the proper view.
               //3 use view and user to moderate the bankaccount object.
               bankIdAccountId <- availableBankIdAccountIdList2
-              bankAccount <- Connector.connector.vend.getBankAccountOld(bankIdAccountId.bankId, bankIdAccountId.accountId) ?~! s"$BankAccountNotFound Current Bank_Id(${bankIdAccountId.bankId}), Account_Id(${bankIdAccountId.accountId}) "
+              (bankAccount, callContext) <- Connector.connector.vend.getBankAccountLegacy(bankIdAccountId.bankId, bankIdAccountId.accountId, callContext) ?~! s"$BankAccountNotFound Current Bank_Id(${bankIdAccountId.bankId}), Account_Id(${bankIdAccountId.accountId}) "
               moderatedAccount <- bankAccount.moderatedBankAccount(view, bankIdAccountId, Full(u), callContext) //Error handling is in lower method
             } yield {
               moderatedAccount
@@ -622,7 +623,7 @@ trait APIMethods300 {
          |
          |${urlParametersDocument(true, true)}       
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -685,7 +686,7 @@ trait APIMethods300 {
       "Get Transactions for Account (Core)",
       s"""Returns transactions list (Core info) of the account specified by ACCOUNT_ID.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |${urlParametersDocument(true, true)}
         |
@@ -741,7 +742,7 @@ trait APIMethods300 {
       "Get Transactions for Account (Full)",
       s"""Returns transactions list of the account specified by ACCOUNT_ID and [moderated](#1_2_1-getViewsForBankAccount) by the view (VIEW_ID).
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |
         |Authentication is required if the view is not public.
         |
@@ -800,7 +801,7 @@ trait APIMethods300 {
       s"""
         |Search the data warehouse and get row level results.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |CanSearchWarehouse entitlement is required. You can request the Role below.
         |
@@ -827,7 +828,7 @@ trait APIMethods300 {
         |
         """,
       elasticSearchJsonV300,
-      emptyObjectJson, //TODO what is output here?
+      emptyElasticSearch, //TODO what is output here?
       List(UserNotLoggedIn, UserHasMissingRoles, UnknownError),
       List(apiTagSearchWarehouse),
       Some(List(canSearchWarehouse)))
@@ -882,7 +883,7 @@ trait APIMethods300 {
          |
          |https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-stats-aggregation.html
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |CanSearchWarehouseStats Role is required. You can request this below.
          |
@@ -906,7 +907,7 @@ trait APIMethods300 {
          |
         """,
       elasticSearchJsonV300,
-      emptyObjectJson, //TODO what is output here?
+      emptyElasticSearch, //TODO what is output here?
       List(UserNotLoggedIn, UserHasMissingRoles, UnknownError),
       List(apiTagSearchWarehouse),
       Some(List(canSearchWarehouseStatistics))
@@ -956,7 +957,7 @@ trait APIMethods300 {
       "Get Users by Email Address",
       s"""Get users by email address
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |CanGetAnyUser entitlement is required,
         |
       """.stripMargin,
@@ -989,7 +990,7 @@ trait APIMethods300 {
       "Get User by USER_ID",
       s"""Get user by USER_ID
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |CanGetAnyUser entitlement is required,
         |
       """.stripMargin,
@@ -1025,7 +1026,7 @@ trait APIMethods300 {
       "Get User by USERNAME",
       s"""Get user by USERNAME
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |CanGetAnyUser entitlement is required,
         |
@@ -1063,7 +1064,7 @@ trait APIMethods300 {
       "Get Adapter Info for a bank",
       s"""Get basic information about the Adapter listening on behalf of this bank.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(true)}
         |
       """.stripMargin,
       EmptyBody,
@@ -1104,7 +1105,7 @@ trait APIMethods300 {
       "Create Branch",
       s"""Create Branch for the Bank.
           |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
           |
           |""",
       branchJsonV300,
@@ -1137,7 +1138,7 @@ trait APIMethods300 {
             branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
               transformToBranch(branchJsonV300)
             }
-            success: BranchT <- NewStyle.function.createOrUpdateBranch(branch, callContext)
+            (success, callContext) <- NewStyle.function.createOrUpdateBranch(branch, callContext)
           } yield {
             val json = JSONFactory300.createBranchJsonV300(success)
             (json, HttpCode.`201`(callContext))
@@ -1154,7 +1155,7 @@ trait APIMethods300 {
       "Update Branch",
       s"""Update an existing branch for a bank account (Authenticated access).
           |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
           |
           |""",
       postBranchJsonV300,
@@ -1165,20 +1166,25 @@ trait APIMethods300 {
         InsufficientAuthorisationToCreateBranch,
         UnknownError
       ),
-      List(apiTagBranch, apiTagOldStyle),
+      List(apiTagBranch),
       Some(List(canUpdateBranch))
     )
 
     lazy val updateBranch: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "branches" :: BranchId(branchId)::  Nil JsonPut json -> _  => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, _) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            _ <- NewStyle.function.ownEntitlement(bank.bankId.value, u.userId, canUpdateBranch, cc.callContext)
-            postBranchJsonV300 <- tryo {json.extract[PostBranchJsonV300]} ?~! {ErrorMessages.InvalidJsonFormat + PostBranchJsonV300.toString()}
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            _ <- NewStyle.function.hasEntitlement(bank.bankId.value, u.userId, canUpdateBranch, cc.callContext)
+            postBranchJsonV300 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonV300", 400, callContext) {
+              json.extract[PostBranchJsonV300]
+            }
+            _ <- Helper.booleanToFuture(failMsg = "BANK_ID has to be the same in the URL and Body", 400, callContext) {
+              postBranchJsonV300.bank_id == bank.bankId.value
+            }
             branchJsonV300 = BranchJsonV300(
-              id = branchId.value, 
+              id = branchId.value,
               postBranchJsonV300.bank_id,
               postBranchJsonV300.name,
               postBranchJsonV300.address,
@@ -1192,12 +1198,13 @@ trait APIMethods300 {
               postBranchJsonV300.branch_type,
               postBranchJsonV300.more_info,
               postBranchJsonV300.phone_number)
-            _ <- booleanToBox(branchJsonV300.bank_id == bank.bankId.value, "BANK_ID has to be the same in the URL and Body")
-            branch <- transformToBranchFromV300(branchJsonV300) ?~! {ErrorMessages.CouldNotTransformJsonToInternalModel + " Branch"}
-            success: BranchT <- Connector.connector.vend.createOrUpdateBranch(branch) ?~! {ErrorMessages.CountNotSaveOrUpdateResource + " Branch"}
+            branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
+              transformToBranchFromV300(branchJsonV300).head
+            }
+            (success, callContext)  <- NewStyle.function.createOrUpdateBranch(branch, callContext)
           } yield {
             val json = JSONFactory300.createBranchJsonV300(success)
-            createdJsonResponse(Extraction.decompose(json), 201)
+            (json, HttpCode.`201`(callContext))
           }
       }
     }
@@ -1215,7 +1222,7 @@ trait APIMethods300 {
       "Create ATM",
       s"""Create ATM for the Bank.
           |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
           |
           |""",
       atmJsonV300,
@@ -1226,7 +1233,7 @@ trait APIMethods300 {
         UserHasMissingRoles,
         UnknownError
       ),
-      List(apiTagATM, apiTagOldStyle),
+      List(apiTagATM),
       Some(List(canCreateAtm,canCreateAtmAtAnyBank))
     )
 
@@ -1234,18 +1241,20 @@ trait APIMethods300 {
 
     lazy val createAtm: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "atms" ::  Nil JsonPost json -> _ => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~!ErrorMessages.UserNotLoggedIn
-            (bank, _) <- BankX(bankId, Some(cc)) ?~! BankNotFound
-            _ <- NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, createAtmEntitlementsRequiredForSpecificBank, createAtmEntitlementsRequiredForAnyBank, cc.callContext)
-              atmJson <- tryo {json.extract[AtmJsonV300]} ?~! ErrorMessages.InvalidJsonFormat
-            atm <- transformToAtmFromV300(atmJson) ?~! {ErrorMessages.CouldNotTransformJsonToInternalModel + " Atm"}
-            _ <- booleanToBox(atmJson.bank_id == bank.bankId.value, s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body")
-            success <- Connector.connector.vend.createOrUpdateAtmLegacy(atm)
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            atmJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the ${classOf[AtmJsonV400]}", 400, callContext) {
+              json.extract[AtmJsonV300]
+            }
+            _ <- NewStyle.function.hasAtLeastOneEntitlement(failMsg = createAtmEntitlementsRequiredText)(bankId.value, u.userId, createAtmEntitlements, callContext)
+            _ <-  Helper.booleanToFuture(s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body", 400, callContext){atmJsonV400.bank_id == bankId.value}
+            atm <- NewStyle.function.tryons(ErrorMessages.CouldNotTransformJsonToInternalModel + " Atm", 400, callContext) {
+              transformToAtmFromV300(atmJson).head
+            }
+            (atm, callContext) <- NewStyle.function.createOrUpdateAtm(atm, callContext)
           } yield {
-            val json = JSONFactory300.createAtmJsonV300(success)
-            createdJsonResponse(Extraction.decompose(json), 201)
+            (JSONFactory300.createAtmJsonV300(atm), HttpCode.`201`(callContext))
           }
       }
     }
@@ -1268,7 +1277,7 @@ trait APIMethods300 {
          |* Geo Location
          |* License the data under this endpoint is released under.
          |
-        |${authenticationRequiredMessage(!getBranchesIsPublic)}""".stripMargin,
+        |${userAuthenticationMessage(!getBranchesIsPublic)}""".stripMargin,
       EmptyBody,
       branchJsonV300,
       List(
@@ -1330,7 +1339,7 @@ trait APIMethods300 {
          |
          |note: withinMetersOf, nearLatitude and nearLongitude either all empty or all have value.
          |
-        |${authenticationRequiredMessage(!getBranchesIsPublic)}""".stripMargin,
+        |${userAuthenticationMessage(!getBranchesIsPublic)}""".stripMargin,
       EmptyBody,
       branchesJsonV300,
       List(
@@ -1447,7 +1456,7 @@ trait APIMethods300 {
          |
          |
          |
-          |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+          |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmJsonV300,
       List(UserNotLoggedIn, BankNotFound, AtmNotFoundByAtmId, UnknownError),
@@ -1488,7 +1497,7 @@ trait APIMethods300 {
           |
           |You can use the url query parameters *limit* and *offset* for pagination
          |
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmJsonV300,
       List(
@@ -1560,7 +1569,7 @@ trait APIMethods300 {
       "Get all Users",
       s"""Get all users
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |CanGetAnyUser entitlement is required,
         |
@@ -1607,7 +1616,7 @@ trait APIMethods300 {
       s"""Gets all Customers that are linked to a User.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""",
       EmptyBody,
@@ -1657,7 +1666,7 @@ trait APIMethods300 {
       "Get User (Current)",
       s"""Get the logged in user
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       userJsonV300,
@@ -1693,7 +1702,7 @@ trait APIMethods300 {
          |
          |${accountTypeFilterText("/banks/BANK_ID/accounts/private")}
          |
-         |${authenticationRequiredMessage(true)}""".stripMargin,
+         |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       coreAccountsJsonV300,
       List(UserNotLoggedIn, BankNotFound, UnknownError),
@@ -1732,7 +1741,7 @@ trait APIMethods300 {
          |
          |${accountTypeFilterText("/banks/BANK_ID/accounts/account_ids/private")}
          |
-         |${authenticationRequiredMessage(true)}""".stripMargin,
+         |${userAuthenticationMessage(true)}""".stripMargin,
       EmptyBody,
       accountsIdsJsonV300,
       List(UserNotLoggedIn, BankNotFound, UnknownError),
@@ -1765,7 +1774,7 @@ trait APIMethods300 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts",
       "Get Other Accounts of one Account",
       s"""Returns data about all the other accounts that have shared at least one transaction with the ACCOUNT_ID at BANK_ID.
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |Authentication is required if the view VIEW_ID is not public.""",
       EmptyBody,
@@ -1786,7 +1795,7 @@ trait APIMethods300 {
             (u, callContext) <- authenticatedAccess(cc)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(account.bankId, account.accountId), u, callContext)
-            otherBankAccounts <- NewStyle.function.moderatedOtherBankAccounts(account, view, u, callContext)
+            (otherBankAccounts, callContext) <- NewStyle.function.moderatedOtherBankAccounts(account, view, u, callContext)
           } yield {
             val otherBankAccountsJson = createOtherBankAccountsJson(otherBankAccounts)
             (otherBankAccountsJson, HttpCode.`200`(callContext))
@@ -1802,7 +1811,7 @@ trait APIMethods300 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID",
       "Get Other Account by Id",
       s"""Returns data about the Other Account that has shared at least one transaction with ACCOUNT_ID at BANK_ID.
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |Authentication is required if the view is not public.""",
       EmptyBody,
@@ -1822,7 +1831,7 @@ trait APIMethods300 {
             (u, callContext) <- authenticatedAccess(cc)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(account.bankId, account.accountId), u, callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, u, callContext)
+            (otherBankAccount,callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, u, callContext)
           } yield {
             val otherBankAccountJson = createOtherBankAccount(otherBankAccount)
             (otherBankAccountJson, HttpCode.`200`(callContext))
@@ -1850,7 +1859,7 @@ trait APIMethods300 {
         |
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         """.stripMargin,
       code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON.createEntitlementJSON,
@@ -1908,7 +1917,7 @@ trait APIMethods300 {
       s"""
         |Get all Entitlement Requests
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       entitlementRequestsJSON,
@@ -1946,7 +1955,7 @@ trait APIMethods300 {
       s"""Get Entitlement Requests for a User.
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         """.stripMargin,
       EmptyBody,
@@ -1985,7 +1994,7 @@ trait APIMethods300 {
       s"""Get Entitlement Requests for the current User.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         """.stripMargin,
       EmptyBody,
@@ -2021,7 +2030,7 @@ trait APIMethods300 {
       s"""Delete the Entitlement Request specified by ENTITLEMENT_REQUEST_ID for a user specified by USER_ID
         |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       EmptyBody,
@@ -2060,7 +2069,7 @@ trait APIMethods300 {
       s"""Get Entitlements for the current User.
          |
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
          |
         """.stripMargin,
       EmptyBody,
@@ -2213,7 +2222,7 @@ trait APIMethods300 {
         |
         |15 exclude_implemented_by_partial_functions (if null ignore).eg: &exclude_implemented_by_partial_functions=getMetrics,getConnectorMetrics,getAggregateMetrics
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
       """.stripMargin,
       EmptyBody,
@@ -2376,7 +2385,7 @@ trait APIMethods300 {
       "Get Scopes for Consumer",
       s"""Get all the scopes for an consumer specified by CONSUMER_ID
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |
       """.stripMargin,

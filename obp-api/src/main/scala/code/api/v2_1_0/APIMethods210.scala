@@ -1,16 +1,13 @@
 package code.api.v2_1_0
 
-import java.util.Date
-
 import code.TransactionTypes.TransactionType
-import code.api.util
 import code.api.util.ApiTag._
 import code.api.util.ErrorMessages.TransactionDisabled
 import code.api.util.FutureUtil.EndpointContext
 import code.api.util.NewStyle.HttpCode
 import code.api.util.{APIUtil, ApiRole, ErrorMessages, NewStyle}
 import code.api.v1_2_1.JSONFactory
-import code.api.v1_3_0.{JSONFactory1_3_0, _}
+import code.api.v1_3_0._
 import code.api.v1_4_0.JSONFactory1_4_0
 import code.api.v1_4_0.JSONFactory1_4_0._
 import code.api.v2_0_0._
@@ -20,43 +17,40 @@ import code.bankconnectors._
 import code.branches.Branches
 import code.consumer.Consumers
 import code.customer.CustomerX
-import code.entitlement.Entitlement
 import code.fx.fx
 import code.metrics.APIMetrics
-import code.model.{BankAccountX, BankX, Consumer, UserX, toUserExtended}
+import code.model.{BankAccountX, BankX, Consumer, UserX}
 import code.sandbox.SandboxData
-import code.transactionrequests.TransactionRequests.TransactionRequestTypes
 import code.usercustomerlinks.UserCustomerLink
 import code.users.Users
 import code.util.Helper.booleanToBox
-import code.views.Views
 import code.views.system.ViewDefinition
+import com.github.dwickern.macros.NameOf.nameOf
+import com.openbankproject.commons.dto.GetProductsParam
 import com.openbankproject.commons.model._
-import com.openbankproject.commons.model.enums.ChallengeType
+import com.openbankproject.commons.model.enums.TransactionRequestTypes._
+import com.openbankproject.commons.model.enums.{ChallengeType, SuppliedAnswerType, TransactionRequestTypes}
 import com.openbankproject.commons.util.ApiVersion
 import net.liftweb.json.Extraction
 import net.liftweb.util.Helpers.tryo
-import net.liftweb.util.{Props, StringHelpers}
+import net.liftweb.util.StringHelpers
 
-import scala.collection.immutable.Nil
+import java.util.Date
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 // Makes JValue assignment to Nil work
+import code.api.ChargePolicy
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON._
 import code.api.util.APIUtil._
 import code.api.util.ApiRole._
 import code.api.util.ErrorMessages._
-import code.api.{APIFailure, ChargePolicy}
 import code.sandbox.{OBPDataImport, SandboxDataImport}
-import code.transactionrequests.TransactionRequests.TransactionRequestTypes._
 import code.util.Helper
-import code.util.Helper._
+import com.openbankproject.commons.ExecutionContext.Implicits.global
 import net.liftweb.common.{Box, Full}
 import net.liftweb.http.rest.RestHelper
 import net.liftweb.json.Serialization.write
 import net.liftweb.json._
-
-import com.openbankproject.commons.ExecutionContext.Implicits.global
 
 trait APIMethods210 {
   //needs to be a RestHelper to get access to JsonGet, JsonPost, etc.
@@ -70,7 +64,7 @@ trait APIMethods210 {
     val resourceDocs = ArrayBuffer[ResourceDoc]()
     val apiRelations = ArrayBuffer[ApiRelation]()
 
-    val emptyObjectJson = EmptyClassJson()
+    
     val apiVersion = ApiVersion.v2_1_0 // was String "2_1_0"
 
     val codeContext = CodeContext(resourceDocs, apiRelations)
@@ -88,7 +82,7 @@ trait APIMethods210 {
         |* API version
         |* Hosted by information
         |* Git Commit""",
-      emptyObjectJson,
+      EmptyBody,
       apiInfoJSON,
       List(UnknownError, "no connector set"),
       apiTagApi :: Nil)
@@ -124,7 +118,7 @@ trait APIMethods210 {
           |Note: This is a monolithic call. You could also use a combination of endpoints including create bank, create user, create account and create transaction request to create similar data.
           |
           |An example of an import set of data (json) can be found [here](https://raw.githubusercontent.com/OpenBankProject/OBP-API/develop/obp-api/src/main/scala/code/api/sandbox/example_data/2016-04-28/example_import.json)
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
           |""",
       SandboxData.importJson,
       successMessage,
@@ -173,9 +167,9 @@ trait APIMethods210 {
       "Get Transaction Request Types at Bank",
       s"""Get the list of the Transaction Request Types supported by the bank.
         |
-        |${authenticationRequiredMessage(!getTransactionRequestTypesIsPublic)}
+        |${userAuthenticationMessage(!getTransactionRequestTypesIsPublic)}
         |""",
-      emptyObjectJson,
+      EmptyBody,
       transactionRequestTypesJSON,
       List(UserNotLoggedIn, UnknownError),
       List(apiTagTransactionRequest, apiTagBank))
@@ -256,7 +250,7 @@ trait APIMethods210 {
           |
           |There is further documentation [here](https://github.com/OpenBankProject/OBP-API/wiki/Transaction-Requests)
           |
-          |${authenticationRequiredMessage(true)}
+          |${userAuthenticationMessage(true)}
           |
           |"""
 
@@ -440,16 +434,14 @@ trait APIMethods210 {
             _ <- NewStyle.function.isEnabledTransactionRequests(callContext)
             _ <- Helper.booleanToFuture(InvalidAccountIdFormat, cc=callContext) {isValidID(accountId.value)}
             _ <- Helper.booleanToFuture(InvalidBankIdFormat, cc=callContext) {isValidID(bankId.value)}
+            _ <- Helper.booleanToFuture(s"${InvalidTransactionRequestType}: '${transactionRequestType.value}'", cc=callContext) {
+              APIUtil.getPropsValue("transactionRequests_supported_types", "").split(",").contains(transactionRequestType.value)
+            }
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext) 
             (fromAccount, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             
             account = BankIdAccountId(fromAccount.bankId, fromAccount.accountId)
             _ <- NewStyle.function.checkAuthorisationToCreateTransactionRequest(viewId, account, u, callContext)
-            
-            _ <- Helper.booleanToFuture(s"${InvalidTransactionRequestType}: '${transactionRequestType.value}'", cc=callContext) {
-              APIUtil.getPropsValue("transactionRequests_supported_types", "").split(",").contains(transactionRequestType.value)
-            }
-
             // Check the input JSON format, here is just check the common parts of all four types
             transDetailsJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $TransactionRequestBodyCommonJSON ", 400, callContext) {
               json.extract[TransactionRequestBodyCommonJSON]
@@ -473,7 +465,7 @@ trait APIMethods210 {
             }
             
             // Prevent default value for transaction request type (at least).
-            _ <- Helper.booleanToFuture(s"From Account Currency is ${fromAccount.currency}, but Requested Transaction Currency is: ${transDetailsJson.value.currency}", cc=callContext) {
+            _ <- Helper.booleanToFuture(s"$InvalidTransactionRequestCurrency From Account Currency is ${fromAccount.currency}, but Requested Transaction Currency is: ${transDetailsJson.value.currency}", cc=callContext) {
               transDetailsJson.value.currency == fromAccount.currency
             }
             
@@ -514,7 +506,7 @@ trait APIMethods210 {
                   }
                   toCounterpartyId = transactionRequestBodyCounterparty.to.counterparty_id
                   (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(CounterpartyId(toCounterpartyId), callContext)
-                  toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext) 
+                  (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext) 
                   // Check we can send money to it. 
                   _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
                     toCounterparty.isBeneficiary == true
@@ -546,7 +538,7 @@ trait APIMethods210 {
                   }
                   toIban = transDetailsSEPAJson.to.iban
                   (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByIban(toIban, callContext)
-                  toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+                  (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
                   _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
                     toCounterparty.isBeneficiary == true
                   }
@@ -607,15 +599,15 @@ trait APIMethods210 {
       "Answer Transaction Request Challenge",
       """In Sandbox mode, any string that can be converted to a positive integer will be accepted as an answer.
         |
-        |This endpoint totally depends on createTransactionRequest, it need get the following data from createTransactionRequest response body.
+        |This endpoint expects the following data as provided in the createTransactionRequest response body:
         |
-        |1)`TRANSACTION_REQUEST_TYPE` : is the same as createTransactionRequest request URL . 
+        |1)`TRANSACTION_REQUEST_TYPE` : as per the selected createTransactionRequest type, part of the request URL.
         |
-        |2)`TRANSACTION_REQUEST_ID` : is the `id` field in createTransactionRequest response body.
+        |2)`TRANSACTION_REQUEST_ID` : the value of the `id` field of the createTransactionRequest response body.
         |
-        |3) `id` :  is `challenge.id` field in createTransactionRequest response body. 
+        |3) `id` :  the value of `challenge.id` in the createTransactionRequest response body. 
         |
-        |4) `answer` : must be `123`. if it is in sandbox mode. If it kafka mode, the answer can be got by phone message or other security ways.
+        |4) `answer` : Defaults to `123`, if running in sandbox mode. In production mode, the value will be sent via the configured SCA method.
         |
       """.stripMargin,
       challengeAnswerJSON,
@@ -681,7 +673,7 @@ trait APIMethods210 {
                 existingTransactionRequest.challenge.challenge_type == ChallengeType.OBP_TRANSACTION_REQUEST_CHALLENGE.toString
               }
             
-              (isChallengeAnswerValidated, callContext) <- NewStyle.function.validateChallengeAnswer(challengeAnswerJson.id, challengeAnswerJson.answer, callContext)
+              (isChallengeAnswerValidated, callContext) <- NewStyle.function.validateChallengeAnswer(challengeAnswerJson.id, challengeAnswerJson.answer, SuppliedAnswerType.PLAIN_TEXT_VALUE, callContext)
               
               _ <- Helper.booleanToFuture(s"${InvalidChallengeAnswer
                   .replace("answer may be expired.", s"answer may be expired (${transactionRequestChallengeTtl} seconds).")
@@ -732,7 +724,7 @@ trait APIMethods210 {
         |The customer can proceed with the Transaction by answering the security challenge.
         |
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       transactionRequestWithChargeJSONs210,
       List(
         UserNotLoggedIn,
@@ -753,7 +745,7 @@ trait APIMethods210 {
               (fromAccount, callContext) <- BankAccountX(bankId, accountId, Some(cc)) ?~! {AccountNotFound}
               view <- APIUtil.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
               _ <- Helper.booleanToBox(view.canSeeTransactionRequests, 
-                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canSeeTransactionRequests_.dbColumnName).dropRight(1)}` permission on the View(${viewId.value} )")
+                s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeTransactionRequests_)).dropRight(1)}` permission on the View(${viewId.value} )")
               (transactionRequests,callContext) <- Connector.connector.vend.getTransactionRequests210(u, fromAccount, callContext)
             }
               yield {
@@ -777,9 +769,9 @@ trait APIMethods210 {
       "Get Roles",
       s"""Returns all available roles
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       availableRolesJSON,
       List(UserNotLoggedIn, UnknownError),
       List(apiTagRole))
@@ -809,11 +801,11 @@ trait APIMethods210 {
         |
         |Get Entitlements specified by BANK_ID and USER_ID
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       entitlementJSONs,
       List(
         UserNotLoggedIn,
@@ -864,7 +856,7 @@ trait APIMethods210 {
       s"""Get the Consumer specified by CONSUMER_ID.
         |
         |""",
-      emptyObjectJson,
+      EmptyBody,
       consumerJSON,
       List(
         UserNotLoggedIn,
@@ -903,7 +895,7 @@ trait APIMethods210 {
       s"""Get the all Consumers.
           |
         |""",
-      emptyObjectJson,
+      EmptyBody,
       consumersJson,
       List(
         UserNotLoggedIn,
@@ -962,7 +954,7 @@ trait APIMethods210 {
               case false => NewStyle.function.ownEntitlement("", u.userId, ApiRole.canDisableConsumers, cc.callContext)
             }
             consumer <- Consumers.consumers.vend.getConsumerByPrimaryId(consumerId.toLong)
-            updatedConsumer <- Consumers.consumers.vend.updateConsumer(consumer.id.get, None, None, Some(putData.enabled), None, None, None, None, None, None) ?~! "Cannot update Consumer"
+            updatedConsumer <- Consumers.consumers.vend.updateConsumer(consumer.id.get, None, None, Some(putData.enabled), None, None, None, None, None,  None, None) ?~! "Cannot update Consumer"
           } yield {
             // Format the data as json
             val json = PutEnabledJSON(updatedConsumer.isActive.get)
@@ -983,7 +975,7 @@ trait APIMethods210 {
       "Create Card",
       s"""Create Card at bank specified by BANK_ID .
           |
-          |${authenticationRequiredMessage(true)}
+          |${userAuthenticationMessage(true)}
           |""",
       postPhysicalCardJSON,
       physicalCardJSON,
@@ -1070,7 +1062,7 @@ trait APIMethods210 {
         |* locked_status (if null ignore)
         |
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       usersJsonV200,
       List(
         UserNotLoggedIn,
@@ -1114,7 +1106,7 @@ trait APIMethods210 {
           |  * description : A longer description
           |  * charge : The charge to the customer for each one of these
           |
-          |${authenticationRequiredMessage(getTransactionTypesIsPublic)}""".stripMargin,
+          |${userAuthenticationMessage(getTransactionTypesIsPublic)}""".stripMargin,
       transactionTypeJsonV200,
       transactionType,
       List(
@@ -1163,8 +1155,8 @@ trait APIMethods210 {
           |* Geo Location
           |* License the data under this endpoint is released under
           |
-          |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
-      emptyObjectJson,
+          |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
+      EmptyBody,
       atmJson,
       List(UserNotLoggedIn, BankNotFound, AtmNotFoundByAtmId, UnknownError),
       List(apiTagATM, apiTagOldStyle)
@@ -1208,8 +1200,8 @@ trait APIMethods210 {
           |* Geo Location
           |* License the data under this endpoint is released under
           |
-        |${authenticationRequiredMessage(!getBranchesIsPublic)}""".stripMargin,
-      emptyObjectJson,
+        |${userAuthenticationMessage(!getBranchesIsPublic)}""".stripMargin,
+      EmptyBody,
       branchJson,
       List(
         UserNotLoggedIn,
@@ -1259,33 +1251,30 @@ trait APIMethods210 {
           |* Description
           |* Terms and Conditions
           |* License the data under this endpoint is released under
-          |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
-      emptyObjectJson,
+          |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
+      EmptyBody,
       productJsonV210,
       List(
         UserNotLoggedIn,
         ProductNotFoundByProductCode,
         UnknownError
       ),
-      List(apiTagProduct, apiTagOldStyle)
+      List(apiTagProduct)
     )
 
     lazy val getProduct: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "products" :: ProductCode(productCode) :: Nil JsonGet _ => {
         cc => {
+          implicit val ec = EndpointContext(Some(cc))
           for {
-          // Get product from the active provider
-            _ <- if (getProductsIsPublic)
-              Box(Some(1))
-            else
-              cc.user ?~! UserNotLoggedIn
-            (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! {BankNotFound}
-            product <- Connector.connector.vend.getProduct(bankId, productCode)?~! {ProductNotFoundByProductCode}
+            (_, callContext) <- getProductsIsPublic match {
+              case false => authenticatedAccess(cc)
+              case true => anonymousAccess(cc)
+            }
+            (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            (product, callContext) <- NewStyle.function.getProduct(bankId, productCode, callContext)
           } yield {
-            // Format the data as json
-            val json = JSONFactory210.createProductJson(product)
-            // Return
-            successJsonResponse(Extraction.decompose(json))
+            (JSONFactory210.createProductJson(product), HttpCode.`200`(callContext))
           }
         }
       }
@@ -1309,8 +1298,8 @@ trait APIMethods210 {
           |* Description
           |* Terms and Conditions
           |* License the data under this endpoint is released under
-          |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
-      emptyObjectJson,
+          |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
+      EmptyBody,
       productsJsonV210,
       List(
         UserNotLoggedIn,
@@ -1318,25 +1307,23 @@ trait APIMethods210 {
         ProductNotFoundByProductCode,
         UnknownError
       ),
-      List(apiTagProduct, apiTagOldStyle)
+      List(apiTagProduct)
     )
 
     lazy val getProducts : OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "products" :: Nil JsonGet _ => {
+      case "banks" :: BankId(bankId) :: "products" :: Nil  JsonGet req => {
         cc => {
+          implicit val ec = EndpointContext(Some(cc))
           for {
-          // Get products from the active provider
-            _ <- if(getProductsIsPublic)
-              Box(Some(1))
-            else
-              cc.user ?~! UserNotLoggedIn
-            (bank, callContext ) <- BankX(bankId, Some(cc)) ?~! {BankNotFound}
-            products <- Connector.connector.vend.getProducts(bankId)?~!  {ProductNotFoundByProductCode}
+            (_, callContext) <- getProductsIsPublic match {
+              case false => authenticatedAccess(cc)
+              case true => anonymousAccess(cc)
+            }
+            (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            params = req.params.toList.map(kv => GetProductsParam(kv._1, kv._2))
+            (products,callContext) <- NewStyle.function.getProducts(bankId, params, callContext)
           } yield {
-            // Format the data as json
-            val json = JSONFactory210.createProductsJson(products)
-            // Return
-            successJsonResponse(Extraction.decompose(json))
+            (JSONFactory210.createProductsJson(products), HttpCode.`200`(callContext))
           }
         }
       }
@@ -1361,7 +1348,7 @@ trait APIMethods210 {
           |The Customer resource stores the customer number, legal name, email, phone number, their date of birth, relationship status, education attained, a url for a profile image, KYC status etc.
           |Dates need to be in the format 2013-01-21T23:08:00Z
           |
-          |${authenticationRequiredMessage(true)}
+          |${userAuthenticationMessage(true)}
           |
           |$createCustomeEntitlementsRequiredText
           |""",
@@ -1441,7 +1428,7 @@ trait APIMethods210 {
       """Gets all Customers that are linked to a User.
         |
         |Authentication via OAuth is required.""",
-      emptyObjectJson,
+      EmptyBody,
       customerJsonV210,
       List(
         UserNotLoggedIn,
@@ -1474,8 +1461,8 @@ trait APIMethods210 {
       s"""Returns a list of Customers at the Bank that are linked to the currently authenticated User.
         |
         |
-        |${authenticationRequiredMessage(true)}""".stripMargin,
-      emptyObjectJson,
+        |${userAuthenticationMessage(true)}""".stripMargin,
+      EmptyBody,
       customerJSONs,
       List(
         UserNotLoggedIn,
@@ -1516,7 +1503,7 @@ trait APIMethods210 {
       "/banks/BANK_ID/branches/BRANCH_ID",
       "Update Branch",
       s"""Update an existing branch for a bank account (Authenticated access).
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       branchJsonPut,
       branchJson,
@@ -1527,26 +1514,30 @@ trait APIMethods210 {
         UserHasMissingRoles, 
         UnknownError
       ),
-      List(apiTagBranch, apiTagOldStyle),
+      List(apiTagBranch),
       Some(List(canUpdateBranch)))
 
 
     lazy val updateBranch: OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "branches" :: BranchId(branchId)::  Nil JsonPut json -> _ => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            u <- cc.user ?~ UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! {BankNotFound}
-            branchJsonPutV210 <- tryo {json.extract[BranchJsonPutV210]} ?~! InvalidJsonFormat
-            _ <- NewStyle.function.ownEntitlement(bank.bankId.value, u.userId, canUpdateBranch, callContext)
-            //package the BranchJsonPut to toBranchJsonPost, to call the createOrUpdateBranch method
-            // branchPost <- toBranchJsonPost(branchId, branchJsonPutV210)
-
-            branch <- transformToBranch(branchId, branchJsonPutV210)
-            success <- Connector.connector.vend.createOrUpdateBranch(branch)
+            (Full(u), callContext) <- authenticatedAccess(cc)
+            (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+            branchJsonPutV210 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonPutV210", 400, callContext) {
+              json.extract[BranchJsonPutV210]
+            }
+            _ <- Helper.booleanToFuture(failMsg = s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body", 400, callContext) {
+              branchJsonPutV210.bank_id == bank.bankId.value
+            }
+            _ <- NewStyle.function.hasEntitlement(bankId.value, u.userId, ApiRole.canUpdateBranch, callContext)
+            branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, callContext) {
+              transformToBranch(branchId, branchJsonPutV210).head
+            }
+            (success, callContext)  <- NewStyle.function.createOrUpdateBranch(branch, callContext)
           } yield {
             val json = JSONFactory1_4_0.createBranchJson(success)
-            createdJsonResponse(Extraction.decompose(json),201)
+            (json, HttpCode.`201`(callContext))
           }
       }
     }
@@ -1559,7 +1550,7 @@ trait APIMethods210 {
       "/banks/BANK_ID/branches",
       "Create Branch",
       s"""Create branch for the bank (Authenticated access).
-          |${authenticationRequiredMessage(true)}
+          |${userAuthenticationMessage(true)}
           |""",
       branchJsonPost,
       branchJson,
@@ -1570,24 +1561,34 @@ trait APIMethods210 {
         InsufficientAuthorisationToCreateBranch, 
         UnknownError
       ),
-      List(apiTagBranch, apiTagOpenData, apiTagOldStyle),
-      Some(List(canCreateBranch)))
+      List(apiTagBranch, apiTagOpenData),
+      Some(List(canCreateBranch, canCreateBranchAtAnyBank)))
 
     lazy val createBranch: OBPEndpoint = {
-      case "banks" :: BankId(bankId) :: "branches" ::  Nil JsonPost json -> _ => {
-        cc =>
-          for {
-            u <- cc.user ?~ UserNotLoggedIn
-            (bank, callContext) <- BankX(bankId, Some(cc)) ?~! {BankNotFound}
-            branchJsonPostV210 <- tryo {json.extract[BranchJsonPostV210]} ?~! InvalidJsonFormat
-            _ <- NewStyle.function.ownEntitlement(bank.bankId.value, u.userId, canCreateBranch, cc.callContext, InsufficientAuthorisationToCreateBranch)
-            branch <- transformToBranch(branchJsonPostV210)
-            success <- Connector.connector.vend.createOrUpdateBranch(branch)
-          } yield {
-           val json = JSONFactory1_4_0.createBranchJson(success)
-            createdJsonResponse(Extraction.decompose(json), 201)
-          }
-      }
+      case "banks" :: BankId(bankId) :: "branches" ::  Nil JsonPost json -> _ =>
+        {
+          cc => implicit val ec = EndpointContext(Some(cc))
+            for {
+              (Full(u), callContext) <- authenticatedAccess(cc)
+              (bank, callContext) <- NewStyle.function.getBank(bankId, callContext)
+              branchJsonPostV210 <- NewStyle.function.tryons(failMsg = InvalidJsonFormat + " BranchJsonPostV210", 400, callContext) {
+                json.extract[BranchJsonPostV210]
+              }
+              _ <- Helper.booleanToFuture(failMsg = s"$InvalidJsonValue BANK_ID has to be the same in the URL and Body", 400, callContext) {
+                branchJsonPostV210.bank_id == bank.bankId.value
+              }
+              _ <- Future(
+                NewStyle.function.hasAllEntitlements(bank.bankId.value, u.userId, canCreateBranch::Nil, canCreateBranchAtAnyBank::Nil, cc.callContext)
+              )
+              branch <- NewStyle.function.tryons(CouldNotTransformJsonToInternalModel + " Branch", 400, cc.callContext) {
+                transformToBranch(branchJsonPostV210).head
+              }
+              (success, callContext) <- NewStyle.function.createOrUpdateBranch(branch, callContext)
+            } yield {
+              val json = JSONFactory1_4_0.createBranchJson(success)
+              (json, HttpCode.`201`(callContext))
+            }
+        }
     }
 
     resourceDocs += ResourceDoc(
@@ -1637,7 +1638,12 @@ trait APIMethods210 {
               consumer.createdByUserId.equals(u.userId)
             }
             //update the redirectURL and isactive (set to false when change redirectUrl) field in consumer table
-            updatedConsumer <- NewStyle.function.updateConsumer(consumer.id.get, None, None, Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false)), None, None, None, None, Some(postJson.redirect_url), None, callContext)
+            updatedConsumer <- NewStyle.function.updateConsumer(
+              id = consumer.id.get,
+              isActive = Some(APIUtil.getPropsAsBoolValue("consumers_enabled_by_default", false)),
+              redirectURL = Some(postJson.redirect_url),
+              callContext = callContext
+            )
           } yield {
             val json = JSONFactory210.createConsumerJSON(updatedConsumer)
             (json, HttpCode.`200`(callContext))
@@ -1709,7 +1715,7 @@ trait APIMethods210 {
         |16 duration (if null ignore) non digit chars will be silently omitted
         |
       """.stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       metricsJson,
       List(
         UserNotLoggedIn,

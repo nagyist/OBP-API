@@ -13,7 +13,7 @@ object Constant extends MdcLoggable {
   
   object Pagination {
     final val offset = 0
-    final val limit = 500
+    final val limit = 50
   }
   
   final val shortEndpointTimeoutInMillis = APIUtil.getPropsAsLongValue(nameOfProperty = "short_endpoint_timeout", 1L * 1000L)
@@ -50,6 +50,7 @@ object Constant extends MdcLoggable {
   final val SYSTEM_STANDARD_VIEW_ID = "standard"
   final val SYSTEM_STAGE_ONE_VIEW_ID = "StageOne"
   final val SYSTEM_MANAGE_CUSTOM_VIEWS_VIEW_ID = "ManageCustomViews"
+  // UK Open Banking
   final val SYSTEM_READ_ACCOUNTS_BASIC_VIEW_ID = "ReadAccountsBasic"
   final val SYSTEM_READ_ACCOUNTS_DETAIL_VIEW_ID = "ReadAccountsDetail"
   final val SYSTEM_READ_BALANCES_VIEW_ID = "ReadBalances"
@@ -60,26 +61,43 @@ object Constant extends MdcLoggable {
   final val SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID = "ReadAccountsBerlinGroup"
   final val SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID = "ReadBalancesBerlinGroup"
   final val SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID = "ReadTransactionsBerlinGroup"
+  final val SYSTEM_INITIATE_PAYMENTS_BERLIN_GROUP_VIEW_ID = "InitiatePaymentsBerlinGroup"
 
-  //TODO, this need to be double check
-  final val ALL_SYSTEM_VIEWS_CREATED_FROM_BOOT = List(
-    SYSTEM_OWNER_VIEW_ID,
-    SYSTEM_AUDITOR_VIEW_ID,
-    SYSTEM_ACCOUNTANT_VIEW_ID,
-    SYSTEM_FIREHOSE_VIEW_ID,
-    SYSTEM_STANDARD_VIEW_ID,
-    SYSTEM_STAGE_ONE_VIEW_ID,
-    SYSTEM_MANAGE_CUSTOM_VIEWS_VIEW_ID,
-    SYSTEM_READ_ACCOUNTS_BASIC_VIEW_ID,
-    SYSTEM_READ_ACCOUNTS_DETAIL_VIEW_ID,
-    SYSTEM_READ_BALANCES_VIEW_ID,
-    SYSTEM_READ_TRANSACTIONS_BASIC_VIEW_ID,
-    SYSTEM_READ_TRANSACTIONS_DEBITS_VIEW_ID,
-    SYSTEM_READ_TRANSACTIONS_DETAIL_VIEW_ID,
-    SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID,
-    SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID,
-    SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID
-  ) 
+  //This is used for the canRevokeAccessToViews_ and canGrantAccessToViews_ fields of SYSTEM_OWNER_VIEW_ID or SYSTEM_STANDARD_VIEW_ID.
+  final val DEFAULT_CAN_GRANT_AND_REVOKE_ACCESS_TO_VIEWS = 
+    SYSTEM_OWNER_VIEW_ID::
+    SYSTEM_AUDITOR_VIEW_ID::
+    SYSTEM_ACCOUNTANT_VIEW_ID::
+    SYSTEM_FIREHOSE_VIEW_ID::
+    SYSTEM_STANDARD_VIEW_ID::
+    SYSTEM_STAGE_ONE_VIEW_ID::
+    SYSTEM_MANAGE_CUSTOM_VIEWS_VIEW_ID::
+    SYSTEM_READ_ACCOUNTS_BASIC_VIEW_ID::
+    SYSTEM_READ_ACCOUNTS_DETAIL_VIEW_ID::
+    SYSTEM_READ_BALANCES_VIEW_ID::
+    SYSTEM_READ_TRANSACTIONS_BASIC_VIEW_ID::
+    SYSTEM_READ_TRANSACTIONS_DEBITS_VIEW_ID::
+    SYSTEM_READ_TRANSACTIONS_DETAIL_VIEW_ID::
+    SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID::
+    SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID::
+    SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID :: 
+      SYSTEM_INITIATE_PAYMENTS_BERLIN_GROUP_VIEW_ID :: Nil
+  
+  //We allow CBS side to generate views by getBankAccountsForUser.viewsToGenerate filed.
+  // viewsToGenerate can be any views, and OBP will check the following list, to make sure only allowed views are generated
+  // If some views are not allowed, obp just log it, do not throw exceptions.
+  final val VIEWS_GENERATED_FROM_CBS_WHITE_LIST = 
+    SYSTEM_OWNER_VIEW_ID::
+    SYSTEM_ACCOUNTANT_VIEW_ID::
+    SYSTEM_AUDITOR_VIEW_ID::
+    SYSTEM_STAGE_ONE_VIEW_ID::
+    SYSTEM_STANDARD_VIEW_ID::
+    SYSTEM_MANAGE_CUSTOM_VIEWS_VIEW_ID::
+    SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID::
+    SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID::
+    SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID ::
+      SYSTEM_INITIATE_PAYMENTS_BERLIN_GROUP_VIEW_ID :: Nil
+
   //These are the default incoming and outgoing account ids. we will create both during the boot.scala.
   final val INCOMING_SETTLEMENT_ACCOUNT_ID = "OBP-INCOMING-SETTLEMENT-ACCOUNT"    
   final val OUTGOING_SETTLEMENT_ACCOUNT_ID = "OBP-OUTGOING-SETTLEMENT-ACCOUNT"    
@@ -102,7 +120,10 @@ object Constant extends MdcLoggable {
 }
 
 
-
+object CertificateConstants {
+  final val BEGIN_CERT: String = "-----BEGIN CERTIFICATE-----"
+  final val END_CERT: String = "-----END CERTIFICATE-----"
+}
 
 object JedisMethod extends Enumeration {
   type JedisMethod = Value
@@ -123,6 +144,15 @@ object RequestHeader {
   final lazy val `Consent-JWT` = "Consent-JWT"
   final lazy val `PSD2-CERT` = "PSD2-CERT"
   final lazy val `If-None-Match` = "If-None-Match"
+
+  final lazy val `X-Request-ID` = "X-Request-ID" // Berlin Group
+  final lazy val `TPP-Redirect-URL` = "TPP-Redirect-URL" // Berlin Group
+  final lazy val Date = "Date" // Berlin Group
+  // Headers to support the signature function of Berlin Group
+  final lazy val Digest = "Digest" // Berlin Group
+  final lazy val Signature = "Signature" // Berlin Group
+  final lazy val `TPP-Signature-Certificate` = "TPP-Signature-Certificate" // Berlin Group
+
   /**
    * The If-Modified-Since request HTTP header makes the request conditional: 
    * the server sends back the requested resource, with a 200 status, 

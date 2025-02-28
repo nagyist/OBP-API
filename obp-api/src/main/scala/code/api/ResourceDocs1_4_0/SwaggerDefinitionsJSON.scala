@@ -1,9 +1,7 @@
 package code.api.ResourceDocs1_4_0
 
-import java.util.Date
-
-import code.api.Constant._
 import code.api.Constant
+import code.api.Constant._
 import code.api.UKOpenBanking.v2_0_0.JSONFactory_UKOpenBanking_200
 import code.api.UKOpenBanking.v2_0_0.JSONFactory_UKOpenBanking_200.{Account, AccountBalancesUKV200, AccountInner, AccountList, Accounts, BalanceJsonUKV200, BalanceUKOpenBankingJson, BankTransactionCodeJson, CreditLineJson, DataJsonUKV200, Links, MetaBisJson, MetaInnerJson, TransactionCodeJson, TransactionInnerJson, TransactionsInnerJson, TransactionsJsonUKV200}
 import code.api.berlin.group.v1.JSONFactory_BERLIN_GROUP_1.{AccountBalanceV1, AccountBalances, AmountOfMoneyV1, ClosingBookedBody, ExpectedBody, TransactionJsonV1, TransactionsJsonV1, ViewAccount}
@@ -11,36 +9,32 @@ import code.api.dynamic.endpoint.helper.practise.PractiseEndpoint
 import code.api.util.APIUtil.{defaultJValue, _}
 import code.api.util.ApiRole._
 import code.api.util.ExampleValue._
-import code.api.util.{APIUtil, ApiRole, ApiTrigger, ExampleValue}
+import code.api.util.{ApiRole, ApiTrigger, ExampleValue}
 import code.api.v2_2_0.JSONFactory220.{AdapterImplementationJson, MessageDocJson, MessageDocsJson}
 import code.api.v3_0_0.JSONFactory300.createBranchJsonV300
 import code.api.v3_0_0.custom.JSONFactoryCustom300
-import code.api.v3_0_0.{LobbyJsonV330, _}
-import code.api.v3_1_0.{AccountBalanceV310, AccountsBalancesV310Json, BadLoginStatusJson, ContactDetailsJson, CustomerWithAttributesJsonV310, InviteeJson, ObpApiLoopbackJson, PhysicalCardWithAttributesJsonV310, PutUpdateCustomerEmailJsonV310, _}
-import code.api.v4_0_0.{AccountMinimalJson400, BankAttributeBankResponseJsonV400, CardJsonV400, CustomerMinimalJsonV400, FastFirehoseAccountsJsonV400, PostHistoricalTransactionAtBankJson, _}
-import code.api.v3_1_0.{AccountBalanceV310, AccountsBalancesV310Json, BadLoginStatusJson, ContactDetailsJson, InviteeJson, ObpApiLoopbackJson, PhysicalCardWithAttributesJsonV310, PutUpdateCustomerEmailJsonV310, _}
-import code.api.v5_0_0.{AccountResponseJson500, CustomerOverviewFlatJsonV500, _}
+import code.api.v3_0_0._
+import code.api.v3_1_0._
+import code.api.v4_0_0._
+import code.api.v5_0_0._
+import code.api.v5_1_0._
 import code.branches.Branches.{Branch, DriveUpString, LobbyString}
-import code.consent.ConsentStatus
 import code.connectormethod.{JsonConnectorMethod, JsonConnectorMethodMethodBody}
+import code.consent.ConsentStatus
 import code.dynamicMessageDoc.JsonDynamicMessageDoc
 import code.dynamicResourceDoc.JsonDynamicResourceDoc
 import code.sandbox.SandboxData
-import code.transactionrequests.TransactionRequests.TransactionRequestTypes._
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.model
 import com.openbankproject.commons.model.PinResetReason.{FORGOT, GOOD_SECURITY_PRACTICE}
+import com.openbankproject.commons.model.enums.TransactionRequestTypes._
 import com.openbankproject.commons.model.enums.{AttributeCategory, CardAttributeType, ChallengeType}
-import com.openbankproject.commons.model.{TransactionRequestSimple, UserAuthContextUpdateStatus, ViewBasic, _}
-import com.openbankproject.commons.util.{ApiVersion, FieldNameApiVersions, ReflectUtils, RequiredArgs, RequiredInfo}
+import com.openbankproject.commons.model._
+import com.openbankproject.commons.util.{ApiVersion, FieldNameApiVersions, ReflectUtils}
 import net.liftweb.json
+
 import java.net.URLEncoder
-
-import code.api.v5_1_0.{AtmsJsonV510, _}
-import code.endpointMapping.EndpointMappingCommons
-import net.liftweb.json.Extraction
-
-import scala.collection.immutable.List
+import java.util.Date
 
 /**
   * This object prepare all the JSON case classes for Swagger .
@@ -52,6 +46,7 @@ import scala.collection.immutable.List
   */
 object SwaggerDefinitionsJSON {
 
+  implicit def convertStringToBoolean(value:String) = value.toBoolean
 
   lazy val regulatedEntitiesJsonV510: RegulatedEntitiesJsonV510 = RegulatedEntitiesJsonV510(List(regulatedEntityJsonV510))
   lazy val regulatedEntityJsonV510: RegulatedEntityJsonV510 = RegulatedEntityJsonV510(
@@ -314,17 +309,47 @@ object SwaggerDefinitionsJSON {
     "can_revoke_access_to_custom_views"
   )
   
+  val createCustomViewJson = CreateCustomViewJson(
+    name = viewNameExample.value,
+    description= viewDescriptionExample.value,
+    metadata_view= metadataViewExample.value,
+    is_public = isPublicExample.value,
+    which_alias_to_use = whichAliasToUseExample.value,
+    hide_metadata_if_alias_used = hideMetadataIfAliasUsedExample.value.toBoolean,
+    allowed_permissions= allowedActionsV500,
+  )
+  
+  val customViewJsonV510 = CustomViewJsonV510(
+    id = viewIdExample.value,
+    name = viewNameExample.value,
+    description = viewDescriptionExample.value,
+    metadata_view = metadataViewExample.value,
+    is_public = isPublicExample.value,
+    alias = whichAliasToUseExample.value,
+    hide_metadata_if_alias_used = hideMetadataIfAliasUsedExample.value.toBoolean,
+    allowed_permissions = allowedActionsV500
+  )
+  
   val createSystemViewJsonV500 = CreateViewJsonV500(
-    name = "_test",
-    description = "This view is for family",
-    metadata_view ="_test",
-    is_public = false,
-    which_alias_to_use = "family",
-    hide_metadata_if_alias_used = false,
+    name = viewNameExample.value,
+    description = viewDescriptionExample.value,
+    metadata_view =viewDescriptionExample.value,
+    is_public = isPublicExample.value,
+    which_alias_to_use = whichAliasToUseExample.value,
+    hide_metadata_if_alias_used = hideMetadataIfAliasUsedExample.value.toBoolean,
     allowed_actions = allowedActionsV500,
     // Version 5.0.0
-    can_grant_access_to_views = Some(List("owner")),
-    can_revoke_access_to_views = Some(List("owner"))
+    can_grant_access_to_views = Some(List(Constant.SYSTEM_OWNER_VIEW_ID)),
+    can_revoke_access_to_views = Some(List(Constant.SYSTEM_OWNER_VIEW_ID))
+  )
+  
+  val updateCustomViewJson = UpdateCustomViewJson(
+    description = viewDescriptionExample.value,
+    metadata_view = metadataViewExample.value,
+    is_public = isPublicExample.value,
+    which_alias_to_use = whichAliasToUseExample.value,
+    hide_metadata_if_alias_used = hideMetadataIfAliasUsedExample.value.toBoolean,
+    allowed_permissions = allowedActionsV500
   )
 
   val updateViewJsonV300 = UpdateViewJsonV300(
@@ -416,8 +441,8 @@ object SwaggerDefinitionsJSON {
     hide_metadata_if_alias_used = true,
     allowed_actions = allowedActionsV500,
     // Version 5.0.0
-    can_grant_access_to_views = Some(List("owner")),
-    can_revoke_access_to_views = Some(List("owner"))
+    can_grant_access_to_views = Some(List(Constant.SYSTEM_OWNER_VIEW_ID)),
+    can_revoke_access_to_views = Some(List(Constant.SYSTEM_OWNER_VIEW_ID))
   )
   lazy val updateSystemViewJson500 = updateViewJsonV500.copy(is_public = false, is_firehose = Some(false))
 
@@ -542,19 +567,28 @@ object SwaggerDefinitionsJSON {
     to = toAccountTransferToAccount
   )
 
-    val sepaCreditTransfers = SepaCreditTransfers(
-      debtorAccount = PaymentAccount(iban = "12345"),
-      instructedAmount = amountOfMoneyJsonV121,
-      creditorAccount = PaymentAccount(iban = "54321"),
-      creditorName = "John Miles"
-    )
-  
-    val sepaCreditTransfersBerlinGroupV13 = SepaCreditTransfersBerlinGroupV13(
-      debtorAccount = PaymentAccount(iban = "GB33BUKB20201555555555"),
-      instructedAmount = amountOfMoneyJsonV121,
-      creditorAccount = PaymentAccount(iban = "DE75512108001245126199"),
-      creditorName = "John Miles"
-    )
+  val sepaCreditTransfers = SepaCreditTransfers(
+    debtorAccount = PaymentAccount(iban = "12345"),
+    instructedAmount = amountOfMoneyJsonV121,
+    creditorAccount = PaymentAccount(iban = "54321"),
+    creditorName = "John Miles"
+  )
+
+  val sepaCreditTransfersBerlinGroupV13 = SepaCreditTransfersBerlinGroupV13(
+    debtorAccount = PaymentAccount(iban = "GB33BUKB20201555555555"),
+    instructedAmount = amountOfMoneyJsonV121,
+    creditorAccount = PaymentAccount(iban = "DE75512108001245126199"),
+    creditorName = "John Miles"
+  )
+
+  val periodicSepaCreditTransfersBerlinGroupV13 = PeriodicSepaCreditTransfersBerlinGroupV13(
+    debtorAccount = PaymentAccount(iban = "GB33BUKB20201555555555"),
+    instructedAmount = amountOfMoneyJsonV121,
+    creditorAccount = PaymentAccount(iban = "DE75512108001245126199"),
+    creditorName = "John Miles",
+    frequency = "Monthly",
+    startDate ="2018-03-01",
+  )
   
   val transactionRequestSimple= TransactionRequestSimple(
     otherBankRoutingScheme = bankRoutingSchemeExample.value,
@@ -578,31 +612,6 @@ object SwaggerDefinitionsJSON {
     to_sepa_credit_transfers = Some(sepaCreditTransfers),
     value = amountOfMoney,
     description = descriptionExample.value
-  )
-
-  val transactionRequest = TransactionRequest(
-    id= transactionRequestIdSwagger,
-    `type`= "String",
-    from= transactionRequestAccount,
-    body= transactionRequestBodyAllTypes,
-    transaction_ids= "String",
-    status= "String",
-    start_date= DateWithDayExampleObject,
-    end_date= DateWithDayExampleObject,
-    challenge= transactionRequestChallenge,
-    charge= transactionRequestCharge,
-    charge_policy= "String",
-    counterparty_id= counterpartyIdSwagger,
-    name= "String",
-    this_bank_id= bankIdSwagger,
-    this_account_id= accountIdSwagger,
-    this_view_id= viewIdSwagger,
-    other_account_routing_scheme= counterpartyOtherAccountRoutingSchemeExample.value,
-    other_account_routing_address= counterpartyOtherAccountRoutingAddressExample.value,
-    other_bank_routing_scheme= counterpartyOtherBankRoutingSchemeExample.value,
-    other_bank_routing_address= counterpartyOtherBankRoutingAddressExample.value,
-    is_beneficiary= true,
-    future_date = Some(futureDateExample.value)
   )
 
   val adapterImplementationJson = AdapterImplementationJson("CORE",3)
@@ -728,8 +737,8 @@ object SwaggerDefinitionsJSON {
   )
 
   val accountRoutingJsonV121 = AccountRoutingJsonV121(
-    scheme = "AccountNumber",
-    address = "4930396"
+    scheme = schemeExample.value,
+    address = accountIdExample.value
   )
 
   val bankAccountRoutingJson = BankAccountRoutingJson(
@@ -998,11 +1007,11 @@ object SwaggerDefinitionsJSON {
 
   val bankRoutingJsonV121 = BankRoutingJsonV121(
     scheme = schemeExample.value,
-    address = addressExample.value
+    address = bankIdExample.value
   )
 
   val bankJSON = BankJSON(
-    id = "gh.29.uk",
+    id = bankIdExample.value,
     short_name = "short_name ",
     full_name = "full_name",
     logo = "logo",
@@ -1023,7 +1032,7 @@ object SwaggerDefinitionsJSON {
   )
   
   val postBankJson400 = PostBankJson400(
-    id = "gh.29.uk",
+    id = bankIdExample.value,
     short_name = "short_name ",
     full_name = "full_name",
     logo = "logo",
@@ -1031,7 +1040,7 @@ object SwaggerDefinitionsJSON {
     bank_routings = List(bankRoutingJsonV121)
   )
   val bankJson400 = BankJson400(
-    id = "gh.29.uk",
+    id = bankIdExample.value,
     short_name = "short_name ",
     full_name = "full_name",
     logo = "logo",
@@ -1498,9 +1507,9 @@ object SwaggerDefinitionsJSON {
     from_person = "String"
   )
 
-  val branchRoutingJSON = BranchRoutingJsonV141(
-    scheme = "BranchNumber",
-    address = "678"
+  val branchRoutingJsonV141 = BranchRoutingJsonV141(
+    scheme = schemeExample.value,
+    address = branchIdExample.value
   )
 
   val branchJson = BranchJson(
@@ -1511,7 +1520,7 @@ object SwaggerDefinitionsJSON {
     lobby = lobbyJson,
     drive_up = driveUpJson,
     meta = metaJson,
-    branch_routing = branchRoutingJSON
+    branch_routing = branchRoutingJsonV141
   )
 
 
@@ -2284,12 +2293,19 @@ object SwaggerDefinitionsJSON {
     transaction_request_types = List(transactionRequestTypeJSONV210)
   )
 
+  val transactionRequestAttributeJsonV400 = TransactionRequestAttributeJsonV400(
+    name = transactionRequestAttributeNameExample.value,
+    attribute_type = transactionRequestAttributeTypeExample.value,
+    value = transactionRequestAttributeValueExample.value
+  )
+  
   val transactionRequestBodyCounterpartyJSON = TransactionRequestBodyCounterpartyJSON(
     counterpartyIdJson,
     amountOfMoneyJsonV121,
-    "A description for the transaction to the counterparty",
+    description = "A description for the transaction to the counterparty",
     chargePolicyExample.value,
-    Some(futureDateExample.value)
+    Some(futureDateExample.value),
+    Some(List(transactionRequestAttributeJsonV400))
   )
 
   val transactionRequestBodySEPAJSON = TransactionRequestBodySEPAJSON(
@@ -2616,6 +2632,7 @@ object SwaggerDefinitionsJSON {
 
   val putCustomerBranchJsonV310 = PutUpdateCustomerBranchJsonV310(branch_id = "123")
   val postCustomerNumberJsonV310 = PostCustomerNumberJsonV310(customer_number = ExampleValue.customerNumberExample.value)
+  val postCustomerLegalNameJsonV510 = PostCustomerLegalNameJsonV510(legal_name = ExampleValue.legalNameExample.value)
   val postCustomerPhoneNumberJsonV400 = PostCustomerPhoneNumberJsonV400(mobile_phone_number = ExampleValue.mobileNumberExample.value)
   val putUpdateCustomerEmailJsonV310 = PutUpdateCustomerEmailJsonV310("marko@tesobe.com")
   val putUpdateCustomerNumberJsonV310 = PutUpdateCustomerNumberJsonV310(customerNumberExample.value)
@@ -2679,21 +2696,36 @@ object SwaggerDefinitionsJSON {
     roles = None,
     roles_info = Some("PEM Encoded Certificate does not contain PSD2 roles.")
   )
-  lazy val consumerJsonV510: ConsumerJsonV510 = ConsumerJsonV510(
-    consumer_id = "d0d7b08c-f0ec-4e57-ac99-7d9eafe99225",
-    consumer_key = "d0d7b08c-f0ec-4e57-ac99-7d9eafe99225",
-    consumer_secret = "d0d7b08c-f0ec-4e57-ac99-7d9eafe99225",
-    app_name = "SOFI",
-    app_type = "Web",
-    description = "Account Management",
-    developer_email = ExampleValue.emailExample.value,
-    company = ExampleValue.companyExample.value,
-    redirect_url = "www.openbankproject.com",
+  
+  val consumerJsonV510: ConsumerJsonV510 = ConsumerJsonV510(
+    consumer_id = consumerIdExample.value,
+    consumer_key = consumerKeyExample.value,
+    app_name = appNameExample.value,
+    app_type = appTypeExample.value,
+    description = descriptionExample.value,
+    developer_email = emailExample.value,
+    company = companyExample.value,
+    redirect_url = redirectUrlExample.value,
     certificate_pem = pem,
     certificate_info = Some(certificateInfoJsonV510),
     created_by_user = resourceUserJSON,
     enabled = true,
-    created = DateWithDayExampleObject
+    created = DateWithDayExampleObject,
+    logo_url = Some(logoURLExample.value)
+  )
+  
+  val createConsumerRequestJsonV510 = CreateConsumerRequestJsonV510(
+    appNameExample.value,
+    appTypeExample.value,
+    descriptionExample.value,
+    emailExample.value,
+    companyExample.value,
+    redirectUrlExample.value,
+    userIdExample.value,
+    true,
+    DateWithMsExampleObject,
+    "-----BEGIN CERTIFICATE-----MIICsjCCAZqgAwIBAgIGAYwQ62R0MA0GCSqGSIb3DQEBCwUAMBoxGDAWBgNVBAMMD2FwcC5leGFtcGxlLmNvbTAeFw0yMzExMjcxMzE1MTFaFw0yNTExMjYxMzE1MTFaMBoxGDAWBgNVBAMMD2FwcC5leGFtcGxlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAK9WIodZHWzKyCcf9YfWEhPURbfO6zKuMqzHN27GdqHsVVEGxP4F/J4mso+0ENcRr6ur4u81iREaVdCc40rHDHVJNEtniD8Icbz7tcsqAewIVhc/q6WXGqImJpCq7hA0m247dDsaZT0lb/MVBiMoJxDEmAE/GYYnWTEn84R35WhJsMvuQ7QmLvNg6RkChY6POCT/YKe9NKwa1NqI1U+oA5RFzAaFtytvZCE3jtp+aR0brL7qaGfgxm6B7dEpGyhg0NcVCV7xMQNq2JxZTVdAr6lcsRGaAFulakmW3aNnmK+L35Wu8uW+OxNxwUuC6f3b4FVBa276FMuUTRfu7gc+k6kCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAAU5CjEyAoyTn7PgFpQD48ZNPuUsEQ19gzYgJvHMzFIoZ7jKBodjO5mCzWBcR7A4mpeAsdyiNBl2sTiZscSnNqxk61jVzP5Ba1D7XtOjjr7+3iqowrThj6BY40QqhYh/6BSY9fDzVZQiHnvlo6ZUM5kUK6OavZOovKlp5DIl5sGqoP0qAJnpQ4nhB2WVVsKfPlOXc+2KSsbJ23g9l8zaTMr+X0umlvfEKqyEl1Fa2L1dO0y/KFQ+ILmxcZLpRdq1hRAjd0quq9qGC8ucXhRWDgM4hslVpau0da68g0aItWNez3mc5lB82b3dcZpFMzO41bgw7gvw10AvvTfQDqEYIuQ==-----END CERTIFICATE-----",
+    Some(logoURLExample.value)
   )
 
   val consumersJson = ConsumersJson(
@@ -3048,15 +3080,15 @@ object SwaggerDefinitionsJSON {
     can_see_bank_account_credit_limit = true,
     can_create_direct_debit = true,
     can_create_standing_order = true,
-    can_grant_access_to_views = List("Owner"),
-    can_revoke_access_to_views = List("Owner")
+    can_grant_access_to_views = List(Constant.SYSTEM_OWNER_VIEW_ID),
+    can_revoke_access_to_views = List(Constant.SYSTEM_OWNER_VIEW_ID)
   )
 
   val viewsJsonV500 = ViewsJsonV500(
     views = List(viewJsonV500)
   )
 
-  val viewIdJsonV500 = ViewIdJsonV500(id = "owner")
+  val viewIdJsonV500 = ViewIdJsonV500(id = Constant.SYSTEM_OWNER_VIEW_ID)
   val viewIdsJsonV500 = ViewsIdsJsonV500(
     views = List(viewIdJsonV500)
   )
@@ -3198,7 +3230,7 @@ object SwaggerDefinitionsJSON {
     meta = metaJson,
     lobby = lobbyJson,
     drive_up = driveUpJson,
-    branch_routing = branchRoutingJSON
+    branch_routing = branchRoutingJsonV141
   )
 
 
@@ -3607,7 +3639,7 @@ object SwaggerDefinitionsJSON {
   
   
   val accountHeldJson  = AccountHeldJson(
-    id = "12314",
+    id = "7b97bd26-583b-4c3b-8282-55ea9d934aad",
     label = "My Account",
     bank_id=  "123",
     number = "123",
@@ -3628,6 +3660,21 @@ object SwaggerDefinitionsJSON {
     views_available = List(viewJsonV300),
     account_routings = List(accountRoutingJsonV121)
   )
+
+  val accountAttributeJson = AccountAttributeJson(
+    name = "OVERDRAFT_START_DATE",
+    `type` = "DATE_WITH_DAY",
+    value = "2012-04-23",
+    product_instance_code = Some("LKJL98769F"),
+  )
+  val accountAttributeResponseJson = AccountAttributeResponseJson(
+    product_code = productCodeExample.value,
+    account_attribute_id = "613c83ea-80f9-4560-8404-b9cd4ec42a7f",
+    name = "OVERDRAFT_START_DATE",
+    `type` = "DATE_WITH_DAY",
+    value = "2012-04-23",
+    product_instance_code = Some("LKJL98769F"),
+  )
   
   val moderatedCoreAccountJsonV300 = ModeratedCoreAccountJsonV300(
     id = accountIdExample.value,
@@ -3638,7 +3685,8 @@ object SwaggerDefinitionsJSON {
     `type`= typeExample.value,
     balance = amountOfMoneyJsonV121,
     account_routings = List(accountRoutingJsonV121),
-    account_rules = List(accountRuleJsonV300)
+    account_rules = List(accountRuleJsonV300),
+    account_attributes= Some(List(accountAttributeResponseJson))
   )
   
   val moderatedCoreAccountsJsonV300 = ModeratedCoreAccountsJsonV300(List(moderatedCoreAccountJsonV300))
@@ -3789,7 +3837,7 @@ object SwaggerDefinitionsJSON {
     account_id =accountIdExample.value ,
     account_type  ="330",
     account_routings  = List(accountRoutingJsonV121),
-    branch_routings = List(branchRoutingJSON)
+    branch_routings = List(branchRoutingJsonV141)
   )
   
   val checkbookOrdersJson = CheckbookOrdersJson(
@@ -4047,22 +4095,7 @@ object SwaggerDefinitionsJSON {
   val atmAttributesResponseJsonV510 = AtmAttributesResponseJsonV510(
     List(atmAttributeResponseJsonV510)
   )
-
-  val accountAttributeJson = AccountAttributeJson(
-    name = "OVERDRAFT_START_DATE",
-    `type` = "DATE_WITH_DAY",
-    value = "2012-04-23",
-    product_instance_code = Some("LKJL98769F"),
-  )  
-  val accountAttributeResponseJson = AccountAttributeResponseJson(
-    product_code = productCodeExample.value,
-    account_attribute_id = "613c83ea-80f9-4560-8404-b9cd4ec42a7f",
-    name = "OVERDRAFT_START_DATE",
-    `type` = "DATE_WITH_DAY",
-    value = "2012-04-23",
-    product_instance_code = Some("LKJL98769F"),
-  )
-
+  
   val moderatedAccountJSON310 = ModeratedAccountJSON310(
     id = "5995d6a2-01b3-423c-a173-5481df49bdaf",
     label = "NoneLabel",
@@ -4182,7 +4215,21 @@ object SwaggerDefinitionsJSON {
     status = ConsentStatus.INITIATED.toString,
     api_standard = "Berlin Group",
     api_version = "v1.3"
-  )  
+  )
+
+  val allConsentJsonV510 = AllConsentJsonV510(
+    consent_reference_id = "9d429899-24f5-42c8-8565-943ffa6a7945",
+    consumer_id = consumerIdExample.value,
+    created_by_user_id = userIdExample.value,
+    last_action_date = dateExample.value,
+    last_usage_date = dateTimeExample.value,
+    status = ConsentStatus.INITIATED.toString,
+    api_standard = "Berlin Group",
+    api_version = "v1.3",
+    jwt_payload = SwaggerDefinitionsJsonUtil.jwtPayload,
+  )
+  val consentsJsonV510 = ConsentsJsonV510(List(allConsentJsonV510))
+
   val revokedConsentJsonV310 = ConsentJsonV310(
     consent_id = "9d429899-24f5-42c8-8565-943ffa6a7945",
     jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiJhYjY1MzlhOS1iMTA1LTQ0ODktYTg4My0wYWQ4ZDZjNjE2NTciLCJzdWIiOiIyMWUxYzhjYy1mOTE4LTRlYWMtYjhlMy01ZTVlZWM2YjNiNGIiLCJhdWQiOiJlanpuazUwNWQxMzJyeW9tbmhieDFxbXRvaHVyYnNiYjBraWphanNrIiwibmJmIjoxNTUzNTU0ODk5LCJpc3MiOiJodHRwczpcL1wvd3d3Lm9wZW5iYW5rcHJvamVjdC5jb20iLCJleHAiOjE1NTM1NTg0OTksImlhdCI6MTU1MzU1NDg5OSwianRpIjoiMDlmODhkNWYtZWNlNi00Mzk4LThlOTktNjYxMWZhMWNkYmQ1Iiwidmlld3MiOlt7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAxIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifSx7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAyIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifV19.8cc7cBEf2NyQvJoukBCmDLT7LXYcuzTcSYLqSpbxLp4",
@@ -4191,7 +4238,7 @@ object SwaggerDefinitionsJSON {
 
   val postConsentEmailJsonV310 = PostConsentEmailJsonV310(
     everything = false,
-    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value)),
+    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value, None)),
     entitlements = List(PostConsentEntitlementJsonV310(bankIdExample.value, "CanGetCustomer")),
     consumer_id = Some(consumerIdExample.value),
     email = emailExample.value,
@@ -4201,7 +4248,7 @@ object SwaggerDefinitionsJSON {
   
   val postConsentPhoneJsonV310 = PostConsentPhoneJsonV310(
     everything = false,
-    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value)),
+    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value, None)),
     entitlements = List(PostConsentEntitlementJsonV310(bankIdExample.value, "CanGetCustomer")),
     consumer_id = Some(consumerIdExample.value),
     phone_number = mobileNumberExample.value,
@@ -4211,7 +4258,7 @@ object SwaggerDefinitionsJSON {
   
   val postConsentImplicitJsonV310 = PostConsentImplicitJsonV310(
     everything = false,
-    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value)),
+    views = List(PostConsentViewJsonV310(bankIdExample.value, accountIdExample.value, viewIdExample.value, None)),
     entitlements = List(PostConsentEntitlementJsonV310(bankIdExample.value, "CanGetCustomer")),
     consumer_id = Some(consumerIdExample.value),
     valid_from = Some(new Date()),
@@ -4222,9 +4269,9 @@ object SwaggerDefinitionsJSON {
   val consentsJsonV310 = ConsentsJsonV310(List(consentJsonV310))
   
   val consentsJsonV400 = ConsentsJsonV400(List(consentJsonV400))
-  
+
   val consentInfosJsonV400 = ConsentInfosJsonV400(List(consentInfoJsonV400))
-  
+
   val oAuth2ServerJWKURIJson = OAuth2ServerJWKURIJson("https://www.googleapis.com/oauth2/v3/certs")
   
   val oAuth2ServerJwksUrisJson = OAuth2ServerJwksUrisJson(List(oAuth2ServerJWKURIJson))
@@ -4710,12 +4757,6 @@ object SwaggerDefinitionsJSON {
     `type` = transactionRequestAttributeTypeExample.value,
     value = transactionRequestAttributeValueExample.value
   )
-  
-  val transactionRequestAttributeJsonV400 = TransactionRequestAttributeJsonV400(
-    name = transactionRequestAttributeNameExample.value,
-    `type` = transactionRequestAttributeTypeExample.value,
-    value = transactionRequestAttributeValueExample.value
-  )
 
   val transactionRequestAttributesResponseJson = TransactionRequestAttributesResponseJson(
     transaction_request_attributes = List(transactionRequestAttributeResponseJson)
@@ -4821,7 +4862,8 @@ object SwaggerDefinitionsJSON {
     start_date = DateWithDayExampleObject,
     end_date = DateWithDayExampleObject,
     challenges = List(challengeJsonV400),
-    charge = transactionRequestChargeJsonV200
+    charge = transactionRequestChargeJsonV200,
+    attributes=Some(List(bankAttributeBankResponseJsonV400)),
   )
 
   val postSimpleCounterpartyJson400 = PostSimpleCounterpartyJson400(
@@ -5174,12 +5216,38 @@ object SwaggerDefinitionsJSON {
     consumer_id = consumerIdExample.value
     )
   
+  val vrpConsentRequestResponseJson = ConsentRequestResponseJson(
+    consent_request_id = consentRequestIdExample.value,
+    payload = json.parse(vrpConsentRequestPayloadExample.value), 
+    consumer_id = consumerIdExample.value
+  )
+  
+  val helperInfoJson = HelperInfoJson(
+    counterparty_ids = List(counterpartyIdExample.value)
+  )
+  
+  val consentAccountAccessJson=  ConsentAccountAccessJson(
+    bank_id = bankIdExample.value,
+    account_id = accountIdExample.value,
+    view_id = viewIdExample.value,
+    helper_info = Some(helperInfoJson)
+  )
+  
   val consentJsonV500 = ConsentJsonV500(
     consent_id = "9d429899-24f5-42c8-8565-943ffa6a7945",
     jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiJhYjY1MzlhOS1iMTA1LTQ0ODktYTg4My0wYWQ4ZDZjNjE2NTciLCJzdWIiOiIyMWUxYzhjYy1mOTE4LTRlYWMtYjhlMy01ZTVlZWM2YjNiNGIiLCJhdWQiOiJlanpuazUwNWQxMzJyeW9tbmhieDFxbXRvaHVyYnNiYjBraWphanNrIiwibmJmIjoxNTUzNTU0ODk5LCJpc3MiOiJodHRwczpcL1wvd3d3Lm9wZW5iYW5rcHJvamVjdC5jb20iLCJleHAiOjE1NTM1NTg0OTksImlhdCI6MTU1MzU1NDg5OSwianRpIjoiMDlmODhkNWYtZWNlNi00Mzk4LThlOTktNjYxMWZhMWNkYmQ1Iiwidmlld3MiOlt7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAxIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifSx7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAyIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifV19.8cc7cBEf2NyQvJoukBCmDLT7LXYcuzTcSYLqSpbxLp4",
     status = ConsentStatus.INITIATED.toString,
-    consent_request_id = Some(consentRequestIdExample.value)
-    )
+    consent_request_id = Some(consentRequestIdExample.value),
+    account_access= Some(consentAccountAccessJson)
+  )
+  val consentJsonV510 = ConsentJsonV510(
+    consent_id = "9d429899-24f5-42c8-8565-943ffa6a7945",
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJlbnRpdGxlbWVudHMiOltdLCJjcmVhdGVkQnlVc2VySWQiOiJhYjY1MzlhOS1iMTA1LTQ0ODktYTg4My0wYWQ4ZDZjNjE2NTciLCJzdWIiOiIyMWUxYzhjYy1mOTE4LTRlYWMtYjhlMy01ZTVlZWM2YjNiNGIiLCJhdWQiOiJlanpuazUwNWQxMzJyeW9tbmhieDFxbXRvaHVyYnNiYjBraWphanNrIiwibmJmIjoxNTUzNTU0ODk5LCJpc3MiOiJodHRwczpcL1wvd3d3Lm9wZW5iYW5rcHJvamVjdC5jb20iLCJleHAiOjE1NTM1NTg0OTksImlhdCI6MTU1MzU1NDg5OSwianRpIjoiMDlmODhkNWYtZWNlNi00Mzk4LThlOTktNjYxMWZhMWNkYmQ1Iiwidmlld3MiOlt7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAxIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifSx7ImFjY291bnRfaWQiOiJtYXJrb19wcml2aXRlXzAyIiwiYmFua19pZCI6ImdoLjI5LnVrLngiLCJ2aWV3X2lkIjoib3duZXIifV19.8cc7cBEf2NyQvJoukBCmDLT7LXYcuzTcSYLqSpbxLp4",
+    status = ConsentStatus.INITIATED.toString,
+    consent_request_id = Some(consentRequestIdExample.value),
+    scopes = None,
+    consumer_id= consumerIdExample.value
+  )
   
   val postConsentRequestJsonV500 = PostConsentRequestJsonV500(
     everything = false,
@@ -5396,11 +5464,142 @@ object SwaggerDefinitionsJSON {
       phone = phoneExample.value,
   )
   
+  val postCounterpartyLimitV510 = PostCounterpartyLimitV510(
+    currency = currencyExample.value,
+    max_single_amount = maxSingleAmountExample.value,
+    max_monthly_amount = maxMonthlyAmountExample.value,
+    max_number_of_monthly_transactions = maxNumberOfMonthlyTransactionsExample.value.toInt,
+    max_yearly_amount = maxYearlyAmountExample.value,
+    max_number_of_yearly_transactions = maxNumberOfYearlyTransactionsExample.value.toInt,
+    max_total_amount = maxTotalAmountExample.value,
+    max_number_of_transactions = maxNumberOfTransactionsExample.value.toInt
+  )
+  
+  val counterpartyLimitV510 = CounterpartyLimitV510(
+    counterparty_limit_id = counterpartyLimitIdExample.value,
+    bank_id = bankIdExample.value,
+    account_id = accountIdExample.value,
+    view_id = viewIdExample.value,
+    counterparty_id = counterpartyIdExample.value,
+    currency = currencyExample.value,
+    max_single_amount = maxSingleAmountExample.value,
+    max_monthly_amount = maxMonthlyAmountExample.value,
+    max_number_of_monthly_transactions = maxNumberOfMonthlyTransactionsExample.value.toInt,
+    max_yearly_amount = maxYearlyAmountExample.value,
+    max_number_of_yearly_transactions = maxNumberOfYearlyTransactionsExample.value.toInt,
+    max_total_amount = maxTotalAmountExample.value,
+    max_number_of_transactions = maxNumberOfTransactionsExample.value.toInt
+  )
+
+  val counterpartyLimitStatus =  CounterpartyLimitStatus(
+    currency_status = currencyExample.value,
+    max_monthly_amount_status = maxSingleAmountExample.value,
+    max_number_of_monthly_transactions_status = maxNumberOfMonthlyTransactionsExample.value.toInt,
+    max_yearly_amount_status = maxYearlyAmountExample.value,
+    max_number_of_yearly_transactions_status = maxNumberOfYearlyTransactionsExample.value.toInt,
+    max_total_amount_status = maxTotalAmountExample.value,
+    max_number_of_transactions_status = maxNumberOfTransactionsExample.value.toInt
+  )
+
+  val counterpartyLimitStatusV510 = CounterpartyLimitStatusV510(
+    counterparty_limit_id = counterpartyLimitIdExample.value,
+    bank_id = bankIdExample.value,
+    account_id = accountIdExample.value,
+    view_id = viewIdExample.value,
+    counterparty_id = counterpartyIdExample.value,
+    currency = currencyExample.value,
+    max_single_amount = maxSingleAmountExample.value,
+    max_monthly_amount = maxMonthlyAmountExample.value,
+    max_number_of_monthly_transactions = maxNumberOfMonthlyTransactionsExample.value.toInt,
+    max_yearly_amount = maxYearlyAmountExample.value,
+    max_number_of_yearly_transactions = maxNumberOfYearlyTransactionsExample.value.toInt,
+    max_total_amount = maxTotalAmountExample.value,
+    max_number_of_transactions = maxNumberOfTransactionsExample.value.toInt,
+    status = counterpartyLimitStatus
+  )
+  
   val atmsJsonV510 = AtmsJsonV510(
     atms = List(atmJsonV510)
   )
   
   val postAccountAccessJsonV510 = PostAccountAccessJsonV510(userIdExample.value,viewIdExample.value)
+
+  val consentRequestFromAccountJson = ConsentRequestFromAccountJson (
+    bank_routing = bankRoutingJsonV121,
+    account_routing = accountRoutingJsonV121,
+    branch_routing = branchRoutingJsonV141
+  )
+
+  val consentRequestToAccountJson = ConsentRequestToAccountJson (
+    counterparty_name = counterpartyNameExample.value,
+    bank_routing = bankRoutingJsonV121,
+    account_routing = accountRoutingJsonV121,
+    branch_routing = branchRoutingJsonV141,
+    limit = postCounterpartyLimitV510
+  )
+
+  val postVRPConsentRequestJsonV510 = PostVRPConsentRequestJsonV510(
+    from_account = consentRequestFromAccountJson,
+    to_account = consentRequestToAccountJson,
+    email = Some(emailExample.value),
+    phone_number = Some(mobileNumberExample.value),
+    valid_from = Some(new Date()),
+    time_to_live = Some(3600)
+  )
+
+  val consumerLogoUrlJson = ConsumerLogoUrlJson(
+    "http://localhost:8888"
+  )
+  
+  val consumersJsonV510 = ConsumersJsonV510(
+    List(consumerJsonV510)
+  )
+
+  val agentIdJson = AgentCashWithdrawalJson(
+    bankIdExample.value,
+    agentNumberExample.value
+  )
+  
+  val transactionRequestBodyAgentJsonV400 = TransactionRequestBodyAgentJsonV400(
+    to = agentIdJson,
+    value = amountOfMoneyJsonV121,
+    description =  descriptionExample.value,
+    charge_policy = chargePolicyExample.value,
+    future_date = Some(futureDateExample.value)
+  )
+  
+  val postAgentJsonV510  = PostAgentJsonV510(
+    legal_name = legalNameExample.value,
+    mobile_phone_number = mobilePhoneNumberExample.value,
+    agent_number = agentNumberExample.value,
+    currency = currencyExample.value
+  )
+  
+  val putAgentJsonV510  = PutAgentJsonV510(
+    is_pending_agent = false,
+    is_confirmed_agent = true
+  )
+  
+  val agentJsonV510  = AgentJsonV510(
+    agent_id = agentIdExample.value,
+    bank_id = bankIdExample.value,
+    legal_name = legalNameExample.value,
+    mobile_phone_number = mobilePhoneNumberExample.value,
+    agent_number = agentNumberExample.value,
+    currency = currencyExample.value,
+    is_confirmed_agent = false,
+    is_pending_agent = true
+  )
+  
+  val minimalAgentJsonV510 = MinimalAgentJsonV510(
+    agent_id = agentIdExample.value,
+    legal_name = legalNameExample.value,
+    agent_number = agentNumberExample.value
+  )
+  
+  val minimalAgentsJsonV510 = MinimalAgentsJsonV510(
+    agents = List(minimalAgentJsonV510)
+  )
   
   //The common error or success format.
   //Just some helper format to use in Json 

@@ -38,7 +38,7 @@ object OBPAPI2_0_0 extends OBPRestHelper with APIMethods130 with APIMethods140 w
 
 
   val version : ApiVersion = ApiVersion.v2_0_0 // "2.0.0"
-  val versionStatus = ApiVersionStatus.STABLE.toString
+  val versionStatus = ApiVersionStatus.DEPRECATED.toString
 
 
   // Note: Since we pattern match on these routes, if two implementations match a given url the first will match
@@ -132,8 +132,6 @@ object OBPAPI2_0_0 extends OBPRestHelper with APIMethods130 with APIMethods140 w
     Implementations1_4_0.getAtms,
     Implementations1_4_0.getProducts,
     Implementations1_4_0.getCrmEvents,
-    // Now in 2.0.0 Implementations1_4_0.createTransactionRequest,
-    // Now in 2.0.0 Implementations1_4_0.getTransactionRequests,
     Implementations1_4_0.getTransactionRequestTypes)
 
     // Updated in 2.0.0 (less info about the views)
@@ -146,9 +144,6 @@ object OBPAPI2_0_0 extends OBPRestHelper with APIMethods130 with APIMethods140 w
       Implementations2_0_0.corePrivateAccountsAtOneBank, // this is /my accounts
       Implementations2_0_0.privateAccountsAtOneBank, // This was missing for a while from v2.0.0
       Implementations2_0_0.publicAccountsAtOneBank,
-      Implementations2_0_0.createTransactionRequest,
-      Implementations2_0_0.answerTransactionRequestChallenge,
-      Implementations2_0_0.getTransactionRequests, // Now has charges information
       // Updated in 2.0.0 (added sorting and better guards / error messages)
       Implementations2_0_0.accountById,
       Implementations2_0_0.getPermissionsForBankAccount,

@@ -22,6 +22,19 @@ class PhysicalCardsTest extends ServerSetup with DefaultUsers  with DefaultConne
   lazy val accountCurrency = "EUR"
   lazy val account = createAccount(bank.bankId, AccountId(accId), accountCurrency)
 
+  override def beforeAll() {
+    super.beforeAll()
+    //use the mock connector
+    Connector.connector.default.set(MockedCardConnector)
+  }
+
+  override def afterAll() {
+    super.afterAll()
+    //reset the default connector
+    Connector.connector.default.set(Connector.buildOne)
+    wipeTestData()
+  }
+  
   def createCard(number : String) = PhysicalCard(
     cardId ="",
     bankId= bank.bankId.value,
@@ -61,11 +74,13 @@ class PhysicalCardsTest extends ServerSetup with DefaultUsers  with DefaultConne
 
     implicit override val nameOfConnector = "MockedCardConnector"
 
-    override def getBankLegacy(bankId : BankId, callContext: Option[CallContext])  = Full(bank, callContext)
-  
+    
+    
+    override def getBankLegacy(bankId: BankId, callContext: Option[CallContext]) = Full(bank, callContext)
+
     //these methods are required in this test, there is no need to extends connector.
-    override def getPhysicalCardsForUser(user : User, callContext: Option[CallContext]) = {
-      val cardList = if(user == resourceUser1) {
+    override def getPhysicalCardsForUser(user: User, callContext: Option[CallContext]) = {
+      val cardList = if (user == resourceUser1) {
         user1AllCards
       } else if (user == resourceUser2) {
         user2AllCards
@@ -74,9 +89,9 @@ class PhysicalCardsTest extends ServerSetup with DefaultUsers  with DefaultConne
       }
       Future(Full(cardList), callContext)
     }
-  
-    override def getPhysicalCardsForBankLegacy(bank: Bank, user: User, queryParams: List[OBPQueryParam]) = {
-      val cardList = if(user == resourceUser1) {
+
+    override def getPhysicalCardsForBank(bank: Bank, user: User, queryParams: List[OBPQueryParam], callContext: Option[CallContext]) = Future {
+      val cardList = if (user == resourceUser1) {
         user1CardsForOneBank
       } else if (user == resourceUser2) {
         user2CardsForOneBank
@@ -84,23 +99,9 @@ class PhysicalCardsTest extends ServerSetup with DefaultUsers  with DefaultConne
         List()
       }
       Full(cardList)
-    }
-  }
-
-  override def beforeAll() {
-    super.beforeAll()
-    //use the mock connector
-    Connector.connector.default.set(MockedCardConnector)
-  }
-
-  override def afterAll() {
-    super.afterAll()
-    //reset the default connector
-    Connector.connector.default.set(Connector.buildOne)
-    wipeTestData()
-  }
-
-  feature("Getting details of physical cards") {
+    }.map((_, callContext))
+    
+    feature("Getting details of physical cards") {
 
     scenario("A user wants to get details of all their cards across all banks") {
       When("A user requests their cards")
@@ -143,5 +144,7 @@ class PhysicalCardsTest extends ServerSetup with DefaultUsers  with DefaultConne
     }
 
   }
-
+    
+  }
+  
 }

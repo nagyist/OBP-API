@@ -27,29 +27,17 @@ TESOBE (http://www.tesobe.com/)
 package com.openbankproject.commons.model
 
 import java.util.Date
-
 import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
 import com.openbankproject.commons.model.enums._
 import com.openbankproject.commons.util.{ReflectUtils, optional}
 import net.liftweb.json.JsonAST.{JObject, JValue}
-import net.liftweb.json.{JInt, JString}
+import net.liftweb.json.{Formats, JInt, JString}
+import net.liftweb.json.JsonDSL._
 
 import java.lang
-import scala.collection.immutable.List
 import scala.reflect.runtime.universe._
-//import code.customeraddress.CustomerAddress
-//import code.bankconnectors.InboundAccountCommon
-//import code.branches.Branches.BranchT
-//import code.context.UserAuthContext
-//import code.meetings.Meeting
-//import code.taxresidence.TaxResidence
-//import code.productcollectionitem.ProductCollectionItem
-//import code.productcollection.ProductCollection
-//import code.atms.Atms.AtmT
-//import code.productattribute.ProductAttribute.ProductAttribute
-//import code.accountattribute.AccountAttribute.AccountAttribute
-//import code.accountapplication.AccountApplication
+
 
 abstract class Converter[T, D <% T: TypeTag]{
   //this method declared as common method to avoid conflict with Predf#$confirms
@@ -171,6 +159,16 @@ case class CustomerCommons(
 
 object CustomerCommons extends Converter[Customer, CustomerCommons]
 
+case class AgentCommons(
+  agentId: String,
+  bankId: String,
+  number: String,
+  legalName: String,
+  mobileNumber: String,
+  isConfirmedAgent: Boolean,
+  isPendingAgent: Boolean,
+) extends Agent
+object AgentCommons extends Converter[Agent, AgentCommons]
 
 case class CustomerAddressCommons(
                                    customerId :String,
@@ -383,10 +381,42 @@ case class ProductCommons(bankId: BankId,
 object ProductCommons extends Converter[Product, ProductCommons]
 
 case class TransactionRequestCommonBodyJSONCommons(
-                        value : AmountOfMoneyJsonV121,
-                        description: String) extends TransactionRequestCommonBodyJSON
+  value: AmountOfMoneyJsonV121,
+  description: String,
+) extends TransactionRequestCommonBodyJSON
 
 object TransactionRequestCommonBodyJSONCommons extends Converter[TransactionRequestCommonBodyJSON, TransactionRequestCommonBodyJSONCommons]
+
+case class BerlinGroupTransactionRequestCommonBodyJsonCommons(
+  endToEndIdentification:  Option[String],
+  instructionIdentification:  Option[String],
+  debtorName:  Option[String],
+  debtorAccount: PaymentAccount,
+  debtorId: Option[String],
+  ultimateDebtor: Option[String],
+  instructedAmount: AmountOfMoneyJsonV121,
+  currencyOfTransfer: Option[String],
+  exchangeRateInformation: Option[String],
+  creditorAccount: PaymentAccount,
+  creditorAgent: Option[String],
+  creditorAgentName: Option[String],
+  creditorName: String,
+  creditorId: Option[String],
+  creditorAddress: Option[String],
+  creditorNameAndAddress: Option[String],
+  ultimateCreditor: Option[String],
+  purposeCode: Option[String],
+  chargeBearer: Option[String],
+  serviceLevel: Option[String],
+  remittanceInformationUnstructured: Option[String],
+  remittanceInformationUnstructuredArray: Option[String],
+  remittanceInformationStructured: Option[String],
+  remittanceInformationStructuredArray: Option[String],
+  requestedExecutionDate: Option[String],
+  requestedExecutionTime: Option[String],
+) extends BerlinGroupTransactionRequestCommonBodyJson
+
+object BerlinGroupTransactionRequestCommonBodyJsonCommons extends Converter[BerlinGroupTransactionRequestCommonBodyJson, BerlinGroupTransactionRequestCommonBodyJsonCommons]
 
 case class TransactionRequestStatusCommons(
                                             transactionRequestId: String,
@@ -480,6 +510,16 @@ case class TransactionAttributeCommons (
 ) extends TransactionAttribute
 object TransactionAttributeCommons extends Converter[TransactionAttribute, TransactionAttributeCommons]
 
+case class BankAttributeTraitCommons (
+    override val bankId: BankId,
+    override val bankAttributeId: String,
+    override val attributeType: BankAttributeType.Value,
+    override val name: String,
+    override val value: String,
+    override val isActive: Option[Boolean]
+) extends BankAttributeTrait
+object BankAttributeTraitCommons extends Converter[BankAttributeTrait, BankAttributeTraitCommons]
+
 case class FXRateCommons (
   override val bankId : BankId,
   override val fromCurrencyCode: String,
@@ -540,9 +580,195 @@ case class ChallengeCommons(
 ) extends ChallengeTrait
 object ChallengeCommons extends Converter[ChallengeTrait, ChallengeCommons]
 
+case class ProductFeeTraitCommons(
+  bankId: BankId,
+  productCode: ProductCode,
+  productFeeId: String,
+  name: String,
+  isActive: Boolean,
+  moreInfo: String,
+  currency: String,
+  amount: BigDecimal,
+  frequency: String,
+  `type`: String) extends ProductFeeTrait
 
-//----------------obp-api moved to here case classes
+object ProductFeeTraitCommons extends Converter[ProductFeeTrait, ProductFeeTraitCommons]
 
+
+case class CustomerAccountLinkTraitCommons(
+  customerAccountLinkId: String,
+  customerId: String,
+  bankId: String,
+  accountId: String,
+  relationshipType: String) extends CustomerAccountLinkTrait
+
+object CustomerAccountLinkTraitCommons extends Converter[CustomerAccountLinkTrait, CustomerAccountLinkTraitCommons]
+
+case class AgentAccountLinkTraitCommons(
+  agentAccountLinkId: String,
+  agentId: String,
+  bankId: String,
+  accountId: String
+) extends AgentAccountLinkTrait
+
+object AgentAccountLinkTraitCommons extends Converter[AgentAccountLinkTrait, AgentAccountLinkTraitCommons]
+
+
+case class CounterpartyLimitTraitCommons(
+  counterpartyLimitId: String,
+  bankId: String,
+  accountId: String,
+  viewId: String,
+  counterpartyId: String,
+  currency: String,
+  maxSingleAmount: BigDecimal,
+  maxMonthlyAmount: BigDecimal,
+  maxNumberOfMonthlyTransactions: Int,
+  maxYearlyAmount: BigDecimal,
+  maxNumberOfYearlyTransactions: Int,
+  maxTotalAmount: BigDecimal,
+  maxNumberOfTransactions: Int,
+) extends CounterpartyLimitTrait {
+  override def toJValue(implicit format: Formats): JValue = {
+    ("counterparty_limit_id", counterpartyLimitId) ~
+      ("bank_id", bankId) ~
+      ("account_id",accountId) ~
+      ("view_id",viewId) ~
+      ("counterparty_id",counterpartyId) ~
+      ("currency",currency) ~
+      ("max_single_amount", maxSingleAmount) ~
+      ("max_monthly_amount", maxMonthlyAmount) ~
+      ("max_number_of_monthly_transactions", maxNumberOfMonthlyTransactions) ~
+      ("max_yearly_amount", maxYearlyAmount) ~
+      ("max_number_of_yearly_transactions", maxNumberOfYearlyTransactions) ~
+      ("max_total_amount", maxTotalAmount) ~
+      ("max_number_of_transactions", maxNumberOfTransactions)
+  }
+}
+
+object CounterpartyLimitTraitCommons extends Converter[CounterpartyLimitTrait, CounterpartyLimitTraitCommons]
+
+case class ChallengeTraitCommons(
+  challengeId: String,
+  transactionRequestId: String,
+  expectedAnswer: String,
+  expectedUserId: String,
+  salt: String,
+  successful: Boolean,
+  challengeType: String,
+  consentId: Option[String],
+  basketId: Option[String],
+  scaMethod: Option[SCA],
+  scaStatus: Option[SCAStatus],
+  authenticationMethodId: Option[String],
+  attemptCounter: Int) extends ChallengeTrait with JsonFieldReName
+
+object ChallengeTraitCommons extends Converter[ChallengeTrait, ChallengeTraitCommons]
+
+
+case class PhysicalCardTraitCommons(
+  cardId: String,
+  bankId: String,
+  bankCardNumber: String,
+  cardType: String,
+  nameOnCard: String,
+  issueNumber: String,
+  serialNumber: String,
+  validFrom: Date,
+  expires: Date,
+  enabled: Boolean,
+  cancelled: Boolean,
+  onHotList: Boolean,
+  technology: String,
+  networks: List[String],
+  allows: List[CardAction],
+  account: BankAccount,
+  replacement: Option[CardReplacementInfo],
+  pinResets: List[PinResetInfo],
+  collected: Option[CardCollectionInfo],
+  posted: Option[CardPostedInfo],
+  customerId: String,
+  cvv: Option[String],
+  brand: Option[String]
+) extends PhysicalCardTrait
+
+object PhysicalCardTraitCommons extends Converter[PhysicalCardTrait, PhysicalCardTraitCommons]
+
+case class TransactionRequestAttributeTraitCommons(
+  bankId: BankId,
+  transactionRequestId: TransactionRequestId,
+  transactionRequestAttributeId: String,
+  attributeType: TransactionRequestAttributeType,
+  name: String,
+  value: String,
+  isPersonal: Boolean
+) extends TransactionRequestAttributeTrait
+
+object TransactionRequestAttributeTraitCommons extends Converter[TransactionRequestAttributeTrait, TransactionRequestAttributeTraitCommons]
+
+
+case class EndpointTagTCommons(
+  endpointTagId: Option[String],
+  operationId: String,
+  tagName: String,
+  bankId: Option[String]) extends EndpointTagT
+
+object EndpointTagTCommons extends Converter[EndpointTagT, EndpointTagTCommons]
+
+case class StandingOrderTraitCommons(
+  standingOrderId: String,
+  bankId: String,
+  accountId: String,
+  customerId: String,
+  userId: String,
+  counterpartyId: String,
+  amountValue: BigDecimal,
+  amountCurrency: String,
+  whenFrequency: String,
+  whenDetail: String,
+  dateSigned: Date,
+  dateCancelled: Date,
+  dateStarts: Date,
+  dateExpires: Date,
+  active: Boolean) extends StandingOrderTrait
+
+object StandingOrderTraitCommons extends Converter[StandingOrderTrait, StandingOrderTraitCommons]
+
+case class UserAuthContextUpdateCommons(
+  userAuthContextUpdateId: String,
+  userId: String,
+  key: String,
+  value: String,
+  challenge: String,
+  status: String,
+  consumerId: String) extends UserAuthContextUpdate
+
+object UserAuthContextUpdateCommons extends Converter[UserAuthContextUpdate, UserAuthContextUpdateCommons]
+
+case class ConsentImplicitSCATCommons(
+  scaMethod: StrongCustomerAuthentication,
+  recipient: String) extends ConsentImplicitSCAT
+
+object ConsentImplicitSCATCommons extends Converter[ConsentImplicitSCAT, ConsentImplicitSCATCommons]
+
+
+case class CardAttributeCommons(
+  bankId: Option[BankId],
+  cardId: Option[String],
+  cardAttributeId: Option[String],
+  name: String,
+  attributeType: CardAttributeType.Value,
+  value: String
+) extends CardAttribute with JsonFieldReName
+
+object CardAttributeCommons extends Converter[CardAttribute, CardAttributeCommons]
+
+  //----------------obp-api moved to here case classes
+
+case class BankRoutingJson(
+  scheme: String,
+  address: String
+)
 case class BranchRoutingJsonV141(
                                   scheme: String,
                                   address: String
@@ -552,6 +778,12 @@ case class AccountRoutingJsonV121(
                                    scheme: String,
                                    address: String
                                  )
+
+case class BankAccountRoutings(
+  bank:BankRoutingJson,
+  account:BranchRoutingJsonV141,
+  branch:AccountRoutingJsonV121
+)
 
 case class AccountV310Json(
                             bank_id: String ,
@@ -595,7 +827,7 @@ case class TransactionRequestAccount (
                                        account_id : String
                                      )
 
-//For SEPA, it need the iban to find the toCounterpaty--> toBankAccount
+//For SEPA, it needs the iban to find the toCounterpaty--> toBankAccount
 case class TransactionRequestIban (iban : String)
 
 case class AmountOfMoneyJsonV121(
@@ -612,6 +844,12 @@ case class FromAccountTransfer(
                                 mobile_phone_number: String,
                                 nickname: String
                               )
+
+case class TransactionRequestAttributeJsonV400(
+  name: String,
+  attribute_type: String,
+  value: String,
+) 
 
 case class ToAccountTransferToAtmKycDocument(
                                               `type`: String,
@@ -652,8 +890,11 @@ case class TransactionRequestTransferToAtm(
                                             to: ToAccountTransferToAtm
                                           ) extends TransactionRequestCommonBodyJSON
 
-//For COUNTERPATY, it need the counterparty_id to find the toCounterpaty--> toBankAccount
+//For COUNTERPARTY, it needs the counterparty_id to find the toCounterparty--> toBankAccount
 case class TransactionRequestCounterpartyId (counterparty_id : String)
+
+//For AGENT_CASH_WITHDRAWAL, it needs the agent_number to find the toAgent--> toBankAccount
+case class transactionRequestAgentCashWithdrawal (bank_id: String , agent_number : String)
 
 case class TransactionRequestSimple (
   otherBankRoutingScheme: String,
@@ -686,34 +927,68 @@ case class SepaCreditTransfers( //This is from berlinGroup
   creditorName: String
 )
 
-case class SepaCreditTransfersBerlinGroupV13( //This is from berlinGroup
-                                              endToEndIdentification:  Option[String] = None,
-                                              instructionIdentification:  Option[String] = None,
-                                              debtorName:  Option[String] = None,
-                                              debtorAccount: PaymentAccount,
-                                              debtorId: Option[String] = None,
-                                              ultimateDebtor: Option[String] = None,
-                                              instructedAmount: AmountOfMoneyJsonV121,
-                                              currencyOfTransfer: Option[String] = None,
-                                              exchangeRateInformation: Option[String] = None,
-                                              creditorAccount: PaymentAccount,
-                                              creditorAgent: Option[String] = None,
-                                              creditorAgentName: Option[String] = None,
-                                              creditorName: String,
-                                              creditorId: Option[String] = None,
-                                              creditorAddress: Option[String] = None,
-                                              creditorNameAndAddress: Option[String] = None,
-                                              ultimateCreditor: Option[String] = None,
-                                              purposeCode: Option[String] = None,
-                                              chargeBearer: Option[String] = None,
-                                              serviceLevel: Option[String] = None,
-                                              remittanceInformationUnstructured: Option[String] = None,
-                                              remittanceInformationUnstructuredArray: Option[String] = None,
-                                              remittanceInformationStructured: Option[String] = None,
-                                              remittanceInformationStructuredArray: Option[String] = None,
-                                              requestedExecutionDate: Option[String] = None,
-                                              requestedExecutionTime: Option[String] = None
-                                            )
+case class SepaCreditTransfersBerlinGroupV13(
+  endToEndIdentification: Option[String] = None,
+  instructionIdentification: Option[String] = None,
+  debtorName: Option[String] = None,
+  debtorAccount: PaymentAccount,
+  debtorId: Option[String] = None,
+  ultimateDebtor: Option[String] = None,
+  instructedAmount: AmountOfMoneyJsonV121,
+  currencyOfTransfer: Option[String] = None,
+  exchangeRateInformation: Option[String] = None,
+  creditorAccount: PaymentAccount,
+  creditorAgent: Option[String] = None,
+  creditorAgentName: Option[String] = None,
+  creditorName: String,
+  creditorId: Option[String] = None,
+  creditorAddress: Option[String] = None,
+  creditorNameAndAddress: Option[String] = None,
+  ultimateCreditor: Option[String] = None,
+  purposeCode: Option[String] = None,
+  chargeBearer: Option[String] = None,
+  serviceLevel: Option[String] = None,
+  remittanceInformationUnstructured: Option[String] = None,
+  remittanceInformationUnstructuredArray: Option[String] = None,
+  remittanceInformationStructured: Option[String] = None,
+  remittanceInformationStructuredArray: Option[String] = None,
+  requestedExecutionDate: Option[String] = None,
+  requestedExecutionTime: Option[String] = None
+) extends  BerlinGroupTransactionRequestCommonBodyJson
+
+case class PeriodicSepaCreditTransfersBerlinGroupV13( 
+  endToEndIdentification: Option[String] = None,
+  instructionIdentification: Option[String] = None,
+  debtorName: Option[String] = None,
+  debtorAccount: PaymentAccount,
+  debtorId: Option[String] = None,
+  ultimateDebtor: Option[String] = None,
+  instructedAmount: AmountOfMoneyJsonV121,
+  currencyOfTransfer: Option[String] = None,
+  exchangeRateInformation: Option[String] = None,
+  creditorAccount: PaymentAccount,
+  creditorAgent: Option[String] = None,
+  creditorAgentName: Option[String] = None,
+  creditorName: String,
+  creditorId: Option[String] = None,
+  creditorAddress: Option[String] = None,
+  creditorNameAndAddress: Option[String] = None,
+  ultimateCreditor: Option[String] = None,
+  purposeCode: Option[String] = None,
+  chargeBearer: Option[String] = None,
+  serviceLevel: Option[String] = None,
+  remittanceInformationUnstructured: Option[String] = None,
+  remittanceInformationUnstructuredArray: Option[String] = None,
+  remittanceInformationStructured: Option[String] = None,
+  remittanceInformationStructuredArray: Option[String] = None,
+  requestedExecutionDate: Option[String] = None,
+  requestedExecutionTime: Option[String] = None,
+  startDate: String,
+  executionRule: Option[String] = None,
+  endDate: Option[String] = None,
+  frequency: String,
+  dayOfExecution: Option[String] = None,
+) extends BerlinGroupTransactionRequestCommonBodyJson
 
 case class TransactionRequestBodyAllTypes (
                                             @optional
@@ -732,6 +1007,8 @@ case class TransactionRequestBodyAllTypes (
                                             to_transfer_to_account: Option[TransactionRequestTransferToAccount]= None,//TODO not stable
                                             @optional
                                             to_sepa_credit_transfers: Option[SepaCreditTransfers]= None,//TODO not stable, from berlin Group
+                                            @optional
+                                            to_agent: Option[transactionRequestAgentCashWithdrawal]= None,
   
                                             value: AmountOfMoney,
                                             description: String
@@ -781,8 +1058,24 @@ case class TransactionRequest (
                                 @optional
                                 is_beneficiary :Boolean,
                                 @optional
-                                future_date :Option[String] = None
+                                future_date :Option[String] = None,
+                                @optional
+                                payment_start_date :Option[Date] = None,
+                                @optional
+                                payment_end_date :Option[Date] = None,
+                                @optional
+                                payment_execution_Rule :Option[String] = None,
+                                @optional
+                                payment_frequency :Option[String] = None,
+                                @optional
+                                payment_day_of_execution :Option[String] = None,
                               )
+
+case class TransactionRequestBGV1(
+  id: TransactionRequestId,
+  status: String,
+)
+
 case class TransactionRequestBody (
                                     val to: TransactionRequestAccount,
                                     val value : AmountOfMoney,
@@ -886,6 +1179,7 @@ case class OutboundAdapterCallContext(
   consumerId: Option[String] = None,
   generalContext: Option[List[BasicGeneralContext]]= None,
   outboundAdapterAuthInfo: Option[OutboundAdapterAuthInfo] = None,
+  outboundAdapterConsenterInfo: Option[OutboundAdapterAuthInfo] = None, //Here consentInfo object structure is the same as AuthInfo. so share the same class
 )
 
 case class BasicGeneralContext(
@@ -925,29 +1219,6 @@ case class AuthInfo(
   authViews: List[AuthView] = Nil,
 )
 
-case class ObpCustomer(
-  customerId: String,
-  bankId: String,
-  number: String,
-  legalName: String,
-  mobileNumber: String,
-  email: String,
-  faceImage: CustomerFaceImage,
-  dateOfBirth: Date,
-  relationshipStatus: String,
-  dependents: Integer,
-  dobOfDependents: List[Date],
-  highestEducationAttained: String,
-  employmentStatus: String,
-  creditRating: CreditRating,
-  creditLimit: CreditLimit,
-  kycStatus: lang.Boolean,
-  lastOkDate: Date,
-  title: String = "", //These new fields for V310, not from Connector for now. 
-  branchId: String = "", //These new fields for V310, not from Connector for now. 
-  nameSuffix: String = "", //These new fields for V310, not from Connector for now. 
-) extends Customer
-
 case class InternalCustomer(
   customerId: String,
   bankId: String,
@@ -967,28 +1238,6 @@ case class InternalCustomer(
   kycStatus: lang.Boolean,
   lastOkDate: Date
 )
-
-case class InboundAccountJune2017(
-  errorCode: String,
-  cbsToken: String, //TODO, this maybe move to AuthInfo, but it is used in GatewayLogin
-  bankId: String,
-  branchId: String,
-  accountId: String,
-  accountNumber: String,
-  accountType: String,
-  balanceAmount: String,
-  balanceCurrency: String,
-  owners: List[String],
-  viewsToGenerate: List[String],
-  bankRoutingScheme: String,
-  bankRoutingAddress: String,
-  branchRoutingScheme: String,
-  branchRoutingAddress: String,
-  accountRoutingScheme: String,
-  accountRoutingAddress: String,
-  accountRouting: List[AccountRouting],
-  accountRules: List[AccountRule]
-) extends InboundMessageBase with InboundAccount
 
 case class Bank2(r: InboundBank) extends Bank {
   def fullName = r.name

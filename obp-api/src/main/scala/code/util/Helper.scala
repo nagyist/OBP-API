@@ -8,13 +8,14 @@ import code.api.{APIFailureNewStyle, Constant}
 import code.api.util.APIUtil.fullBoxOrException
 import code.customer.internalMapping.MappedCustomerIdMappingProvider
 import code.model.dataAccess.internalMapping.MappedAccountIdMappingProvider
+import code.transaction.internalMapping.MappedTransactionIdMappingProvider
 import net.liftweb.common._
 import net.liftweb.json.Extraction._
 import net.liftweb.json.JsonAST._
 import net.liftweb.json.{DateFormat, Formats}
 import org.apache.commons.lang3.StringUtils
 import com.openbankproject.commons.ExecutionContext.Implicits.global
-import com.openbankproject.commons.model.{AccountBalance, AccountBalances, AccountHeld, AccountId, CoreAccount, Customer, CustomerId}
+import com.openbankproject.commons.model.{AccountBalance, AccountBalances, AccountHeld, AccountId, CoreAccount, Customer, CustomerId, Transaction, TransactionCore, TransactionId}
 import com.openbankproject.commons.util.{ReflectUtils, RequiredFieldValidation, RequiredInfo}
 import com.tesobe.CacheKeyFromArguments
 import net.liftweb.http.S
@@ -211,18 +212,24 @@ object Helper extends Loggable {
     */
   def isValidInternalRedirectUrl(url: String) : Boolean = {
     //set the default value is "/" and "/oauth/authorize"
-    val validUrls = List(
+    val internalRedirectUrlsWhiteList = List(
       "/","/oauth/authorize","/consumer-registration",
       "/dummy-user-tokens","/create-sandbox-account",
       "/add-user-auth-context-update-request","/otp",
-      "/terms-and-conditions", "/privacy-policy"
+      "/terms-and-conditions", "/privacy-policy",
+      "/confirm-bg-consent-request",
+      "/confirm-bg-consent-request-sca",
+      "/confirm-vrp-consent-request",
+      "/confirm-vrp-consent",
+      "/consent-screen",
+      "/consent",
     )
 
     //case1: OBP-API login: url = "/"
     //case2: API-Explore oauth login: url = "/oauth/authorize?oauth_token=V0JTCDYXWUNTXDZ3VUDNM1HE3Q1PZR2WJ4PURXQA&logUserOut=false"
     val extractCleanURL = StringUtils.substringBefore(url, "?")
 
-    validUrls.contains(extractCleanURL)
+    internalRedirectUrlsWhiteList.contains(extractCleanURL)
   }
 
    /**
@@ -272,13 +279,6 @@ object Helper extends Loggable {
     }
   }
 
-  def getRemotedataHostname(): String = {
-    APIUtil.getPropsValue("remotedata.hostname", "") match {
-      case s: String if s.nonEmpty => s.replaceAll("\\/", "").replaceAll("\\.", "-")
-      case _ => "unknown"
-    }
-  }
-  
   def getAkkaConnectorHostname(): String = {
     APIUtil.getPropsValue("akka_connector.hostname", "") match {
       case s: String if s.nonEmpty => s.replaceAll("\\/", "").replaceAll("\\.", "-")
@@ -386,15 +386,21 @@ object Helper extends Loggable {
   }
 
   def i18n(message: String, default: Option[String] = None): String = {
-    if(S.?(message)==message) {
-      val words = message.split('.').toList match {
-        case x :: Nil => Helpers.capify(x) :: Nil
-        case x :: xs  => Helpers.capify(x) :: xs
-        case _        => Nil
-      }
-      default.getOrElse(words.mkString(" ") + ".")
+    if (S.inStatefulScope_?) {
+      if (S.?(message) == message) {
+        val words = message.split('.').toList match {
+          case x :: Nil => Helpers.capify(x) :: Nil
+          case x :: xs => Helpers.capify(x) :: xs
+          case _ => Nil
+        }
+        default.getOrElse(words.mkString(" ") + ".")
+      } else 
+        S.?(message)
+    } else {
+      logger.error(s"i18n(message($message), default${default}: Attempted to use resource bundles outside of an initialized S scope. " +
+        s"S only usable when initialized, such as during request processing. Did you call S.? from Future?")
+      default.getOrElse(message)
     }
-    else S.?(message)
   }
 
   /**
@@ -405,7 +411,12 @@ object Helper extends Loggable {
    * @tparam T type of instance
    * @return modified instance
    */
-  private def convertId[T](obj: T, customerIdConverter: String=> String, accountIdConverter: String=> String): T = {
+  private def convertId[T](
+    obj: T, 
+    customerIdConverter: String=> String, 
+    accountIdConverter: String=> String,
+    transactionIdConverter: String=> String
+  ): T = {
     //1st: We must not convert when connector == mapped. this will ignore the implicitly_convert_ids props.
     //2rd: if connector != mapped, we still need the `implicitly_convert_ids == true`
 
@@ -423,11 +434,19 @@ object Helper extends Loggable {
         (ownerType <:< typeOf[AccountBalances] && fieldName.equalsIgnoreCase("id") && fieldType =:= typeOf[String])||
         (ownerType <:< typeOf[AccountHeld] && fieldName.equalsIgnoreCase("id") && fieldType =:= typeOf[String])
     }
+    
+    def isTransactionId(fieldName: String, fieldType: Type, fieldValue: Any, ownerType: Type) = {
+      ownerType <:< typeOf[TransactionId] ||
+        (fieldName.equalsIgnoreCase("transactionId") && fieldType =:= typeOf[String])||
+        (ownerType <:< typeOf[TransactionCore] && fieldName.equalsIgnoreCase("id") && fieldType =:= typeOf[String])||
+        (ownerType <:< typeOf[Transaction] && fieldName.equalsIgnoreCase("id") && fieldType =:= typeOf[String])
+    }
 
     if(APIUtil.getPropsValue("connector","mapped") != "mapped" && APIUtil.getPropsAsBoolValue("implicitly_convert_ids",false)){
       ReflectUtils.resetNestedFields(obj){
         case (fieldName, fieldType, fieldValue: String, ownerType) if isCustomerId(fieldName, fieldType, fieldValue, ownerType) => customerIdConverter(fieldValue)
         case (fieldName, fieldType, fieldValue: String, ownerType) if isAccountId(fieldName, fieldType, fieldValue, ownerType) => accountIdConverter(fieldValue)
+        case (fieldName, fieldType, fieldValue: String, ownerType) if isTransactionId(fieldName, fieldType, fieldValue, ownerType) => transactionIdConverter(fieldValue)
       }
       obj
     } else
@@ -448,7 +467,10 @@ object Helper extends Loggable {
     def accountIdConverter(accountId: String): String = MappedAccountIdMappingProvider
       .getAccountPlainTextReference(AccountId(accountId))
       .openOrThrowException(s"$InvalidAccountIdFormat the invalid accountId is $accountId")
-    convertId[T](obj, customerIdConverter, accountIdConverter)
+    def transactionIdConverter(transactionId: String): String = MappedTransactionIdMappingProvider
+      .getTransactionPlainTextReference(TransactionId(transactionId))
+      .openOrThrowException(s"$InvalidAccountIdFormat the invalid transactionId is $transactionId")
+    convertId[T](obj, customerIdConverter, accountIdConverter, transactionIdConverter)
   }
 
   /**
@@ -466,10 +488,13 @@ object Helper extends Loggable {
     def accountIdConverter(accountReference: String): String = MappedAccountIdMappingProvider
       .getOrCreateAccountId(accountReference)
       .map(_.value).openOrThrowException(s"$InvalidAccountIdFormat the invalid accountReference is $accountReference")
+    def transactionIdConverter(transactionReference: String): String = MappedTransactionIdMappingProvider
+      .getOrCreateTransactionId(transactionReference)
+      .map(_.value).openOrThrowException(s"$InvalidAccountIdFormat the invalid transactionReference is $transactionReference")
     if(obj.isInstanceOf[EmptyBox]) {
       obj
     } else {
-      convertId[T](obj, customerIdConverter, accountIdConverter)
+      convertId[T](obj, customerIdConverter, accountIdConverter, transactionIdConverter)
     }
   }
 

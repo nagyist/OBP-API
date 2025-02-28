@@ -2,9 +2,9 @@ package code.api.berlin.group.v1_3
 
 import java.text.SimpleDateFormat
 import java.util.Date
-
 import code.api.berlin.group.v1_3.model._
 import code.api.util.APIUtil._
+import code.api.util.ErrorMessages.MissingPropsValueAtThisInstance
 import code.api.util.{APIUtil, ConsentJWT, CustomJsonFormats, JwtUtil}
 import code.bankconnectors.Connector
 import code.consent.ConsentTrait
@@ -15,6 +15,7 @@ import net.liftweb.common.Box.tryo
 import net.liftweb.common.{Box, Full}
 import net.liftweb.json
 import net.liftweb.json.{JValue, parse}
+
 import scala.collection.immutable.List
 
 case class JvalueCaseClass(jvalueToCaseclass: JValue)
@@ -48,8 +49,8 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
   )
   
   case class CoreAccountLinksJsonV13(
-    balances: LinkHrefJson //,
-//    trasactions: LinkHrefJson // These links are only supported, when the corresponding consent has been already granted.
+    balances: LinkHrefJson,
+    transactions: Option[LinkHrefJson] = None // These links are only supported, when the corresponding consent has been already granted.
   )
   
   case class CoreAccountBalancesJson(
@@ -68,7 +69,6 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
                                  product: String,
                                  cashAccountType: String,
 //                                 status: String="enabled",
-                                 bic: String,
 //                                 linkedAccounts: String ="string",
 //                                 usage: String ="PRIV",
 //                                 details: String ="",
@@ -231,7 +231,12 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
     combinedServiceIndicator: Boolean
   )
   case class ConsentLinksV13(
-    startAuthorisation: String
+    startAuthorisation: Option[Href] = None,
+    scaRedirect: Option[Href] = None,
+    status: Option[Href] = None,
+    scaStatus: Option[Href] = None,
+    startAuthorisationWithPsuIdentification: Option[Href] = None,
+    startAuthorisationWithPsuAuthentication: Option[Href] = None,
   )
 
   case class PostConsentResponseJson(
@@ -239,11 +244,14 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
     consentStatus: String,
     _links: ConsentLinksV13
   )
+  case class Href(href: String)
 
   case class PutConsentResponseJson(
     scaStatus: String,
     _links: ConsentLinksV13
   )
+
+
 
 
   case class GetConsentResponseJson(
@@ -299,10 +307,17 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
   )
   
   
-  def createAccountListJson(bankAccounts: List[BankAccount], user: User): CoreAccountsJsonV13 = {
+  def createAccountListJson(bankAccounts: List[BankAccount],
+                            canReadBalancesAccounts:  List[BankIdAccountId],
+                            canReadTransactionsAccounts:  List[BankIdAccountId],
+                            user: User): CoreAccountsJsonV13 = {
     CoreAccountsJsonV13(bankAccounts.map {
       x =>
         val (iBan: String, bBan: String) = getIbanAndBban(x)
+        val commonPath = s"${OBP_BERLIN_GROUP_1_3.apiVersion.urlPrefix}/${OBP_BERLIN_GROUP_1_3.version}/accounts/${x.accountId.value}"
+        val balanceRef = LinkHrefJson(s"/$commonPath/accounts/${x.accountId.value}/balances")
+        val transactionRef = LinkHrefJson(s"/$commonPath/accounts/${x.accountId.value}/transactions")
+        val canReadTransactions = canReadTransactionsAccounts.map(_.accountId.value).contains(x.accountId.value)
 
       
         CoreAccountJsonV13(
@@ -311,10 +326,12 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
           bban = bBan,
           currency = x.currency,
           name = x.name,
-          bic = getBicFromBankId(x.bankId.value),
           cashAccountType = x.accountType,
           product = x.accountType,
-          _links = CoreAccountLinksJsonV13(LinkHrefJson(s"/${OBP_BERLIN_GROUP_1_3.apiVersion.urlPrefix}/${OBP_BERLIN_GROUP_1_3.version}/accounts/${x.accountId.value}/balances")) 
+          _links = CoreAccountLinksJsonV13(
+            balances = balanceRef,
+            transactions = if(canReadTransactions) Some(transactionRef) else None,
+          )
         )
      }
     )
@@ -331,7 +348,6 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
           bban = bBan,
           currency = x.currency,
           name = x.name,
-          bic = getBicFromBankId(x.bankId.value),
           cashAccountType = x.accountType,
           product = x.accountType,
           _links = CoreAccountLinksJsonV13(LinkHrefJson(s"/${OBP_BERLIN_GROUP_1_3.apiVersion.urlPrefix}/${OBP_BERLIN_GROUP_1_3.version}/accounts/${x.accountId.value}/balances"))
@@ -442,22 +458,6 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
     )
   }
 
-  private def extractAccountData(scheme: String, address: String): (String, String, String, String, String) = {
-    val (iban: String, bban: String, pan: String, maskedPan: String, currency: String) = Connector.connector.vend.getBankAccountByRoutingLegacy(
-      None,
-      scheme,
-      address,
-      None
-    ) match {
-      case Full((account, _)) =>
-        val (iban: String, bban: String) = getIbanAndBban(account)
-        val (pan, maskedPan) = (account.number, getMaskedPrimaryAccountNumber(accountNumber = account.number))
-        (iban, bban, pan, maskedPan, account.currency)
-      case _ => ("", "", "", "", "")
-    }
-    (iban, bban, pan, maskedPan, currency)
-  }
-
   def createTransactionsJson(bankAccount: BankAccount, transactions: List[ModeratedTransaction], transactionRequests: List[TransactionRequest]) : TransactionsJsonV13 = {
     val accountId = bankAccount.accountId.value
     val (iban: String, bban: String) = getIbanAndBban(bankAccount)
@@ -524,11 +524,56 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
   }
   
   def createPostConsentResponseJson(consent: ConsentTrait) : PostConsentResponseJson = {
-    PostConsentResponseJson(
-      consentId = consent.consentId,
-      consentStatus = consent.status.toLowerCase(),
-      _links= ConsentLinksV13(s"/v1.3/consents/${consent.consentId}/authorisations")
-    )
+    def redirectionWithDedicatedStartOfAuthorization = {
+      PostConsentResponseJson(
+        consentId = consent.consentId,
+        consentStatus = consent.status.toLowerCase(),
+        _links = ConsentLinksV13(
+          startAuthorisation = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations"))
+        )
+      )
+    }
+
+    getPropsValue("psu_authentication_method") match {
+      case Full("redirection") =>
+        val scaRedirectUrlPattern = getPropsValue("psu_authentication_method_sca_redirect_url")
+          .openOr(MissingPropsValueAtThisInstance + "psu_authentication_method_sca_redirect_url")
+        val scaRedirectUrl =
+          if(scaRedirectUrlPattern.contains("PLACEHOLDER"))
+            scaRedirectUrlPattern.replace("PLACEHOLDER", consent.consentId)
+          else
+            s"$scaRedirectUrlPattern/${consent.consentId}"
+        PostConsentResponseJson(
+          consentId = consent.consentId,
+          consentStatus = consent.status.toLowerCase(),
+          _links = ConsentLinksV13(
+            scaRedirect = Some(Href(s"$scaRedirectUrl")),
+            status = Some(Href(s"/v1.3/consents/${consent.consentId}/status")),
+            scaStatus = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations/AUTHORISATIONID")),
+          )
+        )
+      case Full("redirection_with_dedicated_start_of_authorization") =>
+        redirectionWithDedicatedStartOfAuthorization
+      case Full("embedded") =>
+        PostConsentResponseJson(
+          consentId = consent.consentId,
+          consentStatus = consent.status.toLowerCase(),
+          _links = ConsentLinksV13(
+            startAuthorisationWithPsuAuthentication = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations"))
+          )
+        )
+      case Full("decoupled") =>
+        PostConsentResponseJson(
+          consentId = consent.consentId,
+          consentStatus = consent.status.toLowerCase(),
+          _links = ConsentLinksV13(
+            startAuthorisationWithPsuIdentification = Some(Href(s"/v1.3/consents/${consent.consentId}/authorisations"))
+          )
+        )
+      case _ =>
+        redirectionWithDedicatedStartOfAuthorization
+    }
+
   }
   def createPutConsentResponseJson(consent: ConsentTrait) : ScaStatusResponse = {
     ScaStatusResponse(
@@ -545,11 +590,11 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
     GetConsentResponseJson(
       access = access,
       recurringIndicator = createdConsent.recurringIndicator,
-      validUntil = new SimpleDateFormat(DateWithDay).format(createdConsent.validUntil), 
+      validUntil = if(createdConsent.validUntil == null) null else new SimpleDateFormat(DateWithDay).format(createdConsent.validUntil), 
       frequencyPerDay = createdConsent.frequencyPerDay,
       combinedServiceIndicator= createdConsent.combinedServiceIndicator,
-      lastActionDate= new SimpleDateFormat(DateWithDay).format(createdConsent.lastActionDate),
-      consentStatus= createdConsent.status.toLowerCase()
+      lastActionDate = if(createdConsent.lastActionDate == null) null else new SimpleDateFormat(DateWithDay).format(createdConsent.lastActionDate),
+      consentStatus = createdConsent.status.toLowerCase()
     )
   }
 
@@ -562,7 +607,7 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
     )
   }
 
-  def createTransactionRequestJson(transactionRequest : TransactionRequest) : InitiatePaymentResponseJson = {
+  def createTransactionRequestJson(transactionRequest : TransactionRequestBGV1) : InitiatePaymentResponseJson = {
 //    - 'ACCC': 'AcceptedSettlementCompleted' -
 //      Settlement on the creditor's account has been completed.
 //      - 'ACCP': 'AcceptedCustomerProfile' -
@@ -599,6 +644,8 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
 //      Remark: This code may be
     //map OBP transactionRequestId to BerlinGroup PaymentId
     val paymentId = transactionRequest.id.value
+    val scaRedirectUrl = getPropsValue("psu_make_payment_sca_redirect_url")
+      .openOr(MissingPropsValueAtThisInstance + "psu_make_payment_sca_redirect_url")
     InitiatePaymentResponseJson(
       transactionStatus = transactionRequest.status match {
         case "COMPLETED" => "ACCP"
@@ -606,7 +653,7 @@ object JSONFactory_BERLIN_GROUP_1_3 extends CustomJsonFormats {
       },
       paymentId = paymentId,
       _links = InitiatePaymentResponseLinks(
-        scaRedirect = LinkHrefJson(s"$getServerUrl/otp?flow=payment&paymentService=payments&paymentProduct=sepa_credit_transfers&paymentId=$paymentId"),
+        scaRedirect = LinkHrefJson(s"$scaRedirectUrl/$paymentId"),
         self = LinkHrefJson(s"/v1.3/payments/sepa-credit-transfers/$paymentId"),
         status = LinkHrefJson(s"/v1.3/payments/$paymentId/status"),
         scaStatus = LinkHrefJson(s"/v1.3/payments/$paymentId/authorisations/${paymentId}")

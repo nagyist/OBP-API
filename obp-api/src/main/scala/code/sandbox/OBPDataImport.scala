@@ -5,7 +5,7 @@ import java.util.UUID
 
 import code.accountholders.AccountHolders
 import code.api.Constant
-import code.api.Constant.{SYSTEM_ACCOUNTANT_VIEW_ID, SYSTEM_AUDITOR_VIEW_ID, SYSTEM_FIREHOSE_VIEW_ID, SYSTEM_OWNER_VIEW_ID, SYSTEM_READ_ACCOUNTS_BASIC_VIEW_ID, SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID, SYSTEM_READ_ACCOUNTS_DETAIL_VIEW_ID, SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID, SYSTEM_READ_BALANCES_VIEW_ID, SYSTEM_READ_TRANSACTIONS_BASIC_VIEW_ID, SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID, SYSTEM_READ_TRANSACTIONS_DEBITS_VIEW_ID, SYSTEM_READ_TRANSACTIONS_DETAIL_VIEW_ID, localIdentityProvider}
+import code.api.Constant._
 import code.api.util.APIUtil._
 import code.api.util.{APIUtil, ApiPropsWithAlias, ErrorMessages}
 import code.bankconnectors.Connector
@@ -72,7 +72,9 @@ trait OBPDataImport extends MdcLoggable {
   protected def dataOrFirstFailure[T](boxes : List[Box[T]]) = {
     val firstFailure = boxes.collectFirst{case f: Failure => f}
     firstFailure match {
-      case Some(f) => f
+      case Some(f) =>
+        logger.debug(f)
+        f
       case None => Full(boxes.flatten) //no failures, so we can return the results
     }
   }
@@ -125,7 +127,7 @@ trait OBPDataImport extends MdcLoggable {
   protected def createSaveableUser(u : SandboxUserImport) : Box[Saveable[ResourceUser]]
 
   protected def createUsers(toImport : List[SandboxUserImport]) : Box[List[Saveable[ResourceUser]]] = {
-    val existingResourceUsers = toImport.flatMap(u => Users.users.vend.getUserByUserName(localIdentityProvider, u.user_name))
+    val existingResourceUsers = toImport.flatMap(u => Users.users.vend.getUserByProviderAndUsername(localIdentityProvider, u.user_name))
     val allUsernames = toImport.map(_.user_name)
     val duplicateUsernames = allUsernames diff allUsernames.distinct
 
@@ -295,7 +297,7 @@ trait OBPDataImport extends MdcLoggable {
       accId = AccountId(acc.id)
       bankId = BankId(acc.bank)
       //TODO Check the following logic which breaks sandbox tests after ViewsImpl refactoring
-      //ownerViewDoesNotExist <- Helper.booleanToBox(Views.views.vend.view(ViewUID(ViewId("owner"), bankId, accId)).isEmpty) ?~ {
+      //ownerViewDoesNotExist <- Helper.booleanToBox(Views.views.vend.view(ViewUID(ViewId(Constant.SYSTEM_OWNER_VIEW_ID), bankId, accId)).isEmpty) ?~ {
       //  s"owner view for account ${acc.id} at bank ${acc.bank} already exists"
       //}
       //publicViewDoesNotExist <- Helper.booleanToBox(Views.views.vend.view(ViewUID(ViewId("public"), bankId, accId)).isEmpty) ?~ {
@@ -321,7 +323,7 @@ trait OBPDataImport extends MdcLoggable {
     val duplicateNumbers = numbers diff numbers.distinct
 
     val existing = data.accounts.flatMap(acc => {
-      Connector.connector.vend.getBankAccountOld(BankId(acc.bank), AccountId(acc.id))
+      Connector.connector.vend.getBankAccountLegacy(BankId(acc.bank), AccountId(acc.id), None).map(_._1)
     })
 
     val ibans = data.accounts.map(_.IBAN)
@@ -411,10 +413,27 @@ trait OBPDataImport extends MdcLoggable {
     val readAccountsBerlinGroupView = Views.views.vend.getOrCreateSystemView(SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID).asInstanceOf[Box[ViewType]]
     val readBalancesBerlinGroupView = Views.views.vend.getOrCreateSystemView(SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID).asInstanceOf[Box[ViewType]]
     val readTransactionsBerlinGroupView = Views.views.vend.getOrCreateSystemView(SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID).asInstanceOf[Box[ViewType]]
+    val initiatePaymentsBerlinGroupView = Views.views.vend.getOrCreateSystemView(SYSTEM_INITIATE_PAYMENTS_BERLIN_GROUP_VIEW_ID).asInstanceOf[Box[ViewType]]
 
 
 
-    List(accountFirehose, ownerView, accountantsView, auditorsView, publicView, readAccountsBasicView, readAccountsDetailView, readBalancesView, readTransactionsBasicView, readTransactionsDebitsView, readTransactionsDetailView, readAccountsBerlinGroupView, readBalancesBerlinGroupView, readTransactionsBerlinGroupView).flatten
+    List(
+      accountFirehose, 
+      ownerView, 
+      accountantsView, 
+      auditorsView, 
+      publicView, 
+      readAccountsBasicView, 
+      readAccountsDetailView, 
+      readBalancesView, 
+      readTransactionsBasicView, 
+      readTransactionsDebitsView, 
+      readTransactionsDetailView, 
+      readAccountsBerlinGroupView, 
+      readBalancesBerlinGroupView, 
+      readTransactionsBerlinGroupView, 
+      initiatePaymentsBerlinGroupView
+    ).flatten
     
   }
   

@@ -31,7 +31,7 @@ import java.util.Date
 import com.openbankproject.commons.model.enums.StrongCustomerAuthentication.SCA
 import com.openbankproject.commons.model.enums.StrongCustomerAuthenticationStatus.SCAStatus
 import com.openbankproject.commons.model.enums._
-import com.openbankproject.commons.util.ReflectUtils
+import com.openbankproject.commons.util.{JsonAble, ReflectUtils}
 
 import scala.collection.immutable.List
 import scala.math.BigDecimal
@@ -158,16 +158,6 @@ trait CardAttribute {
   def attributeType: CardAttributeType.Value
   def value: String
 }
-case class CardAttributeCommons(
-  bankId: Option[BankId],
-  cardId: Option[String],
-  cardAttributeId: Option[String],
-  name: String,
-  attributeType: CardAttributeType.Value,
-  value: String
-) extends CardAttribute with JsonFieldReName
-
-object CardAttributeCommons extends Converter[CardAttribute, CardAttributeCommons]
 
 case class CustomAttribute(
   name: String,
@@ -434,6 +424,35 @@ trait TransactionRequestCommonBodyJSON {
   val description: String
 }
 
+trait BerlinGroupTransactionRequestCommonBodyJson {
+  val endToEndIdentification:  Option[String]
+  val instructionIdentification:  Option[String]
+  val debtorName:  Option[String]
+  val debtorAccount: PaymentAccount
+  val debtorId: Option[String]
+  val ultimateDebtor: Option[String]
+  val instructedAmount: AmountOfMoneyJsonV121
+  val currencyOfTransfer: Option[String]
+  val exchangeRateInformation: Option[String]
+  val creditorAccount: PaymentAccount
+  val creditorAgent: Option[String]
+  val creditorAgentName: Option[String]
+  val creditorName: String
+  val creditorId: Option[String]
+  val creditorAddress: Option[String]
+  val creditorNameAndAddress: Option[String]
+  val ultimateCreditor: Option[String]
+  val purposeCode: Option[String]
+  val chargeBearer: Option[String]
+  val serviceLevel: Option[String]
+  val remittanceInformationUnstructured: Option[String]
+  val remittanceInformationUnstructuredArray: Option[String]
+  val remittanceInformationStructured: Option[String]
+  val remittanceInformationStructuredArray: Option[String]
+  val requestedExecutionDate: Option[String]
+  val requestedExecutionTime: Option[String]
+}
+
 trait Product {
   def code : ProductCode
   def parentProductCode : ProductCode
@@ -576,6 +595,7 @@ trait TransactionRequestAttributeTrait {
   def attributeType: TransactionRequestAttributeType.Value
   def name: String
   def value: String
+  def isPersonal: Boolean
 }
 
 trait DirectDebitTrait {
@@ -621,6 +641,62 @@ trait ConsentImplicitSCAT {
   def recipient: String
 }
 
+trait CustomerAccountLinkTrait {
+  def customerAccountLinkId: String
+  def customerId: String
+  def bankId: String
+  def accountId: String
+  def relationshipType: String
+}
+
+trait AgentAccountLinkTrait {
+  def agentAccountLinkId: String
+  def agentId: String
+  def bankId: String
+  def accountId: String
+}
+
+trait CounterpartyLimitTrait extends JsonAble{
+  def counterpartyLimitId: String
+  def bankId: String
+  def accountId: String
+  def viewId: String
+  def counterpartyId: String
+
+  def currency: String
+  def maxSingleAmount: BigDecimal
+  def maxMonthlyAmount: BigDecimal
+  def maxNumberOfMonthlyTransactions: Int
+  def maxYearlyAmount: BigDecimal
+  def maxNumberOfYearlyTransactions: Int
+  def maxTotalAmount: BigDecimal
+  def maxNumberOfTransactions: Int
+}
+
+trait EndpointTagT {
+  def endpointTagId: Option[String]
+  def operationId: String
+  def tagName: String
+  def bankId: Option[String]
+}
+
+trait StandingOrderTrait {
+  def standingOrderId: String
+  def bankId: String
+  def accountId: String
+  def customerId: String
+  def userId: String
+  def counterpartyId: String
+  def amountValue : BigDecimal
+  def amountCurrency: String
+  def whenFrequency: String
+  def whenDetail: String
+  def dateSigned: Date
+  def dateCancelled: Date
+  def dateStarts: Date
+  def dateExpires: Date
+  def active: Boolean
+}
 //---------------------------------------- trait dependents of case class
 case class ConsentImplicitSCA(
   scaMethod: SCA,

@@ -58,7 +58,7 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <version>1.2.3</version>
+      <version>1.2.13</version>
     </dependency>
     <dependency>
       <groupId>net.liftweb</groupId>
@@ -114,7 +114,7 @@
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <version>42.4.3</version>
+      <version>42.4.4</version>
     </dependency>
     <!-- https://mvnrepository.com/artifact/com.oracle.database.jdbc/ojdbc8-production -->
     <dependency>
@@ -212,7 +212,7 @@
     <dependency>
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch</artifactId>
-      <version>8.8.1</version>
+      <version>8.14.0</version>
     </dependency>
     <!-- https://mvnrepository.com/artifact/com.sksamuel.elastic4s/elastic4s-client-esjava -->
     <dependency>
@@ -266,7 +266,7 @@
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-compress</artifactId>
-      <version>1.23.0</version>
+      <version>1.26.0</version>
     </dependency>
     <dependency>
       <groupId>com.twitter</groupId>
@@ -284,6 +284,12 @@
       <artifactId>scalacache-redis_${scala.version}</artifactId>
       <version>0.9.3</version>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/com.github.cb372/scalacache-guava -->
+    <dependency>
+      <groupId>com.github.cb372</groupId>
+      <artifactId>scalacache-guava_${scala.version}</artifactId>
+      <version>0.9.3</version>
+    </dependency>
     <dependency>
       <groupId>com.typesafe.akka</groupId>
       <artifactId>akka-slf4j_${scala.version}</artifactId>
@@ -299,7 +305,7 @@
     <dependency>
       <groupId>com.nimbusds</groupId>
       <artifactId>nimbus-jose-jwt</artifactId>
-      <version>9.31</version>
+      <version>9.37.2</version>
     </dependency>
     <dependency>
       <groupId>com.github.OpenBankProject</groupId>
@@ -418,7 +424,7 @@
     <dependency>
       <groupId>com.microsoft.sqlserver</groupId>
       <artifactId>mssql-jdbc</artifactId>
-      <version>8.1.0.jre${java.version}-preview</version>
+      <version>11.2.0.jre${java.version}</version>
     </dependency>
     <!-- scalikejdbc for call stored procedure end-->
 
@@ -441,13 +447,6 @@
       <groupId>org.iban4j</groupId>
       <artifactId>iban4j</artifactId>
       <version>3.2.7-RELEASE</version>
-    </dependency>
-
-    <!--macro cache-->
-    <dependency>
-      <groupId>com.github.OpenBankProject</groupId>
-      <artifactId>macmemo</artifactId>
-      <version>0.6-OBP-SNAPSHOT</version>
     </dependency>
 
     <!-- util convert Future to js Promise
@@ -491,8 +490,36 @@
     <dependency>
       <groupId>com.squareup.okhttp3</groupId>
       <artifactId>okhttp</artifactId>
-      <version>4.9.1</version>
+      <version>4.12.0</version>
     </dependency>
+    <dependency>
+      <groupId>com.squareup.okhttp3</groupId>
+      <artifactId>logging-interceptor</artifactId>
+      <version>4.12.0</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/com.rabbitmq/amqp-client -->
+    <dependency>
+      <groupId>com.rabbitmq</groupId>
+      <artifactId>amqp-client</artifactId>
+      <version>5.22.0</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.testcontainers/rabbitmq -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>rabbitmq</artifactId>
+      <version>1.20.3</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.testcontainers/kafka -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>kafka</artifactId>
+      <version>1.20.3</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -530,7 +557,7 @@
           <!-- add src/main/java to source dirs -->
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
-          <version>1.10</version>
+          <version>3.6.0</version>
           <executions>
             <execution>
               <phase>generate-sources</phase>
@@ -552,7 +579,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-war-plugin</artifactId>
-          <version>2.6</version>
+          <version>3.4.0</version>
           <configuration>
             <webXml>${webXmlPath}</webXml>
           </configuration>
@@ -639,7 +666,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
+        <version>3.13.0</version>
         <configuration>
           <release>${java.version}</release>
         </configuration>

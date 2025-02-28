@@ -1,13 +1,15 @@
 package code.api.v4_0_0
 
+import code.api.Constant
+
 import java.util.{Date, UUID}
 import code.api.ChargePolicy
 import code.api.Constant._
 import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON
-import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON.createPhysicalCardJsonV500
+import code.api.ResourceDocs1_4_0.SwaggerDefinitionsJSON.{createPhysicalCardJsonV500, postAgentJsonV510}
 import code.api.util.APIUtil.OAuth._
 import code.api.util.APIUtil.extractErrorMessageCode
-import code.api.util.ApiRole.{CanCreateAnyTransactionRequest, CanCreateCardsForBank}
+import code.api.util.ApiRole.{CanCreateAnyTransactionRequest, CanCreateCardsForBank, canUpdateAgentStatusAtAnyBank}
 import code.api.util.ErrorMessages._
 import code.api.util.{APIUtil, ErrorMessages}
 import code.api.v1_4_0.JSONFactory1_4_0.{ChallengeAnswerJSON, TransactionRequestAccountJsonV140}
@@ -15,13 +17,15 @@ import code.api.v2_0_0.TransactionRequestBodyJsonV200
 import code.api.v2_1_0._
 import code.api.v4_0_0.APIMethods400.Implementations4_0_0
 import code.api.v5_0_0.PhysicalCardJsonV500
+import code.api.v5_1_0.{AgentJsonV510, PutAgentJsonV510}
 import code.bankconnectors.Connector
 import code.entitlement.Entitlement
 import code.fx.fx
 import code.model.BankAccountX
 import code.setup.{APIResponse, DefaultUsers}
 import com.openbankproject.commons.model.enums.TransactionRequestStatus
-import code.transactionrequests.TransactionRequests.TransactionRequestTypes._
+import com.openbankproject.commons.model.enums.TransactionRequestTypes._
+import com.openbankproject.commons.model.enums.TransactionRequestTypes
 import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.model._
 import com.openbankproject.commons.util.ApiVersion
@@ -50,6 +54,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
   object ApiEndpoint8 extends Tag(nameOf(Implementations4_0_0.answerTransactionRequestChallenge))
   object ApiEndpoint9 extends Tag(nameOf(Implementations4_0_0.createTransactionRequestSimple))
   object ApiEndpoint10 extends Tag(nameOf(Implementations4_0_0.createTransactionRequestCard))
+  object ApiEndpoint11 extends Tag(nameOf(Implementations4_0_0.createTransactionRequestAgentCashWithDrawal))
 
   def transactionCount(accounts: BankAccount*): Int = {
     accounts.foldLeft(0)((accumulator, account) => {
@@ -57,9 +62,9 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     })
   }
 
-  def defaultSetup(transactionRequestTypeInput : String= ACCOUNT.toString) = new DefaultSetup(transactionRequestTypeInput)
+  def defaultSetup(transactionRequestTypeInput : String) = new DefaultSetup(transactionRequestTypeInput)
   
-  class DefaultSetup(transactionRequestTypeInput : String= ACCOUNT.toString) {
+  class DefaultSetup(transactionRequestTypeInput : String) {
 
       val sharedChargePolicy = ChargePolicy.withName("SHARED").toString
       var transactionRequestType: String = transactionRequestTypeInput
@@ -100,7 +105,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
 
       //we expected transfer amount
       val zero: BigDecimal = BigDecimal(0)
-      var expectedAmtTo = fx.exchangeRate(fromCurrency, toCurrency, Some(fromAccount.bankId.value)) match {
+      var expectedAmtTo = fx.exchangeRate(fromCurrency, toCurrency, Some(fromAccount.bankId.value), None) match {
         case Some(exchangeRate) => amt * exchangeRate
         case _ => amt * BigDecimal("0")
       }
@@ -127,9 +132,27 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
       //For Counterpart local mapper, the  mOtherAccountRoutingScheme='OBP' and  mOtherBankRoutingScheme = 'OBP'
       val counterpartyCounterparty = createCounterparty(bankId.value, accountId1.value, accountId2.value, true, UUID.randomUUID.toString);
 
+      val request = (v5_1_0_Request / "banks" / bankId.value / "agents").POST  <@ (user1)
+      val response = makePostRequest(request, write(postAgentJsonV510.copy(currency=fromAccount.currency)))
+      val agentCashWithdrawalAgent = response.body.extract[AgentJsonV510]
+
+    {
+      val putAgentJsonV510  = PutAgentJsonV510(
+        is_pending_agent = false,
+        is_confirmed_agent = true
+      )
+      Entitlement.entitlement.vend.addEntitlement("", resourceUser1.userId, canUpdateAgentStatusAtAnyBank.toString)
+      val request = (v5_1_0_Request / "banks" / bankId.value / "agents"/ agentCashWithdrawalAgent.agent_id).PUT <@ user1
+      val response = makePutRequest(request, write(putAgentJsonV510))
+      response.code should equal(200)
+      response.body.extract[AgentJsonV510].is_pending_agent should equal(putAgentJsonV510.is_pending_agent)
+      response.body.extract[AgentJsonV510].is_confirmed_agent should equal(putAgentJsonV510.is_confirmed_agent)
+    }
+    
       var transactionRequestBodySEPA = TransactionRequestBodySEPAJSON(bodyValue, IbanJson(counterpartySEPA.otherAccountSecondaryRoutingAddress), description, sharedChargePolicy)
 
-      var transactionRequestBodyCounterparty = TransactionRequestBodyCounterpartyJSON(CounterpartyIdJson(counterpartyCounterparty.counterpartyId), bodyValue, description, sharedChargePolicy)
+      var transactionRequestBodyAgentCashWithdrawal = TransactionRequestBodyAgentJsonV400(AgentCashWithdrawalJson(agentCashWithdrawalAgent.bank_id,agentCashWithdrawalAgent.agent_number), bodyValue, description, sharedChargePolicy)
+      var transactionRequestBodyCounterparty = TransactionRequestBodyCounterpartyJSON(CounterpartyIdJson(counterpartyCounterparty.counterpartyId), bodyValue, description,sharedChargePolicy)
       var transactionRequestBodySimple = TransactionRequestBodySimpleJsonV400(SwaggerDefinitionsJSON.postSimpleCounterpartyJson400.copy(
         other_account_routing_address = counterpartyCounterparty.otherAccountRoutingAddress,
         other_bank_routing_address= counterpartyCounterparty.otherBankRoutingAddress,
@@ -191,6 +214,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
       def makeCreateTransReqRequest: APIResponse = makePostRequest(createTransReqRequest, write(transactionRequestBody))
       def makeCreateTransReqRequestSEPA: APIResponse = makePostRequest(createTransReqRequest, write(transactionRequestBodySEPA))
       def makeCreateTransReqRequestCounterparty: APIResponse = makePostRequest(createTransReqRequest, write(transactionRequestBodyCounterparty))
+      def makeCreateTransReqRequestAgentCashWithdrawal: APIResponse = makePostRequest(createTransReqRequest, write(transactionRequestBodyAgentCashWithdrawal))
       def makeCreateTransReqRequestSimple: APIResponse = makePostRequest(createTransReqRequest, write(transactionRequestBodySimple))
       def makeCreateTransReqRequestCard: APIResponse = makePostRequest(createTransReqRequestCard, write(transactionRequestBodyCard))
 
@@ -291,7 +315,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
       def checkBankAccountBalance(finishedTransaction: Boolean): Unit = {
         val toAccount = getToAccount
         val fromAccount = getFromAccount
-        val rate = fx.exchangeRate(fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value))
+        val rate = fx.exchangeRate(fromAccount.currency, toAccount.currency, Some(fromAccount.bankId.value), None)
         val convertedAmount = fx.convert(amt, rate)
         val fromAccountBalance = fromAccount.balance
         val toAccountBalance = toAccount.balance
@@ -303,6 +327,11 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
             fromAccountBalance should equal((beforeFromBalance))
             And("there should now be 2 new transactions in the database")
             transactionCount(fromAccount, toAccount) should equal(totalTransactionsBefore+2)
+          } else if(transactionRequestTypeInput.equals(AGENT_CASH_WITHDRAWAL.toString)){
+            Then(s"$AGENT_CASH_WITHDRAWAL can only check fromAccount, agent account can not be checked here.")
+            fromAccountBalance should equal((beforeFromBalance - amt))
+            And("there should now be 1 new transactions in the database")
+            transactionCount(fromAccount) should equal(totalTransactionsBefore+1)
           } else {
             Then("check that the balances have been properly decreased/increased (since we handle that logic for sandbox accounts at least) ")
             fromAccountBalance should equal((beforeFromBalance - amt))
@@ -311,7 +340,6 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
             And("there should now be 2 new transactions in the database (one for the sender, one for the receiver")
             transactionCount(fromAccount, toAccount) should equal(totalTransactionsBefore + 2)
           }
-
         } else {
           Then("No transaction, it should be the same as before ")
           fromAccountBalance should equal((beforeFromBalance))
@@ -354,7 +382,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     } else {
       scenario("No login user", ApiEndpoint1) {
 
-        val helper = defaultSetup()
+        val helper = defaultSetup(ACCOUNT.toString)
 
         Then("We call the 'Create Transaction Request.' without the login user")
         var request = (v4_0_0_Request / "banks" / helper.fromAccount.bankId.value / "accounts" / helper.fromAccount.accountId.value /
@@ -376,7 +404,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     } else {
       scenario("No owner view, No CanCreateAnyTransactionRequest role", ApiEndpoint1) {
 
-        val helper = defaultSetup()
+        val helper = defaultSetup(ACCOUNT.toString)
 
         Then("We used the login user2, but it does not have the owner view and CreateTransactionRequest role ")
         val request = (v4_0_0_Request / "banks" / helper.testBank.bankId.value / "accounts" / helper.fromAccount.accountId.value /
@@ -397,7 +425,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     } else {
       scenario("No owner view, With CanCreateAnyTransactionRequest role", ApiEndpoint1) {
 
-        val helper = defaultSetup()
+        val helper = defaultSetup(ACCOUNT.toString)
 
         Then("We grant the CanCreateAnyTransactionRequest role to user3")
         addEntitlement(helper.bankId.value, resourceUser3.userId, CanCreateAnyTransactionRequest.toString)
@@ -418,7 +446,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     } else {
       scenario("Invalid transactionRequestType", ApiEndpoint1) {
 
-        val helper = defaultSetup()
+        val helper = defaultSetup(ACCOUNT.toString)
 
         Then("We grant the CanCreateAnyTransactionRequest role to user3")
         addEntitlement(helper.bankId.value, resourceUser3.userId, CanCreateAnyTransactionRequest.toString)
@@ -447,7 +475,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
       scenario("No challenge, No FX (same currencies)", ApiEndpoint1) {
 
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
-        val helper = defaultSetup()
+        val helper = defaultSetup(ACCOUNT.toString)
 
         Then("we call the 'V400 Create Transaction Request' endpoint")
         val createTransactionRequestResponse = helper.makeCreateTransReqRequest
@@ -477,7 +505,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
       scenario("No challenge, With FX ", ApiEndpoint1) {
 
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
-        val helper = defaultSetup()
+        val helper = defaultSetup(ACCOUNT.toString)
 
         And("We set the special conditions for different currencies")
         val fromCurrency = "AED"
@@ -516,7 +544,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     } else {
       scenario("With challenge, No FX ", ApiEndpoint1, ApiEndpoint2) {
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
-        val helper = defaultSetup()
+        val helper = defaultSetup(ACCOUNT.toString)
         And("We set the special conditions for different currencies")
         val fromCurrency = "AED"
         val toCurrency = "AED"
@@ -558,7 +586,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
 
       scenario("With challenge, No FX, test the allowed_attempts times ", ApiEndpoint1, ApiEndpoint2) {
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
-        val helper = defaultSetup()
+        val helper = defaultSetup(ACCOUNT.toString)
         And("We set the special conditions for different currencies")
         val fromCurrency = "AED"
         val toCurrency = "AED"
@@ -597,7 +625,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     } else {
       scenario("With challenge, With FX ", ApiEndpoint1, ApiEndpoint2) {
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
-        val helper = defaultSetup()
+        val helper = defaultSetup(ACCOUNT.toString)
 
         And("We set the special conditions for different currencies")
         val fromCurrency = "AED"
@@ -1184,7 +1212,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
           helper.accountId1.value,
           resourceUser2.userId,
           user1,
-          PostViewJsonV400(view_id = "owner", is_system = true)
+          PostViewJsonV400(view_id = Constant.SYSTEM_OWNER_VIEW_ID, is_system = true)
         )
 
         Then("we call the 'V400 Create Transaction Request' endpoint")
@@ -1232,19 +1260,24 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     }
 
   }
+  
+  
+  feature(s"we can create transaction requests -- $AGENT_CASH_WITHDRAWAL") {
 
-  feature("we can create transaction requests -- SIMPLE") {
 
     if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false) == false) {
-      ignore("No challenge, No FX ", ApiEndpoint1) {}
+      ignore("No challenge, No FX ", ApiEndpoint11) {}
     } else {
-      scenario("No challenge, No FX ", ApiEndpoint1) {
+      scenario("No challenge, No FX ", ApiEndpoint11) {
+
+        setPropsValues("transactionRequests_supported_types" -> "SEPA,SANDBOX_TAN,FREE_FORM,COUNTERPARTY,ACCOUNT,ACCOUNT_OTP,SIMPLE,CARD,AGENT_CASH_WITHDRAWAL")
+        setPropsValues("AGENT_CASH_WITHDRAWAL_OTP_INSTRUCTION_TRANSPORT" -> "DUMMY")
 
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
-        val helper = defaultSetup(SIMPLE.toString)
+        val helper = defaultSetup(AGENT_CASH_WITHDRAWAL.toString)
 
         Then("we call the 'V400 Create Transaction Request' endpoint")
-        val createTransactionRequestResponse = helper.makeCreateTransReqRequestSimple
+        val createTransactionRequestResponse = helper.makeCreateTransReqRequestAgentCashWithdrawal
 
         Then("We checked all the fields of createTransact dionRequestResponse body ")
         helper.checkAllCreateTransReqResBodyField(createTransactionRequestResponse, false)
@@ -1266,24 +1299,26 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     }
 
     if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false) == false) {
-      ignore("No challenge, With FX ", ApiEndpoint1) {}
+      ignore("No challenge, With FX ", ApiEndpoint11) {}
     } else {
-      scenario("No challenge, With FX ", ApiEndpoint1) {
+      scenario("No challenge, With FX ", ApiEndpoint11) {
 
+        setPropsValues("transactionRequests_supported_types" -> "SEPA,SANDBOX_TAN,FREE_FORM,COUNTERPARTY,ACCOUNT,ACCOUNT_OTP,SIMPLE,CARD,AGENT_CASH_WITHDRAWAL")
+        setPropsValues("AGENT_CASH_WITHDRAWAL_OTP_INSTRUCTION_TRANSPORT" -> "DUMMY")
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
-        val helper = defaultSetup(SIMPLE.toString)
+        val helper = defaultSetup(AGENT_CASH_WITHDRAWAL.toString)
 
-        Then("we call the 'V400 Create Transaction Request' endpoint")
+        And("We set the special conditions for different currencies")
         val fromCurrency = "AED"
         val toCurrency = "INR"
         val amt = "10"
         helper.setCurrencyAndAmt(fromCurrency, toCurrency, amt)
         And("We set the special input JSON values for 'V400 Create Transaction Request' endpoint")
         helper.bodyValue = AmountOfMoneyJsonV121(fromCurrency, amt.toString())
-        helper.transactionRequestBodySimple = helper.transactionRequestBodySimple.copy(value=helper.bodyValue)
+        helper.transactionRequestBodyAgentCashWithdrawal = helper.transactionRequestBodyAgentCashWithdrawal.copy(value=helper.bodyValue)
 
         Then("we call the 'V400 Create Transaction Request' endpoint")
-        val createTransactionRequestResponse = helper.makeCreateTransReqRequestSimple
+        val createTransactionRequestResponse = helper.makeCreateTransReqRequestAgentCashWithdrawal
 
         Then("We checked all the fields of createTransactionRequestResponse body ")
         helper.checkAllCreateTransReqResBodyField(createTransactionRequestResponse, false)
@@ -1306,11 +1341,15 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     }
 
     if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false) == false) {
-      ignore("With challenge, No FX ", ApiEndpoint1) {}
+      ignore("With challenge, No FX ", ApiEndpoint11) {}
     } else {
-      scenario("With challenge, No FX ", ApiEndpoint1) {
+      scenario("With challenge, No FX ", ApiEndpoint11) {
+
+        setPropsValues("transactionRequests_supported_types" -> "SEPA,SANDBOX_TAN,FREE_FORM,COUNTERPARTY,ACCOUNT,ACCOUNT_OTP,SIMPLE,CARD,AGENT_CASH_WITHDRAWAL")
+        setPropsValues("AGENT_CASH_WITHDRAWAL_OTP_INSTRUCTION_TRANSPORT" -> "DUMMY")
+        
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
-        val helper = defaultSetup(SIMPLE.toString)
+        val helper = defaultSetup(AGENT_CASH_WITHDRAWAL.toString)
         And("We set the special conditions for different currencies")
         val fromCurrency = "AED"
         val toCurrency = "AED"
@@ -1318,10 +1357,10 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
         helper.setCurrencyAndAmt(fromCurrency, toCurrency, amt)
         And("We set the special input JSON values for 'V400 Create Transaction Request' endpoint")
         helper.bodyValue = AmountOfMoneyJsonV121(fromCurrency, amt.toString())
-        helper.transactionRequestBodySimple = helper.transactionRequestBodySimple.copy(value=helper.bodyValue)
+        helper.transactionRequestBodyAgentCashWithdrawal = helper.transactionRequestBodyAgentCashWithdrawal.copy(value=helper.bodyValue)
 
         Then("we call the 'V400 Create Transaction Request' endpoint")
-        val createTransactionRequestResponse = helper.makeCreateTransReqRequestSimple
+        val createTransactionRequestResponse = helper.makeCreateTransReqRequestAgentCashWithdrawal
         And("We checked all the fields of createTransactionRequestResponse body ")
         helper.checkAllCreateTransReqResBodyField(createTransactionRequestResponse, true)
 
@@ -1352,11 +1391,15 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     }
 
     if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false) == false) {
-      ignore("With challenge, With FX", ApiEndpoint1) {}
+      ignore("With challenge, With FX", ApiEndpoint11) {}
     } else {
-      scenario("With challenge, With FX", ApiEndpoint1) {
+      scenario("With challenge, With FX", ApiEndpoint11) {
+
+        setPropsValues("transactionRequests_supported_types" -> "SEPA,SANDBOX_TAN,FREE_FORM,COUNTERPARTY,ACCOUNT,ACCOUNT_OTP,SIMPLE,CARD,AGENT_CASH_WITHDRAWAL")
+        setPropsValues("AGENT_CASH_WITHDRAWAL_OTP_INSTRUCTION_TRANSPORT" -> "DUMMY")
+        
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
-        val helper = defaultSetup(SIMPLE.toString)
+        val helper = defaultSetup(AGENT_CASH_WITHDRAWAL.toString)
 
         And("We set the special conditions for different currencies")
         val fromCurrency = "AED"
@@ -1366,10 +1409,10 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
 
         And("We set the special input JSON values for 'V400 Create Transaction Request' endpoint")
         helper.bodyValue = AmountOfMoneyJsonV121(fromCurrency, amt.toString())
-        helper.transactionRequestBodySimple = helper.transactionRequestBodySimple.copy(value=helper.bodyValue)
+        helper.transactionRequestBodyAgentCashWithdrawal = helper.transactionRequestBodyAgentCashWithdrawal.copy(value=helper.bodyValue)
 
         Then("we call the 'V400 Create Transaction Request' endpoint")
-        val createTransactionRequestResponse = helper.makeCreateTransReqRequestSimple
+        val createTransactionRequestResponse = helper.makeCreateTransReqRequestAgentCashWithdrawal
 
         Then("We checked all the fields of createTransactionRequestResponse body ")
         helper.checkAllCreateTransReqResBodyField(createTransactionRequestResponse, true)
@@ -1402,11 +1445,15 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
     }
 
     if (APIUtil.getPropsAsBoolValue("transactionRequests_enabled", false) == false) {
-      ignore("With N challenges, With FX", ApiEndpoint1) {}
+      ignore("With N challenges, With FX", ApiEndpoint11) {}
     } else {
       scenario("With N challenges, With FX", ApiEndpoint1) {
+
+        setPropsValues("transactionRequests_supported_types" -> "SEPA,SANDBOX_TAN,FREE_FORM,COUNTERPARTY,ACCOUNT,ACCOUNT_OTP,SIMPLE,CARD,AGENT_CASH_WITHDRAWAL")
+        setPropsValues("AGENT_CASH_WITHDRAWAL_OTP_INSTRUCTION_TRANSPORT" -> "DUMMY")
+        
         When("we prepare all the conditions for a normal success -- V400 Create Transaction Request")
-        val helper = defaultSetup(SIMPLE.toString)
+        val helper = defaultSetup(AGENT_CASH_WITHDRAWAL.toString)
 
         And("We set the special conditions for different currencies")
         val fromCurrency = "AED"
@@ -1416,7 +1463,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
 
         And("We set the special input JSON values for 'V400 Create Transaction Request' endpoint")
         helper.bodyValue = AmountOfMoneyJsonV121(fromCurrency, amt.toString())
-        helper.transactionRequestBodySimple = helper.transactionRequestBodySimple.copy(value=helper.bodyValue)
+        helper.transactionRequestBodyAgentCashWithdrawal = helper.transactionRequestBodyAgentCashWithdrawal.copy(value=helper.bodyValue)
 
         createAccountAttributeViaEndpoint(
           helper.bankId.value, 
@@ -1432,11 +1479,11 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
           helper.accountId1.value,
           resourceUser2.userId,
           user1,
-          PostViewJsonV400(view_id = "owner", is_system = true)
+          PostViewJsonV400(view_id = Constant.SYSTEM_OWNER_VIEW_ID, is_system = true)
         )
 
         Then("we call the 'V400 Create Transaction Request' endpoint")
-        val createTransactionRequestResponse = helper.makeCreateTransReqRequestSimple
+        val createTransactionRequestResponse = helper.makeCreateTransReqRequestAgentCashWithdrawal
         val createTransactionRequestJsonResponse = createTransactionRequestResponse.body.extract[TransactionRequestWithChargeJSON400]
         createTransactionRequestJsonResponse.status should equal(TransactionRequestStatus.INITIATED.toString)
 
@@ -1697,7 +1744,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
           helper.accountId1.value,
           resourceUser2.userId,
           user1,
-          PostViewJsonV400(view_id = "owner", is_system = true)
+          PostViewJsonV400(view_id = Constant.SYSTEM_OWNER_VIEW_ID, is_system = true)
         )
 
         Then("we call the 'V400 Create Transaction Request' endpoint")
@@ -1750,7 +1797,7 @@ class TransactionRequestsTest extends V400ServerSetup with DefaultUsers {
 
     lazy val bankId = testBankId1.value
     lazy val accountId = testAccountId1.value
-    lazy val view = "owner"
+    lazy val view = Constant.SYSTEM_OWNER_VIEW_ID
 
     scenario("We will call the endpoint WITHOUT user credentials", ApiEndpoint1, VersionOfApi) {
 

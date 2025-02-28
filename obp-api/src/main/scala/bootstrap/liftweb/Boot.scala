@@ -43,6 +43,7 @@ import code.api.ResourceDocs1_4_0._
 import code.api._
 import code.api.attributedefinition.AttributeDefinition
 import code.api.cache.Redis
+import code.api.util.ApiRole.CanCreateEntitlementAtAnyBank
 import code.api.util.APIUtil.{enableVersionIfAllowed, errorJsonResponse, getPropsValue, gitCommit}
 import code.api.util._
 import code.api.util.migration.Migration
@@ -63,6 +64,7 @@ import code.connectormethod.ConnectorMethod
 import code.consent.{ConsentRequest, MappedConsent}
 import code.consumer.Consumers
 import code.context.{MappedConsentAuthContext, MappedUserAuthContext, MappedUserAuthContextUpdate}
+import code.counterpartylimit.CounterpartyLimit
 import code.crm.MappedCrmEvent
 import code.customer.internalMapping.MappedCustomerIdMapping
 import code.customer.{MappedCustomer, MappedCustomerMessage}
@@ -75,7 +77,7 @@ import code.dynamicMessageDoc.DynamicMessageDoc
 import code.dynamicResourceDoc.DynamicResourceDoc
 import code.endpointMapping.EndpointMapping
 import code.endpointTag.EndpointTag
-import code.entitlement.MappedEntitlement
+import code.entitlement.{Entitlement, MappedEntitlement}
 import code.entitlementrequest.MappedEntitlementRequest
 import code.fx.{MappedCurrency, MappedFXRate}
 import code.kafka.{KafkaHelperActors, OBPKafkaConsumer}
@@ -106,7 +108,6 @@ import code.productfee.ProductFee
 import code.products.MappedProduct
 import code.ratelimiting.RateLimiting
 import code.regulatedentities.MappedRegulatedEntity
-import code.remotedata.RemotedataActors
 import code.scheduler.{DataBaseCleanerScheduler, DatabaseDriverScheduler, JobScheduler, MetricsArchiveScheduler}
 import code.scope.{MappedScope, MappedUserScope}
 import code.signingbaskets.{MappedSigningBasket, MappedSigningBasketConsent, MappedSigningBasketPayment}
@@ -116,6 +117,7 @@ import code.standingorders.StandingOrder
 import code.taxresidence.MappedTaxResidence
 import code.token.OpenIDConnectToken
 import code.transaction.MappedTransaction
+import code.transaction.internalMapping.TransactionIdMapping
 import code.transactionChallenge.MappedExpectedChallengeAnswer
 import code.transactionRequestAttribute.TransactionRequestAttribute
 import code.transactionStatusScheduler.TransactionRequestStatusScheduler
@@ -286,18 +288,22 @@ class Boot extends MdcLoggable {
 
       APIUtil.getPropsValue("additional_system_views") match {
         case Full(value) =>
-          val viewSetUKOpenBanking = value.split(",").map(_.trim).toList
-          val viewsUKOpenBanking = List(
-            SYSTEM_READ_ACCOUNTS_BASIC_VIEW_ID, SYSTEM_READ_ACCOUNTS_DETAIL_VIEW_ID,
-            SYSTEM_READ_BALANCES_VIEW_ID, SYSTEM_READ_TRANSACTIONS_BASIC_VIEW_ID,
-            SYSTEM_READ_TRANSACTIONS_DEBITS_VIEW_ID, SYSTEM_READ_TRANSACTIONS_DETAIL_VIEW_ID,
+          val additionalSystemViewsFromProps = value.split(",").map(_.trim).toList
+          val additionalSystemViews = List(
+            SYSTEM_READ_ACCOUNTS_BASIC_VIEW_ID, 
+            SYSTEM_READ_ACCOUNTS_DETAIL_VIEW_ID,
+            SYSTEM_READ_BALANCES_VIEW_ID, 
+            SYSTEM_READ_TRANSACTIONS_BASIC_VIEW_ID,
+            SYSTEM_READ_TRANSACTIONS_DEBITS_VIEW_ID, 
+            SYSTEM_READ_TRANSACTIONS_DETAIL_VIEW_ID,
             SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID,
             SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID,
-            SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID
+            SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID,
+            SYSTEM_INITIATE_PAYMENTS_BERLIN_GROUP_VIEW_ID
           )
           for {
-            systemView <- viewSetUKOpenBanking
-            if viewsUKOpenBanking.exists(_ == systemView)
+            systemView <- additionalSystemViewsFromProps
+            if additionalSystemViews.exists(_ == systemView)
           } {
             Views.views.vend.getOrCreateSystemView(systemView)
           }
@@ -312,6 +318,8 @@ class Boot extends MdcLoggable {
 
     //see the notes for this method:
     createDefaultBankAndDefaultAccountsIfNotExisting()
+    
+    createBootstrapSuperUser()
     
     //launch the scheduler to clean the database from the expired tokens and nonces, 1 hour
     DataBaseCleanerScheduler.start(intervalInSeconds = 60*60)
@@ -334,6 +342,12 @@ class Boot extends MdcLoggable {
        }
      }
     }
+
+    // start RabbitMq Adapter(using mapped connector as mockded CBS)  
+    if (APIUtil.getPropsAsBoolValue("rabbitmq.adapter.enabled", false)) {
+      code.bankconnectors.rabbitmq.Adapter.startRabbitMqAdapter.main(Array(""))
+    }
+    
 
     // Database query timeout
 //    APIUtil.getPropsValue("database_query_timeout_in_seconds").map { timeoutInSeconds =>
@@ -533,16 +547,6 @@ class Boot extends MdcLoggable {
       OBPKafkaConsumer.primaryConsumer.start()
     }
 
-    if (APIUtil.getPropsAsBoolValue("use_akka", false) == true) {
-      try {
-        logger.info(s"RemotedataActors.startActors( ${actorSystem} ) starting")
-        RemotedataActors.startActors(actorSystem)
-      } catch {
-        case ex: Exception => logger.warn(s"RemotedataActors.startLocalRemotedataWorkers( ${actorSystem} ) could not start: $ex")
-      }
-    }
-
-
     // API Metrics (logs of API calls)
     // If set to true we will write each URL with params to a datastore / log file
     if (APIUtil.getPropsAsBoolValue("write_metrics", false)) {
@@ -592,7 +596,11 @@ class Boot extends MdcLoggable {
       OAuthWorkedThanks.menu, //OAuth thanks page that will do the redirect
       Menu.i("Introduction") / "introduction",
       Menu.i("add-user-auth-context-update-request") / "add-user-auth-context-update-request",
-      Menu.i("confirm-user-auth-context-update-request") / "confirm-user-auth-context-update-request"
+      Menu.i("confirm-user-auth-context-update-request") / "confirm-user-auth-context-update-request",
+      Menu.i("confirm-bg-consent-request") / "confirm-bg-consent-request" >> AuthUser.loginFirst,//OAuth consent page,
+      Menu.i("confirm-bg-consent-request-sca") / "confirm-bg-consent-request-sca" >> AuthUser.loginFirst,//OAuth consent page,
+      Menu.i("confirm-vrp-consent-request") / "confirm-vrp-consent-request" >> AuthUser.loginFirst,//OAuth consent page,
+      Menu.i("confirm-vrp-consent") / "confirm-vrp-consent" >> AuthUser.loginFirst //OAuth consent page
     ) ++ accountCreation ++ Admin.menus
     
     // Build SiteMap
@@ -771,17 +779,7 @@ class Boot extends MdcLoggable {
     LiftSession.onBeginServicing = UsernameLockedChecker.onBeginServicing _ :: LiftSession.onBeginServicing
     LiftSession.onSessionActivate = UsernameLockedChecker.onSessionActivate _ :: LiftSession.onSessionActivate
     LiftSession.onSessionPassivate = UsernameLockedChecker.onSessionPassivate _ :: LiftSession.onSessionPassivate
-
-    APIUtil.akkaSanityCheck() match {
-      case Full(c) if c == true => logger.info(s"remotedata.secret matched = $c")
-      case Full(c) if c == false => throw new Exception(ErrorMessages.RemoteDataSecretMatchError)
-      case Empty =>  APIUtil.getPropsAsBoolValue("use_akka", false) match {
-        case true => throw new Exception(ErrorMessages.RemoteDataSecretObtainError)
-        case false => logger.info("Akka middleware layer is disabled.")
-      }
-      case _ => throw new Exception(s"Unexpected error occurs during Akka sanity check!")
-    }
-
+    
     // Sanity check for incompatible Props values for Scopes.
     sanityCheckOPropertiesRegardingScopes()
     // export one Connector's methods as endpoints, it is just for develop
@@ -807,7 +805,7 @@ class Boot extends MdcLoggable {
 
       ConnectorEndpoints.registerConnectorEndpoints
     }
-    if(HydraUtil.mirrorConsumerInHydra) {
+    if(HydraUtil.integrateWithHydra && HydraUtil.mirrorConsumerInHydra) {
       createHydraClients()
     }
     
@@ -858,10 +856,6 @@ class Boot extends MdcLoggable {
 
   def schemifyAll() = {
     Schemifier.schemify(true, Schemifier.infoF _, ToSchemify.models: _*)
-    if (APIUtil.getPropsAsBoolValue("remotedata.enable", false) == false) {
-      logger.debug("Run Schemifier.schemify during Boot:")
-      Schemifier.schemify(true, Schemifier.infoF _, ToSchemify.modelsRemotedata: _*)
-    }
   }
 
   private def showExceptionAtJson(error: Throwable): String = {
@@ -963,65 +957,63 @@ class Boot extends MdcLoggable {
         logger.debug(s"creating BankAccount(${defaultBankId}, $outgoingAccountId).")
     }
   }
+  
+  
+  /**    
+   * Bootstrap Super User
+   * Given the following credentials, OBP will create a user *if it does not exist already*.
+   * This user's password will be valid for a limited amount of time.
+   * This user will be granted ONLY CanCreateEntitlementAtAnyBank
+   * This feature can also be used in a "Break Glass scenario"
+   */
+  private def createBootstrapSuperUser() ={
+    
+    val superAdminUsername = APIUtil.getPropsValue("super_admin_username","")
+    val superAdminInitalPassword = APIUtil.getPropsValue("super_admin_inital_password","")
+    val superAdminEmail = APIUtil.getPropsValue("super_admin_email","")
+
+    val isPropsNotSetProperly = superAdminUsername==""||superAdminInitalPassword ==""||superAdminEmail==""
+
+    //This is the logic to check if an AuthUser exists for the `create sandbox` endpoint, AfterApiAuth, OpenIdConnect ,,,
+    val existingAuthUser = AuthUser.find(By(AuthUser.username, superAdminUsername))
+    
+    if(isPropsNotSetProperly) {
+      //Nothing happens, props is not set
+    }else if(existingAuthUser.isDefined) {
+      logger.error(s"createBootstrapSuperUser- Errors:  Existing AuthUser with username ${superAdminUsername} detected in data import where no ResourceUser was found")
+    } else {
+      val authUser = AuthUser.create
+        .email(superAdminEmail)
+        .firstName(superAdminUsername)
+        .lastName(superAdminUsername)
+        .username(superAdminUsername)
+        .password(superAdminInitalPassword)
+        .passwordShouldBeChanged(true)
+        .validated(true)
+
+      val validationErrors = authUser.validate
+
+      if(!validationErrors.isEmpty)
+        logger.error(s"createBootstrapSuperUser- Errors: ${validationErrors.map(_.msg)}")
+      else {
+        Full(authUser.save()) //this will create/update the resourceUser.
+
+        val userBox = Users.users.vend.getUserByProviderAndUsername(authUser.getProvider(), authUser.username.get)
+  
+        val resultBox = userBox.map(user => Entitlement.entitlement.vend.addEntitlement("", user.userId, CanCreateEntitlementAtAnyBank.toString))
+        
+        if(resultBox.isEmpty){
+          logger.error(s"createBootstrapSuperUser- Errors: ${resultBox}")
+        }
+      }
+
+    }
+ 
+  }
+  
 }
 
 object ToSchemify {
-  // The following tables will be accessed via Akka to the OBP Storage instance which in turn uses Mapper / JDBC
-  // TODO EPIC The aim is to have all models prefixed with "Mapped" but table names should not be prefixed with "Mapped
-  // TODO EPIC The aim is to remove all field name prefixes("m")
-  val modelsRemotedata: List[MetaMapper[_]] = List(
-    AccountAccess,
-    ViewDefinition,
-    ResourceUser,
-    UserInvitation,
-    UserAgreement,
-    UserAttribute,
-    MappedComment,
-    MappedTag,
-    MappedWhereTag,
-    MappedTransactionImage,
-    MappedNarrative,
-    MappedCustomer,
-    MappedUserCustomerLink,
-    Consumer,
-    Token,
-    OpenIDConnectToken,
-    Nonce,
-    MappedCounterparty,
-    MappedCounterpartyBespoke,
-    MappedCounterpartyMetadata,
-    MappedCounterpartyWhereTag,
-    MappedTransactionRequest,
-    TransactionRequestAttribute,
-    MappedMetric,
-    MetricArchive,
-    MapperAccountHolders,
-    MappedEntitlement,
-    MappedConnectorMetric,
-    MappedExpectedChallengeAnswer,
-    MappedEntitlementRequest,
-    MappedScope,
-    MappedUserScope,
-    MappedTaxResidence,
-    MappedCustomerAddress,
-    MappedUserAuthContext,
-    MappedUserAuthContextUpdate,
-    MappedConsentAuthContext,
-    MappedAccountApplication,
-    MappedProductCollection,
-    MappedProductCollectionItem,
-    MappedAccountAttribute,
-    MappedCustomerAttribute,
-    MappedTransactionAttribute,
-    MappedCardAttribute,
-    BankAttribute,
-    RateLimiting,
-    MappedCustomerDependant,
-    AttributeDefinition,
-    CustomerAccountLink
-  )
-
-  // The following tables are accessed directly via Mapper / JDBC
   val models: List[MetaMapper[_]] = List(
     AuthUser,
     JobScheduler,
@@ -1087,7 +1079,58 @@ object ToSchemify {
     EndpointTag,
     ProductFee,
     ViewPermission,
-    UserInitAction
+    UserInitAction,
+    CounterpartyLimit,
+    AccountAccess,
+    ViewDefinition,
+    ResourceUser,
+    UserInvitation,
+    UserAgreement,
+    UserAttribute,
+    MappedComment,
+    MappedTag,
+    MappedWhereTag,
+    MappedTransactionImage,
+    MappedNarrative,
+    MappedCustomer,
+    MappedUserCustomerLink,
+    Consumer,
+    Token,
+    OpenIDConnectToken,
+    Nonce,
+    MappedCounterparty,
+    MappedCounterpartyBespoke,
+    MappedCounterpartyMetadata,
+    MappedCounterpartyWhereTag,
+    MappedTransactionRequest,
+    TransactionRequestAttribute,
+    MappedMetric,
+    MetricArchive,
+    MapperAccountHolders,
+    MappedEntitlement,
+    MappedConnectorMetric,
+    MappedExpectedChallengeAnswer,
+    MappedEntitlementRequest,
+    MappedScope,
+    MappedUserScope,
+    MappedTaxResidence,
+    MappedCustomerAddress,
+    MappedUserAuthContext,
+    MappedUserAuthContextUpdate,
+    MappedConsentAuthContext,
+    MappedAccountApplication,
+    MappedProductCollection,
+    MappedProductCollectionItem,
+    MappedAccountAttribute,
+    MappedCustomerAttribute,
+    MappedTransactionAttribute,
+    MappedCardAttribute,
+    BankAttribute,
+    RateLimiting,
+    MappedCustomerDependant,
+    AttributeDefinition,
+    CustomerAccountLink,
+    TransactionIdMapping
   )
 
   // start grpc server

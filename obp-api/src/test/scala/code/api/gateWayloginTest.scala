@@ -16,47 +16,40 @@ import code.api.util.ErrorMessages._
 class gateWayloginTest extends ServerSetup with BeforeAndAfter with DefaultUsers {
 
   //fake this: Connector.connector.vend.getBankAccounts(username)
-  val fakeResultFromAdapter =  Full(InboundAccountJune2017(
-    errorCode = "",
-    cbsToken ="cbsToken1",
-    bankId = "gh.29.uk",
-    branchId = "222",
-    accountId = "8ca8a7e4-6d02-48e3-a029-0b2bf89de9f0",
-    accountNumber = "123",
-    accountType = "AC",
-    balanceAmount = "50",
-    balanceCurrency = "EUR",
-    owners = "Susan" :: " Frank" :: Nil,
-    viewsToGenerate = "_Public" :: "Accountant" :: "Auditor" :: Nil,
-    bankRoutingScheme = "iban",
-    bankRoutingAddress = "bankRoutingAddress",
-    branchRoutingScheme = "branchRoutingScheme",
-    branchRoutingAddress = " branchRoutingAddress",
-    accountRoutingScheme = "accountRoutingScheme",
-    accountRoutingAddress = "accountRoutingAddress",
-    accountRouting = Nil,
-    accountRules = Nil
-  ) :: InboundAccountJune2017(
-    errorCode = "",
-    cbsToken ="cbsToken2",
-    bankId = "gh.29.uk",
-    branchId = "222",
-    accountId = "8ca8a7e4-6d02-48e3-a029-0b2bf89de9f0",
-    accountNumber = "123",
-    accountType = "AC",
-    balanceAmount = "50",
-    balanceCurrency = "EUR",
-    owners = "Susan" :: " Frank" :: Nil,
-    viewsToGenerate = "_Public" :: "Accountant" :: "Auditor" :: Nil,
-    bankRoutingScheme = "iban",
-    bankRoutingAddress = "bankRoutingAddress",
-    branchRoutingScheme = "branchRoutingScheme",
-    branchRoutingAddress = " branchRoutingAddress",
-    accountRoutingScheme = "accountRoutingScheme",
-    accountRoutingAddress = "accountRoutingAddress",
-    accountRouting = Nil,
-    accountRules = Nil
-  ) ::Nil)
+  val fakeResultFromAdapter1 = Full(
+    AuthInfo(
+      userId = "",
+      username = "",
+      cbsToken = "cbsToken1",
+      isFirst = true,
+      correlationId = "",
+      sessionId = "",
+      linkedCustomers = Nil,
+      userAuthContexts= Nil,
+      authViews= Nil):: AuthInfo(
+      userId = "",
+      username = "",
+      cbsToken = "cbsToken2",
+      isFirst = true,
+      correlationId = "",
+      sessionId = "",
+      linkedCustomers = Nil,
+      userAuthContexts= Nil,
+      authViews= Nil) ::Nil
+  )
+  val fakeResultFromAdapter2 = Full(
+    InboundValidatedUser(
+      errorCode ="",
+      backendMessages = Nil,
+      email = "",
+      displayName = ""
+    ):: InboundValidatedUser(
+      errorCode ="",
+      backendMessages = Nil,
+      email = "",
+      displayName = ""
+    ) ::Nil
+  )
 
 
   val accessControlOriginHeader = ("Access-Control-Allow-Origin", "*")
@@ -173,12 +166,12 @@ class gateWayloginTest extends ServerSetup with BeforeAndAfter with DefaultUsers
 
   feature("Unit Tests for two getCbsToken and getErrors: ") {
     scenario("test the getErrors") {
-      val reply: List[String] =  GatewayLogin.getErrors(json.compactRender(Extraction.decompose(fakeResultFromAdapter.openOrThrowException(attemptedToOpenAnEmptyBox))))
+      val reply: List[String] =  GatewayLogin.getErrors(json.compactRender(Extraction.decompose(fakeResultFromAdapter2.openOrThrowException(attemptedToOpenAnEmptyBox))))
       reply.forall(_.equalsIgnoreCase("")) should equal(true)
     }
 
     scenario("test the getCbsToken") {
-      val reply: List[String] =  GatewayLogin.getCbsTokens(json.compactRender(Extraction.decompose(fakeResultFromAdapter.openOrThrowException(attemptedToOpenAnEmptyBox))))
+      val reply: List[String] =  GatewayLogin.getCbsTokens(json.compactRender(Extraction.decompose(fakeResultFromAdapter1.openOrThrowException(attemptedToOpenAnEmptyBox))))
       reply(0) should equal("cbsToken1")
       reply(1) should equal("cbsToken2")
 

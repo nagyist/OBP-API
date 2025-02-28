@@ -15,6 +15,7 @@ import code.util.Helper
 import code.util.Helper.booleanToBox
 import code.views.Views
 import code.views.system.ViewDefinition
+import com.github.dwickern.macros.NameOf.nameOf
 import com.openbankproject.commons.ExecutionContext.Implicits.global
 import com.openbankproject.commons.model._
 import com.openbankproject.commons.util.ApiVersion
@@ -107,7 +108,6 @@ trait APIMethods121 {
   val Implementations1_2_1 = new Object(){
 
     val resourceDocs = ArrayBuffer[ResourceDoc]()
-    val emptyObjectJson = EmptyClassJson()
     val apiVersion = ApiVersion.v1_2_1 // was String "1_2_1"
     val apiVersionStatus : String = "STABLE"
 
@@ -123,7 +123,7 @@ trait APIMethods121 {
         |* API version
         |* Hosted by information
         |* Git Commit""",
-      emptyObjectJson,
+      EmptyBody,
       apiInfoJSON,
       List(UnknownError, "no connector set"),
       apiTagApi :: Nil)
@@ -155,7 +155,7 @@ trait APIMethods121 {
         |* Short and full name of bank
         |* Logo URL
         |* Website""",
-      emptyObjectJson,
+      EmptyBody,
       banksJSON,
       List(UnknownError),
       apiTagBank :: apiTagPsd2 :: apiTagOldStyle :: Nil)
@@ -190,7 +190,7 @@ trait APIMethods121 {
         |* Short and full name of bank
         |* Logo URL
         |* Website""",
-      emptyObjectJson,
+      EmptyBody,
       bankJSON,
       List(UserNotLoggedIn, UnknownError, BankNotFound),
       apiTagBank :: apiTagPsd2 :: apiTagOldStyle :: Nil)
@@ -220,9 +220,9 @@ trait APIMethods121 {
       s"""Returns the list of accounts at that the user has access to at all banks.
          |For each account the API returns the account ID and the available views.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       accountJSON,
       List(UserNotLoggedIn, UnknownError),
       apiTagAccount :: apiTagPsd2 :: apiTagOldStyle :: Nil)
@@ -255,7 +255,7 @@ trait APIMethods121 {
         |Authentication via OAuth is required.
         |
         |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       accountJSON,
       List(UserNotLoggedIn, UnknownError),
       apiTagAccount :: apiTagPsd2 :: apiTagOldStyle :: Nil)
@@ -287,7 +287,7 @@ trait APIMethods121 {
         |Authentication via OAuth is required.
         |
         |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       accountJSON,
       List(UnknownError),
       apiTagAccount :: apiTagOldStyle :: Nil)
@@ -316,10 +316,10 @@ trait APIMethods121 {
       s"""Returns the list of accounts at BANK_ID that the user has access to.
         |For each account the API returns the account ID and the available views.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
       """,
-      emptyObjectJson,
+      EmptyBody,
       accountJSON,
       List(UserNotLoggedIn, UnknownError, BankNotFound),
       apiTagAccount :: apiTagOldStyle :: Nil)
@@ -349,10 +349,10 @@ trait APIMethods121 {
       s"""Returns the list of private accounts at BANK_ID that the user has access to.
         |For each account the API returns the ID and the available views.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       accountJSON,
       List(UserNotLoggedIn, UnknownError, BankNotFound),
       List(apiTagAccount, apiTagPsd2, apiTagOldStyle))
@@ -384,7 +384,7 @@ trait APIMethods121 {
         |Authentication via OAuth is not required.
         |
         |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       accountJSON,
       List(UserNotLoggedIn, UnknownError, BankNotFound),
       apiTagAccountPublic :: apiTagAccount :: apiTagPublicData ::  apiTagOldStyle :: Nil)
@@ -422,12 +422,12 @@ trait APIMethods121 {
          |
          |More details about the data moderation by the view [here](#1_2_1-getViewsForBankAccount).
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |Authentication is required if the 'is_public' field in view (VIEW_ID) is not set to `true`.
          |
          |""".stripMargin,
-      emptyObjectJson,
+      EmptyBody,
       moderatedAccountJSON,
       List(UserNotLoggedIn, UnknownError, BankAccountNotFound),
       apiTagAccount ::  apiTagOldStyle :: Nil)
@@ -460,7 +460,7 @@ trait APIMethods121 {
       s"""Update the label for the account. The label is how the account is known to the account owner e.g. 'My savings account'
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
        """.stripMargin,
       updateAccountJSON,
@@ -481,16 +481,15 @@ trait APIMethods121 {
             anyViewContainsCanUpdateBankAccountLabelPermission = Views.views.vend.permission(BankIdAccountId(account.bankId, account.accountId), u)
               .map(_.views.map(_.canUpdateBankAccountLabel).find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- Helper.booleanToFuture(
-              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canUpdateBankAccountLabel_.dbColumnName).dropRight(1)}` permission on any your views",
+              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canUpdateBankAccountLabel_)).dropRight(1)}` permission on any your views",
               cc = callContext
             ) {
               anyViewContainsCanUpdateBankAccountLabelPermission
             }
-            (success, callContext) <- Future{
-              Connector.connector.vend.updateAccountLabel(bankId, accountId, json.label)
-            } map { i =>
-              (unboxFullOrFail(i, callContext, 
-                s"$UpdateBankAccountLabelError Current BankId is $bankId and Current AccountId is $accountId", 404), callContext)
+            (success, callContext) <- 
+              Connector.connector.vend.updateAccountLabel(bankId, accountId, json.label, callContext) map { i =>
+              (unboxFullOrFail(i._1, i._2, 
+                s"$UpdateBankAccountLabelError Current BankId is $bankId and Current AccountId is $accountId", 404), i._2)
             }
           } yield {
             (successMessage, HttpCode.`200`(callContext))
@@ -528,8 +527,8 @@ trait APIMethods121 {
          |
          |Returns the list of the views created for account ACCOUNT_ID at BANK_ID.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
-      emptyObjectJson,
+         |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
+      EmptyBody,
       viewsJSONV121,
       List(UserNotLoggedIn, BankAccountNotFound, UnknownError, "user does not have owner access"),
       List(apiTagView, apiTagAccount, apiTagOldStyle))
@@ -545,7 +544,7 @@ trait APIMethods121 {
             anyViewContainsCanSeeAvailableViewsForBankAccountPermission = permission.views.map(_.canSeeAvailableViewsForBankAccount).find(_.==(true)).getOrElse(false)
             _ <- Helper.booleanToBox(
               anyViewContainsCanSeeAvailableViewsForBankAccountPermission, 
-              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canSeeAvailableViewsForBankAccount_.dbColumnName).dropRight(1)}` permission on any your views"
+              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeAvailableViewsForBankAccount_)).dropRight(1)}` permission on any your views"
             )
             views <- Full(Views.views.vend.availableViewsForAccount(BankIdAccountId(bankAccount.bankId, bankAccount.accountId)))
           } yield {
@@ -564,11 +563,11 @@ trait APIMethods121 {
       "Create View",
       s"""#Create a view on bank account
         |
-        | ${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        | ${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         | The 'alias' field in the JSON can take one of three values:
         |
         | * _public_: to use the public alias if there is one specified for the other account.
-        | * _private_: to use the public alias if there is one specified for the other account.
+        | * _private_: to use the private alias if there is one specified for the other account.
         |
         | * _''(empty string)_: to use no alias; the view shows the real name of the other account.
         |
@@ -610,7 +609,7 @@ trait APIMethods121 {
               .map(_.views.map(_.canCreateCustomView).find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- booleanToBox(
               anyViewContainsCanCreateCustomViewPermission,
-              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(ViewDefinition.canCreateCustomView_.dbColumnName).dropRight(1)}` permission on any your views"
+              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canCreateCustomView_)).dropRight(1)}` permission on any your views"
             )
             view <- Views.views.vend.createCustomView(BankIdAccountId(bankId,accountId), createViewJson)?~ CreateCustomViewError
           } yield {
@@ -629,7 +628,7 @@ trait APIMethods121 {
       "Update View",
       s"""Update an existing view on a bank account
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
         |
         |The json sent is the same as during view creation (above), with one difference: the 'name' field
         |of a view is not editable (it is only set when a view is created)""",
@@ -645,7 +644,8 @@ trait APIMethods121 {
       ),
       List(apiTagAccount, apiTagView, apiTagOldStyle)
     )
-  
+    
+    //TODO. remove and replace it with V510.
     lazy val updateViewForBankAccount: OBPEndpoint = {
       //updates a view on a bank account
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId
@@ -671,7 +671,7 @@ trait APIMethods121 {
               .map(_.views.map(_.canUpdateCustomView).find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- booleanToBox(
               anyViewContainsCanUpdateCustomViewPermission,
-              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(ViewDefinition.canUpdateCustomView_.dbColumnName).dropRight(1)}` permission on any your views"
+              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canUpdateCustomView_)).dropRight(1)}` permission on any your views"
             )
             updatedView <- Views.views.vend.updateCustomView(BankIdAccountId(bankId, accountId),viewId,  updateViewJson) ?~ CreateCustomViewError
           } yield {
@@ -689,8 +689,8 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/views/VIEW_ID",
       "Delete Custom View",
       "Deletes the custom view specified by VIEW_ID on the bank account specified by ACCOUNT_ID at bank BANK_ID",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         UserNotLoggedIn,
         BankAccountNotFound,
@@ -716,7 +716,7 @@ trait APIMethods121 {
             anyViewContainsCanDeleteCustomViewPermission = Views.views.vend.permission(BankIdAccountId(account.bankId, account.accountId), u)
               .map(_.views.map(_.canDeleteCustomView).find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- Helper.booleanToFuture(
-              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canDeleteCustomView_.dbColumnName).dropRight(1)}` permission on any your views",
+              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canDeleteCustomView_)).dropRight(1)}` permission on any your views",
               cc = callContext
             ) {
               anyViewContainsCanDeleteCustomViewPermission
@@ -738,8 +738,8 @@ trait APIMethods121 {
       "Get access",
       s"""Returns the list of the permissions at BANK_ID for account ACCOUNT_ID, with each time a pair composed of the user and the views that he has access to.
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
-      emptyObjectJson,
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
+      EmptyBody,
       permissionsJSON,
       List(UserNotLoggedIn, UnknownError),
       List(apiTagView, apiTagAccount, apiTagEntitlement, apiTagOldStyle)
@@ -756,7 +756,7 @@ trait APIMethods121 {
               .map(_.views.map(_.canSeeViewsWithPermissionsForAllUsers).find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- booleanToBox(
               anyViewContainsCanSeeViewsWithPermissionsForAllUsersPermission,
-              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(ViewDefinition.canSeeViewsWithPermissionsForAllUsers_.dbColumnName).dropRight(1)}` permission on any your views"
+              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeViewsWithPermissionsForAllUsers_)).dropRight(1)}` permission on any your views"
             )
             permissions = Views.views.vend.permissions(BankIdAccountId(bankId, accountId))
           } yield {
@@ -776,8 +776,8 @@ trait APIMethods121 {
       s"""Returns the list of the views at BANK_ID for account ACCOUNT_ID that a USER_ID at their provider PROVIDER_ID has access to.
         |All url parameters must be [%-encoded](http://en.wikipedia.org/wiki/Percent-encoding), which is often especially relevant for USER_ID and PROVIDER_ID.
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
-      emptyObjectJson,
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
+      EmptyBody,
       viewsJSONV121,
       List(
         UserNotLoggedIn,
@@ -801,7 +801,7 @@ trait APIMethods121 {
               .find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- booleanToBox(
               anyViewContainsCanSeeViewsWithPermissionsForOneUserPermission,
-              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(ViewDefinition.canSeeViewsWithPermissionsForOneUser_.dbColumnName).dropRight(1)}` permission on any your views"
+              s"${ErrorMessages.CreateCustomViewError} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeViewsWithPermissionsForOneUser_)).dropRight(1)}` permission on any your views"
             )
             userFromURL <- UserX.findByProviderId(provider, providerId) ?~! UserNotFoundByProviderAndProvideId
             permission <- Views.views.vend.permission(BankIdAccountId(bankId, accountId), userFromURL)
@@ -823,7 +823,7 @@ trait APIMethods121 {
         |
         |All url parameters must be [%-encoded](http://en.wikipedia.org/wiki/Percent-encoding), which is often especially relevant for PROVIDER_ID and PROVIDER.
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |The User needs to have access to the owner view.""",
       viewIdsJson,
@@ -872,10 +872,10 @@ trait APIMethods121 {
           |
           |All url parameters must be [%-encoded](http://en.wikipedia.org/wiki/Percent-encoding), which is often especially relevant for PROVIDER and PROVIDER_ID.
           |
-          |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.
+          |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.
           |
           |Granting access to a public view will return an error message, as the user already has access.""",
-      emptyObjectJson, // No Json body required
+      EmptyBody, // No Json body required
       viewJSONV121,
       List(
         UserNotLoggedIn,
@@ -935,9 +935,9 @@ trait APIMethods121 {
          |
          |$generalRevokeAccessToViewText
         |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
-      emptyObjectJson,
-      emptyObjectJson,
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
+      EmptyBody,
+      EmptyBody,
       List(
         UserNotLoggedIn,
         BankAccountNotFound,
@@ -973,9 +973,9 @@ trait APIMethods121 {
          |
          |$generalRevokeAccessToViewText
          |
-        |${authenticationRequiredMessage(true)} and the user needs to have access to the owner view.""",
-      emptyObjectJson,
-      emptyObjectJson,
+        |${userAuthenticationMessage(true)} and the user needs to have access to the owner view.""",
+      EmptyBody,
+      EmptyBody,
       List(
         UserNotLoggedIn,
         BankAccountNotFound,
@@ -1007,9 +1007,9 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts",
       "Get Other Accounts of one Account",
       s"""Returns data about all the other accounts that have shared at least one transaction with the ACCOUNT_ID at BANK_ID.
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |Authentication is required if the view VIEW_ID is not public.""",
-      emptyObjectJson,
+      EmptyBody,
       otherAccountsJSON,
       List(
         BankAccountNotFound,
@@ -1020,14 +1020,13 @@ trait APIMethods121 {
     lazy val getOtherAccountsForBankAccount : OBPEndpoint = {
       //get other accounts for one account
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "other_accounts" :: Nil JsonGet req => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            account <- BankAccountX(bankId, accountId) ?~! BankAccountNotFound
-            view <- APIUtil.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), cc.user, None)
-            otherBankAccounts <- account.moderatedOtherBankAccounts(view, BankIdAccountId(bankId, accountId), cc.user, Some(cc))
+            (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, Some(cc))
+            view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(account.bankId, account.accountId), cc.user, callContext)
+            (otherBankAccounts, callContext) <- NewStyle.function.moderatedOtherBankAccounts(account, view, cc.user, callContext)
           } yield {
-            val otherBankAccountsJson = JSONFactory.createOtherBankAccountsJSON(otherBankAccounts)
-            successJsonResponse(Extraction.decompose(otherBankAccountsJson))
+            (JSONFactory.createOtherBankAccountsJSON(otherBankAccounts), HttpCode.`200`(callContext))
           }
       }
     }
@@ -1040,24 +1039,25 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID",
       "Get Other Account by Id",
       s"""Returns data about the Other Account that has shared at least one transaction with ACCOUNT_ID at BANK_ID.
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.""",
-      emptyObjectJson,
+      EmptyBody,
       otherAccountJSON,
       List(BankAccountNotFound, UnknownError),
-      List(apiTagCounterparty, apiTagAccount, apiTagOldStyle))
+      List(apiTagCounterparty, apiTagAccount))
 
     lazy val getOtherAccountByIdForBankAccount : OBPEndpoint = {
       //get one other account by id
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "other_accounts":: other_account_id :: Nil JsonGet req => {
-        cc =>
+        cc => implicit val ec = EndpointContext(Some(cc))
           for {
-            account <- BankAccountX(bankId, accountId) ?~!BankAccountNotFound
-            view <- APIUtil.checkViewAccessAndReturnView(viewId, BankIdAccountId(account.bankId, account.accountId), cc.user, None)
-            otherBankAccount <- account.moderatedOtherBankAccount(other_account_id, view, BankIdAccountId(account.bankId, account.accountId), cc.user, Some(cc))
+            (u, callContext) <- authenticatedAccess(cc)
+            (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
+            view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(account.bankId, account.accountId), u, callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, u, callContext)
           } yield {
             val otherBankAccountJson = JSONFactory.createOtherBankAccount(otherBankAccount)
-            successJsonResponse(Extraction.decompose(otherBankAccountJson))
+            (otherBankAccountJson, HttpCode.`200`(callContext))
           }
       }
     }
@@ -1073,7 +1073,7 @@ trait APIMethods121 {
         |Returns only the metadata about one other bank account (OTHER_ACCOUNT_ID) that had shared at least one transaction with ACCOUNT_ID at BANK_ID.
         |
         |Authentication via OAuth is required if the view is not public.""",
-      emptyObjectJson,
+      EmptyBody,
       otherAccountMetadataJSON,
       List(UserNotLoggedIn, UnknownError, "the view does not allow metadata access"),
       List(apiTagCounterpartyMetaData, apiTagCounterparty))
@@ -1086,7 +1086,7 @@ trait APIMethods121 {
             (Full(u), callContext) <- authenticatedAccess(cc)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1105,9 +1105,9 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID/public_alias",
       "Get public alias of other bank account",
       s"""Returns the public alias of the other account OTHER_ACCOUNT_ID.
-        |${authenticationRequiredMessage(false)}
-        |${authenticationRequiredMessage(true)} if the view is not public.""",
-      emptyObjectJson,
+        |${userAuthenticationMessage(false)}
+        |${userAuthenticationMessage(true)} if the view is not public.""",
+      EmptyBody,
       aliasJSON,
       List(
         BankAccountNotFound,
@@ -1125,7 +1125,7 @@ trait APIMethods121 {
             (Full(u), callContext) <- authenticatedAccess(cc)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1148,7 +1148,7 @@ trait APIMethods121 {
       "Add public alias to other bank account",
       s"""Creates the public alias for the other account OTHER_ACCOUNT_ID.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.
          |
          |Note: Public aliases are automatically generated for new 'other accounts / counterparties', so this call should only be used if
@@ -1177,7 +1177,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             } 
@@ -1206,7 +1206,7 @@ trait APIMethods121 {
       "Update public alias of other bank account",
       s"""Updates the public alias of the other account / counterparty OTHER_ACCOUNT_ID.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |Authentication is required if the view is not public.""",
       aliasJSON,
       successMessage,
@@ -1230,7 +1230,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1259,10 +1259,10 @@ trait APIMethods121 {
       "Delete Counterparty Public Alias",
       s"""Deletes the public alias of the other account OTHER_ACCOUNT_ID.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.""",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         BankAccountNotFound,
         "the view does not allow metadata access",
@@ -1281,7 +1281,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1307,9 +1307,9 @@ trait APIMethods121 {
       "Get Other Account Private Alias",
       s"""Returns the private alias of the other account OTHER_ACCOUNT_ID.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |Authentication is required if the view is not public.""",
-      emptyObjectJson,
+      EmptyBody,
       aliasJSON,
       List(
         UserNotLoggedIn,
@@ -1328,7 +1328,7 @@ trait APIMethods121 {
             (Full(u), callContext) <- authenticatedAccess(cc)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1351,7 +1351,7 @@ trait APIMethods121 {
       "Create Other Account Private Alias",
       s"""Creates a private alias for the other account OTHER_ACCOUNT_ID.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.""",
       aliasJSON,
       successMessage,
@@ -1374,7 +1374,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1403,7 +1403,7 @@ trait APIMethods121 {
       "Update Counterparty Private Alias",
       s"""Updates the private alias of the counterparty (AKA other account) OTHER_ACCOUNT_ID.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |Authentication is required if the view is not public.""",
       aliasJSON,
       successMessage,
@@ -1426,7 +1426,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1455,10 +1455,10 @@ trait APIMethods121 {
       "Delete Counterparty Private Alias",
       s"""Deletes the private alias of the other account OTHER_ACCOUNT_ID.
         |
-        |${authenticationRequiredMessage(false)}
+        |${userAuthenticationMessage(false)}
         |Authentication is required if the view is not public.""",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         UserNotLoggedIn,
         BankAccountNotFound,
@@ -1477,7 +1477,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1526,7 +1526,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1575,7 +1575,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1603,8 +1603,8 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID/metadata/more_info",
       "Delete more info of other bank account",
       "",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         UserNotLoggedIn,
         BankAccountNotFound,
@@ -1623,7 +1623,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1672,7 +1672,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1721,7 +1721,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1749,8 +1749,8 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID/metadata/url",
       "Delete url of other bank account",
       "",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         UserNotLoggedIn,
         BankAccountNotFound,
@@ -1769,7 +1769,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1817,7 +1817,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1865,7 +1865,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1893,8 +1893,8 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID/metadata/image_url",
       "Delete Counterparty Image URL",
       "Delete image url of other bank account",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(UnknownError),
       List(apiTagCounterpartyMetaData, apiTagCounterparty)) // Tag general then specific for consistent sorting
 
@@ -1907,7 +1907,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -1954,7 +1954,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -2003,7 +2003,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -2031,8 +2031,8 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID/metadata/open_corporates_url",
       "Delete Counterparty Open Corporates URL",
       "Delete open corporate url of other bank account",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         UserNotLoggedIn,
         BankAccountNotFound,
@@ -2051,7 +2051,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -2099,7 +2099,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -2154,7 +2154,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -2185,8 +2185,8 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID/metadata/corporate_location",
       "Delete Counterparty Corporate Location",
       "Delete corporate location of other bank account. Delete the geolocation of the counterparty's registered address",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         UserNotLoggedIn,
         BankAccountNotFound,
@@ -2205,7 +2205,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -2256,7 +2256,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -2311,7 +2311,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -2342,8 +2342,8 @@ trait APIMethods121 {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/other_accounts/OTHER_ACCOUNT_ID/metadata/physical_location",
       "Delete Counterparty Physical Location",
       "Delete physical location of other bank account",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         UserNotLoggedIn,
         BankAccountNotFound,
@@ -2362,7 +2362,7 @@ trait APIMethods121 {
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             (account, callContext) <- NewStyle.function.checkBankAccountExists(bankId, accountId, callContext)
             view <- NewStyle.function.checkViewAccessAndReturnView(viewId, BankIdAccountId(bankId, accountId), Some(u), callContext)
-            otherBankAccount <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
+            (otherBankAccount, callContext) <- NewStyle.function.moderatedOtherBankAccount(account, other_account_id, view, Full(u), callContext)
             _ <- Helper.booleanToFuture(failMsg = s"$NoViewPermission can_see_other_account_metadata. Current ViewId($viewId)", cc=callContext) {
               otherBankAccount.metadata.isDefined
             }
@@ -2395,7 +2395,7 @@ trait APIMethods121 {
          |${urlParametersDocument(true, true)}
          |
          |""",
-      emptyObjectJson,
+      EmptyBody,
       transactionsJSON,
       List(BankAccountNotFound, UnknownError),
       List(apiTagTransaction, apiTagAccount, apiTagPsd2, apiTagOldStyle))
@@ -2456,12 +2456,12 @@ trait APIMethods121 {
       "Get Transaction by Id",
       s"""Returns one transaction specified by TRANSACTION_ID of the account ACCOUNT_ID and [moderated](#1_2_1-getViewsForBankAccount) by the view (VIEW_ID).
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.
          |
          |
          |""",
-      emptyObjectJson,
+      EmptyBody,
       transactionJSON,
       List(BankAccountNotFound, UnknownError),
       List(apiTagTransaction, apiTagPsd2, apiTagOldStyle))
@@ -2491,7 +2491,7 @@ trait APIMethods121 {
       """Returns the account owner description of the transaction [moderated](#1_2_1-getViewsForBankAccount) by the view.
          |
          |Authentication via OAuth is required if the view is not public.""",
-      emptyObjectJson,
+      EmptyBody,
       transactionNarrativeJSON,
       List(
         BankAccountNotFound,
@@ -2529,7 +2529,7 @@ trait APIMethods121 {
          |Note: Unlike other items of metadata, there is only one "narrative" per transaction accross all views.
          |If you set narrative via a view e.g. view-x it will be seen via view-y (as long as view-y has permission to see the narrative).
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |Authentication is required if the view is not public.
          |""",
       transactionNarrativeJSON,
@@ -2609,8 +2609,8 @@ trait APIMethods121 {
       """Deletes the description of the transaction TRANSACTION_ID.
          |
          |Authentication via OAuth is required if the view is not public.""",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         UserNotLoggedIn,
         BankAccountNotFound,
@@ -2646,7 +2646,7 @@ trait APIMethods121 {
       """Returns the transaction TRANSACTION_ID comments made on a [view](#1_2_1-getViewsForBankAccount) (VIEW_ID).
          |
          |Authentication via OAuth is required if the view is not public.""",
-      emptyObjectJson,
+      EmptyBody,
       transactionCommentsJSON,
       List(
         UserNotLoggedIn,
@@ -2729,8 +2729,8 @@ trait APIMethods121 {
       """Delete the comment COMMENT_ID about the transaction TRANSACTION_ID made on [view](#1_2_1-getViewsForBankAccount).
          |
          |Authentication via OAuth is required. The user must either have owner privileges for this account, or must be the user that posted the comment.""",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         BankAccountNotFound,
         NoViewPermission,
@@ -2767,7 +2767,7 @@ trait APIMethods121 {
       "Get Transaction Tags",
       """Returns the transaction TRANSACTION_ID tags made on a [view](#1_2_1-getViewsForBankAccount) (VIEW_ID).
          Authentication via OAuth is required if the view is not public.""",
-      emptyObjectJson,
+      EmptyBody,
       transactionTagJSON,
       List(
         BankAccountNotFound,
@@ -2803,7 +2803,7 @@ trait APIMethods121 {
       "Add a Transaction Tag",
       s"""Posts a tag about a transaction TRANSACTION_ID on a [view](#1_2_1-getViewsForBankAccount) VIEW_ID.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Authentication is required as the tag is linked with the user.""",
       postTransactionTagJSON,
@@ -2851,8 +2851,8 @@ trait APIMethods121 {
         |Authentication via OAuth is required. The user must either have owner privileges for this account, 
         |or must be the user that posted the tag.
         |""".stripMargin,
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(NoViewPermission,
            ViewNotFound,
            UnknownError),
@@ -2887,7 +2887,7 @@ trait APIMethods121 {
       "Get Transaction Images",
       """Returns the transaction TRANSACTION_ID images made on a [view](#1_2_1-getViewsForBankAccount) (VIEW_ID).
          Authentication via OAuth is required if the view is not public.""",
-      emptyObjectJson,
+      EmptyBody,
       transactionImagesJSON,
       List(
         UserNotLoggedIn,
@@ -2923,7 +2923,7 @@ trait APIMethods121 {
       "Add a Transaction Image",
       s"""Posts an image about a transaction TRANSACTION_ID on a [view](#1_2_1-getViewsForBankAccount) VIEW_ID.
          |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |
          |The image is linked with the user.""",
       postTransactionImageJSON,
@@ -2970,8 +2970,8 @@ trait APIMethods121 {
       """Deletes the image IMAGE_ID about the transaction TRANSACTION_ID made on [view](#1_2_1-getViewsForBankAccount).
          |
          |Authentication via OAuth is required. The user must either have owner privileges for this account, or must be the user that posted the image.""",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         BankAccountNotFound,
         NoViewPermission,
@@ -3013,7 +3013,7 @@ trait APIMethods121 {
         |It represents the location where the transaction has been initiated.
         |
         |Authentication via OAuth is required if the view is not public.""",
-      emptyObjectJson,
+      EmptyBody,
       transactionWhereJSON,
       List(BankAccountNotFound,
            NoViewPermission,
@@ -3048,7 +3048,7 @@ trait APIMethods121 {
       "Add a Transaction where Tag",
       s"""Creates a "where" Geo tag on a transaction TRANSACTION_ID in a [view](#1_2_1-getViewsForBankAccount).
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |The geo tag is linked with the user.""",
       postTransactionWhereJSON,
@@ -3094,7 +3094,7 @@ trait APIMethods121 {
       "Update a Transaction where Tag",
       s"""Updates the "where" Geo tag on a transaction TRANSACTION_ID in a [view](#1_2_1-getViewsForBankAccount).
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |The geo tag is linked with the user.""",
       postTransactionWhereJSON,
@@ -3140,11 +3140,11 @@ trait APIMethods121 {
       "Delete a Transaction Tag",
       s"""Deletes the where tag of the transaction TRANSACTION_ID made on [view](#1_2_1-getViewsForBankAccount).
          |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |The user must either have owner privileges for this account, or must be the user that posted the geo tag.""",
-      emptyObjectJson,
-      emptyObjectJson,
+      EmptyBody,
+      EmptyBody,
       List(
         UserNotLoggedIn,
         BankAccountNotFound,
@@ -3185,7 +3185,7 @@ trait APIMethods121 {
       """Get other account of a transaction.
          |Returns details of the other party involved in the transaction, moderated by the [view](#1_2_1-getViewsForBankAccount) (VIEW_ID).
           Authentication via OAuth is required if the view is not public.""",
-      emptyObjectJson,
+      EmptyBody,
       otherAccountJSON,
       List(BankAccountNotFound, UnknownError),
       List(apiTagTransaction, apiTagCounterparty))

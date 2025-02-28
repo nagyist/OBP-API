@@ -224,7 +224,7 @@ class MappedTransaction extends LongKeyedMapper[MappedTransaction] with IdPK wit
         } yield transaction
       case _ =>
         for {
-          acc <- LocalMappedConnector.getBankAccountOld(theBankId, theAccountId)
+          acc <- LocalMappedConnector.getBankAccountLegacy(theBankId, theAccountId, None).map(_._1)
           transaction <- toTransaction(acc)
         } yield transaction
     }

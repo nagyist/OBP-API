@@ -61,8 +61,8 @@ trait PhysicalCardTrait {
   def collected: Option[CardCollectionInfo]
   def posted: Option[CardPostedInfo]
   def customerId: String
-  def cvv: Option[String] = None //added from V500
-  def brand: Option[String] = None //added from V500
+  def cvv: Option[String] //added from V500
+  def brand: Option[String]  //added from V500
 }
 
 case class PhysicalCard  (
@@ -91,6 +91,7 @@ case class PhysicalCard  (
   override val brand: Option[String] = None
 ) extends PhysicalCardTrait
 
+object PhysicalCard extends Converter[PhysicalCardTrait, PhysicalCard]
 
 sealed trait CardAction extends SimpleEnum
 

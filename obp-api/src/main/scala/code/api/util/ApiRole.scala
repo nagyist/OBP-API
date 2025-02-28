@@ -66,6 +66,11 @@ object RoleCombination {
 
 object ApiRole extends MdcLoggable{
 
+  case class CanGetAccountsHeldAtOneBank(requiresBankId: Boolean = true) extends ApiRole
+  lazy val canGetAccountsHeldAtOneBank: CanGetAccountsHeldAtOneBank = CanGetAccountsHeldAtOneBank()
+  case class CanGetAccountsHeldAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canGetAccountsHeldAtAnyBank: CanGetAccountsHeldAtAnyBank = CanGetAccountsHeldAtAnyBank()
+
   case class CanCreateRegulatedEntity(requiresBankId: Boolean = false) extends ApiRole
   lazy val canCreateRegulatedEntity = CanCreateRegulatedEntity()
   case class CanDeleteRegulatedEntity(requiresBankId: Boolean = false) extends ApiRole
@@ -103,6 +108,12 @@ object ApiRole extends MdcLoggable{
 
   case class CanCreateCustomer(requiresBankId: Boolean = true) extends ApiRole
   lazy val canCreateCustomer = CanCreateCustomer()
+  
+  case class CanUpdateAgentStatusAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canUpdateAgentStatusAtAnyBank = CanUpdateAgentStatusAtAnyBank()
+  
+  case class CanUpdateAgentStatusAtOneBank(requiresBankId: Boolean = true) extends ApiRole
+  lazy val canUpdateAgentStatusAtOneBank = CanUpdateAgentStatusAtOneBank()
 
   case class CanUpdateCustomerEmail(requiresBankId: Boolean = true) extends ApiRole
   lazy val canUpdateCustomerEmail = CanUpdateCustomerEmail()
@@ -229,6 +240,9 @@ object ApiRole extends MdcLoggable{
 
   case class CanUpdateConsumerRedirectUrl(requiresBankId: Boolean = false) extends ApiRole
   lazy val canUpdateConsumerRedirectUrl = CanUpdateConsumerRedirectUrl()
+
+  case class CanUpdateConsumerLogoUrl(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canUpdateConsumerLogoUrl = CanUpdateConsumerLogoUrl()
 
   case class CanCreateConsumer (requiresBankId: Boolean = false) extends ApiRole
   lazy val canCreateConsumer = CanCreateConsumer()
@@ -405,7 +419,10 @@ object ApiRole extends MdcLoggable{
   lazy val canLockUser = CanLockUser()
   
   case class CanDeleteUser (requiresBankId: Boolean = false) extends ApiRole
-  lazy val canDeleteUser = CanDeleteUser() 
+  lazy val canDeleteUser = CanDeleteUser()
+
+  case class CanValidateUser (requiresBankId: Boolean = false) extends ApiRole
+  lazy val canValidateUser = CanValidateUser()
   
   case class CanGetUsersWithAttributes (requiresBankId: Boolean = false) extends ApiRole
   lazy val canGetUsersWithAttributes = CanGetUsersWithAttributes()
@@ -475,6 +492,9 @@ object ApiRole extends MdcLoggable{
 
   case class CanRefreshUser(requiresBankId: Boolean = false) extends ApiRole
   lazy val canRefreshUser = CanRefreshUser()
+
+  case class CanSyncUser(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canSyncUser = CanSyncUser()
 
   case class CanGetAccountApplications(requiresBankId: Boolean = false) extends ApiRole
   lazy val canGetAccountApplications = CanGetAccountApplications()
@@ -722,6 +742,12 @@ object ApiRole extends MdcLoggable{
 
   case class CanGetTransactionRequestAttributeAtOneBank(requiresBankId: Boolean = true) extends ApiRole
   lazy val canGetTransactionRequestAttributeAtOneBank = CanGetTransactionRequestAttributeAtOneBank()
+
+  case class CanGetTransactionRequestAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canGetTransactionRequestAtAnyBank = CanGetTransactionRequestAtAnyBank()
+
+  case class CanUpdateTransactionRequestStatusAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canUpdateTransactionRequestStatusAtAnyBank = CanUpdateTransactionRequestStatusAtAnyBank()
 
   case class CanGetDoubleEntryTransactionAtOneBank(requiresBankId: Boolean = true) extends ApiRole
   lazy val canGetDoubleEntryTransactionAtOneBank = CanGetDoubleEntryTransactionAtOneBank()
@@ -971,8 +997,24 @@ object ApiRole extends MdcLoggable{
   case class CanGetAccountsMinimalForCustomerAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
   lazy val canGetAccountsMinimalForCustomerAtAnyBank = CanGetAccountsMinimalForCustomerAtAnyBank()
   
+  case class CanUpdateConsentStatusAtOneBank(requiresBankId: Boolean = true) extends ApiRole
+  lazy val canUpdateConsentStatusAtOneBank = CanUpdateConsentStatusAtOneBank()
+  case class CanUpdateConsentStatusAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canUpdateConsentStatusAtAnyBank = CanUpdateConsentStatusAtAnyBank()
+  case class CanUpdateConsentAccountAccessAtOneBank(requiresBankId: Boolean = true) extends ApiRole
+  lazy val canUpdateConsentAccountAccessAtOneBank = CanUpdateConsentAccountAccessAtOneBank()
+  case class CanUpdateConsentAccountAccessAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canUpdateConsentAccountAccessAtAnyBank = CanUpdateConsentAccountAccessAtAnyBank()
+  case class CanUpdateConsentUserAtOneBank(requiresBankId: Boolean = true) extends ApiRole
+  lazy val canUpdateConsentUserAtOneBank = CanUpdateConsentUserAtOneBank()
+  case class CanUpdateConsentUserAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canUpdateConsentUserAtAnyBank = CanUpdateConsentUserAtAnyBank()
   case class CanRevokeConsentAtBank(requiresBankId: Boolean = true) extends ApiRole
   lazy val canRevokeConsentAtBank = CanRevokeConsentAtBank()
+  case class CanGetConsentsAtOneBank(requiresBankId: Boolean = true) extends ApiRole
+  lazy val canGetConsentsAtOneBank = CanGetConsentsAtOneBank()
+  case class CanGetConsentsAtAnyBank(requiresBankId: Boolean = false) extends ApiRole
+  lazy val canGetConsentsAtAnyBank = CanGetConsentsAtAnyBank()
 
   case class CanSeeAccountAccessForAnyUser(requiresBankId: Boolean = false) extends ApiRole
   lazy val canSeeAccountAccessForAnyUser = CanSeeAccountAccessForAnyUser()

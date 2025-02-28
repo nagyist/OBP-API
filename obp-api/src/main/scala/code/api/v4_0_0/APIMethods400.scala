@@ -40,11 +40,13 @@ import code.api.v2_1_0._
 import code.api.v3_0_0.{CreateScopeJson, JSONFactory300}
 import code.api.v3_1_0._
 import code.api.v4_0_0.JSONFactory400._
+import code.fx.{MappedFXRate, fx}
 import code.api.dynamic.endpoint.helper._
 import code.api.dynamic.endpoint.helper.practise.PractiseEndpoint
 import code.api.dynamic.entity.helper.{DynamicEntityHelper, DynamicEntityInfo}
 import code.api.util.FutureUtil.EndpointContext
-import code.api.v5_0_0.OBPAPI5_0_0
+import code.api.v4_0_0.APIMethods400.{createTransactionRequest, lowAmount, sharedChargePolicy, transactionRequestGeneralText}
+import code.api.v4_0_0.TransactionRequestBodyAgentJsonV400
 import code.api.{ChargePolicy, Constant, JsonResponseException}
 import code.apicollection.MappedApiCollectionsProvider
 import code.apicollectionendpoint.MappedApiCollectionEndpointsProvider
@@ -57,6 +59,7 @@ import code.dynamicMessageDoc.JsonDynamicMessageDoc
 import code.dynamicResourceDoc.JsonDynamicResourceDoc
 import code.endpointMapping.EndpointMappingCommons
 import code.entitlement.Entitlement
+import code.fx.fx
 import code.loginattempts.LoginAttempt
 import code.metadata.counterparties.{Counterparties, MappedCounterparty}
 import code.metadata.tags.Tags
@@ -67,8 +70,6 @@ import code.scope.Scope
 import code.snippet.{WebUIPlaceholder, WebUITemplate}
 import code.transactionChallenge.MappedExpectedChallengeAnswer
 import code.transactionrequests.MappedTransactionRequestProvider
-import code.transactionrequests.TransactionRequests.TransactionRequestTypes
-import code.transactionrequests.TransactionRequests.TransactionRequestTypes.{apply => _, _}
 import code.usercustomerlinks.UserCustomerLink
 import code.userlocks.UserLocksProvider
 import code.users.Users
@@ -86,7 +87,9 @@ import com.openbankproject.commons.dto.GetProductsParam
 import com.openbankproject.commons.model.enums.ChallengeType.OBP_TRANSACTION_REQUEST_CHALLENGE
 import com.openbankproject.commons.model.enums.DynamicEntityOperation._
 import com.openbankproject.commons.model.enums.{TransactionRequestStatus, _}
-import com.openbankproject.commons.model.{ListResult, _}
+import com.openbankproject.commons.model._
+import com.openbankproject.commons.model.enums.TransactionRequestTypes._
+import com.openbankproject.commons.model.enums.PaymentServiceTypes._
 import com.openbankproject.commons.util.{ApiVersion, JsonUtils, ScannedApiVersion}
 import deletion._
 import net.liftweb.common._
@@ -95,13 +98,15 @@ import net.liftweb.http.{JsonResponse, Req, S}
 import net.liftweb.json.JsonAST.JValue
 import net.liftweb.json.JsonDSL._
 import net.liftweb.json.Serialization.write
-import net.liftweb.json.{compactRender, prettyRender, _}
+import net.liftweb.json._
 import net.liftweb.mapper.By
 import net.liftweb.util.Helpers.{now, tryo}
 import net.liftweb.util.Mailer.{From, PlainMailBodyType, Subject, To, XHTMLMailBodyType}
 import net.liftweb.util.{Helpers, Mailer, StringHelpers}
 import org.apache.commons.lang3.StringUtils
 
+import java.time.{LocalDate, ZoneId, ZonedDateTime}
+import java.util.Date
 import scala.collection.immutable.{List, Nil}
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
@@ -136,7 +141,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Mapper Database Info",
       s"""Get basic information about the Mapper Database.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -166,7 +171,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Logout Link",
       s"""Get the Logout Link
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       logoutLinkV400,
@@ -204,7 +209,7 @@ trait APIMethods400 extends MdcLoggable {
          |Per Month
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       callLimitPostJsonV400,
@@ -365,7 +370,7 @@ trait APIMethods400 extends MdcLoggable {
          |`transaction_request_id` of the transaction request at the origin of the transaction. Please note that if none
          |transaction request is at the origin of the transaction, the `transaction_request` object will be `null`.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -404,7 +409,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Get Balancing Transaction
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -595,71 +600,6 @@ trait APIMethods400 extends MdcLoggable {
       }
     }
 
-    val exchangeRates =
-      APIUtil.getPropsValue("webui_api_explorer_url", "") +
-        "/more?version=OBPv4.0.0&list-all-banks=false&core=&psd2=&obwg=#OBPv2_2_0-getCurrentFxRate"
-
-
-    // This text is used in the various Create Transaction Request resource docs
-    val transactionRequestGeneralText =
-      s"""Initiate a Payment via creating a Transaction Request.
-         |
-         |In OBP, a `transaction request` may or may not result in a `transaction`. However, a `transaction` only has one possible state: completed.
-         |
-         |A `Transaction Request` can have one of several states: INITIATED, NEXT_CHALLENGE_PENDING etc.
-         |
-         |`Transactions` are modeled on items in a bank statement that represent the movement of money.
-         |
-         |`Transaction Requests` are requests to move money which may or may not succeed and thus result in a `Transaction`.
-         |
-         |A `Transaction Request` might create a security challenge that needs to be answered before the `Transaction Request` proceeds.
-         |In case 1 person needs to answer security challenge we have next flow of state of an `transaction request`:
-         |  INITIATED => COMPLETED
-         |In case n persons needs to answer security challenge we have next flow of state of an `transaction request`:
-         |  INITIATED => NEXT_CHALLENGE_PENDING => ... => NEXT_CHALLENGE_PENDING => COMPLETED
-         |
-         |The security challenge is bound to a user i.e. in case of right answer and the user is different than expected one the challenge will fail.
-         |
-         |Rule for calculating number of security challenges:
-         |If product Account attribute REQUIRED_CHALLENGE_ANSWERS=N then create N challenges
-         |(one for every user that has a View where permission "can_add_transaction_request_to_any_account"=true)
-         |In case REQUIRED_CHALLENGE_ANSWERS is not defined as an account attribute default value is 1.
-         |
-         |Transaction Requests contain charge information giving the client the opportunity to proceed or not (as long as the challenge level is appropriate).
-         |
-         |Transaction Requests can have one of several Transaction Request Types which expect different bodies. The escaped body is returned in the details key of the GET response.
-         |This provides some commonality and one URL for many different payment or transfer types with enough flexibility to validate them differently.
-         |
-         |The payer is set in the URL. Money comes out of the BANK_ID and ACCOUNT_ID specified in the URL.
-         |
-         |In sandbox mode, TRANSACTION_REQUEST_TYPE is commonly set to ACCOUNT. See getTransactionRequestTypesSupportedByBank for all supported types.
-         |
-         |In sandbox mode, if the amount is less than 1000 EUR (any currency, unless it is set differently on this server), the transaction request will create a transaction without a challenge, else the Transaction Request will be set to INITIALISED and a challenge will need to be answered.
-         |
-         |If a challenge is created you must answer it using Answer Transaction Request Challenge before the Transaction is created.
-         |
-         |You can transfer between different currency accounts. (new in 2.0.0). The currency in body must match the sending account.
-         |
-         |The following static FX rates are available in sandbox mode:
-         |
-         |${exchangeRates}
-         |
-         |
-         |Transaction Requests satisfy PSD2 requirements thus:
-         |
-         |1) A transaction can be initiated by a third party application.
-         |
-         |2) The customer is informed of the charge that will incurred.
-         |
-         |3) The call supports delegated authentication (OAuth)
-         |
-         |See [this python code](https://github.com/OpenBankProject/Hello-OBP-DirectLogin-Python/blob/master/hello_payments.py) for a complete example of this flow.
-         |
-         |There is further documentation [here](https://github.com/OpenBankProject/OBP-API/wiki/Transaction-Requests)
-         |
-         |"""
-
-
     // ACCOUNT. (we no longer create a resource doc for the general case)
     staticResourceDocs += ResourceDoc(
       createTransactionRequestAccount,
@@ -741,12 +681,14 @@ trait APIMethods400 extends MdcLoggable {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-request-types/COUNTERPARTY/transaction-requests",
       "Create Transaction Request (COUNTERPARTY)",
       s"""
-         |Special instructions for COUNTERPARTY:
-         |
-         |When using a COUNTERPARTY to create a Transaction Request, specificy the counterparty_id in the body of the request.
-         |The routing details of the counterparty will be forwarded for the transfer.
-         |
          |$transactionRequestGeneralText
+         |
+         |When using a COUNTERPARTY to create a Transaction Request, specify the counterparty_id in the body of the request.
+         |The routing details of the counterparty will be forwarded to the Core Banking System (CBS) for the transfer.
+         |
+         |COUNTERPARTY Transaction Requests are used for Variable Recurring Payments (VRP). Use the following ${Glossary.getApiExplorerLink("endpoint", "OBPv5.1.0-createVRPConsentRequest")} to create a consent for VRPs.
+         |
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
        """.stripMargin,
       transactionRequestBodyCounterpartyJSON,
@@ -806,10 +748,6 @@ trait APIMethods400 extends MdcLoggable {
         UnknownError
       ),
       List(apiTagTransactionRequest, apiTagPSD2PIS, apiTagPsd2))
-
-
-    val lowAmount = AmountOfMoneyJsonV121("EUR", "12.50")
-    val sharedChargePolicy = ChargePolicy.withName("SHARED")
 
     // Transaction Request (SEPA)
     staticResourceDocs += ResourceDoc(
@@ -927,448 +865,58 @@ trait APIMethods400 extends MdcLoggable {
       Some(List(canCreateAnyTransactionRequest)))
 
 
-    def createTransactionRequest(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestType: TransactionRequestType, json: JValue): Future[(TransactionRequestWithChargeJSON400, Option[CallContext])] = {
-        for {
-      (Full(u), callContext) <- SS.user
+    staticResourceDocs += ResourceDoc(
+      createTransactionRequestAgentCashWithDrawal,
+      implementedInApiVersion,
+      nameOf(createTransactionRequestAgentCashWithDrawal),
+      "POST",
+      "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/transaction-request-types/AGENT_CASH_WITHDRAWAL/transaction-requests",
+      "Create Transaction Request (AGENT_CASH_WITHDRAWAL)",
+      s"""
+         |
+         |Either the `from` or the `to` field must be filled. Those fields refers to the information about the party that will be refunded.
+         |
+         |In case the `from` object is used, it means that the refund comes from the part that sent you a transaction.
+         |In the `from` object, you have two choices :
+         |- Use `bank_id` and `account_id` fields if the other account is registered on the OBP-API
+         |- Use the `counterparty_id` field in case the counterparty account is out of the OBP-API
+         |
+         |In case the `to` object is used, it means you send a request to a counterparty to ask for a refund on a previous transaction you sent.
+         |(This case is not managed by the OBP-API and require an external adapter)
+         |
+         |
+         |$transactionRequestGeneralText
+         |
+       """.stripMargin,
+      transactionRequestBodyAgentJsonV400,
+      transactionRequestWithChargeJSON400,
+      List(
+        $UserNotLoggedIn,
+        InvalidBankIdFormat,
+        InvalidAccountIdFormat,
+        InvalidJsonFormat,
+        $BankNotFound,
+        AccountNotFound,
+        $BankAccountNotFound,
+        InsufficientAuthorisationToCreateTransactionRequest,
+        InvalidTransactionRequestType,
+        InvalidJsonFormat,
+        InvalidNumber,
+        NotPositiveAmount,
+        InvalidTransactionRequestCurrency,
+        TransactionDisabled,
+        UnknownError
+      ),
+      List(apiTagTransactionRequest, apiTagPSD2PIS, apiTagPsd2)
+    )
 
-        transactionRequestTypeValue <- NewStyle.function.tryons(s"$InvalidTransactionRequestType: '${transactionRequestType.value}'. OBP does not support it.", 400, callContext) {
-          TransactionRequestTypes.withName(transactionRequestType.value)
-        }
-
-        (fromAccount, callContext) <- transactionRequestTypeValue match {
-          case CARD =>
-            for{
-              transactionRequestBodyCard <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $CARD json format", 400, callContext) {
-                json.extract[TransactionRequestBodyCardJsonV400]
-              }
-              //   1.1 get Card from card_number
-              (cardFromCbs,callContext) <- NewStyle.function.getPhysicalCardByCardNumber(transactionRequestBodyCard.card.card_number, callContext)
-
-              // 1.2 check card name/expire month. year.
-              calendar = Calendar.getInstance
-              _ = calendar.setTime(cardFromCbs.expires)
-              yearFromCbs = calendar.get(Calendar.YEAR).toString
-              monthFromCbs = calendar.get(Calendar.MONTH).toString
-              nameOnCardFromCbs= cardFromCbs.nameOnCard
-              cvvFromCbs= cardFromCbs.cvv.getOrElse("")
-              brandFromCbs= cardFromCbs.brand.getOrElse("")
-
-              _ <- Helper.booleanToFuture(s"$InvalidJsonValue brand is not matched", cc=callContext) {
-                transactionRequestBodyCard.card.brand.equalsIgnoreCase(brandFromCbs)
-              }
-              
-              dateFromJsonBody <- NewStyle.function.tryons(s"$InvalidDateFormat year should be 'yyyy', " +
-                s"eg: 2023, but current expiry_year(${transactionRequestBodyCard.card.expiry_year}), " +
-                s"month should be 'xx', eg: 02, but current expiry_month(${transactionRequestBodyCard.card.expiry_month})", 400, callContext) {
-                DateWithMonthFormat.parse(s"${transactionRequestBodyCard.card.expiry_year}-${transactionRequestBodyCard.card.expiry_month}")
-              }
-              _ <- Helper.booleanToFuture(s"$InvalidJsonValue your credit card is expired.", cc=callContext) {
-                org.apache.commons.lang3.time.DateUtils.addMonths(new Date(), 1).before(dateFromJsonBody)
-              }
-              
-              _ <- Helper.booleanToFuture(s"$InvalidJsonValue expiry_year is not matched", cc=callContext) {
-                transactionRequestBodyCard.card.expiry_year.equalsIgnoreCase(yearFromCbs)
-              }
-              _ <- Helper.booleanToFuture(s"$InvalidJsonValue expiry_month is not matched", cc=callContext) {
-                transactionRequestBodyCard.card.expiry_month.toInt.equals(monthFromCbs.toInt+1)
-              }
-              
-              _ <- Helper.booleanToFuture(s"$InvalidJsonValue name_on_card is not matched", cc=callContext) {
-                transactionRequestBodyCard.card.name_on_card.equalsIgnoreCase(nameOnCardFromCbs)
-              }
-              _ <- Helper.booleanToFuture(s"$InvalidJsonValue cvv is not matched", cc=callContext) {
-                HashUtil.Sha256Hash(transactionRequestBodyCard.card.cvv).equals(cvvFromCbs)
-              }
-              
-            } yield{
-              (cardFromCbs.account, callContext)
-            }
-
-          case _ => NewStyle.function.getBankAccount(bankId,accountId, callContext)
-        }
-        _ <- NewStyle.function.isEnabledTransactionRequests(callContext)
-        _ <- Helper.booleanToFuture(InvalidAccountIdFormat, cc=callContext) {
-          isValidID(fromAccount.accountId.value)
-        }
-        _ <- Helper.booleanToFuture(InvalidBankIdFormat, cc=callContext) {
-          isValidID(fromAccount.bankId.value)
-        }
-
-        _ <- NewStyle.function.checkAuthorisationToCreateTransactionRequest(viewId, BankIdAccountId(fromAccount.bankId, fromAccount.accountId), u, callContext)
-
-          _ <- Helper.booleanToFuture(s"${InvalidTransactionRequestType}: '${transactionRequestType.value}'. Current Sandbox does not support it. ", cc=callContext) {
-            APIUtil.getPropsValue("transactionRequests_supported_types", "").split(",").contains(transactionRequestType.value)
-          }
-
-          // Check the input JSON format, here is just check the common parts of all four types
-          transDetailsJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $TransactionRequestBodyCommonJSON ", 400, callContext) {
-            json.extract[TransactionRequestBodyCommonJSON]
-          }
-
-          transactionAmountNumber <- NewStyle.function.tryons(s"$InvalidNumber Current input is  ${transDetailsJson.value.amount} ", 400, callContext) {
-            BigDecimal(transDetailsJson.value.amount)
-          }
-
-          _ <- Helper.booleanToFuture(s"${NotPositiveAmount} Current input is: '${transactionAmountNumber}'", cc=callContext) {
-            transactionAmountNumber > BigDecimal("0")
-          }
-
-          _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${transDetailsJson.value.currency}'", cc=callContext) {
-            isValidCurrencyISOCode(transDetailsJson.value.currency)
-          }
-
-          // Prevent default value for transaction request type (at least).
-          _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${transDetailsJson.value.currency}'", cc=callContext) {
-            isValidCurrencyISOCode(transDetailsJson.value.currency)
-          }
-
-          (createdTransactionRequest, callContext) <- transactionRequestTypeValue match {
-            case REFUND => {
-              for {
-                transactionRequestBodyRefundJson <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $ACCOUNT json format", 400, callContext) {
-                  json.extract[TransactionRequestBodyRefundJsonV400]
-                }
-
-                transactionId = TransactionId(transactionRequestBodyRefundJson.refund.transaction_id)
-
-                (fromAccount, toAccount, transaction, callContext) <- transactionRequestBodyRefundJson.to match {
-                  case Some(refundRequestTo) if refundRequestTo.account_id.isDefined && refundRequestTo.bank_id.isDefined =>
-                    val toBankId = BankId(refundRequestTo.bank_id.get)
-                    val toAccountId = AccountId(refundRequestTo.account_id.get)
-                    for {
-                      (transaction, callContext) <- NewStyle.function.getTransaction(fromAccount.bankId, fromAccount.accountId, transactionId, callContext)
-                      (toAccount, callContext) <- NewStyle.function.checkBankAccountExists(toBankId, toAccountId, callContext)
-                    } yield (fromAccount, toAccount, transaction, callContext)
-
-                  case Some(refundRequestTo) if refundRequestTo.counterparty_id.isDefined =>
-                    val toCounterpartyId = CounterpartyId(refundRequestTo.counterparty_id.get)
-                    for {
-                      (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(toCounterpartyId, callContext)
-                      toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, isOutgoingAccount = true, callContext)
-                      _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
-                        toCounterparty.isBeneficiary
-                      }
-                      (transaction, callContext) <- NewStyle.function.getTransaction(fromAccount.bankId, fromAccount.accountId, transactionId, callContext)
-                    } yield (fromAccount, toAccount, transaction, callContext)
-
-                  case None if transactionRequestBodyRefundJson.from.isDefined =>
-                    val fromCounterpartyId = CounterpartyId(transactionRequestBodyRefundJson.from.get.counterparty_id)
-                    val toAccount = fromAccount
-                    for {
-                      (fromCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(fromCounterpartyId, callContext)
-                      fromAccount <- NewStyle.function.getBankAccountFromCounterparty(fromCounterparty, isOutgoingAccount = false, callContext)
-                      _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
-                        fromCounterparty.isBeneficiary
-                      }
-                      (transaction, callContext) <- NewStyle.function.getTransaction(toAccount.bankId, toAccount.accountId, transactionId, callContext)
-                    } yield (fromAccount, toAccount, transaction, callContext)
-                }
-
-                transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
-                  write(transactionRequestBodyRefundJson)(Serialization.formats(NoTypeHints))
-                }
-
-                _ <- Helper.booleanToFuture(s"${RefundedTransaction} Current input amount is: '${transDetailsJson.value.amount}'. It can not be more than the original amount(${(transaction.amount).abs})", cc=callContext) {
-                  (transaction.amount).abs  >= transactionAmountNumber
-                }
-                //TODO, we need additional field to guarantee the transaction is refunded...
-                //                  _ <- Helper.booleanToFuture(s"${RefundedTransaction}") {
-                //                    !((transaction.description.toString contains(" Refund to ")) && (transaction.description.toString contains(" and transaction_id(")))
-                //                  }
-
-                //we add the extra info (counterparty name + transaction_id) for this special Refund endpoint.
-                newDescription = s"${transactionRequestBodyRefundJson.description} - Refund for transaction_id: (${transactionId.value}) to ${transaction.otherAccount.counterpartyName}"
-
-                //This is the refund endpoint, the original fromAccount is the `toAccount` which will receive money.
-                refundToAccount = fromAccount
-                //This is the refund endpoint, the original toAccount is the `fromAccount` which will lose money.
-                refundFromAccount = toAccount
-
-                (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
-                  viewId,
-                  refundFromAccount,
-                  refundToAccount,
-                  transactionRequestType,
-                  transactionRequestBodyRefundJson.copy(description = newDescription),
-                  transDetailsSerialized,
-                  sharedChargePolicy.toString,
-                  Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
-                  getScaMethodAtInstance(transactionRequestType.value).toOption,
-                  None,
-                  None,
-                  callContext) //in ACCOUNT, ChargePolicy set default "SHARED"
-
-                _ <- NewStyle.function.createOrUpdateTransactionRequestAttribute(
-                  bankId = bankId,
-                  transactionRequestId = createdTransactionRequest.id,
-                  transactionRequestAttributeId = None,
-                  name = "original_transaction_id",
-                  attributeType = TransactionRequestAttributeType.withName("STRING"),
-                  value = transactionId.value,
-                  callContext = callContext
-                )
-
-                refundReasonCode = transactionRequestBodyRefundJson.refund.reason_code
-                _ <- if (refundReasonCode.nonEmpty) {
-                  NewStyle.function.createOrUpdateTransactionRequestAttribute(
-                    bankId = bankId,
-                    transactionRequestId = createdTransactionRequest.id,
-                    transactionRequestAttributeId = None,
-                    name = "refund_reason_code",
-                    attributeType = TransactionRequestAttributeType.withName("STRING"),
-                    value = refundReasonCode,
-                    callContext = callContext)
-                } else Future.successful()
-
-                (newTransactionRequestStatus, callContext) <- NewStyle.function.notifyTransactionRequest(refundFromAccount, refundToAccount, createdTransactionRequest, callContext)
-                _ <- Future(Connector.connector.vend.saveTransactionRequestStatusImpl(createdTransactionRequest.id, newTransactionRequestStatus.toString))
-                createdTransactionRequest <- Future(createdTransactionRequest.copy(status = newTransactionRequestStatus.toString))
-
-              } yield (createdTransactionRequest, callContext)
-            }
-            case ACCOUNT | SANDBOX_TAN => {
-              for {
-                transactionRequestBodySandboxTan <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $ACCOUNT json format", 400, callContext) {
-                  json.extract[TransactionRequestBodySandBoxTanJSON]
-                }
-
-                toBankId = BankId(transactionRequestBodySandboxTan.to.bank_id)
-                toAccountId = AccountId(transactionRequestBodySandboxTan.to.account_id)
-                (toAccount, callContext) <- NewStyle.function.checkBankAccountExists(toBankId, toAccountId, callContext)
-
-                transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
-                  write(transactionRequestBodySandboxTan)(Serialization.formats(NoTypeHints))
-                }
-
-                (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
-                  viewId,
-                  fromAccount,
-                  toAccount,
-                  transactionRequestType,
-                  transactionRequestBodySandboxTan,
-                  transDetailsSerialized,
-                  sharedChargePolicy.toString,
-                  Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
-                  getScaMethodAtInstance(transactionRequestType.value).toOption,
-                  None,
-                  None,
-                  callContext) //in ACCOUNT, ChargePolicy set default "SHARED"
-              } yield (createdTransactionRequest, callContext)
-            }
-            case ACCOUNT_OTP => {
-              for {
-                transactionRequestBodySandboxTan <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $ACCOUNT json format", 400, callContext) {
-                  json.extract[TransactionRequestBodySandBoxTanJSON]
-                }
-
-                toBankId = BankId(transactionRequestBodySandboxTan.to.bank_id)
-                toAccountId = AccountId(transactionRequestBodySandboxTan.to.account_id)
-                (toAccount, callContext) <- NewStyle.function.checkBankAccountExists(toBankId, toAccountId, callContext)
-
-                transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
-                  write(transactionRequestBodySandboxTan)(Serialization.formats(NoTypeHints))
-                }
-
-                (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
-                  viewId,
-                  fromAccount,
-                  toAccount,
-                  transactionRequestType,
-                  transactionRequestBodySandboxTan,
-                  transDetailsSerialized,
-                  sharedChargePolicy.toString,
-                  Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
-                  getScaMethodAtInstance(transactionRequestType.value).toOption,
-                  None,
-                  None,
-                  callContext) //in ACCOUNT, ChargePolicy set default "SHARED"
-              } yield (createdTransactionRequest, callContext)
-            }
-            case COUNTERPARTY => {
-              for {
-                //For COUNTERPARTY, Use the counterpartyId to find the toCounterparty and set up the toAccount
-                transactionRequestBodyCounterparty <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $COUNTERPARTY json format", 400, callContext) {
-                  json.extract[TransactionRequestBodyCounterpartyJSON]
-                }
-                toCounterpartyId = transactionRequestBodyCounterparty.to.counterparty_id
-                (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(CounterpartyId(toCounterpartyId), callContext)
-                toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
-                // Check we can send money to it.
-                _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
-                  toCounterparty.isBeneficiary
-                }
-                chargePolicy = transactionRequestBodyCounterparty.charge_policy
-                _ <- Helper.booleanToFuture(s"$InvalidChargePolicy", cc=callContext) {
-                  ChargePolicy.values.contains(ChargePolicy.withName(chargePolicy))
-                }
-                transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
-                  write(transactionRequestBodyCounterparty)(Serialization.formats(NoTypeHints))
-                }
-                (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
-                  viewId,
-                  fromAccount,
-                  toAccount,
-                  transactionRequestType,
-                  transactionRequestBodyCounterparty,
-                  transDetailsSerialized,
-                  chargePolicy,
-                  Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
-                  getScaMethodAtInstance(transactionRequestType.value).toOption,
-                  None,
-                  None,
-                  callContext)
-              } yield (createdTransactionRequest, callContext)
-            }
-            case CARD => {
-              for {
-                //2rd: get toAccount from counterpartyId
-                transactionRequestBodyCard <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $CARD json format", 400, callContext) {
-                  json.extract[TransactionRequestBodyCardJsonV400]
-                }
-                toCounterpartyId = transactionRequestBodyCard.to.counterparty_id
-                (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(CounterpartyId(toCounterpartyId), callContext)
-                toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
-                // Check we can send money to it.
-                _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
-                  toCounterparty.isBeneficiary
-                }
-                chargePolicy = ChargePolicy.RECEIVER.toString
-                transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
-                  write(transactionRequestBodyCard)(Serialization.formats(NoTypeHints))
-                }
-                (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
-                  viewId,
-                  fromAccount,
-                  toAccount,
-                  transactionRequestType,
-                  transactionRequestBodyCard,
-                  transDetailsSerialized,
-                  chargePolicy,
-                  Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
-                  getScaMethodAtInstance(transactionRequestType.value).toOption,
-                  None,
-                  None,
-                  callContext)
-              } yield (createdTransactionRequest, callContext)
-
-            }
-            case SIMPLE => {
-              for {
-                //For SAMPLE, we will create/get toCounterparty on site and set up the toAccount
-                transactionRequestBodySimple <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $SIMPLE json format", 400, callContext) {
-                  json.extract[TransactionRequestBodySimpleJsonV400]
-                }
-                (toCounterparty, callContext) <- NewStyle.function.getOrCreateCounterparty(
-                  name = transactionRequestBodySimple.to.name,
-                  description = transactionRequestBodySimple.to.description,
-                  currency = transactionRequestBodySimple.value.currency,
-                  createdByUserId = u.userId,
-                  thisBankId = bankId.value,
-                  thisAccountId = accountId.value,
-                  thisViewId = viewId.value,
-                  otherBankRoutingScheme = transactionRequestBodySimple.to.other_bank_routing_scheme,
-                  otherBankRoutingAddress = transactionRequestBodySimple.to.other_bank_routing_address,
-                  otherBranchRoutingScheme = transactionRequestBodySimple.to.other_branch_routing_scheme,
-                  otherBranchRoutingAddress = transactionRequestBodySimple.to.other_branch_routing_address,
-                  otherAccountRoutingScheme = transactionRequestBodySimple.to.other_account_routing_scheme,
-                  otherAccountRoutingAddress = transactionRequestBodySimple.to.other_account_routing_address,
-                  otherAccountSecondaryRoutingScheme = transactionRequestBodySimple.to.other_account_secondary_routing_scheme,
-                  otherAccountSecondaryRoutingAddress = transactionRequestBodySimple.to.other_account_secondary_routing_address,
-                  callContext: Option[CallContext],
-                )
-                toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
-                // Check we can send money to it.
-                _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
-                  toCounterparty.isBeneficiary
-                }
-                chargePolicy = transactionRequestBodySimple.charge_policy
-                _ <- Helper.booleanToFuture(s"$InvalidChargePolicy", cc=callContext) {
-                  ChargePolicy.values.contains(ChargePolicy.withName(chargePolicy))
-                }
-                transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
-                  write(transactionRequestBodySimple)(Serialization.formats(NoTypeHints))
-                }
-                (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
-                  viewId,
-                  fromAccount,
-                  toAccount,
-                  transactionRequestType,
-                  transactionRequestBodySimple,
-                  transDetailsSerialized,
-                  chargePolicy,
-                  Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
-                  getScaMethodAtInstance(transactionRequestType.value).toOption,
-                  None,
-                  None,
-                  callContext)
-              } yield (createdTransactionRequest, callContext)
-
-            }
-            case SEPA => {
-              for {
-                //For SEPA, Use the IBAN to find the toCounterparty and set up the toAccount
-                transDetailsSEPAJson <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $SEPA json format", 400, callContext) {
-                  json.extract[TransactionRequestBodySEPAJsonV400]
-                }
-                toIban = transDetailsSEPAJson.to.iban
-                (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByIbanAndBankAccountId(toIban, fromAccount.bankId, fromAccount.accountId, callContext)
-                toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
-                _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
-                  toCounterparty.isBeneficiary
-                }
-                chargePolicy = transDetailsSEPAJson.charge_policy
-                _ <- Helper.booleanToFuture(s"$InvalidChargePolicy", cc=callContext) {
-                  ChargePolicy.values.contains(ChargePolicy.withName(chargePolicy))
-                }
-                transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
-                  write(transDetailsSEPAJson)(Serialization.formats(NoTypeHints))
-                }
-                (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
-                  viewId,
-                  fromAccount,
-                  toAccount,
-                  transactionRequestType,
-                  transDetailsSEPAJson,
-                  transDetailsSerialized,
-                  chargePolicy,
-                  Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
-                  getScaMethodAtInstance(transactionRequestType.value).toOption,
-                  transDetailsSEPAJson.reasons.map(_.map(_.transform)),
-                  None,
-                  callContext)
-              } yield (createdTransactionRequest, callContext)
-            }
-            case FREE_FORM => {
-              for {
-                transactionRequestBodyFreeForm <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $FREE_FORM json format", 400, callContext) {
-                  json.extract[TransactionRequestBodyFreeFormJSON]
-                }
-                // Following lines: just transfer the details body, add Bank_Id and Account_Id in the Detail part. This is for persistence and 'answerTransactionRequestChallenge'
-                transactionRequestAccountJSON = TransactionRequestAccountJsonV140(bankId.value, accountId.value)
-                transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
-                  write(transactionRequestBodyFreeForm)(Serialization.formats(NoTypeHints))
-                }
-                (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
-                  viewId,
-                  fromAccount,
-                  fromAccount,
-                  transactionRequestType,
-                  transactionRequestBodyFreeForm,
-                  transDetailsSerialized,
-                  sharedChargePolicy.toString,
-                  Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
-                  getScaMethodAtInstance(transactionRequestType.value).toOption,
-                  None,
-                  None,
-                  callContext)
-              } yield
-                (createdTransactionRequest, callContext)
-            }
-          }
-          (challenges, callContext) <-  NewStyle.function.getChallengesByTransactionRequestId(createdTransactionRequest.id.value, callContext)
-        } yield {
-          (JSONFactory400.createTransactionRequestWithChargeJSON(createdTransactionRequest, challenges), HttpCode.`201`(callContext))
-        }
+    lazy val createTransactionRequestAgentCashWithDrawal: OBPEndpoint = {
+      case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "transaction-request-types" ::
+        "AGENT_CASH_WITHDRAWAL" :: "transaction-requests" :: Nil JsonPost json -> _ =>
+        cc =>
+          implicit val ec = EndpointContext(Some(cc))
+          val transactionRequestType = TransactionRequestType("AGENT_CASH_WITHDRAWAL")
+          createTransactionRequest(bankId, accountId, viewId, transactionRequestType, json)
     }
     
     lazy val createTransactionRequestAccount: OBPEndpoint = {
@@ -1470,7 +1018,7 @@ trait APIMethods400 extends MdcLoggable {
       case "transaction-request-types" :: "CARD" :: "transaction-requests" :: Nil JsonPost json -> _ =>
         cc => implicit val ec = EndpointContext(Some(cc))
           val transactionRequestType = TransactionRequestType("CARD")
-          createTransactionRequest(BankId(""), AccountId(""), ViewId("owner"), transactionRequestType, json)
+          createTransactionRequest(BankId(""), AccountId(""), ViewId(Constant.SYSTEM_OWNER_VIEW_ID), transactionRequestType, json)
     }
 
 
@@ -1596,7 +1144,7 @@ trait APIMethods400 extends MdcLoggable {
                       val toCounterpartyIban = transactionRequest.other_account_routing_address
                       for {
                         (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByIbanAndBankAccountId(toCounterpartyIban, fromAccount.bankId, fromAccount.accountId, callContext)
-                        toAccount <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+                        (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
                       } yield (fromAccount, toAccount, callContext)
                     } else {
                       // Else, the transaction request debit a counterparty (Iban)
@@ -1605,7 +1153,7 @@ trait APIMethods400 extends MdcLoggable {
                       val toAccount = fromAccount
                       for {
                         (fromCounterparty, callContext) <- NewStyle.function.getCounterpartyByIbanAndBankAccountId(fromCounterpartyIban, toAccount.bankId, toAccount.accountId, callContext)
-                        fromAccount <- NewStyle.function.getBankAccountFromCounterparty(fromCounterparty, false, callContext)
+                        (fromAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(fromCounterparty, false, callContext)
                       } yield (fromAccount, toAccount, callContext)
                     }
                   }
@@ -1632,12 +1180,12 @@ trait APIMethods400 extends MdcLoggable {
                       callContext = callContext)
                   } else Future.successful()
                   _ <- NewStyle.function.notifyTransactionRequest(fromAccount, toAccount, transactionRequest, callContext)
-                  _ <- Future(Connector.connector.vend.saveTransactionRequestStatusImpl(transactionRequest.id, transactionRequest.status))
+                  _ <- NewStyle.function.saveTransactionRequestStatusImpl(transactionRequest.id, transactionRequest.status, callContext)
                 } yield (transactionRequest, callContext)
               case _ =>
                 for {
   
-                  (challengeAnswerIsValidated, callContext) <- NewStyle.function.validateChallengeAnswer(challengeAnswerJson.id, challengeAnswerJson.answer, callContext)
+                  (challengeAnswerIsValidated, callContext) <- NewStyle.function.validateChallengeAnswer(challengeAnswerJson.id, challengeAnswerJson.answer, SuppliedAnswerType.PLAIN_TEXT_VALUE,callContext)
 
                   _ <- Helper.booleanToFuture(s"${InvalidChallengeAnswer
                     .replace("answer may be expired.",s"answer may be expired (${transactionRequestChallengeTtl} seconds).")
@@ -1658,9 +1206,11 @@ trait APIMethods400 extends MdcLoggable {
                   }
                 } yield (transactionRequest, callContext)
             }
+
+            (transactionRequestAttribute, callContext) <- NewStyle.function.getTransactionRequestAttributes(bankId, transactionRequest.id, callContext)
           } yield {
 
-            (JSONFactory400.createTransactionRequestWithChargeJSON(transactionRequest, challenges), HttpCode.`202`(callContext))
+            (JSONFactory400.createTransactionRequestWithChargeJSON(transactionRequest, challenges, transactionRequestAttribute), HttpCode.`202`(callContext))
           }
       }
     }
@@ -1677,7 +1227,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionRequestAttributeJsonV400,
@@ -1705,7 +1255,7 @@ trait APIMethods400 extends MdcLoggable {
             failMsg = s"$InvalidJsonFormat The `Type` field can only accept the following field: " +
               s"${TransactionRequestAttributeType.DOUBLE}(12.1234), ${TransactionRequestAttributeType.STRING}(TAX_NUMBER), ${TransactionRequestAttributeType.INTEGER}(123) and ${TransactionRequestAttributeType.DATE_WITH_DAY}(2012-04-23)"
             transactionRequestAttributeType <- NewStyle.function.tryons(failMsg, 400,  callContext) {
-              TransactionRequestAttributeType.withName(postedData.`type`)
+              TransactionRequestAttributeType.withName(postedData.attribute_type)
             }
             (transactionRequestAttribute, callContext) <- NewStyle.function.createOrUpdateTransactionRequestAttribute(
               bankId,
@@ -1732,7 +1282,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Request Attribute By Id",
       s""" Get Transaction Request Attribute By Id
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1773,7 +1323,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Request Attributes",
       s""" Get Transaction Request Attributes
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1815,7 +1365,7 @@ trait APIMethods400 extends MdcLoggable {
       "Update Transaction Request Attribute",
       s""" Update Transaction Request Attribute
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionRequestAttributeJsonV400,
@@ -1843,7 +1393,7 @@ trait APIMethods400 extends MdcLoggable {
             failMsg = s"$InvalidJsonFormat The `Type` field can only accept the following field: " +
               s"${TransactionRequestAttributeType.DOUBLE}(12.1234), ${TransactionRequestAttributeType.STRING}(TAX_NUMBER), ${TransactionRequestAttributeType.INTEGER}(123) and ${TransactionRequestAttributeType.DATE_WITH_DAY}(2012-04-23)"
             transactionRequestAttributeType <- NewStyle.function.tryons(failMsg, 400,  callContext) {
-              TransactionRequestAttributeType.withName(postedData.`type`)
+              TransactionRequestAttributeType.withName(postedData.attribute_type)
             }
             (_, callContext) <- NewStyle.function.getTransactionRequestAttributeById(transactionRequestAttributeId, callContext)
             (transactionRequestAttribute, callContext) <- NewStyle.function.createOrUpdateTransactionRequestAttribute(
@@ -1875,7 +1425,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of: ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionRequestAttributeDefinitionJsonV400,
@@ -1934,7 +1484,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Request Attribute Definition",
       s""" Get Transaction Request Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -1971,7 +1521,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Transaction Request Attribute Definition",
       s""" Delete Transaction Request Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -2098,7 +1648,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Create a system level Dynamic Entity.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Create a DynamicEntity. If creation is successful, the corresponding POST, GET, PUT and DELETE (Create, Read, Update, Delete or CRUD for short) endpoints will be generated automatically
          |
@@ -2143,7 +1693,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create Bank Level Dynamic Entity",
       s"""Create a Bank Level DynamicEntity.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Create a DynamicEntity. If creation is successful, the corresponding POST, GET, PUT and DELETE (Create, Read, Update, Delete or CRUD for short) endpoints will be generated automatically
          |
@@ -2209,7 +1759,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Update a System Level Dynamic Entity.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Update one DynamicEntity, after update finished, the corresponding CRUD endpoints will be changed.
          |
@@ -2252,7 +1802,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Update a Bank Level DynamicEntity.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Update one DynamicEntity, after update finished, the corresponding CRUD endpoints will be changed.
          |
@@ -2396,7 +1946,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Update my DynamicEntity.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Update one of my DynamicEntity, after update finished, the corresponding CRUD endpoints will be changed.
          |
@@ -2616,8 +2166,9 @@ trait APIMethods400 extends MdcLoggable {
             _ <- Helper.booleanToFuture(s"$AccountRoutingAlreadyExist (${alreadyExistingAccountRouting.mkString("; ")})", cc=callContext) {
               alreadyExistingAccountRouting.isEmpty
             }
-            (bankAccount,callContext) <- NewStyle.function.addBankAccount(
+            (bankAccount,callContext) <- NewStyle.function.createBankAccount(
               bankId,
+              AccountId(APIUtil.generateUUID()),
               accountType,
               accountLabel,
               currency,
@@ -2751,7 +2302,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Update the label for the account. The label is how the account is known to the account owner e.g. 'My savings account'
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
        """.stripMargin,
       updateAccountJsonV400,
@@ -2772,15 +2323,13 @@ trait APIMethods400 extends MdcLoggable {
             anyViewContainsCanUpdateBankAccountLabelPermission = Views.views.vend.permission(BankIdAccountId(account.bankId, account.accountId), u)
               .map(_.views.map(_.canUpdateBankAccountLabel).find(_.==(true)).getOrElse(false)).getOrElse(false)
             _ <- Helper.booleanToFuture(
-              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canUpdateBankAccountLabel_.dbColumnName).dropRight(1)}` permission on any your views",
+              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canUpdateBankAccountLabel_)).dropRight(1)}` permission on any your views",
               cc = callContext
             ) {
               anyViewContainsCanUpdateBankAccountLabelPermission
             }
-            (success, callContext) <- Future {
-              Connector.connector.vend.updateAccountLabel(bankId, accountId, json.label)
-            } map { i =>
-              (unboxFullOrFail(i, callContext, s"$UpdateBankAccountLabelError Current BankId is $bankId and Current AccountId is $accountId", 404), callContext)
+            (success, callContext) <- Connector.connector.vend.updateAccountLabel(bankId, accountId, json.label, callContext)  map { i =>
+              (unboxFullOrFail(i._1, i._2, s"$UpdateBankAccountLabelError Current BankId is $bankId and Current AccountId is $accountId", 404), i._2)
             }
           } yield {
             (Extraction.decompose(successMessage), HttpCode.`200`(callContext))
@@ -2799,7 +2348,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""
          |Lock a User.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -2993,7 +2542,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create a tag on account",
       s"""Posts a tag about an account ACCOUNT_ID on a [view](#1_2_1-getViewsForBankAccount) VIEW_ID.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Authentication is required as the tag is linked with the user.""",
       postAccountTagJSON,
@@ -3039,7 +2588,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete a tag on account",
       s"""Deletes the tag TAG_ID about the account ACCOUNT_ID made on [view](#1_2_1-getViewsForBankAccount).
         |
-        |${authenticationRequiredMessage(true)}
+        |${userAuthenticationMessage(true)}
         |
         |Authentication is required as the tag is linked with the user.""",
       EmptyBody,
@@ -3080,7 +2629,7 @@ trait APIMethods400 extends MdcLoggable {
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/metadata/tags",
       "Get tags on account",
       s"""Returns the account ACCOUNT_ID tags made on a [view](#1_2_1-getViewsForBankAccount) (VIEW_ID).
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |Authentication is required as the tag is linked with the user.""",
       EmptyBody,
@@ -3425,13 +2974,13 @@ trait APIMethods400 extends MdcLoggable {
          |
          |optional request parameters for filter with attributes
          |URL params example:
-         |  /banks/some-bank-id/firehose/accounts/views/owner?manager=John&count=8
+         |  /banks/some-bank-id/firehose/accounts/views/owner?&limit=50&offset=1
          |
          |to invalid Browser cache, add timestamp query parameter as follow, the parameter name must be `_timestamp_`
          |URL params example:
-         |  `/banks/some-bank-id/firehose/accounts/views/owner?manager=John&count=8&_timestamp_=1596762180358`
+         |  `/banks/some-bank-id/firehose/accounts/views/owner?&limit=50&offset=1&_timestamp_=1596762180358`
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -3473,7 +3022,7 @@ trait APIMethods400 extends MdcLoggable {
               //2 each bankAccount object find the proper view.
               //3 use view and user to moderate the bankaccount object.
               bankIdAccountId <- availableBankIdAccountIdList2
-              bankAccount <- Connector.connector.vend.getBankAccountOld(bankIdAccountId.bankId, bankIdAccountId.accountId) ?~! s"$BankAccountNotFound Current Bank_Id(${bankIdAccountId.bankId}), Account_Id(${bankIdAccountId.accountId}) "
+              (bankAccount, callContext) <- Connector.connector.vend.getBankAccountLegacy(bankIdAccountId.bankId, bankIdAccountId.accountId,callContext) ?~! s"$BankAccountNotFound Current Bank_Id(${bankIdAccountId.bankId}), Account_Id(${bankIdAccountId.accountId}) "
               moderatedAccount <- bankAccount.moderatedBankAccount(view, bankIdAccountId, Full(u), callContext) //Error handling is in lower method
             } yield {
               moderatedAccount
@@ -3513,7 +3062,7 @@ trait APIMethods400 extends MdcLoggable {
          |optional pagination parameters for filter with accounts
          |${urlParametersDocument(true, false)}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -3565,7 +3114,9 @@ trait APIMethods400 extends MdcLoggable {
         UserCustomerLinksNotFoundForUser,
         UnknownError
       ),
-      List(apiTagCustomer, apiTagKyc))
+      List(apiTagCustomer, apiTagKyc),
+      Some(List(canGetCustomer))
+    )
 
     lazy val getCustomersByCustomerPhoneNumber : OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "search"  :: "customers" :: "mobile-phone-number" ::  Nil JsonPost  json -> _ => {
@@ -3577,7 +3128,7 @@ trait APIMethods400 extends MdcLoggable {
             }
             (customers, callContext) <- NewStyle.function.getCustomersByCustomerPhoneNumber(bankId, postedData.mobile_phone_number , cc.callContext)
           } yield {
-            (JSONFactory300.createCustomersJson(customers), HttpCode.`201`(callContext))
+            (JSONFactory300.createCustomersJson(customers), HttpCode.`200`(callContext))
           }
       }
     }
@@ -3591,7 +3142,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User Id (Current)",
       s"""Get the USER_ID of the logged in user
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
       """.stripMargin,
       EmptyBody,
       userIdJsonV400,
@@ -3620,7 +3171,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User by USER_ID",
       s"""Get user by USER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |CanGetAnyUser entitlement is required,
          |
       """.stripMargin,
@@ -3659,7 +3210,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User by USERNAME",
       s"""Get user by USERNAME
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |CanGetAnyUser entitlement is required,
          |
@@ -3696,7 +3247,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Users by Email Address",
       s"""Get users by email address
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |CanGetAnyUser entitlement is required,
          |
       """.stripMargin,
@@ -3727,7 +3278,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get all Users",
       s"""Get all users
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |CanGetAnyUser entitlement is required,
          |
@@ -3822,7 +3373,7 @@ trait APIMethods400 extends MdcLoggable {
               postedData.purpose, 
               cc.callContext)
           } yield {
-            val link = s"${APIUtil.getPropsValue("portal_hostname", Constant.HostName)}/user-invitation?id=${invitation.secretKey}"
+            val link = s"${APIUtil.getPropsValue("user_invitation_link_base_URL", APIUtil.getPropsValue("portal_hostname", Constant.HostName))}/user-invitation?id=${invitation.secretKey}"
             if (postedData.purpose == UserInvitationPurpose.DEVELOPER.toString){
               val subject = getWebUiPropsValue("webui_developer_user_invitation_email_subject", "Welcome to the API Playground")
               val from = getWebUiPropsValue("webui_developer_user_invitation_email_from", "do-not-reply@openbankproject.com")
@@ -3861,16 +3412,17 @@ trait APIMethods400 extends MdcLoggable {
       "POST",
       "/banks/BANK_ID/user-invitations",
       "Get User Invitation Information",
-      s"""Create User Invitation Information.
+      s"""Get User Invitation Information.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |""",
       PostUserInvitationAnonymousJsonV400(secret_key = 5819479115482092878L),
       userInvitationJsonV400,
       List(
-        UserNotLoggedIn,
         $BankNotFound,
         UserCustomerLinksNotFoundForUser,
+        CannotGetUserInvitation,
+        CannotFindUserInvitation,
         UnknownError
       ),
       List(apiTagUserInvitation, apiTagKyc)
@@ -3909,7 +3461,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User Invitation",
       s""" Get User Invitation
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -3944,7 +3496,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User Invitations",
       s""" Get User Invitations
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -3981,7 +3533,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete a User.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -4375,7 +3927,7 @@ trait APIMethods400 extends MdcLoggable {
       "Grant User access to View",
       s"""Grants the User identified by USER_ID access to the view identified by VIEW_ID.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to be account holder.
+         |${userAuthenticationMessage(true)} and the user needs to be account holder.
          |
          |""",
       postAccountAccessJsonV400,
@@ -4431,7 +3983,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |This endpoint will create the (DAuth) User with username and provider if the User does not already exist.
          |
-         |${authenticationRequiredMessage(true)} and the logged in user needs to be account holder.
+         |${userAuthenticationMessage(true)} and the logged in user needs to be account holder.
          |
          |For information about DAuth see below:
          |
@@ -4488,7 +4040,7 @@ trait APIMethods400 extends MdcLoggable {
       "Revoke User access to View",
       s"""Revoke the User identified by USER_ID access to the view identified by VIEW_ID.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to be account holder.
+         |${userAuthenticationMessage(true)} and the user needs to be account holder.
          |
          |""",
       postAccountAccessJsonV400,
@@ -4545,7 +4097,7 @@ trait APIMethods400 extends MdcLoggable {
       "Revoke/Grant User access to View",
       s"""Revoke/Grant the logged in User access to the views identified by json.
          |
-         |${authenticationRequiredMessage(true)} and the user needs to be an account holder or has owner view access.
+         |${userAuthenticationMessage(true)} and the user needs to be an account holder or has owner view access.
          |
          |""",
       postRevokeGrantAccountAccessJsonV400,
@@ -4601,7 +4153,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       customerAttributeJsonV400,
@@ -4655,7 +4207,7 @@ trait APIMethods400 extends MdcLoggable {
       s""" Update Customer Attribute
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       customerAttributeJsonV400,
@@ -4713,7 +4265,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Customer Attributes",
       s""" Get Customer Attributes
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -4754,7 +4306,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Customer Attribute By Id",
       s""" Get Customer Attribute By Id
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -4795,7 +4347,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Gets the Customers specified by attributes
          |
          |URL params example: /banks/some-bank-id/customers?name=John&age=8
-         |URL params example: /banks/some-bank-id/customers?manager=John&count=8
+         |URL params example: /banks/some-bank-id/customers?&limit=50&offset=1
          |
          |
          |""",
@@ -4850,7 +4402,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionAttributeJsonV400,
@@ -4904,7 +4456,7 @@ trait APIMethods400 extends MdcLoggable {
       s""" Update Transaction Attribute
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionAttributeJsonV400,
@@ -4959,7 +4511,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Attributes",
       s""" Get Transaction Attributes
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -5000,7 +4552,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Attribute By Id",
       s""" Get Transaction Attribute By Id
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -5187,7 +4739,7 @@ trait APIMethods400 extends MdcLoggable {
             _ <- NewStyle.function.isEnabledTransactionRequests(callContext)
             view <- NewStyle.function.checkAccountAccessAndGetView(viewId, BankIdAccountId(bankId, accountId), Full(u), callContext)
             _ <- Helper.booleanToFuture(
-              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(ViewDefinition.canSeeTransactionRequests_.dbColumnName).dropRight(1)}` permission on the View(${viewId.value})",
+              s"${ErrorMessages.ViewDoesNotPermitAccess} You need the `${StringHelpers.snakify(nameOf(ViewDefinition.canSeeTransactionRequests_)).dropRight(1)}` permission on the View(${viewId.value})",
               cc = callContext) {
               view.canSeeTransactionRequests
             }
@@ -5214,7 +4766,7 @@ trait APIMethods400 extends MdcLoggable {
          |Each account must have at least one private View.
          |
          |optional request parameters for filter with attributes
-         |URL params example: /banks/some-bank-id/accounts?manager=John&count=8
+         |URL params example: /banks/some-bank-id/accounts?&limit=50&offset=1
          |
          |
       """.stripMargin,
@@ -5263,7 +4815,7 @@ trait APIMethods400 extends MdcLoggable {
          |""",
       ConsumerPostJSON(
         "Test",
-        "Test",
+        "Web",
         "Description",
         "some@email.com",
         "redirecturl",
@@ -5290,8 +4842,10 @@ trait APIMethods400 extends MdcLoggable {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
             (Full(u), callContext) <- SS.user
-            postedJson <- NewStyle.function.tryons(InvalidJsonFormat, 400, callContext) {
-              json.extract[ConsumerPostJSON]
+            (postedJson,appType) <- NewStyle.function.tryons(InvalidJsonFormat, 400, callContext) {
+              val consumerPostJSON = json.extract[ConsumerPostJSON]
+              val appType = if(consumerPostJSON.app_type.equals("Confidential")) AppType.valueOf("Confidential") else AppType.valueOf("Public")
+              (consumerPostJSON, appType)
             }
             _ <- NewStyle.function.hasEntitlement("", u.userId, ApiRole.canCreateConsumer, callContext)
             (consumer, callContext) <- createConsumerNewStyle(
@@ -5299,13 +4853,14 @@ trait APIMethods400 extends MdcLoggable {
               secret = Some(Helpers.randomString(40).toLowerCase),
               isActive = Some(postedJson.enabled),
               name= Some(postedJson.app_name),
-              appType = None,
+              appType = Some(appType),
               description = Some(postedJson.description),
               developerEmail = Some(postedJson.developer_email),
               company = None,
               redirectURL = Some(postedJson.redirect_url),
               createdByUserId = Some(u.userId),
               clientCertificate = Some(postedJson.clientCertificate),
+              logoURL = None,
               callContext
             )
             user <- Users.users.vend.getUserByUserIdFuture(u.userId)
@@ -5329,7 +4884,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Get Customers at Any Bank.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -5366,7 +4921,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Get Customers Minimal at Any Bank.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -5403,7 +4958,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Scopes for Consumer",
       s"""Get all the scopes for an consumer specified by CONSUMER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |
       """.stripMargin,
@@ -5513,7 +5068,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Delete a Customer Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -5977,7 +5532,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       templateAttributeDefinitionJsonV400,
@@ -6041,7 +5596,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       accountAttributeDefinitionJsonV400,
@@ -6104,7 +5659,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productAttributeDefinitionJsonV400,
@@ -6192,7 +5747,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productAttributeJsonV400,
@@ -6221,9 +5776,7 @@ trait APIMethods400 extends MdcLoggable {
             productAttributeType <- NewStyle.function.tryons(failMsg, 400, callContext) {
               ProductAttributeType.withName(postedData.`type`)
             }
-            _  <- Future(Connector.connector.vend.getProduct(BankId(bankId), ProductCode(productCode))) map {
-              getFullBoxOrFail(_, callContext, ProductNotFoundByProductCode + " {" + productCode + "}", 400)
-            }
+            (products, callContext) <-NewStyle.function.getProduct(BankId(bankId), ProductCode(productCode), callContext)
             (productAttribute, callContext) <- NewStyle.function.createOrUpdateProductAttribute(
               BankId(bankId),
               ProductCode(productCode),
@@ -6254,7 +5807,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Update one Product Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productAttributeJsonV400,
@@ -6313,7 +5866,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Get one product attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6350,7 +5903,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create Product Fee",
       s"""Create Product Fee
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productFeeJsonV400.copy(product_fee_id = None),
@@ -6403,7 +5956,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Update one Product Fee by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       productFeeJsonV400.copy(product_fee_id = None),
@@ -6456,7 +6009,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Get one product fee by its id.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |""",
       EmptyBody,
@@ -6492,7 +6045,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Product Fees",
       s"""Get Product Fees
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |
          |""",
       EmptyBody,
@@ -6529,7 +6082,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Delete one product fee by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6568,7 +6121,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       bankAttributeDefinitionJsonV400,
@@ -6644,7 +6197,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       bankAttributeJsonV400,
@@ -6696,7 +6249,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Bank Attributes",
       s""" Get Bank Attributes
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6731,7 +6284,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Bank Attribute By BANK_ATTRIBUTE_ID",
       s""" Get Bank Attribute By BANK_ATTRIBUTE_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6769,7 +6322,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Update one Bak Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       bankAttributeJsonV400,
@@ -6824,7 +6377,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Delete a Bank Attribute by its id.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -6864,7 +6417,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       transactionAttributeDefinitionJsonV400,
@@ -6928,7 +6481,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of; ${AttributeType.DOUBLE}, ${AttributeType.STRING}, ${AttributeType.INTEGER} and ${AttributeType.DATE_WITH_DAY}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       cardAttributeDefinitionJsonV400,
@@ -6988,7 +6541,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Transaction Attribute Definition",
       s""" Delete Transaction Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7026,7 +6579,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Customer Attribute Definition",
       s""" Delete Customer Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7064,7 +6617,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Account Attribute Definition",
       s""" Delete Account Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7102,7 +6655,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Product Attribute Definition",
       s""" Delete Product Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7140,7 +6693,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete Card Attribute Definition",
       s""" Delete Card Attribute Definition by ATTRIBUTE_DEFINITION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7178,7 +6731,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Product Attribute Definition",
       s""" Get Product Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7215,7 +6768,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Customer Attribute Definition",
       s""" Get Customer Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7252,7 +6805,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Account Attribute Definition",
       s""" Get Account Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7289,7 +6842,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Transaction Attribute Definition",
       s""" Get Transaction Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7327,7 +6880,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Card Attribute Definition",
       s""" Get Card Attribute Definition
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7364,7 +6917,7 @@ trait APIMethods400 extends MdcLoggable {
       "Delete User Customer Link",
       s""" Delete User Customer Link by USER_CUSTOMER_LINK_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7402,7 +6955,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User Customer Links by User",
       s""" Get User Customer Links by USER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7438,7 +6991,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create User Customer Link",
       s"""Link a User to a Customer
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       createUserCustomerLinkJson,
@@ -7501,7 +7054,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User Customer Links by Customer",
       s""" Get User Customer Links by CUSTOMER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7534,7 +7087,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Correlated User Info by Customer",
       s"""Get Correlated User Info by CUSTOMER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7570,7 +7123,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Correlated Entities for the current User",
       s"""Correlated Entities are users and customers linked to the currently authenticated user via User-Customer-Links
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7626,7 +7179,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Note: If you need to set a specific customer number, use the Update Customer Number endpoint after this call.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""",
       postCustomerJsonV310,
       customerJsonV310,
@@ -7690,7 +7243,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Accounts Minimal for a Customer",
       s"""Get Accounts Minimal by CUSTOMER_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7727,7 +7280,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete a Transaction Cascade specified by TRANSACTION_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7765,7 +7318,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete an Account Cascade specified by ACCOUNT_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7804,7 +7357,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete a Bank Cascade specified by BANK_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7839,7 +7392,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete a Product Cascade specified by PRODUCT_CODE.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7877,7 +7430,7 @@ trait APIMethods400 extends MdcLoggable {
       s"""Delete a Customer Cascade specified by CUSTOMER_ID.
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -7911,86 +7464,11 @@ trait APIMethods400 extends MdcLoggable {
       "POST",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties",
       "Create Counterparty (Explicit)",
-      s"""Create Counterparty (Explicit) for an Account.
+      s"""This endpoint creates an (Explicit) Counterparty for an Account.
          |
-         |In OBP, there are two types of Counterparty.
+         |For an introduction to Counterparties in OBP see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
-         |* Explicit Counterparties (those here) which we create explicitly and are used in COUNTERPARTY Transaction Requests
-         |
-         |* Implicit Counterparties (AKA Other Accounts) which are generated automatically from the other sides of Transactions.
-         |
-         |Explicit Counterparties are created for the account / view
-         |They are how the user of the view (e.g. account owner) refers to the other side of the transaction
-         |
-         |name : the human readable name (e.g. Piano teacher, Miss Nipa)
-         |
-         |description : the human readable name (e.g. Piano teacher, Miss Nipa)
-         |
-         |currency : counterparty account currency (e.g. EUR, GBP, USD, ...)
-         |
-         |bank_routing_scheme : eg: bankId or bankCode or any other strings
-         |
-         |bank_routing_address : eg: `gh.29.uk`, must be valid sandbox bankIds
-         |
-         |account_routing_scheme : eg: AccountId or AccountNumber or any other strings
-         |
-         |account_routing_address : eg: `1d65db7c-a7b2-4839-af41-95`, must be valid accountIds
-         |
-         |other_account_secondary_routing_scheme : eg: IBAN or any other strings
-         |
-         |other_account_secondary_routing_address : if it is an IBAN, it should be unique for each counterparty.
-         |
-         |other_branch_routing_scheme : eg: branchId or any other strings or you can leave it empty, not useful in sandbox mode.
-         |
-         |other_branch_routing_address : eg: `branch-id-123` or you can leave it empty, not useful in sandbox mode.
-         |
-         |is_beneficiary : must be set to `true` in order to send payments to this counterparty
-         |
-         |bespoke: It supports a list of key-value, you can add it to the counterparty.
-         |
-         |bespoke.key : any info-key you want to add to this counterparty
-         |
-         |bespoke.value : any info-value you want to add to this counterparty
-         |
-         |The view specified by VIEW_ID must have the canAddCounterparty permission
-         |
-         |A minimal example for TransactionRequestType == COUNTERPARTY
-         | {
-         |  "name": "Tesobe1",
-         |  "description": "Good Company",
-         |  "currency": "EUR",
-         |  "other_bank_routing_scheme": "OBP",
-         |  "other_bank_routing_address": "gh.29.uk",
-         |  "other_account_routing_scheme": "OBP",
-         |  "other_account_routing_address": "8ca8a7e4-6d02-48e3-a029-0b2bf89de9f0",
-         |  "is_beneficiary": true,
-         |  "other_account_secondary_routing_scheme": "",
-         |  "other_account_secondary_routing_address": "",
-         |  "other_branch_routing_scheme": "",
-         |  "other_branch_routing_address": "",
-         |  "bespoke": []
-         |}
-         |
-         |
-         |A minimal example for TransactionRequestType == SEPA
-         |
-         | {
-         |  "name": "Tesobe2",
-         |  "description": "Good Company",
-         |  "currency": "EUR",
-         |  "other_bank_routing_scheme": "OBP",
-         |  "other_bank_routing_address": "gh.29.uk",
-         |  "other_account_routing_scheme": "OBP",
-         |  "other_account_routing_address": "8ca8a7e4-6d02-48e3-a029-0b2bf89de9f0",
-         |  "other_account_secondary_routing_scheme": "IBAN",
-         |  "other_account_secondary_routing_address": "DE89 3704 0044 0532 0130 00",
-         |  "is_beneficiary": true,
-         |  "other_branch_routing_scheme": "",
-         |  "other_branch_routing_address": "",
-         |  "bespoke": []
-         |}
-         |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       postCounterpartyJson400,
@@ -8040,7 +7518,7 @@ trait APIMethods400 extends MdcLoggable {
             }
 
             //If other_account_routing_scheme=="OBP" or other_account_secondary_routing_address=="OBP" we will check if it is a real obp bank account.
-            (_, callContext)<- if (postJson.other_bank_routing_scheme == "OBP" && postJson.other_account_routing_scheme =="OBP"){
+            (_, callContext)<- if (postJson.other_bank_routing_scheme.equalsIgnoreCase("OBP") && postJson.other_account_routing_scheme.equalsIgnoreCase("OBP")){
               for{
                 (_, callContext) <- NewStyle.function.getBank(BankId(postJson.other_bank_routing_address), Some(cc))
                 (account, callContext) <- NewStyle.function.checkBankAccountExists(BankId(postJson.other_bank_routing_address), AccountId(postJson.other_account_routing_address), callContext)
@@ -8048,7 +7526,7 @@ trait APIMethods400 extends MdcLoggable {
               } yield {
                 (account, callContext)
               }
-            } else if (postJson.other_bank_routing_scheme == "OBP" && postJson.other_account_secondary_routing_scheme=="OBP"){
+            } else if (postJson.other_bank_routing_scheme.equalsIgnoreCase("OBP") && postJson.other_account_secondary_routing_scheme.equalsIgnoreCase("OBP")){
               for{
                 (_, callContext) <- NewStyle.function.getBank(BankId(postJson.other_bank_routing_address), Some(cc))
                 (account, callContext) <- NewStyle.function.checkBankAccountExists(BankId(postJson.other_bank_routing_address), AccountId(postJson.other_account_secondary_routing_address), callContext)
@@ -8056,9 +7534,22 @@ trait APIMethods400 extends MdcLoggable {
               } yield {
                 (account, callContext)
               }
-            }
-            else
+            }else if (postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NO")) {
+              for {
+                bankIdOption <- Future.successful(if (postJson.other_bank_routing_address.isEmpty) None else Some(postJson.other_bank_routing_address))
+                (account, callContext) <- NewStyle.function.getBankAccountByNumber(
+                  bankIdOption.map(BankId(_)),
+                  postJson.other_bank_routing_address,
+                  callContext)
+              } yield {
+                (account, callContext)
+              }
+            }else
               Future{(Full(), Some(cc))}
+
+
+            otherAccountRoutingSchemeOBPFormat = if(postJson.other_account_routing_scheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(postJson.other_account_routing_scheme).toUpperCase
+
 
             (counterparty, callContext) <- NewStyle.function.createCounterparty(
               name=postJson.name,
@@ -8068,13 +7559,13 @@ trait APIMethods400 extends MdcLoggable {
               thisBankId=bankId.value,
               thisAccountId=accountId.value,
               thisViewId = viewId.value,
-              otherAccountRoutingScheme=postJson.other_account_routing_scheme,
+              otherAccountRoutingScheme=otherAccountRoutingSchemeOBPFormat,
               otherAccountRoutingAddress=postJson.other_account_routing_address,
-              otherAccountSecondaryRoutingScheme=postJson.other_account_secondary_routing_scheme,
+              otherAccountSecondaryRoutingScheme=StringHelpers.snakify(postJson.other_account_secondary_routing_scheme).toUpperCase,
               otherAccountSecondaryRoutingAddress=postJson.other_account_secondary_routing_address,
-              otherBankRoutingScheme=postJson.other_bank_routing_scheme,
+              otherBankRoutingScheme=StringHelpers.snakify(postJson.other_bank_routing_scheme).toUpperCase,
               otherBankRoutingAddress=postJson.other_bank_routing_address,
-              otherBranchRoutingScheme=postJson.other_branch_routing_scheme,
+              otherBranchRoutingScheme=StringHelpers.snakify(postJson.other_branch_routing_scheme).toUpperCase,
               otherBranchRoutingAddress=postJson.other_branch_routing_address,
               isBeneficiary=postJson.is_beneficiary,
               bespoke=postJson.bespoke.map(bespoke =>CounterpartyBespoke(bespoke.key,bespoke.value))
@@ -8095,11 +7586,14 @@ trait APIMethods400 extends MdcLoggable {
       "POST",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties/COUNTERPARTY_ID",
       "Delete Counterparty (Explicit)",
-      s"""Delete Counterparty (Explicit) for an Account.
-         |and also delete the Metadata for its counterparty.
+      s"""This endpoint deletes the Counterparty on the Account / View specified by the COUNTERPARTY_ID.
+         |It also deletes any related Counterparty Metadata.
          |
-         |need the view permission `can_delete_counterparty`
-         |${authenticationRequiredMessage(true)}
+         |The User calling this endpoint must have access to the View specified in the URL and that View must have the permission `can_delete_counterparty`.
+         |
+         |For a general introduction to Counterparties in OBP see ${Glossary.getGlossaryItemLink("Counterparties")}
+         |         |
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       EmptyBody,
@@ -8144,10 +7638,11 @@ trait APIMethods400 extends MdcLoggable {
       "DELETE",
       "/management/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties/COUNTERPARTY_ID",
       "Delete Counterparty for any account (Explicit)",
-      s"""Delete Counterparty (Explicit) for any account 
-         |and also delete the Metadata for its counterparty.
+      s"""This is a management endpoint that enables the deletion of any specified Counterparty along with any related Metadata of that Counterparty.
          |
-         |${authenticationRequiredMessage(true)}
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
+         |
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       EmptyBody,
@@ -8190,86 +7685,11 @@ trait APIMethods400 extends MdcLoggable {
       "POST",
       "/management/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties",
       "Create Counterparty for any account (Explicit)",
-      s"""Create Counterparty for any Account. (Explicit)
+      s"""This is a management endpoint that allows the creation of a Counterparty on any Account.
          |
-         |In OBP, there are two types of Counterparty.
+         |For an introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
          |
-         |* Explicit Counterparties (those here) which we create explicitly and are used in COUNTERPARTY Transaction Requests
-         |
-         |* Implicit Counterparties (AKA Other Accounts) which are generated automatically from the other sides of Transactions.
-         |
-         |Explicit Counterparties are created for the account / view
-         |They are how the user of the view (e.g. account owner) refers to the other side of the transaction
-         |
-         |name : the human readable name (e.g. Piano teacher, Miss Nipa)
-         |
-         |description : the human readable name (e.g. Piano teacher, Miss Nipa)
-         |
-         |currency : counterparty account currency (e.g. EUR, GBP, USD, ...)
-         |
-         |bank_routing_scheme : eg: bankId or bankCode or any other strings
-         |
-         |bank_routing_address : eg: `gh.29.uk`, must be valid sandbox bankIds
-         |
-         |account_routing_scheme : eg: AccountId or AccountNumber or any other strings
-         |
-         |account_routing_address : eg: `1d65db7c-a7b2-4839-af41-95`, must be valid accountIds
-         |
-         |other_account_secondary_routing_scheme : eg: IBAN or any other strings
-         |
-         |other_account_secondary_routing_address : if it is an IBAN, it should be unique for each counterparty.
-         |
-         |other_branch_routing_scheme : eg: branchId or any other strings or you can leave it empty, not useful in sandbox mode.
-         |
-         |other_branch_routing_address : eg: `branch-id-123` or you can leave it empty, not useful in sandbox mode.
-         |
-         |is_beneficiary : must be set to `true` in order to send payments to this counterparty
-         |
-         |bespoke: It supports a list of key-value, you can add it to the counterparty.
-         |
-         |bespoke.key : any info-key you want to add to this counterparty
-         |
-         |bespoke.value : any info-value you want to add to this counterparty
-         |
-         |The view specified by VIEW_ID must have the canAddCounterparty permission
-         |
-         |A minimal example for TransactionRequestType == COUNTERPARTY
-         | {
-         |  "name": "Tesobe1",
-         |  "description": "Good Company",
-         |  "currency": "EUR",
-         |  "other_bank_routing_scheme": "OBP",
-         |  "other_bank_routing_address": "gh.29.uk",
-         |  "other_account_routing_scheme": "OBP",
-         |  "other_account_routing_address": "8ca8a7e4-6d02-48e3-a029-0b2bf89de9f0",
-         |  "is_beneficiary": true,
-         |  "other_account_secondary_routing_scheme": "",
-         |  "other_account_secondary_routing_address": "",
-         |  "other_branch_routing_scheme": "",
-         |  "other_branch_routing_address": "",
-         |  "bespoke": []
-         |}
-         |
-         |
-         |A minimal example for TransactionRequestType == SEPA
-         |
-         | {
-         |  "name": "Tesobe2",
-         |  "description": "Good Company",
-         |  "currency": "EUR",
-         |  "other_bank_routing_scheme": "OBP",
-         |  "other_bank_routing_address": "gh.29.uk",
-         |  "other_account_routing_scheme": "OBP",
-         |  "other_account_routing_address": "8ca8a7e4-6d02-48e3-a029-0b2bf89de9f0",
-         |  "other_account_secondary_routing_scheme": "IBAN",
-         |  "other_account_secondary_routing_address": "DE89 3704 0044 0532 0130 00",
-         |  "is_beneficiary": true,
-         |  "other_branch_routing_scheme": "",
-         |  "other_branch_routing_address": "",
-         |  "bespoke": []
-         |}
-         |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       postCounterpartyJson400,
@@ -8314,7 +7734,7 @@ trait APIMethods400 extends MdcLoggable {
             }
 
             //If other_account_routing_scheme=="OBP" or other_account_secondary_routing_address=="OBP" we will check if it is a real obp bank account.
-            (_, callContext)<- if (postJson.other_bank_routing_scheme == "OBP" && postJson.other_account_routing_scheme =="OBP"){
+            (_, callContext)<- if (postJson.other_bank_routing_scheme.equalsIgnoreCase("OBP") && postJson.other_account_routing_scheme.equalsIgnoreCase("OBP")){
               for{
                 (_, callContext) <- NewStyle.function.getBank(BankId(postJson.other_bank_routing_address), Some(cc))
                 (account, callContext) <- NewStyle.function.checkBankAccountExists(BankId(postJson.other_bank_routing_address), AccountId(postJson.other_account_routing_address), callContext)
@@ -8322,7 +7742,7 @@ trait APIMethods400 extends MdcLoggable {
               } yield {
                 (account, callContext)
               }
-            } else if (postJson.other_bank_routing_scheme == "OBP" && postJson.other_account_secondary_routing_scheme=="OBP"){
+            } else if (postJson.other_bank_routing_scheme.equalsIgnoreCase("OBP") && postJson.other_account_secondary_routing_scheme.equalsIgnoreCase("OBP")){
               for{
                 (_, callContext) <- NewStyle.function.getBank(BankId(postJson.other_bank_routing_address), Some(cc))
                 (account, callContext) <- NewStyle.function.checkBankAccountExists(BankId(postJson.other_bank_routing_address), AccountId(postJson.other_account_secondary_routing_address), callContext)
@@ -8330,9 +7750,22 @@ trait APIMethods400 extends MdcLoggable {
               } yield {
                 (account, callContext)
               }
-            }
-            else
+            }else if (postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NUMBER")|| postJson.other_bank_routing_scheme.equalsIgnoreCase("ACCOUNT_NO")) {
+              for {
+                bankIdOption <- Future.successful(if (postJson.other_bank_routing_address.isEmpty) None else Some(postJson.other_bank_routing_address))
+                (account, callContext) <- NewStyle.function.getBankAccountByNumber(
+                  bankIdOption.map(BankId(_)),
+                  postJson.other_bank_routing_address,
+                  callContext)
+              } yield {
+                (account, callContext)
+              }
+            }else
               Future{(Full(), Some(cc))}
+
+
+            otherAccountRoutingSchemeOBPFormat = if(postJson.other_account_routing_scheme.equalsIgnoreCase("AccountNo")) "ACCOUNT_NUMBER" else StringHelpers.snakify(postJson.other_account_routing_scheme).toUpperCase
+
 
             (counterparty, callContext) <- NewStyle.function.createCounterparty(
               name=postJson.name,
@@ -8341,14 +7774,14 @@ trait APIMethods400 extends MdcLoggable {
               createdByUserId=u.userId,
               thisBankId=bankId.value,
               thisAccountId=accountId.value,
-              thisViewId = "owner",
-              otherAccountRoutingScheme=postJson.other_account_routing_scheme,
+              thisViewId = Constant.SYSTEM_OWNER_VIEW_ID,
+              otherAccountRoutingScheme=otherAccountRoutingSchemeOBPFormat,
               otherAccountRoutingAddress=postJson.other_account_routing_address,
-              otherAccountSecondaryRoutingScheme=postJson.other_account_secondary_routing_scheme,
+              otherAccountSecondaryRoutingScheme=StringHelpers.snakify(postJson.other_account_secondary_routing_scheme).toUpperCase,
               otherAccountSecondaryRoutingAddress=postJson.other_account_secondary_routing_address,
-              otherBankRoutingScheme=postJson.other_bank_routing_scheme,
+              otherBankRoutingScheme=StringHelpers.snakify(postJson.other_bank_routing_scheme).toUpperCase,
               otherBankRoutingAddress=postJson.other_bank_routing_address,
-              otherBranchRoutingScheme=postJson.other_branch_routing_scheme,
+              otherBranchRoutingScheme=StringHelpers.snakify(postJson.other_branch_routing_scheme).toUpperCase,
               otherBranchRoutingAddress=postJson.other_branch_routing_address,
               isBeneficiary=postJson.is_beneficiary,
               bespoke=postJson.bespoke.map(bespoke =>CounterpartyBespoke(bespoke.key,bespoke.value))
@@ -8363,15 +7796,17 @@ trait APIMethods400 extends MdcLoggable {
     }
 
     staticResourceDocs += ResourceDoc(
-      getExplictCounterpartiesForAccount,
+      getExplicitCounterpartiesForAccount,
       implementedInApiVersion,
-      "getExplictCounterpartiesForAccount",
+      "getExplicitCounterpartiesForAccount",
       "GET",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties",
       "Get Counterparties (Explicit)",
-      s"""Get the Counterparties (Explicit) for the account / view.
+      s"""Get the Counterparties that have been explicitly created on the specified Account / View.
          |
-         |${authenticationRequiredMessage(true)}
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
+         |
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       counterpartiesJson400,
@@ -8385,13 +7820,13 @@ trait APIMethods400 extends MdcLoggable {
       ),
       List(apiTagCounterparty, apiTagPSD2PIS, apiTagPsd2, apiTagAccount))
 
-    lazy val getExplictCounterpartiesForAccount : OBPEndpoint = {
+    lazy val getExplicitCounterpartiesForAccount : OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "counterparties" :: Nil JsonGet req => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
             (user @Full(u), _, account, view, callContext) <- SS.userBankAccountView
-            _ <- Helper.booleanToFuture(failMsg = s"${NoViewPermission}can_add_counterparty", 403, cc=callContext) {
-              view.canAddCounterparty == true
+            _ <- Helper.booleanToFuture(failMsg = s"${NoViewPermission}can_get_counterparty", 403, cc=callContext) {
+              view.canGetCounterparty == true
             }
             (counterparties, callContext) <- NewStyle.function.getCounterparties(bankId,accountId,viewId, callContext)
             //Here we need create the metadata for all the explicit counterparties. maybe show them in json response.
@@ -8422,9 +7857,11 @@ trait APIMethods400 extends MdcLoggable {
       "GET",
       "/management/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties",
       "Get Counterparties for any account (Explicit)",
-      s"""Get the Counterparties (Explicit) for any account .
+      s"""This is a management endpoint that gets the Counterparties that have been explicitly created for an Account / View.
          |
-         |${authenticationRequiredMessage(true)}
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
+         |
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       counterpartiesJson400,
@@ -8466,15 +7903,17 @@ trait APIMethods400 extends MdcLoggable {
     }
 
     staticResourceDocs += ResourceDoc(
-      getExplictCounterpartyById,
+      getExplicitCounterpartyById,
       implementedInApiVersion,
-      "getExplictCounterpartyById",
+      "getExplicitCounterpartyById",
       "GET",
       "/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties/COUNTERPARTY_ID",
       "Get Counterparty by Id (Explicit)",
-      s"""Information returned about the Counterparty specified by COUNTERPARTY_ID:
+      s"""This endpoint returns a single Counterparty on an Account View specified by its COUNTERPARTY_ID:
          |
-         |${authenticationRequiredMessage(true)}
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
+         |
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       counterpartyWithMetadataJson400,
@@ -8482,7 +7921,7 @@ trait APIMethods400 extends MdcLoggable {
       List(apiTagCounterparty, apiTagPSD2PIS, apiTagPsd2, apiTagCounterpartyMetaData)
     )
 
-    lazy val getExplictCounterpartyById : OBPEndpoint = {
+    lazy val getExplicitCounterpartyById : OBPEndpoint = {
       case "banks" :: BankId(bankId) :: "accounts" :: AccountId(accountId) :: ViewId(viewId) :: "counterparties" :: CounterpartyId(counterpartyId) :: Nil JsonGet req => {
         cc => implicit val ec = EndpointContext(Some(cc))
           for {
@@ -8506,9 +7945,11 @@ trait APIMethods400 extends MdcLoggable {
       "GET",
       "/management/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparty-names/COUNTERPARTY_NAME",
       "Get Counterparty by name for any account (Explicit) ",
-      s"""
+      s"""This is a management endpoint that allows the retrieval of any Counterparty on an Account / View by its Name.
          |
-         |${authenticationRequiredMessage(true)}
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
+         |
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -8554,10 +7995,13 @@ trait APIMethods400 extends MdcLoggable {
       nameOf(getCounterpartyByIdForAnyAccount),
       "GET",
       "/management/banks/BANK_ID/accounts/ACCOUNT_ID/VIEW_ID/counterparties/COUNTERPARTY_ID",
-      "Get Counterparty by Id for any account (Explicit) ",
-      s"""
+      "Get Counterparty by Id for any account (Explicit)",
+      s"""This is a management endpoint that gets information about any single explicitly created Counterparty on an Account / View specified by its COUNTERPARTY_ID",
          |
-         |${authenticationRequiredMessage(true)}
+         |For a general introduction to Counterparties in OBP, see ${Glossary.getGlossaryItemLink("Counterparties")}
+         |
+         |
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -8603,7 +8047,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Each Consent has one of the following states: ${ConsentStatus.values.toList.sorted.mkString(", ") }.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       PutConsentUserJsonV400(user_id = "ed7a7c01-db37-45cc-ba12-0ae8891c195c"),
@@ -8662,7 +8106,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Each Consent has one of the following states: ${ConsentStatus.values.toList.sorted.mkString(", ") }.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       PutConsentStatusJsonV400(status = "AUTHORISED"),
@@ -8719,7 +8163,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |This endpoint gets the Consents that the current User created.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -8750,12 +8194,12 @@ trait APIMethods400 extends MdcLoggable {
       nameOf(getConsentInfos),
       "GET",
       "/banks/BANK_ID/my/consent-infos",
-      "Get Consents Info",
+      "Get My Consents Info",
       s"""
          |
          |This endpoint gets the Consents that the current User created.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
       """.stripMargin,
       EmptyBody,
@@ -8790,7 +8234,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Personal User Attributes",
       s"""Get My Personal User Attributes.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       userAttributesResponseJson,
@@ -8822,7 +8266,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get User with Attributes by USER_ID",
       s"""Get User Attributes for the user defined via USER_ID.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       userWithAttributesResponseJson,
@@ -8858,7 +8302,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The `type` field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       userAttributeJsonV400,
@@ -8910,7 +8354,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |The type field must be one of "STRING", "INTEGER", "DOUBLE" or DATE_WITH_DAY"
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       userAttributeJsonV400,
@@ -8995,7 +8439,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create My Api Collection",
       s"""Create Api Collection for logged in user.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       postApiCollectionJson400,
       apiCollectionJson400,
@@ -9016,7 +8460,7 @@ trait APIMethods400 extends MdcLoggable {
               json.extract[PostApiCollectionJson400]
             }
             apiCollection <- Future{MappedApiCollectionsProvider.getApiCollectionByUserIdAndCollectionName(cc.userId, postJson.api_collection_name)}
-            _ <- Helper.booleanToFuture(failMsg = s"$ApiCollectionAlreadyExisting Current api_collection_name(${postJson.api_collection_name}) is already existing for the log in user.", cc=cc.callContext) {
+            _ <- Helper.booleanToFuture(failMsg = s"$ApiCollectionAlreadyExists Current api_collection_name(${postJson.api_collection_name}) is already existing for the log in user.", cc=cc.callContext) {
               apiCollection.isEmpty
             }
             (apiCollection, callContext) <- NewStyle.function.createApiCollection(
@@ -9041,7 +8485,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collection By Name",
       s"""Get Api Collection By API_COLLECTION_NAME.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionJson400,
@@ -9073,7 +8517,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collection By Id",
       s"""Get Api Collection By API_COLLECTION_ID.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionJson400,
@@ -9104,7 +8548,7 @@ trait APIMethods400 extends MdcLoggable {
       "/api-collections/sharable/API_COLLECTION_ID",
       "Get Sharable Api Collection By Id",
       s"""Get Sharable Api Collection By Id.
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionJson400,
@@ -9137,7 +8581,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Api Collections for User",
       s"""Get Api Collections for User.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionsJson400,
@@ -9170,7 +8614,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Featured Api Collections",
       s"""Get Featured Api Collections.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionsJson400,
@@ -9201,7 +8645,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collections",
       s"""Get all the apiCollections for logged in user.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       EmptyBody,
@@ -9235,7 +8679,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |${Glossary.getGlossaryItem("API Collections")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |
          |
@@ -9274,7 +8718,7 @@ trait APIMethods400 extends MdcLoggable {
          |${Glossary.getGlossaryItem("API Collections")}
          |
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       postApiCollectionEndpointJson400,
@@ -9299,7 +8743,7 @@ trait APIMethods400 extends MdcLoggable {
             }
             (apiCollection, callContext) <- NewStyle.function.getApiCollectionByUserIdAndCollectionName(cc.userId, apiCollectionName, Some(cc))
             apiCollectionEndpoint <- Future{MappedApiCollectionEndpointsProvider.getApiCollectionEndpointByApiCollectionIdAndOperationId(apiCollection.apiCollectionId, postJson.operation_id)} 
-            _ <- Helper.booleanToFuture(failMsg = s"$ApiCollectionEndpointAlreadyExisting Current OPERATION_ID(${postJson.operation_id}) is already in API_COLLECTION_NAME($apiCollectionName) ", cc=callContext) {
+            _ <- Helper.booleanToFuture(failMsg = s"$ApiCollectionEndpointAlreadyExists Current OPERATION_ID(${postJson.operation_id}) is already in API_COLLECTION_NAME($apiCollectionName) ", cc=callContext) {
               apiCollectionEndpoint.isEmpty
             }
             (apiCollectionEndpoint, callContext) <- NewStyle.function.createApiCollectionEndpoint(
@@ -9323,7 +8767,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |${Glossary.getGlossaryItem("API Collections")}
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""".stripMargin,
       postApiCollectionEndpointJson400,
@@ -9348,7 +8792,7 @@ trait APIMethods400 extends MdcLoggable {
             }
             (apiCollection, callContext) <- NewStyle.function.getApiCollectionById(apiCollectionId, Some(cc))
             apiCollectionEndpoint <- Future{MappedApiCollectionEndpointsProvider.getApiCollectionEndpointByApiCollectionIdAndOperationId(apiCollection.apiCollectionId, postJson.operation_id)} 
-            _ <- Helper.booleanToFuture(failMsg = s"$ApiCollectionEndpointAlreadyExisting Current OPERATION_ID(${postJson.operation_id}) is already in API_COLLECTION_ID($apiCollectionId) ", cc=callContext) {
+            _ <- Helper.booleanToFuture(failMsg = s"$ApiCollectionEndpointAlreadyExists Current OPERATION_ID(${postJson.operation_id}) is already in API_COLLECTION_ID($apiCollectionId) ", cc=callContext) {
               apiCollectionEndpoint.isEmpty
             }
             (apiCollectionEndpoint, callContext) <- NewStyle.function.createApiCollectionEndpoint(
@@ -9371,7 +8815,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collection Endpoint",
       s"""Get Api Collection Endpoint By API_COLLECTION_NAME and OPERATION_ID.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionEndpointJson400,
@@ -9408,7 +8852,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get Api Collection Endpoints",
       s"""Get Api Collection Endpoints By API_COLLECTION_ID.
          |
-         |${authenticationRequiredMessage(false)}
+         |${userAuthenticationMessage(false)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionEndpointsJson400,
@@ -9439,7 +8883,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collection Endpoints",
       s"""Get Api Collection Endpoints By API_COLLECTION_NAME.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionEndpointsJson400,
@@ -9472,7 +8916,7 @@ trait APIMethods400 extends MdcLoggable {
       "Get My Api Collection Endpoints By Id",
       s"""Get Api Collection Endpoints By API_COLLECTION_ID.
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |""".stripMargin,
       EmptyBody,
       apiCollectionEndpointsJson400,
@@ -9508,7 +8952,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Delete Api Collection Endpoint By OPERATION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -9545,7 +8989,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |Delete Api Collection Endpoint By OPERATION_ID
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -9582,7 +9026,7 @@ trait APIMethods400 extends MdcLoggable {
          |Delete Api Collection Endpoint
          |Delete Api Collection Endpoint By Id
          |
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          |
          |""",
       EmptyBody,
@@ -11752,7 +11196,7 @@ trait APIMethods400 extends MdcLoggable {
          |
          |You can use the url query parameters *limit* and *offset* for pagination
          |
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getAtmsIsPublic)}""".stripMargin,
       EmptyBody,
       atmsJsonV400,
       List(
@@ -11802,7 +11246,7 @@ trait APIMethods400 extends MdcLoggable {
          |* Address
          |* Geo Location
          |* License the data under this endpoint is released under
-         |${authenticationRequiredMessage(!getAtmsIsPublic)}
+         |${userAuthenticationMessage(!getAtmsIsPublic)}
          |""".stripMargin,
       EmptyBody,
       atmJsonV400,
@@ -12192,9 +11636,9 @@ trait APIMethods400 extends MdcLoggable {
          |* License the data under this endpoint is released under
          |
          |Can filter with attributes name and values.
-         |URL params example: /banks/some-bank-id/products?manager=John&count=8
+         |URL params example: /banks/some-bank-id/products?&limit=50&offset=1
          |
-         |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,
       productsJsonV400,
       List(
@@ -12215,9 +11659,7 @@ trait APIMethods400 extends MdcLoggable {
             }
             (_, callContext) <- NewStyle.function.getBank(bankId, callContext)
             params = req.params.toList.map(kv => GetProductsParam(kv._1, kv._2))
-            products <- Future(Connector.connector.vend.getProducts(bankId, params)) map {
-              unboxFullOrFail(_, callContext, ProductNotFoundByProductCode)
-            }
+            (products, callContext) <-NewStyle.function.getProducts(bankId, params, callContext)
           } yield {
             (JSONFactory400.createProductsJson(products), HttpCode.`200`(callContext))
           }
@@ -12246,7 +11688,7 @@ trait APIMethods400 extends MdcLoggable {
          |$productHiearchyAndCollectionNote
          |
          |
-         |${authenticationRequiredMessage(true) }
+         |${userAuthenticationMessage(true) }
          |
          |
          |""",
@@ -12271,18 +11713,16 @@ trait APIMethods400 extends MdcLoggable {
             product <- NewStyle.function.tryons(failMsg, 400, callContext) {
               json.extract[PutProductJsonV400]
             }
-            parentProductCode <- product.parent_product_code.trim.nonEmpty match {
+            (parentProduct, callContext) <- product.parent_product_code.trim.nonEmpty match {
               case false =>
-                Future(Empty)
+                Future((Empty, callContext))
               case true =>
-                Future(Connector.connector.vend.getProduct(bankId, ProductCode(product.parent_product_code))) map {
-                  getFullBoxOrFail(_, callContext, ParentProductNotFoundByProductCode + " {" + product.parent_product_code + "}", 400)
-                }
+                NewStyle.function.getProduct(bankId, ProductCode(product.parent_product_code), callContext).map(product => (Full(product._1),product._2))
             }
-            success <- Future(Connector.connector.vend.createOrUpdateProduct(
+            (success, callContext) <- NewStyle.function.createOrUpdateProduct(
               bankId = bankId.value,
               code = productCode.value,
-              parentProductCode = parentProductCode.map(_.code.value).toOption,
+              parentProductCode = parentProduct.map(_.code.value).toOption,
               name = product.name,
               category = null,
               family = null,
@@ -12292,10 +11732,9 @@ trait APIMethods400 extends MdcLoggable {
               details = null,
               description = product.description,
               metaLicenceId = product.meta.license.id,
-              metaLicenceName = product.meta.license.name
-            )) map {
-              connectorEmptyResponse(_, callContext)
-            }
+              metaLicenceName = product.meta.license.name,
+              callContext
+            )
           } yield {
             (JSONFactory400.createProductJson(success), HttpCode.`201`(callContext))
           }
@@ -12322,7 +11761,7 @@ trait APIMethods400 extends MdcLoggable {
          |* Attributes
          |* Fees
          |
-         |${authenticationRequiredMessage(!getProductsIsPublic)}""".stripMargin,
+         |${userAuthenticationMessage(!getProductsIsPublic)}""".stripMargin,
       EmptyBody,
       productJsonV400,
       List(
@@ -12343,9 +11782,7 @@ trait APIMethods400 extends MdcLoggable {
               case false => authenticatedAccess(cc)
               case true => anonymousAccess(cc)
             }
-            product <- Future(Connector.connector.vend.getProduct(bankId, productCode)) map {
-              unboxFullOrFail(_, callContext, ProductNotFoundByProductCode)
-            }
+            (product, callContext)<- NewStyle.function.getProduct(bankId, productCode, callContext)
             (productAttributes, callContext) <- NewStyle.function.getProductAttributesByBankAndCode(bankId, productCode, callContext)
             
             (productFees, callContext) <- NewStyle.function.getProductFeesFromProvider(bankId, productCode, callContext)
@@ -12366,7 +11803,7 @@ trait APIMethods400 extends MdcLoggable {
       "Create Customer Message",
       s"""
          |Create a message for the customer specified by CUSTOMER_ID 
-         |${authenticationRequiredMessage(true)}
+         |${userAuthenticationMessage(true)}
          | 
          |""".stripMargin,
       createMessageJsonV400,
@@ -12414,7 +11851,7 @@ trait APIMethods400 extends MdcLoggable {
      "/banks/BANK_ID/customers/CUSTOMER_ID/messages",
      "Get Customer Messages for a Customer",
      s"""Get messages for the customer specified by CUSTOMER_ID
-         ${authenticationRequiredMessage(true)}
+         ${userAuthenticationMessage(true)}
         """,
      EmptyBody,
      customerMessagesJsonV400,
@@ -12730,5 +12167,677 @@ object APIMethods400 extends RestHelper with APIMethods400 {
   lazy val newStyleEndpoints: List[(String, String)] = Implementations4_0_0.resourceDocs.map {
     rd => (rd.partialFunctionName, rd.implementedInApiVersion.toString())
   }.toList
+
+
+
+
+  // This text is used in the various Create Transaction Request resource docs
+  val transactionRequestGeneralText =
+    s"""
+       |
+       |For an introduction to Transaction Requests, see: ${Glossary.getGlossaryItemLink("Transaction-Request-Introduction")}
+       |
+       |""".stripMargin
+
+  val lowAmount = AmountOfMoneyJsonV121("EUR", "12.50")
+  
+  val sharedChargePolicy = ChargePolicy.withName("SHARED")
+  
+  def createTransactionRequest(bankId: BankId, accountId: AccountId, viewId: ViewId, transactionRequestType: TransactionRequestType, json: JValue): Future[(TransactionRequestWithChargeJSON400, Option[CallContext])] = {
+    for {
+      (Full(u), callContext) <- SS.user
+
+      transactionRequestTypeValue <- NewStyle.function.tryons(s"$InvalidTransactionRequestType: '${transactionRequestType.value}'. OBP does not support it.", 400, callContext) {
+        TransactionRequestTypes.withName(transactionRequestType.value)
+      }
+
+      (fromAccount, callContext) <- transactionRequestTypeValue match {
+        case CARD =>
+          for{
+            transactionRequestBodyCard <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $CARD json format", 400, callContext) {
+              json.extract[TransactionRequestBodyCardJsonV400]
+            }
+            //   1.1 get Card from card_number
+            (cardFromCbs,callContext) <- NewStyle.function.getPhysicalCardByCardNumber(transactionRequestBodyCard.card.card_number, callContext)
+
+            // 1.2 check card name/expire month. year.
+            calendar = Calendar.getInstance
+            _ = calendar.setTime(cardFromCbs.expires)
+            yearFromCbs = calendar.get(Calendar.YEAR).toString
+            monthFromCbs = calendar.get(Calendar.MONTH).toString
+            nameOnCardFromCbs= cardFromCbs.nameOnCard
+            cvvFromCbs= cardFromCbs.cvv.getOrElse("")
+            brandFromCbs= cardFromCbs.brand.getOrElse("")
+
+            _ <- Helper.booleanToFuture(s"$InvalidJsonValue brand is not matched", cc=callContext) {
+              transactionRequestBodyCard.card.brand.equalsIgnoreCase(brandFromCbs)
+            }
+
+            dateFromJsonBody <- NewStyle.function.tryons(s"$InvalidDateFormat year should be 'yyyy', " +
+              s"eg: 2023, but current expiry_year(${transactionRequestBodyCard.card.expiry_year}), " +
+              s"month should be 'xx', eg: 02, but current expiry_month(${transactionRequestBodyCard.card.expiry_month})", 400, callContext) {
+              DateWithMonthFormat.parse(s"${transactionRequestBodyCard.card.expiry_year}-${transactionRequestBodyCard.card.expiry_month}")
+            }
+            _ <- Helper.booleanToFuture(s"$InvalidJsonValue your credit card is expired.", cc=callContext) {
+              org.apache.commons.lang3.time.DateUtils.addMonths(new Date(), 1).before(dateFromJsonBody)
+            }
+
+            _ <- Helper.booleanToFuture(s"$InvalidJsonValue expiry_year is not matched", cc=callContext) {
+              transactionRequestBodyCard.card.expiry_year.equalsIgnoreCase(yearFromCbs)
+            }
+            _ <- Helper.booleanToFuture(s"$InvalidJsonValue expiry_month is not matched", cc=callContext) {
+              transactionRequestBodyCard.card.expiry_month.toInt.equals(monthFromCbs.toInt+1)
+            }
+
+            _ <- Helper.booleanToFuture(s"$InvalidJsonValue name_on_card is not matched", cc=callContext) {
+              transactionRequestBodyCard.card.name_on_card.equalsIgnoreCase(nameOnCardFromCbs)
+            }
+            _ <- Helper.booleanToFuture(s"$InvalidJsonValue cvv is not matched", cc=callContext) {
+              HashUtil.Sha256Hash(transactionRequestBodyCard.card.cvv).equals(cvvFromCbs)
+            }
+
+          } yield{
+            (cardFromCbs.account, callContext)
+          }
+
+        case _ => NewStyle.function.getBankAccount(bankId,accountId, callContext)
+      }
+      _ <- NewStyle.function.isEnabledTransactionRequests(callContext)
+      _ <- Helper.booleanToFuture(InvalidAccountIdFormat, cc=callContext) {
+        isValidID(fromAccount.accountId.value)
+      }
+      _ <- Helper.booleanToFuture(InvalidBankIdFormat, cc=callContext) {
+        isValidID(fromAccount.bankId.value)
+      }
+
+      _ <- NewStyle.function.checkAuthorisationToCreateTransactionRequest(viewId, BankIdAccountId(fromAccount.bankId, fromAccount.accountId), u, callContext)
+
+      _ <- Helper.booleanToFuture(s"${InvalidTransactionRequestType}: '${transactionRequestType.value}'. Current Sandbox does not support it. ", cc=callContext) {
+        APIUtil.getPropsValue("transactionRequests_supported_types", "").split(",").contains(transactionRequestType.value)
+      }
+
+      // Check the input JSON format, here is just check the common parts of all four types
+      transDetailsJson <- NewStyle.function.tryons(s"$InvalidJsonFormat The Json body should be the $TransactionRequestBodyCommonJSON ", 400, callContext) {
+        json.extract[TransactionRequestBodyCommonJSON]
+      }
+
+      transactionAmountNumber <- NewStyle.function.tryons(s"$InvalidNumber Current input is  ${transDetailsJson.value.amount} ", 400, callContext) {
+        BigDecimal(transDetailsJson.value.amount)
+      }
+
+      _ <- Helper.booleanToFuture(s"${NotPositiveAmount} Current input is: '${transactionAmountNumber}'", cc=callContext) {
+        transactionAmountNumber > BigDecimal("0")
+      }
+
+      _ <- Helper.booleanToFuture(s"${InvalidISOCurrencyCode} Current input is: '${transDetailsJson.value.currency}'", cc=callContext) {
+        isValidCurrencyISOCode(transDetailsJson.value.currency)
+      }
+
+      (createdTransactionRequest, callContext) <- transactionRequestTypeValue match {
+        case REFUND => {
+          for {
+            transactionRequestBodyRefundJson <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $ACCOUNT json format", 400, callContext) {
+              json.extract[TransactionRequestBodyRefundJsonV400]
+            }
+
+            transactionId = TransactionId(transactionRequestBodyRefundJson.refund.transaction_id)
+
+            (fromAccount, toAccount, transaction, callContext) <- transactionRequestBodyRefundJson.to match {
+              case Some(refundRequestTo) if refundRequestTo.account_id.isDefined && refundRequestTo.bank_id.isDefined =>
+                val toBankId = BankId(refundRequestTo.bank_id.get)
+                val toAccountId = AccountId(refundRequestTo.account_id.get)
+                for {
+                  (transaction, callContext) <- NewStyle.function.getTransaction(fromAccount.bankId, fromAccount.accountId, transactionId, callContext)
+                  (toAccount, callContext) <- NewStyle.function.checkBankAccountExists(toBankId, toAccountId, callContext)
+                } yield (fromAccount, toAccount, transaction, callContext)
+
+              case Some(refundRequestTo) if refundRequestTo.counterparty_id.isDefined =>
+                val toCounterpartyId = CounterpartyId(refundRequestTo.counterparty_id.get)
+                for {
+                  (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(toCounterpartyId, callContext)
+                  (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, isOutgoingAccount = true, callContext)
+                  _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
+                    toCounterparty.isBeneficiary
+                  }
+                  (transaction, callContext) <- NewStyle.function.getTransaction(fromAccount.bankId, fromAccount.accountId, transactionId, callContext)
+                } yield (fromAccount, toAccount, transaction, callContext)
+
+              case None if transactionRequestBodyRefundJson.from.isDefined =>
+                val fromCounterpartyId = CounterpartyId(transactionRequestBodyRefundJson.from.get.counterparty_id)
+                val toAccount = fromAccount
+                for {
+                  (fromCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(fromCounterpartyId, callContext)
+                  (fromAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(fromCounterparty, isOutgoingAccount = false, callContext)
+                  _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
+                    fromCounterparty.isBeneficiary
+                  }
+                  (transaction, callContext) <- NewStyle.function.getTransaction(toAccount.bankId, toAccount.accountId, transactionId, callContext)
+                } yield (fromAccount, toAccount, transaction, callContext)
+            }
+
+            transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
+              write(transactionRequestBodyRefundJson)(Serialization.formats(NoTypeHints))
+            }
+
+            _ <- Helper.booleanToFuture(s"${RefundedTransaction} Current input amount is: '${transDetailsJson.value.amount}'. It can not be more than the original amount(${(transaction.amount).abs})", cc=callContext) {
+              (transaction.amount).abs  >= transactionAmountNumber
+            }
+            //TODO, we need additional field to guarantee the transaction is refunded...
+            //                  _ <- Helper.booleanToFuture(s"${RefundedTransaction}") {
+            //                    !((transaction.description.toString contains(" Refund to ")) && (transaction.description.toString contains(" and transaction_id(")))
+            //                  }
+
+            //we add the extra info (counterparty name + transaction_id) for this special Refund endpoint.
+            newDescription = s"${transactionRequestBodyRefundJson.description} - Refund for transaction_id: (${transactionId.value}) to ${transaction.otherAccount.counterpartyName}"
+
+            //This is the refund endpoint, the original fromAccount is the `toAccount` which will receive money.
+            refundToAccount = fromAccount
+            //This is the refund endpoint, the original toAccount is the `fromAccount` which will lose money.
+            refundFromAccount = toAccount
+
+            (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
+              viewId,
+              refundFromAccount,
+              refundToAccount,
+              transactionRequestType,
+              transactionRequestBodyRefundJson.copy(description = newDescription),
+              transDetailsSerialized,
+              sharedChargePolicy.toString,
+              Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
+              getScaMethodAtInstance(transactionRequestType.value).toOption,
+              None,
+              callContext) //in ACCOUNT, ChargePolicy set default "SHARED"
+
+            _ <- NewStyle.function.createOrUpdateTransactionRequestAttribute(
+              bankId = bankId,
+              transactionRequestId = createdTransactionRequest.id,
+              transactionRequestAttributeId = None,
+              name = "original_transaction_id",
+              attributeType = TransactionRequestAttributeType.withName("STRING"),
+              value = transactionId.value,
+              callContext = callContext
+            )
+
+            refundReasonCode = transactionRequestBodyRefundJson.refund.reason_code
+            _ <- if (refundReasonCode.nonEmpty) {
+              NewStyle.function.createOrUpdateTransactionRequestAttribute(
+                bankId = bankId,
+                transactionRequestId = createdTransactionRequest.id,
+                transactionRequestAttributeId = None,
+                name = "refund_reason_code",
+                attributeType = TransactionRequestAttributeType.withName("STRING"),
+                value = refundReasonCode,
+                callContext = callContext)
+            } else Future.successful()
+
+            (newTransactionRequestStatus, callContext) <- NewStyle.function.notifyTransactionRequest(refundFromAccount, refundToAccount, createdTransactionRequest, callContext)
+            _ <- NewStyle.function.saveTransactionRequestStatusImpl(createdTransactionRequest.id, newTransactionRequestStatus.toString, callContext)
+            createdTransactionRequest <- Future(createdTransactionRequest.copy(status = newTransactionRequestStatus.toString))
+
+          } yield (createdTransactionRequest, callContext)
+        }
+        case ACCOUNT | SANDBOX_TAN => {
+          for {
+            transactionRequestBodySandboxTan <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $ACCOUNT json format", 400, callContext) {
+              json.extract[TransactionRequestBodySandBoxTanJSON]
+            }
+
+            toBankId = BankId(transactionRequestBodySandboxTan.to.bank_id)
+            toAccountId = AccountId(transactionRequestBodySandboxTan.to.account_id)
+            (toAccount, callContext) <- NewStyle.function.checkBankAccountExists(toBankId, toAccountId, callContext)
+
+            transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
+              write(transactionRequestBodySandboxTan)(Serialization.formats(NoTypeHints))
+            }
+
+            (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
+              viewId,
+              fromAccount,
+              toAccount,
+              transactionRequestType,
+              transactionRequestBodySandboxTan,
+              transDetailsSerialized,
+              sharedChargePolicy.toString,
+              Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
+              getScaMethodAtInstance(transactionRequestType.value).toOption,
+              None,
+              callContext) //in ACCOUNT, ChargePolicy set default "SHARED"
+          } yield (createdTransactionRequest, callContext)
+        }
+        case ACCOUNT_OTP => {
+          for {
+            transactionRequestBodySandboxTan <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $ACCOUNT json format", 400, callContext) {
+              json.extract[TransactionRequestBodySandBoxTanJSON]
+            }
+
+            toBankId = BankId(transactionRequestBodySandboxTan.to.bank_id)
+            toAccountId = AccountId(transactionRequestBodySandboxTan.to.account_id)
+            (toAccount, callContext) <- NewStyle.function.checkBankAccountExists(toBankId, toAccountId, callContext)
+
+            transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
+              write(transactionRequestBodySandboxTan)(Serialization.formats(NoTypeHints))
+            }
+
+            (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
+              viewId,
+              fromAccount,
+              toAccount,
+              transactionRequestType,
+              transactionRequestBodySandboxTan,
+              transDetailsSerialized,
+              sharedChargePolicy.toString,
+              Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
+              getScaMethodAtInstance(transactionRequestType.value).toOption,
+              None,
+              callContext) //in ACCOUNT, ChargePolicy set default "SHARED"
+          } yield (createdTransactionRequest, callContext)
+        }
+        case COUNTERPARTY => {
+          for {
+            _ <- Future { logger.debug(s"Before extracting counterparty id") }
+            //For COUNTERPARTY, Use the counterpartyId to find the toCounterparty and set up the toAccount
+            transactionRequestBodyCounterparty <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $COUNTERPARTY json format", 400, callContext) {
+              json.extract[TransactionRequestBodyCounterpartyJSON]
+            }
+            toCounterpartyId = transactionRequestBodyCounterparty.to.counterparty_id
+            _ <- Future { logger.debug(s"After extracting counterparty id: $toCounterpartyId") }
+            (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(CounterpartyId(toCounterpartyId), callContext)
+
+            transactionRequestAttributes <- if(transactionRequestBodyCounterparty.attributes.isDefined && transactionRequestBodyCounterparty.attributes.head.length > 0 ) {
+
+              val attributes = transactionRequestBodyCounterparty.attributes.head
+              
+              val failMsg = s"$InvalidJsonFormat The attribute `type` field can only accept the following field: " +
+                s"${TransactionRequestAttributeType.DOUBLE}(12.1234)," +
+                s" ${TransactionRequestAttributeType.STRING}(TAX_NUMBER), " +
+                s"${TransactionRequestAttributeType.INTEGER}(123) and " +
+                s"${TransactionRequestAttributeType.DATE_WITH_DAY}(2012-04-23)"
+
+              for{
+                _ <- NewStyle.function.tryons(failMsg, 400, callContext) {
+                  attributes.map(attribute => TransactionRequestAttributeType.withName(attribute.attribute_type))
+                }
+              }yield{
+                attributes
+              }
+              
+            } else {
+              Future.successful(List.empty[TransactionRequestAttributeJsonV400])
+            }
+            
+            (counterpartyLimitBox, callContext) <- Connector.connector.vend.getCounterpartyLimit(
+              bankId.value,
+              accountId.value,
+              viewId.value,
+              toCounterpartyId,
+              callContext
+            )
+           _<- if(counterpartyLimitBox.isDefined){
+              for{
+                counterpartyLimit <- Future.successful(counterpartyLimitBox.head)
+                maxSingleAmount = counterpartyLimit.maxSingleAmount
+                maxMonthlyAmount = counterpartyLimit.maxMonthlyAmount
+                maxNumberOfMonthlyTransactions = counterpartyLimit.maxNumberOfMonthlyTransactions
+                maxYearlyAmount = counterpartyLimit.maxYearlyAmount
+                maxNumberOfYearlyTransactions = counterpartyLimit.maxNumberOfYearlyTransactions
+                maxTotalAmount = counterpartyLimit.maxTotalAmount
+                maxNumberOfTransactions = counterpartyLimit.maxNumberOfTransactions
+
+                // Get the first day of the current month
+                firstDayOfMonth: LocalDate = LocalDate.now().withDayOfMonth(1)
+
+                // Get the last day of the current month
+                lastDayOfMonth: LocalDate = LocalDate.now().withDayOfMonth(
+                  LocalDate.now().lengthOfMonth()
+                )
+                // Get the first day of the current year
+                firstDayOfYear: LocalDate = LocalDate.now().withDayOfYear(1)
+
+                // Get the last day of the current year
+                lastDayOfYear: LocalDate = LocalDate.now().withDayOfYear(
+                  LocalDate.now().lengthOfYear()
+                )
+
+                // Convert LocalDate to Date
+                zoneId: ZoneId = ZoneId.systemDefault()
+                firstCurrentMonthDate: Date = Date.from(firstDayOfMonth.atStartOfDay(zoneId).toInstant)
+                // Adjust to include 23:59:59.999
+                lastCurrentMonthDate: Date = Date.from(
+                  lastDayOfMonth
+                  .atTime(23, 59, 59, 999000000)
+                  .atZone(zoneId)
+                  .toInstant
+                )
+
+                firstCurrentYearDate: Date = Date.from(firstDayOfYear.atStartOfDay(zoneId).toInstant)
+                // Adjust to include 23:59:59.999
+                lastCurrentYearDate: Date = Date.from(
+                  lastDayOfYear
+                    .atTime(23, 59, 59, 999000000)
+                    .atZone(zoneId)
+                    .toInstant
+                )
+
+                defaultFromDate: Date = theEpochTime
+                defaultToDate: Date = APIUtil.ToDateInFuture
+
+                (sumOfTransactionsFromAccountToCounterpartyMonthly, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  firstCurrentMonthDate: Date,
+                  lastCurrentMonthDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+                (countOfTransactionsFromAccountToCounterpartyMonthly, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  firstCurrentMonthDate: Date,
+                  lastCurrentMonthDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+                (sumOfTransactionsFromAccountToCounterpartyYearly, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  firstCurrentYearDate: Date,
+                  lastCurrentYearDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+                (countOfTransactionsFromAccountToCounterpartyYearly, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  firstCurrentYearDate: Date,
+                  lastCurrentYearDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+                (sumOfAllTransactionsFromAccountToCounterparty, callContext) <- NewStyle.function.getSumOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  defaultFromDate: Date,
+                  defaultToDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+                (countOfAllTransactionsFromAccountToCounterparty, callContext) <- NewStyle.function.getCountOfTransactionsFromAccountToCounterparty(
+                  fromAccount.bankId: BankId,
+                  fromAccount.accountId: AccountId,
+                  CounterpartyId(toCounterpartyId): CounterpartyId,
+                  defaultFromDate: Date,
+                  defaultToDate: Date,
+                  callContext: Option[CallContext]
+                )
+
+
+                currentTransactionAmountWithFxApplied <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $COUNTERPARTY json format", 400, callContext) {
+                  val fromAccountCurrency = fromAccount.currency //eg: if from account currency is EUR
+                  val transferCurrency = transactionRequestBodyCounterparty.value.currency //eg: if the payment json body currency is GBP.
+                  val transferAmount = BigDecimal(transactionRequestBodyCounterparty.value.amount) //eg: if the payment json body amount is 1.
+                  val debitRate = fx.exchangeRate(transferCurrency, fromAccountCurrency, Some(fromAccount.bankId.value), callContext) //eg: the rate here is 1.16278.
+                  fx.convert(transferAmount, debitRate) // 1.16278 Euro
+                }
+
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_single_amount is $maxSingleAmount ${fromAccount.currency}, " +
+                  s"but current transaction body amount is ${transactionRequestBodyCounterparty.value.amount} ${transactionRequestBodyCounterparty.value.currency}, " +
+                  s"which is $currentTransactionAmountWithFxApplied ${fromAccount.currency}. ", cc = callContext) {
+                    maxSingleAmount >= currentTransactionAmountWithFxApplied
+                }
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_monthly_amount is $maxMonthlyAmount, but current monthly amount is ${BigDecimal(sumOfTransactionsFromAccountToCounterpartyMonthly.amount)+currentTransactionAmountWithFxApplied}", cc = callContext) {
+                  maxMonthlyAmount >= BigDecimal(sumOfTransactionsFromAccountToCounterpartyMonthly.amount)+currentTransactionAmountWithFxApplied
+                }
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_number_of_monthly_transactions is $maxNumberOfMonthlyTransactions, but current count of monthly transactions is  ${countOfTransactionsFromAccountToCounterpartyMonthly+1}", cc = callContext) {
+                  maxNumberOfMonthlyTransactions >= countOfTransactionsFromAccountToCounterpartyMonthly+1
+                }
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_yearly_amount is $maxYearlyAmount, but current yearly amount is ${BigDecimal(sumOfTransactionsFromAccountToCounterpartyYearly.amount)+currentTransactionAmountWithFxApplied}", cc = callContext) {
+                  maxYearlyAmount >= BigDecimal(sumOfTransactionsFromAccountToCounterpartyYearly.amount)+currentTransactionAmountWithFxApplied
+                }
+                result <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_number_of_yearly_transactions is $maxNumberOfYearlyTransactions, but current count of yearly transaction is  ${countOfTransactionsFromAccountToCounterpartyYearly+1}", cc = callContext) {
+                  maxNumberOfYearlyTransactions >= countOfTransactionsFromAccountToCounterpartyYearly+1
+                }
+                _ <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_total_amount is $maxTotalAmount, but current amount is ${BigDecimal(sumOfAllTransactionsFromAccountToCounterparty.amount)+currentTransactionAmountWithFxApplied}", cc = callContext) {
+                  maxTotalAmount >= BigDecimal(sumOfAllTransactionsFromAccountToCounterparty.amount)+currentTransactionAmountWithFxApplied
+                }
+                result <- Helper.booleanToFuture(s"$CounterpartyLimitValidationError max_number_of_transactions is $maxNumberOfTransactions, but current count of all transactions is  ${countOfAllTransactionsFromAccountToCounterparty+1}", cc = callContext) {
+                  maxNumberOfTransactions >= countOfAllTransactionsFromAccountToCounterparty+1
+                }
+               }yield{
+                result
+              }
+            }
+            else {
+              Future.successful(true)
+            }
+            
+            (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+            // Check we can send money to it.
+            _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
+              toCounterparty.isBeneficiary
+            }
+            chargePolicy = transactionRequestBodyCounterparty.charge_policy
+            _ <- Helper.booleanToFuture(s"$InvalidChargePolicy", cc=callContext) {
+              ChargePolicy.values.contains(ChargePolicy.withName(chargePolicy))
+            }
+            transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
+              write(transactionRequestBodyCounterparty)(Serialization.formats(NoTypeHints))
+            }
+            (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
+              viewId,
+              fromAccount,
+              toAccount,
+              transactionRequestType,
+              transactionRequestBodyCounterparty,
+              transDetailsSerialized,
+              chargePolicy,
+              Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
+              getScaMethodAtInstance(transactionRequestType.value).toOption,
+              None,
+              callContext)
+
+            _ <- NewStyle.function.createTransactionRequestAttributes(
+              bankId: BankId,
+              createdTransactionRequest.id,
+              transactionRequestAttributes,
+              true,
+              callContext: Option[CallContext]
+            )
+          } yield (createdTransactionRequest, callContext)
+        }
+        case AGENT_CASH_WITHDRAWAL => {
+          for {
+            //For Agent, Use the agentId to find the agent and set up the toAccount
+            transactionRequestBodyAgent <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $AGENT_CASH_WITHDRAWAL json format", 400, callContext) {
+              json.extract[TransactionRequestBodyAgentJsonV400]
+            }
+            (agent, callContext) <- NewStyle.function.getAgentByAgentNumber(BankId(transactionRequestBodyAgent.to.bank_id),transactionRequestBodyAgent.to.agent_number, callContext)
+            (agentAccountLinks, callContext) <-  NewStyle.function.getAgentAccountLinksByAgentId(agent.agentId, callContext)
+            agentAccountLink <- NewStyle.function.tryons(AgentAccountLinkNotFound, 400, callContext) {
+              agentAccountLinks.head
+            }
+            // Check we can send money to it.
+            _ <- Helper.booleanToFuture(s"$AgentBeneficiaryPermit", cc=callContext) {
+              !agent.isPendingAgent && agent.isConfirmedAgent
+            }
+            (toAccount, callContext) <- NewStyle.function.getBankAccount(BankId(agentAccountLink.bankId), AccountId(agentAccountLink.accountId), callContext)
+            chargePolicy = transactionRequestBodyAgent.charge_policy
+            _ <- Helper.booleanToFuture(s"$InvalidChargePolicy", cc=callContext) {
+              ChargePolicy.values.contains(ChargePolicy.withName(chargePolicy))
+            }
+            transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
+              write(transactionRequestBodyAgent)(Serialization.formats(NoTypeHints))
+            }
+            (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
+              viewId,
+              fromAccount,
+              toAccount,
+              transactionRequestType,
+              transactionRequestBodyAgent,
+              transDetailsSerialized,
+              chargePolicy,
+              Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
+              getScaMethodAtInstance(transactionRequestType.value).toOption,
+              None,
+              callContext)
+          } yield (createdTransactionRequest, callContext)
+        }
+        case CARD => {
+          for {
+            //2rd: get toAccount from counterpartyId
+            transactionRequestBodyCard <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $CARD json format", 400, callContext) {
+              json.extract[TransactionRequestBodyCardJsonV400]
+            }
+            toCounterpartyId = transactionRequestBodyCard.to.counterparty_id
+            (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByCounterpartyId(CounterpartyId(toCounterpartyId), callContext)
+            (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+            // Check we can send money to it.
+            _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
+              toCounterparty.isBeneficiary
+            }
+            chargePolicy = ChargePolicy.RECEIVER.toString
+            transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
+              write(transactionRequestBodyCard)(Serialization.formats(NoTypeHints))
+            }
+            (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
+              viewId,
+              fromAccount,
+              toAccount,
+              transactionRequestType,
+              transactionRequestBodyCard,
+              transDetailsSerialized,
+              chargePolicy,
+              Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
+              getScaMethodAtInstance(transactionRequestType.value).toOption,
+              None,
+              callContext)
+          } yield (createdTransactionRequest, callContext)
+
+        }
+        case SIMPLE => {
+          for {
+            //For SAMPLE, we will create/get toCounterparty on site and set up the toAccount
+            transactionRequestBodySimple <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $SIMPLE json format", 400, callContext) {
+              json.extract[TransactionRequestBodySimpleJsonV400]
+            }
+            (toCounterparty, callContext) <- NewStyle.function.getOrCreateCounterparty(
+              name = transactionRequestBodySimple.to.name,
+              description = transactionRequestBodySimple.to.description,
+              currency = transactionRequestBodySimple.value.currency,
+              createdByUserId = u.userId,
+              thisBankId = bankId.value,
+              thisAccountId = accountId.value,
+              thisViewId = viewId.value,
+              otherBankRoutingScheme = StringHelpers.snakify(transactionRequestBodySimple.to.other_bank_routing_scheme).toUpperCase,
+              otherBankRoutingAddress = transactionRequestBodySimple.to.other_bank_routing_address,
+              otherBranchRoutingScheme = StringHelpers.snakify(transactionRequestBodySimple.to.other_branch_routing_scheme).toUpperCase,
+              otherBranchRoutingAddress = transactionRequestBodySimple.to.other_branch_routing_address,
+              otherAccountRoutingScheme = StringHelpers.snakify(transactionRequestBodySimple.to.other_account_routing_scheme).toUpperCase,
+              otherAccountRoutingAddress = transactionRequestBodySimple.to.other_account_routing_address,
+              otherAccountSecondaryRoutingScheme = StringHelpers.snakify(transactionRequestBodySimple.to.other_account_secondary_routing_scheme).toUpperCase,
+              otherAccountSecondaryRoutingAddress = transactionRequestBodySimple.to.other_account_secondary_routing_address,
+              callContext: Option[CallContext],
+            )
+            (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+            // Check we can send money to it.
+            _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
+              toCounterparty.isBeneficiary
+            }
+            chargePolicy = transactionRequestBodySimple.charge_policy
+            _ <- Helper.booleanToFuture(s"$InvalidChargePolicy", cc=callContext) {
+              ChargePolicy.values.contains(ChargePolicy.withName(chargePolicy))
+            }
+            transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
+              write(transactionRequestBodySimple)(Serialization.formats(NoTypeHints))
+            }
+            (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
+              viewId,
+              fromAccount,
+              toAccount,
+              transactionRequestType,
+              transactionRequestBodySimple,
+              transDetailsSerialized,
+              chargePolicy,
+              Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
+              getScaMethodAtInstance(transactionRequestType.value).toOption,
+              None,
+              callContext)
+          } yield (createdTransactionRequest, callContext)
+
+        }
+        case SEPA => {
+          for {
+            //For SEPA, Use the IBAN to find the toCounterparty and set up the toAccount
+            transDetailsSEPAJson <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $SEPA json format", 400, callContext) {
+              json.extract[TransactionRequestBodySEPAJsonV400]
+            }
+            toIban = transDetailsSEPAJson.to.iban
+            (toCounterparty, callContext) <- NewStyle.function.getCounterpartyByIbanAndBankAccountId(toIban, fromAccount.bankId, fromAccount.accountId, callContext)
+            (toAccount, callContext) <- NewStyle.function.getBankAccountFromCounterparty(toCounterparty, true, callContext)
+            _ <- Helper.booleanToFuture(s"$CounterpartyBeneficiaryPermit", cc=callContext) {
+              toCounterparty.isBeneficiary
+            }
+            chargePolicy = transDetailsSEPAJson.charge_policy
+            _ <- Helper.booleanToFuture(s"$InvalidChargePolicy", cc=callContext) {
+              ChargePolicy.values.contains(ChargePolicy.withName(chargePolicy))
+            }
+            transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
+              write(transDetailsSEPAJson)(Serialization.formats(NoTypeHints))
+            }
+            (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
+              viewId,
+              fromAccount,
+              toAccount,
+              transactionRequestType,
+              transDetailsSEPAJson,
+              transDetailsSerialized,
+              chargePolicy,
+              Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
+              getScaMethodAtInstance(transactionRequestType.value).toOption,
+              transDetailsSEPAJson.reasons.map(_.map(_.transform)),
+              callContext)
+          } yield (createdTransactionRequest, callContext)
+        }
+        case FREE_FORM => {
+          for {
+            transactionRequestBodyFreeForm <- NewStyle.function.tryons(s"${InvalidJsonFormat}, it should be $FREE_FORM json format", 400, callContext) {
+              json.extract[TransactionRequestBodyFreeFormJSON]
+            }
+            // Following lines: just transfer the details body, add Bank_Id and Account_Id in the Detail part. This is for persistence and 'answerTransactionRequestChallenge'
+            transactionRequestAccountJSON = TransactionRequestAccountJsonV140(bankId.value, accountId.value)
+            transDetailsSerialized <- NewStyle.function.tryons(UnknownError, 400, callContext) {
+              write(transactionRequestBodyFreeForm)(Serialization.formats(NoTypeHints))
+            }
+            (createdTransactionRequest, callContext) <- NewStyle.function.createTransactionRequestv400(u,
+              viewId,
+              fromAccount,
+              fromAccount,
+              transactionRequestType,
+              transactionRequestBodyFreeForm,
+              transDetailsSerialized,
+              sharedChargePolicy.toString,
+              Some(OBP_TRANSACTION_REQUEST_CHALLENGE),
+              getScaMethodAtInstance(transactionRequestType.value).toOption,
+              None,
+              callContext)
+          } yield
+            (createdTransactionRequest, callContext)
+        }
+      }
+      (challenges, callContext) <-  NewStyle.function.getChallengesByTransactionRequestId(createdTransactionRequest.id.value, callContext)
+      (transactionRequestAttributes, callContext) <- NewStyle.function.getTransactionRequestAttributes(
+        bankId,
+        createdTransactionRequest.id,
+        callContext
+      )
+    } yield {
+      (JSONFactory400.createTransactionRequestWithChargeJSON(createdTransactionRequest, challenges, transactionRequestAttributes), HttpCode.`201`(callContext))
+    }
+  }
+
 }
 

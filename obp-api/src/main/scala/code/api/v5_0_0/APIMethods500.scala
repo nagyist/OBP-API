@@ -767,13 +767,21 @@ trait APIMethods500 {
             }
             (bankId, accountId, viewId, helperInfo) <- NewStyle.function.tryons(failMsg = Oauth2BadJWTException, 400, callContext) {
               val jsonWebTokenAsJValue = JwtUtil.getSignedPayloadAsJson(consent.jsonWebToken).map(json.parse(_).extract[ConsentJWT])
-              val bankId = BankId(jsonWebTokenAsJValue.head.views.head.bank_id)
-              val accountId = AccountId(jsonWebTokenAsJValue.head.views.head.account_id)
-              val viewId = ViewId(jsonWebTokenAsJValue.head.views.head.view_id)
-              val helperInfoFromJwtToken = jsonWebTokenAsJValue.head.views.head.helper_info
-              val viewCanGetCounterparty = Views.views.vend.customView(viewId, BankIdAccountId(bankId, accountId)).map(_.canGetCounterparty)
-              val helperInfo = if(viewCanGetCounterparty==Full(true)) helperInfoFromJwtToken else None
-              (bankId, accountId, viewId, helperInfo)
+              val viewsFromJwtToken = jsonWebTokenAsJValue.head.views
+              //at the moment,we only support VRP consent to show `ConsentAccountAccessJson` in the response. Because the TPP need them for payments.
+              val isVrpConsent = (viewsFromJwtToken.length == 1 )&& (viewsFromJwtToken.head.bank_id.nonEmpty)&& (viewsFromJwtToken.head.account_id.nonEmpty)&& (viewsFromJwtToken.head.view_id.startsWith("_vrp-"))
+              
+              if(isVrpConsent){
+                val bankId = BankId(viewsFromJwtToken.head.bank_id)
+                val accountId = AccountId(viewsFromJwtToken.head.account_id)
+                val viewId = ViewId(viewsFromJwtToken.head.view_id)
+                val helperInfoFromJwtToken = viewsFromJwtToken.head.helper_info
+                val viewCanGetCounterparty = Views.views.vend.customView(viewId, BankIdAccountId(bankId, accountId)).map(_.canGetCounterparty)
+                val helperInfo = if(viewCanGetCounterparty==Full(true)) helperInfoFromJwtToken else None
+                (Some(bankId), Some(accountId), Some(viewId), helperInfo)
+              }else{
+                (None, None, None, None)
+              }
             }
           } yield {
             (
@@ -782,12 +790,16 @@ trait APIMethods500 {
                 consent.jsonWebToken, 
                 consent.status, 
                 Some(consent.consentRequestId),
-                Some(ConsentAccountAccessJson(
-                  bank_id = bankId.value,
-                  account_id = accountId.value,
-                  view_id = viewId.value,
-                  helper_info =  helperInfo 
-                ))
+                if (bankId.isDefined && accountId.isDefined && viewId.isDefined) {
+                  Some(ConsentAccountAccessJson(
+                    bank_id = bankId.get.value,
+                    account_id = accountId.get.value,
+                    view_id = viewId.get.value,
+                    helper_info = helperInfo
+                  ))
+                } else {
+                  None
+                }
               ), 
               HttpCode.`200`(cc)
             )

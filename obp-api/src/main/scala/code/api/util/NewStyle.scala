@@ -6,7 +6,7 @@ import java.util.UUID.randomUUID
 import akka.http.scaladsl.model.HttpMethod
 import code.DynamicEndpoint.{DynamicEndpointProvider, DynamicEndpointT}
 import code.api.{APIFailureNewStyle, Constant, JsonResponseException}
-import code.api.Constant.SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID
+import code.api.Constant.{SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID, SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID}
 import code.api.cache.Caching
 import code.api.util.APIUtil._
 import code.api.util.ApiRole.canCreateAnyTransactionRequest
@@ -73,11 +73,11 @@ import code.api.dynamic.entity.helper.{DynamicEntityHelper, DynamicEntityInfo}
 import code.atmattribute.AtmAttribute
 import code.bankattribute.BankAttribute
 import code.connectormethod.{ConnectorMethodProvider, JsonConnectorMethod}
-import code.counterpartylimit.{CounterpartyLimit}
+import code.counterpartylimit.CounterpartyLimit
 import com.openbankproject.commons.model.CounterpartyLimitTrait
 import code.crm.CrmEvent
 import code.crm.CrmEvent.CrmEvent
-import com.openbankproject.commons.model.{CustomerAccountLinkTrait, AgentAccountLinkTrait}
+import com.openbankproject.commons.model.{AgentAccountLinkTrait, CustomerAccountLinkTrait}
 import code.dynamicMessageDoc.{DynamicMessageDocProvider, JsonDynamicMessageDoc}
 import code.dynamicResourceDoc.{DynamicResourceDocProvider, JsonDynamicResourceDoc}
 import code.endpointMapping.{EndpointMappingProvider, EndpointMappingT}
@@ -364,6 +364,20 @@ object NewStyle extends MdcLoggable{
       }
     }
     
+    def getAccountCanReadBalancesOfBerlinGroup(user : User, callContext: Option[CallContext]): OBPReturnType[List[BankIdAccountId]] = {
+      val viewIds = List(ViewId(SYSTEM_READ_BALANCES_BERLIN_GROUP_VIEW_ID))
+      Views.views.vend.getPrivateBankAccountsFuture(user, viewIds) map { i =>
+        (i, callContext )
+      }
+    }
+
+    def getAccountCanReadTransactionsOfBerlinGroup(user : User, callContext: Option[CallContext]): OBPReturnType[List[BankIdAccountId]] = {
+      val viewIds = List(ViewId(Constant.SYSTEM_READ_TRANSACTIONS_BERLIN_GROUP_VIEW_ID))
+      Views.views.vend.getPrivateBankAccountsFuture(user, viewIds) map { i =>
+        (i, callContext )
+      }
+    }
+
     def getAccountListOfBerlinGroup(user : User, callContext: Option[CallContext]): OBPReturnType[List[BankIdAccountId]] = {
       val viewIds = List(ViewId(SYSTEM_READ_ACCOUNTS_BERLIN_GROUP_VIEW_ID))
       Views.views.vend.getPrivateBankAccountsFuture(user, viewIds) map { i =>

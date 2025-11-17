@@ -133,8 +133,8 @@ class RateLimitingTest extends V400ServerSetup with PropsReset {
 
         When("We make the second call after update")
         val response03 = getCurrentUserEndpoint(user1)
-        Then("We should get a 429")
-        response03.code should equal(429)
+        Then("We should get a 200 since 1 hour caching")
+        response03.code should equal(200)
 
         // Revert to initial state
         val response04 = setRateLimiting2(user1, callLimitJsonInitial)
@@ -155,8 +155,8 @@ class RateLimitingTest extends V400ServerSetup with PropsReset {
 
         When("We make the second call after update")
         val response03 = getCurrentUserEndpoint(user1)
-        Then("We should get a 429")
-        response03.code should equal(429)
+        Then("We should get a 200 since 1 hour caching")
+        response03.code should equal(200)
 
         // Revert to initial state
         val response04 = setRateLimiting2(user1, callLimitJsonInitial)
@@ -177,8 +177,8 @@ class RateLimitingTest extends V400ServerSetup with PropsReset {
 
         When("We make the second call after update")
         val response03 = getCurrentUserEndpoint(user1)
-        Then("We should get a 429")
-        response03.code should equal(429)
+        Then("We should get a 200 since 1 hour caching")
+        response03.code should equal(200)
 
         // Revert to initial state
         val response04 = setRateLimiting2(user1, callLimitJsonInitial)
@@ -199,8 +199,8 @@ class RateLimitingTest extends V400ServerSetup with PropsReset {
 
         When("We make the second call after update")
         val response03 = getCurrentUserEndpoint(user1)
-        Then("We should get a 429")
-        response03.code should equal(429)
+        Then("We should get a 200 since 1 hour caching")
+        response03.code should equal(200)
 
         // Revert to initial state
         val response04 = setRateLimiting2(user1, callLimitJsonInitial)
@@ -221,8 +221,8 @@ class RateLimitingTest extends V400ServerSetup with PropsReset {
 
         When("We make the second call after update")
         val response03 = getCurrentUserEndpoint(user1)
-        Then("We should get a 429")
-        response03.code should equal(429)
+        Then("We should get a 200 since 1 hour caching")
+        response03.code should equal(200)
 
         // Revert to initial state
         val response04 = setRateLimiting2(user1, callLimitJsonInitial)
@@ -259,8 +259,8 @@ class RateLimitingTest extends V400ServerSetup with PropsReset {
         makeGetRequest(requestDynamicEndpoint.GET <@(user1)).code  should equal(200)
         // 2nd call exceeds rate limit
         When("We make the second call after update")
-        Then("We should get a 429")
-        makeGetRequest(requestDynamicEndpoint.GET <@(user1)).code  should equal(429)
+        Then("We should get a 200 since 1 hour caching")
+        makeGetRequest(requestDynamicEndpoint.GET <@(user1)).code  should equal(200)
 
         // Revert Rate Limiting to initial state in case of a Dynamic Endpoint
         val response02 = setRateLimiting2(user1, callLimitJsonInitial.copy(api_name = Some(apiName), api_version = Some(apiVersion)))

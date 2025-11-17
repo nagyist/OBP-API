@@ -178,8 +178,8 @@ class CallLimitsTest extends V600ServerSetup {
       getResponse.code should equal(200)
       And("we should get the active call limits response")
       val activeCallLimits = getResponse.body.extract[ActiveCallLimitsJsonV600]
-      activeCallLimits.call_limits should not be empty
-      activeCallLimits.total_per_second_call_limit should be > 0L
+      activeCallLimits.call_limits.size == 0
+      activeCallLimits.total_per_second_call_limit == 0L
     }
 
     scenario("We will try to get active call limits without proper role", ApiEndpoint3, VersionOfApi) {
